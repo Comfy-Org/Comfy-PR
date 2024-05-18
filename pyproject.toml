@@ -32,3 +32,41 @@ DisplayName =
 Icon = 
 
 
+
+
+[project]
+name = comfynode-registry-test
+description = Improved AnimateDiff integration for ComfyUI.
+version = 1.0.0
+license = LICENSE
+dependencies = []
+
+[project.urls]
+Repository = https://github.com/snomiao/ComfyNode-Registry-test
+
+#  Used by Comfy Registry https://comfyregistry.org
+[tool.comfy]
+PublisherId = 
+DisplayName = ComfyNode Registry test
+Icon = 
+
+
+
+
+[project]
+name = comfynode-registry-test
+description = Improved AnimateDiff integration for ComfyUI.
+version = 1.0.0
+license = LICENSE
+dependencies = []
+
+[project.urls]
+Repository = https://github.com/snomiao/ComfyNode-Registry-test
+
+#  Used by Comfy Registry https://comfyregistry.org
+[tool.comfy]
+PublisherId = 
+DisplayName = ComfyNode Registry test
+Icon = 
+
+
