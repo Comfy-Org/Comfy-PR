@@ -13,3 +13,22 @@ Repository = "https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved"
 PublisherId = "kosinkadink"
 DisplayName = "ComfyUI-AnimateDiff-Evolved"
 Icon = ""
+
+
+[project]
+name = 
+description = Improved AnimateDiff integration for ComfyUI.
+version = 1.0.0
+license = LICENSE
+dependencies = []
+
+[project.urls]
+Repository = 
+
+#  Used by Comfy Registry https://comfyregistry.org
+[tool.comfy]
+PublisherId = 
+DisplayName = 
+Icon = 
+
+
