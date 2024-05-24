@@ -1,11 +1,11 @@
 import DIE from "@snomiao/die";
 import { Octokit } from "octokit";
-import { question } from "zx";
 const GH_TOKEN_FOR_DELETE_REPO =
   process.env.GH_TOKEN_FOR_DELETE_REPO ||
   DIE(
-    "Missing env.GH_TOKEN_FOR_DELETE_REPO" +
-      "get one from https://github.com/settings/tokens?type=beta"
+    "Missing env.GH_TOKEN_FOR_DELETE_REPO\n" +
+      "Get one from https://github.com/settings/tokens?type=beta\n" +
+      "Check delete_repo permission"
   );
 const octokit = new Octokit({ auth: GH_TOKEN_FOR_DELETE_REPO });
 export const gh = octokit.rest;

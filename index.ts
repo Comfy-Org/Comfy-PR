@@ -7,7 +7,7 @@ import md5 from "md5";
 import { basename, dirname } from "path";
 import yaml from "yaml";
 import { argv, chalk, os, question, updateArgv, $ as zx } from "zx";
-import { DIE } from "./DIE";
+import DIE from "@snomiao/die";
 import { $ } from "./echoBunShell";
 import { gh } from "./scripts/gh";
 import { F, fromPairs, groupBy } from "rambda";
