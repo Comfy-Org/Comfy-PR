@@ -16,7 +16,7 @@
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "@snomiao/die": "^1.0.4",
+    "@snomiao/die": "^1.0.6",
     "axios": "^1.6.8",
     "dotenv": "^16.4.5",
     "execa": "^9.1.0",
