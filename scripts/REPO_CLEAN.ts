@@ -11,6 +11,7 @@ const octokit = new Octokit({ auth: GH_TOKEN_FOR_DELETE_REPO });
 export const gh = octokit.rest;
 
 const deleteList = [
+  "drip-art/PR-ComfyUI-AnimateDiff-Evolved-a142b71e"
   "drip-art/PR-ComfyNode-Registry-test-9d050f95",
   "drip-art/PR-ComfyNode-Registry-test-c1020b39",
   "drip-art/PR-ComfyNode-Registry-test-720a7a47",
