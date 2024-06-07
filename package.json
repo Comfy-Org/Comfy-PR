@@ -1,15 +1,17 @@
 {
   "name": "comfy-pr",
-  "module": "index.ts",
+  "exports": {
+    "import": "./src/index.ts"
+  },
   "type": "module",
   "bin": {
-    "comfy-pr": "index.ts"
+    "comfy-pr": "./src/cli.ts"
   },
   "scripts": {
     "release": "npm version patch && npm publish"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/bun": "^1.1.3",
     "@types/md5": "^2.3.5"
   },
   "peerDependencies": {
@@ -20,6 +22,7 @@
     "axios": "^1.6.8",
     "dotenv": "^16.4.5",
     "execa": "^9.1.0",
+    "lefthook": "^1.6.15",
     "md5": "^2.3.0",
     "octokit": "^4.0.2",
     "p-map": "^7.0.2",

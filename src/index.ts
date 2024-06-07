@@ -9,33 +9,15 @@ import yaml from "yaml";
 import { argv, chalk, os, question, updateArgv, $ as zx } from "zx";
 import DIE from "@snomiao/die";
 import { $ } from "./echoBunShell";
-import { gh } from "./scripts/gh";
+import { gh } from "../scripts/gh";
 import { F, fromPairs, groupBy } from "rambda";
 import toml from "toml";
 
-if (argv.help) {
-  console.log(
-    `
-
-bunx comfy-pr --repolist repos.txt       one repo per-line
-
-bunx comfy-pr [...GITHUB_REPO_URLS]      github repos
-
-bunx cross-env REPO=https://github.com/OWNER/REPO bunx comfy-pr
-  
-  `.trim()
-  );
-}
-
 zx.verbose = true;
-
-const repoDescriptionPromise = fetchRepoDescriptionMap();
-await checkComfyActivated();
 
 // read env/parameters
 console.log("Fetch Current Github User...");
 const user = (await gh.users.getAuthenticated()).data;
-
 const GIT_USERNAME =
   process.env.GIT_USERNAME ||
   (user.email && user.name) ||
@@ -46,7 +28,6 @@ const GIT_USEREMAIL =
   (user.email && user.email) ||
   (await question("Input env.GIT_USEREMAIL: ")) ||
   DIE("Missing env.GIT_USEREMAIL");
-
 const FORK_OWNER =
   process.env.FORK_OWNER?.replace(/"/g, "")?.trim() ||
   user.name ||
@@ -63,32 +44,7 @@ const FORK_PREFIX =
 
 console.log(`GIT_USER: ${GIT_USERNAME} <${GIT_USEREMAIL}>`);
 
-// main
-{
-  const envRepos =
-    process.env.REPO?.split("\n")
-      .map((e) => e.trim())
-      .filter(Boolean) || [];
-  const argvRepos = argv._.filter((a) => !a.endsWith(import.meta.filename));
-  const listRepos =
-    (argv.repolist &&
-      (await readFile(argv.repolist, "utf8").catch(() => ""))
-        .split("\n")
-        .map((e) => e.trim())
-        .filter(Boolean)) ||
-    [];
-  const repos = (listRepos.length && listRepos) ||
-    (argvRepos.length && argvRepos) ||
-    (envRepos.length && envRepos) || [
-      (await question("Input the PR target env.REPO: ")) ||
-        DIE("Missing env.REPO"),
-    ];
-  for await (const upstreamUrl of repos) {
-    await ComfyRegistryPR(upstreamUrl);
-  }
-}
-
-async function checkComfyActivated() {
+export async function checkComfyActivated() {
   console.log("Checking ComfyUI Activated...");
   const activate =
     os.platform() === "win32"
@@ -110,7 +66,7 @@ comfy-cli --help
   }
 }
 
-async function fetchRepoDescriptionMap() {
+export async function fetchNodeList() {
   const customNodeListSource =
     process.env.CUSTOM_LIST_SOURCE ||
     "https://raw.githubusercontent.com/ltdrdata/ComfyUI-Manager/main/custom-node-list.json";
@@ -127,6 +83,10 @@ async function fetchRepoDescriptionMap() {
       description: "ComfyUI-Manager itself is also a custom node." | string;
     }[];
   };
+  return nodeList;
+}
+async function fetchRepoDescriptionMap() {
+  const nodeList = await fetchNodeList();
   const custom_nodes = nodeList.custom_nodes;
   const repoDescriptionMap = fromPairs(
     nodeList.custom_nodes.map((e) => [e.reference, e.description])
@@ -138,7 +98,7 @@ async function fetchRepoDescriptionMap() {
   return repoDescriptionMap;
 }
 
-async function ComfyRegistryPR(upstreamUrl: string) {
+export async function ComfyRegistryPR(upstreamUrl: string) {
   // Repo Define
   const upstream = parseOwnerRepo(upstreamUrl);
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
@@ -320,7 +280,7 @@ git push "${forkUrl}" ${branch}:${branch}
 }
 
 async function fillDescription(referenceUrl: string, pyprojectToml: string) {
-  const repoDescriptionMap = await repoDescriptionPromise;
+  const repoDescriptionMap = await fetchRepoDescriptionMap();
   const matchedDescription =
     repoDescriptionMap[referenceUrl]?.toString() ||
     DIE("Warn: missing description for " + referenceUrl);
