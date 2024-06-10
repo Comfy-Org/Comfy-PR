@@ -8,7 +8,7 @@ RUN apt update -y && \
 
 WORKDIR /app
 
-COPY package.json .
+COPY package.json bun.lockb ./
 RUN npm i -g bun && bun i && ln -s $(which bun) /usr/bin
 
 # setup envs
@@ -26,8 +26,8 @@ RUN python3 -m venv .venv && \
     pip3 install comfy-cli \
     "
 
-COPY . .
+COPY src ./
+COPY . ./
 RUN chmod +x ./entry.sh
-
-
-ENTRYPOINT ./entry.sh
+ENTRYPOINT bash ./entry.sh
+HEALTHCHECK --interval=30m --timeout=1m --start-period=5m --retries=3 CMD curl localhost:80

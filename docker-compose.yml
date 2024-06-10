@@ -1,9 +1,14 @@
-
+volumes:
+  venv:
 services:
   crpr:
+    restart: always
     image: snomiao/comfy-registry-pr
     build: .
     volumes:
       - $HOME/.ssh:/root/.ssh:ro
+      - venv:/app/.venv
+      - ./prs:/app/prs
     env_file:
       - .env
+      - .env.production.local

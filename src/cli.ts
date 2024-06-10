@@ -2,7 +2,8 @@
 import { argv, chalk, os, question, updateArgv, $ as zx } from "zx";
 import { readFile } from "fs/promises";
 import DIE from "@snomiao/die";
-import { ComfyRegistryPR, checkComfyActivated } from ".";
+import { checkComfyActivated } from ".";
+import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
 if (argv.help) {
   console.log(
     `
@@ -35,6 +36,6 @@ if (argv.help) {
         DIE("Missing env.REPO"),
     ];
   for await (const upstreamUrl of repos) {
-    await ComfyRegistryPR(upstreamUrl);
+    await ComfyRegistryPRs(upstreamUrl);
   }
 }

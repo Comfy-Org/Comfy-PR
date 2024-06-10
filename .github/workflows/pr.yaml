@@ -1,0 +1,19 @@
+# TODO
+name: Run Comfy-PR Hourly
+
+on:
+  schedule:
+    - cron: '55 * * * *' # Runs every hour at the 55th minute
+  workflow_dispatch:
+
+jobs:
+  run_comfy_pr:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    - uses: oven-sh/setup-bun@v1
+
+    - run: bunx comfy-pr
+      envs:
+        ....

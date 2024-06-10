@@ -1,4 +1,6 @@
-.env
-.venv
+.env*
+.venv*
 node_modules 
 prs/
+*.log
+cache
