@@ -8,13 +8,14 @@ import pMap from "p-map";
 import "react-hook-form";
 import { timingWith } from "timing-with";
 import { match } from "ts-pattern";
+import { user } from ".";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
 import { type SlackMsg } from "./SlackNotifications";
-import { $ERROR, $OK, TaskError, TaskOK, type Task } from "./Task";
+import { $OK, TaskError, TaskOK, type Task } from "./Task";
 import { getWorker } from "./Worker";
-import { $flatten, $fresh, $stale, db } from "./db";
+import { $flatten, $fresh, db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
@@ -139,24 +140,19 @@ export async function updateCNRepos() {
     // stage 6:
     // timingWith("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
   ]);
-  // await updateCNRepoPullsDashboard();
+  await updateCNRepoPullsDashboard();
+
   const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
 
   // create prs on candidates
   await timingWith("Make PRs", async function () {
     await pMap(
-      CNRepos.find({
-        $or: [
-          $flatten({
-            candidate: { mtime: $fresh("1d"), ...$OK },
-            createdPulls: { $exists: false }, // never created
-          }),
-          $flatten({
-            candidate: { mtime: $fresh("1d"), ...$OK },
-            createdPulls: { mtime: $stale("1w"), ...$ERROR }, // get error before a week, retry now
-          }),
-        ],
-      }),
+      CNRepos.find(
+        $flatten({
+          candidate: { mtime: $fresh("1d"), ...$OK },
+          createdPulls: { $exists: false }, // never created
+        }),
+      ),
       async (repo) => {
         const { repository } = repo;
         await timingWith("Making PRs for " + repository, async () => {});
@@ -173,6 +169,7 @@ export async function updateCNRepos() {
     );
   });
   console.log("All repo updated");
+  process.exit(0);
 }
 
 async function updateCNRepoPullsDashboard() {
@@ -183,6 +180,8 @@ async function updateCNRepoPullsDashboard() {
     dashBoardIssue.match(/\/issues\/(\d+)$/)?.[1] ||
       DIE("Issue number not found"),
   );
+  // update dashboard issue if run by @snomiao
+  if (user.login === "snomiao") return;
 
   const repos = await CNRepos.find(
     $flatten({ crPulls: { mtime: $fresh("1d") } }),
