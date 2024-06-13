@@ -1,16 +1,16 @@
 # TODO
-name: Run Comfy-PR Hourly
+name: Run Comfy-PR Hourly.
 
 on:
   schedule:
-    - cron: "55 * * * *" # Runs every hour at the 55th minute
+    - cron: "55 * * * *" # Runs every the 55th minute
   workflow_dispatch:
   push:
     branches:
       - main
       - master
     paths:
-      - "src/CNRepos.ts"
+      - "src/*"
 jobs:
   run_comfy_pr:
     runs-on: ubuntu-latest
