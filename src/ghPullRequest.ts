@@ -42,11 +42,8 @@ export async function createGithubPullRequest({
     console.log(chalk.red(yaml.stringify(msg)));
     return existedList[0];
   }
-  // if (!process.env.GH_TOKEN_COMFY_PR) {
-  //   DIE("Missing env.GH_TOKEN_COMFY_PR");
-  // }
-  if (!process.env.ENABLE_GH_PR) {
-    DIE("Please set env.ENABLE_GH_PR");
+  if (!process.env.GH_TOKEN_COMFY_PR) {
+    DIE("Missing env.GH_TOKEN_COMFY_PR");
   }
   const pr_result = await gh.pulls
     .create({

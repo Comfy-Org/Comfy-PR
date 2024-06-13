@@ -157,14 +157,11 @@ export async function updateCNRepos() {
         const { repository } = repo;
         await timingWith("Making PRs for " + repository, async () => {});
 
-        const prResult = await ComfyRegistryPRs(repository)
+        const createdPulls = await ComfyRegistryPRs(repository)
           .then(TaskOK)
           .catch(TaskError);
 
-        await CNRepos.updateOne(
-          { repository },
-          { $set: { createdPulls: prResult } },
-        );
+        await CNRepos.updateOne({ repository }, { $set: { createdPulls } });
       },
     );
   });
