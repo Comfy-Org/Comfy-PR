@@ -12,9 +12,9 @@ import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
 import { type SlackMsg } from "./SlackNotifications";
-import { $OK, TaskError, TaskOK, type Task } from "./Task";
+import { $ERROR, $OK, TaskError, TaskOK, type Task } from "./Task";
 import { getWorker } from "./Worker";
-import { $flatten, $fresh, db } from "./db";
+import { $flatten, $fresh, $stale, db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
@@ -139,18 +139,24 @@ export async function updateCNRepos() {
     // stage 6:
     // timingWith("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
   ]);
-  await updateCNRepoPullsDashboard();
+  // await updateCNRepoPullsDashboard();
   const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
 
   // create prs on candidates
   await timingWith("Make PRs", async function () {
     await pMap(
-      CNRepos.find(
-        $flatten({
-          candidate: { mtime: $fresh("1d"), ...$OK },
-          createdPulls: { $exists: false },
-        }),
-      ),
+      CNRepos.find({
+        $or: [
+          $flatten({
+            candidate: { mtime: $fresh("1d"), ...$OK },
+            createdPulls: { $exists: false }, // never created
+          }),
+          $flatten({
+            candidate: { mtime: $fresh("1d"), ...$OK },
+            createdPulls: { mtime: $stale("1w"), ...$ERROR }, // get error before a week, retry now
+          }),
+        ],
+      }),
       async (repo) => {
         const { repository } = repo;
         await timingWith("Making PRs for " + repository, async () => {});

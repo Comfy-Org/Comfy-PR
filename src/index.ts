@@ -11,7 +11,7 @@ zx.verbose = true;
 // read env/parameters
 console.log("Fetch Current Github User...");
 export const user = (await gh.users.getAuthenticated()).data;
-console.log("Current Github User:", user.login);
+console.log(`Current Github User: ${user.login} <${user.email}>`);
 export const GIT_USERNAME =
   process.env.GIT_USERNAME ||
   (user.email && user.name) ||
@@ -28,7 +28,7 @@ export const FORK_PREFIX =
   process.env.FORK_PREFIX?.replace(/"/g, "")?.trim() ||
   DIE('Missing env.FORK_PREFIX, if you want empty maybe try FORK_PREFIX=""');
 
-console.log(`GIT_USER: ${GIT_USERNAME} <${GIT_USEREMAIL}>`);
+console.log(`GIT COMMIT USER: ${GIT_USERNAME} <${GIT_USEREMAIL}>`);
 
 export async function checkComfyActivated() {
   console.log("Checking ComfyUI Activated...");
