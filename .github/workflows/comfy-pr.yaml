@@ -10,7 +10,7 @@ on:
       - main
       - master
     paths:
-      - "src/*"
+      - "src/*.ts"
 jobs:
   run_comfy_pr:
     runs-on: ubuntu-latest
