@@ -21,7 +21,7 @@ jobs:
       # setup comfy-cli
       - uses: actions/setup-python@v2
         with:
-          python-version: '3.x'
+          python-version: "3.x"
       - run: python -m pip install --upgrade pip
       - run: python -m venv .venv
       - run: source .venv/bin/activate
@@ -36,3 +36,4 @@ jobs:
           FORK_PREFIX: "PR-"
           SLACK_BOT_CHANNEL: ${{ secrets.SLACK_BOT_CHANNEL }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
