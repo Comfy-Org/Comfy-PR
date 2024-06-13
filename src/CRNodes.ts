@@ -1,24 +1,25 @@
-import { fetchComfyRegistryNodes } from "./fetchComfyRegistryNodes";
+import { fetchCRNodes } from "./fetchComfyRegistryNodes";
 import { filter, groupBy, values } from "rambda";
 import { YAML } from "zx";
 import { db } from "./db";
 import pMap from "p-map";
-import { slackNotify, type SlackNotification } from "./SlackNotifications";
+import { slackNotify, type SlackMsg } from "./SlackNotifications";
 import { slackLinksNotify } from "./slackUrlsNotify";
+import type { ObjectId } from "mongodb";
 
-export type CRNode = Awaited<
-  ReturnType<typeof fetchComfyRegistryNodes>
->[number] & {
-  sent?: { slack?: SlackNotification };
+export type CRNode = Awaited<ReturnType<typeof fetchCRNodes>>[number] & {
+  sent?: { slack?: SlackMsg };
+  repo_id?: ObjectId;
 };
 export const CRNodes = db.collection<CRNode>("CRNodes");
 await CRNodes.createIndex({ id: 1 }, { unique: true });
 await CRNodes.createIndex({ repository: 1 }, { unique: false }); // WARN: duplicate is allowed
 if (import.meta.main) {
   console.log(await updateCRNodes());
+  console.log("CRNodes updated");
 }
 export async function updateCRNodes() {
-  const nodes = await fetchComfyRegistryNodes();
+  const nodes = await fetchCRNodes();
 
   // check src duplicated
   const group = groupBy((e) => e.repository, nodes);
@@ -31,18 +32,14 @@ export async function updateCRNodes() {
       "\n```";
     await slackNotify(msg, { unique: true });
   }
-  // update or insert
-  const result = await pMap(nodes, async (node) => {
-    const r = await CRNodes.updateOne(
-      { id: node.id },
-      { $set: node },
-      { upsert: true }
-    );
-    return { ...r, link: { name: node.name, href: node.repository } };
-  });
-  const modified = result.filter((e) => e.modifiedCount).map((e) => e.link);
-  const upserted = result.filter((e) => e.upsertedCount).map((e) => e.link);
-  await slackLinksNotify("ComfyRegistry Nodes updated", modified);
-  await slackLinksNotify("ComfyRegistry Nodes added", upserted);
-  return result;
+  return (await CRNodes.bulkWrite(
+    nodes.flatMap((node) => ({
+      updateOne: {
+        filter: { id: node.id },
+        update: { $set: node },
+        upsert: true,
+      },
+    })),
+    { ordered: false }
+  ));
 }

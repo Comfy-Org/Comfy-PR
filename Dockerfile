@@ -30,4 +30,4 @@ COPY src ./
 COPY . ./
 RUN chmod +x ./entry.sh
 ENTRYPOINT bash ./entry.sh
-HEALTHCHECK --interval=30m --timeout=1m --start-period=5m --retries=3 CMD curl localhost:80
+HEALTHCHECK --interval=30m --timeout=1m --start-period=1m --retries=3 CMD curl localhost:80

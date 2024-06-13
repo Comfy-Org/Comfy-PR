@@ -4,14 +4,27 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 
 ## Project Goals: (aka roadmap)
 
+### cli:
+
 - [x] fork repo
 - [x] clone repo locally
 - [x] create pyproject branch, run comfy node init . Push branch.
 - [x] create publish branch, create in a Github workflow file. Push branch.
 - [x] create PR to original repository with template PR description.
 - [x] Submit PR
+- [x] Clean local debris before clone
 
-- [ ] Delete the repo which is Done (merged or rejected)
+### Server
+
+- [x] fetch repos from CM & CR list
+- [x] make diff
+- [x] notify to slack channel
+- [x] scan repo status (archived)
+- [x] scan pr status (open / merged / closed) + comments
+- [x] automaticaly find candidates, and do the cli does
+- [ ] Mention related prs in https://github.com/drip-art/Comfy-Registry-PR/issues/1
+- [ ] email subscriber
+- [ ] Delete the forked repo which is Merged
 
 ## Get Started by
 

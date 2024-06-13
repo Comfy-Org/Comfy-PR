@@ -1,12 +1,11 @@
 #!/usr/bin/env bun
-
+import DIE from "@snomiao/die";
 import { $ as bunSh, serve, sleep } from "bun";
 import "dotenv/config";
-import { os, question, updateArgv, $ as zx } from "zx";
-import DIE from "@snomiao/die";
+import { os, question, $ as zx } from "zx";
+import { scanCNRepoThenCreatePullRequests } from "./CNRepos";
+import { updateCNRepos } from "./updateCNRepos";
 import { gh } from "./gh";
-import { F, groupBy } from "rambda";
-import updateCNRepos, { CNRepos, scanCNRepoThenPRs } from "./CNRepos";
 
 zx.verbose = true;
 
@@ -27,13 +26,13 @@ export const FORK_OWNER =
   process.env.FORK_OWNER?.replace(/"/g, "")?.trim() ||
   user.name ||
   (await question(
-    "Input env.FORK_OWNER (for example FORK_OWNER=ComfyNodePRs, will fork into https://github.com/ComfyNodePRs): "
+    "Input env.FORK_OWNER (for example FORK_OWNER=ComfyNodePRs, will fork into https://github.com/ComfyNodePRs): ",
   )) ||
   DIE("Missing env.FORK_OWNER");
 export const FORK_PREFIX =
   (process.env.FORK_PREFIX?.replace(/"/g, "")?.trim() ||
     (await question(
-      "Input env.FORK_PREFIX ('PR-' is Recommened, but also it could be empty): "
+      "Input env.FORK_PREFIX ('PR-' is Recommened, but also it could be empty): ",
     ))) ??
   DIE('Missing env.FORK_PREFIX, if you want empty maybe try FORK_PREFIX=""');
 
@@ -48,7 +47,6 @@ export async function checkComfyActivated() {
       ? ".venv\\Scripts\\activate"
       : "source .venv/bin/activate";
   if (!(await bunSh`comfy --help`.quiet().catch(() => null))) {
-    console.log('fail')
     DIE(
       `
 Cound not found comfy-cli.
@@ -60,7 +58,7 @@ python -m venv .venv
 ${activate}
 pip install comfy-cli
 comfy-cli --help
-`.trim()
+`.trim(),
     );
   }
 }
@@ -74,13 +72,10 @@ if (import.meta.main) {
 
   await checkComfyActivated();
   // src/CNRepos
-
-  await updateCNRepos();
-
-  // updateCNReposPRTasks
-  await scanCNRepoThenPRs();
+  await Promise.all([updateCNRepos(), scanCNRepoThenCreatePullRequests()]);
+  await scanCNRepoThenCreatePullRequests();
 
   console.log("all done");
-  await sleep(600e3); // 10min
+  await sleep(600e3); // 10min restart
   process.exit(0);
 }

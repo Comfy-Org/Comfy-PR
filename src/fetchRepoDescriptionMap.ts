@@ -1,9 +1,9 @@
 import { fromPairs } from "rambda";
-import { fetchComfyUIManagerNodeList } from "./fetchComfyUIManagerNodeList";
+import { fetchCMNodes } from "./fetchCMNodes";
 
 
 export async function fetchRepoDescriptionMap() {
-  const nodeList = await fetchComfyUIManagerNodeList();
+  const nodeList = await fetchCMNodes();
   const repoDescriptionMap = fromPairs(
     nodeList.map((e) => [e.reference, e.description])
   );

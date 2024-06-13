@@ -1,5 +1,5 @@
 import { sortBy } from "rambda";
-import { slackNotify } from "./SlackNotifications";
+import { slackNotify, type SlackMsg } from "./SlackNotifications";
 
 export async function slackLinksNotify(
   topic: string,

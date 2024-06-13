@@ -1,61 +1,63 @@
 import Keyv from "keyv";
 import { mkdir } from "fs/promises";
 import { gh } from "./gh";
-import { repoUrlParse } from "./parseOwnerRepo";
+import { parseRepoUrl } from "./parseOwnerRepo";
 import { KeyvCachedWith } from "keyv-cached-with";
 import { db } from "./db";
 import { pickAll, times } from "rambda";
-export type GithubRepoPR = GithubRepoPRs["prs"][number];
-export type GithubRepoPRs = Awaited<ReturnType<typeof fetchRepoPRs>>;
-export const GithubRepoPRss = db.collection<GithubRepoPRs>("GithubRepoPRss");
-await GithubRepoPRss.createIndex({ repo: 1 }, { unique: true });
+import { CNRepos } from "./CNRepos";
+import { YAML } from "zx";
 
 if (import.meta.main) {
-  const repo = "https://github.com/ltdrdata/ComfyUI-Manager";
-  await findRepoPRs(repo).then(console.log);
-  await updateRepoPRs(repo).then(console.log);
-}
-export async function updateRepoPRs(repo: string) {
-  const valid = await findRepoPRs(repo);
-  const updateResult = await GithubRepoPRss.updateOne(
-    { repo },
-    { $set: valid || (await fetchRepoPRs(repo)) },
-    { upsert: true }
-  );
-  return updateResult;
-}
-export async function findRepoPRs(repo: string) {
-  return await GithubRepoPRss.findOne({
-    repo,
-    mtime: { $gt: new Date(+Date.now() - 86400e3) },
-  });
+  // const repo = "https://github.com/ltdrdata/ComfyUI-Manager";
+  // const repo = "https://github.com/WASasquatch/PPF_Noise_ComfyUI";
+  const repo = "https://github.com/Lev145/images-grid-comfy-plugin";
+  const pulls = await fetchGithubPulls(repo);
+  console.log(pulls.length);
+  // const relatedTitle = "Add pyproject.toml for Custom Node Registry";
+  const relatedTitle = "Add Github Action for Publishing to Comfy Registry";
+  const pull = pulls.find((e) => e.title === relatedTitle)!;
+  console.log(JSON.stringify({ pull }));
+  const comments = await fetchPullComments(repo, { number: 11 });
+  console.log(YAML.stringify(comments));
 }
 
-async function fetchRepoPRs(repo: string) {
-  console.log("Fetching repo prs: " + repo);
-  const prsraw = await gh.pulls.list({ ...repoUrlParse(repo), state: "all" });
-  const prs = prsraw.data.map(
-    ({
-      html_url,
-      state,
-      merged_at,
-      assignee,
-      number,
-      closed_at,
-      created_at,
-      updated_at,
-      title,
-    }) => ({
-      html_url,
-      state,
-      merged_at,
-      assignee,
-      number,
-      closed_at,
-      created_at,
-      updated_at,
-      title,
+export type GithubPull = Awaited<ReturnType<typeof fetchGithubPulls>>[number];
+export type GithubPullComment = Awaited<
+  ReturnType<typeof fetchPullComments>
+>[number];
+
+export async function fetchPullComments(
+  repo: string,
+  pull: { number: number }
+) {
+  const result = (
+    await gh.issues.listComments({
+      ...parseRepoUrl(repo),
+      issue_number: pull.number,
+      direction: "asc",
+      sort: "created",
     })
+  ).data;
+  console.log(
+    `[INFO] fetchd Pull Comments (${result.length}) from ${repo} #${pull.number}`
   );
-  return { repo, mtime: new Date(), prs };
+  return result;
+}
+
+export async function fetchGithubPulls(repository: string) {
+  return (
+    await gh.pulls.list({
+      ...parseRepoUrl(repository),
+      state: "all",
+    })
+  ).data.map((e) => ({
+    ...e,
+    state:
+      e.state === "open"
+        ? ("open" as const)
+        : e.merged_at
+        ? ("merged" as const)
+        : ("closed" as const),
+  }));
 }

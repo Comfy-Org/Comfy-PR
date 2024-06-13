@@ -1,9 +1,9 @@
+import DIE from "@snomiao/die";
 import yaml from "yaml";
 import { chalk } from "zx";
 import { gh } from "./gh";
-import { repoUrlParse } from "./parseOwnerRepo";
-
-export async function ghPullRequest({
+import { parseRepoUrl } from "./parseOwnerRepo";
+export async function createGithubPullRequest({
   title,
   body,
   branch,
@@ -16,8 +16,8 @@ export async function ghPullRequest({
   srcUrl: string;
   dstUrl: string;
 }) {
-  const dst = repoUrlParse(dstUrl);
-  const src = repoUrlParse(srcUrl);
+  const dst = parseRepoUrl(dstUrl);
+  const src = parseRepoUrl(srcUrl);
   const repo = (await gh.repos.get({ ...dst })).data;
 
   // TODO: seems has bugs on head_repo
@@ -40,7 +40,9 @@ export async function ghPullRequest({
     console.log(chalk.red(yaml.stringify(msg)));
     return;
   }
-
+  if (!process.env.GH_TOKEN_COMFY_PR) {
+    DIE("Missing env.GH_TOKEN_COMFY_PR");
+  }
   const pr_result = await gh.pulls
     .create({
       // pr info

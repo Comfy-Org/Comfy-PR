@@ -1,55 +1,66 @@
 import { rm } from "fs/promises";
 import md5 from "md5";
+import pMap from "p-map";
 import yaml from "yaml";
 import { argv, chalk } from "zx";
-import { repoUrlParse } from "./parseOwnerRepo";
+import { FORK_OWNER, FORK_PREFIX, user } from ".";
 import { ghFork } from "./ghFork";
-import { pushBranchPublish } from "./pushBranchPublish";
-import { pushTomlBranch } from "./pushTomlBranch";
-import { ghPullRequest } from "./ghPullRequest";
-import { user, FORK_PREFIX, FORK_OWNER } from ".";
+import { createGithubPullRequest } from "./ghPullRequest";
+import { parseRepoUrl } from "./parseOwnerRepo";
+import { makePublishBranch } from "./makePublishBranch";
+import { makeTomlBranch } from "./makeTomlBranch";
+import { getRepoWorkingDir } from "./getRepoWorkingDir";
 
 export async function ComfyRegistryPRs(upstreamUrl: string) {
   // Repo Define
-  const upstream = repoUrlParse(upstreamUrl);
+  const upstream = parseRepoUrl(upstreamUrl);
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
   console.log(`* Change env.SALT=${salt} will fork into a different repo`);
   const repo_hash = md5(
-    `${salt}-${user.name}-${upstream.owner}/${upstream.repo}`
+    `${salt}-${user.name}-${upstream.owner}/${upstream.repo}`,
   ).slice(0, 8);
   const forkRepoName =
     (FORK_PREFIX && `${FORK_PREFIX}${upstream.repo}-${repo_hash}`) ||
     upstream.repo;
   const forkDst = `${FORK_OWNER}/${forkRepoName}`;
   const forkUrl = `https://github.com/${forkDst}`;
-  const forkSSHUrl = `git@github.com:${forkDst}`;
-  const src = repoUrlParse(forkSSHUrl);
   // console.log("PR_SRC: ", forkSSHUrl);
   // console.log("PR_DST: ", upstreamUrl);
   // console.log(forkSSHUrl);
   console.log("Cleaning the pr before run");
-  const dir = `prs/${src.repo}`;
+  const dir = getRepoWorkingDir(forkUrl);
   await rm(dir, { recursive: true }).catch(() => null);
 
   //   FORK
-  await ghFork(upstreamUrl, forkSSHUrl);
+  const forkedRepo = await ghFork(upstreamUrl, forkUrl);
 
   // prInfos
-  const PR_REQUESTS = (
+  const forkSSHUrl = `git@github.com:${forkDst}`;
+
+  const PR_REQUESTS = await publishBranches(dir, upstreamUrl, forkUrl);
+
+  console.log("PR Infos");
+  console.log(chalk.green(yaml.stringify({ PR_REQUESTS })));
+  // prs
+  const prs = await pMap(PR_REQUESTS, (prInfo) =>
+    createGithubPullRequest({ ...prInfo }),
+  );
+  console.log("ALL PRs DONE");
+  return prs;
+}
+async function publishBranches(
+  dir: string,
+  upstreamUrl: string,
+  forkUrl: string,
+) {
+  return (
     await Promise.all([
-      pushBranchPublish(dir, upstreamUrl, forkSSHUrl),
-      pushTomlBranch(dir, upstreamUrl, forkSSHUrl),
+      makePublishBranch(dir, upstreamUrl, forkUrl),
+      makeTomlBranch(dir, upstreamUrl, forkUrl),
     ])
   ).map((content) => ({
     ...content,
     srcUrl: forkUrl,
     dstUrl: upstreamUrl,
   }));
-
-  console.log("PR Infos");
-  console.log(chalk.green(yaml.stringify({ PR_REQUESTS })));
-  // prs
-  const prs = await Promise.all(PR_REQUESTS.map((prInfo) => ghPullRequest({ ...prInfo })));
-  console.log("ALL PRs DONE");
-  return prs
 }

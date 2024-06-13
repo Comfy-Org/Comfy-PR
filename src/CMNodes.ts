@@ -1,50 +1,106 @@
+import jsonStableStringify from "json-stable-stringify";
+import { unary } from "lodash-es";
+import md5 from "md5";
+import type { ObjectId } from "mongodb";
 import pMap from "p-map";
-import { db } from "./db";
-import { fetchComfyUIManagerNodeList } from "./fetchComfyUIManagerNodeList";
-import { slackLinksNotify } from "./slackUrlsNotify";
-import { filter, groupBy, prop, values } from "rambda";
+import { dissoc, filter, groupBy, map, prop, toPairs } from "rambda";
 import { YAML } from "zx";
+import { slackNotify, type SlackMsg } from "./SlackNotifications";
+import { db } from "./db";
+import { fetchCMNodes } from "./fetchCMNodes";
 
-export type CMNode = Awaited<
-  ReturnType<typeof fetchComfyUIManagerNodeList>
->[number];
+// Raw version maybe duplicated with id or reference
+type CMNodeRaw = Awaited<ReturnType<typeof fetchCMNodesWithHash>>[number];
+export type CMNode = CMNodeRaw & {
+  repo_id?: ObjectId;
+  duplicated?: {
+    [k: string]: { hashes: string[]; slackNotification: SlackMsg };
+  };
+};
 export const CMNodes = db.collection<CMNode>("CMNodes");
-await CMNodes.createIndex({ reference: 1 }, { unique: true });
-await CMNodes.createIndex({ title: 1 }, { unique: true });
-// await CMNodes.createIndex({ id: 1 }, { unique: true }); // bad thing is: id is not unique
-
+await CMNodes.createIndex({ mtime: -1 });
+await CMNodes.createIndex({ hash: 1 }, { unique: true }).catch(() => {});
 if (import.meta.main) {
+  console.time("CMNodes");
   console.log(await updateCMNodes());
+  // check dups
+  console.timeLog("CMNodes");
+  const all = await CMNodes.countDocuments({});
+  console.timeLog("CMNodes");
+  const dups = await CMNodes.countDocuments({ duplicated: { $exists: true } });
+  console.timeEnd("CMNodes");
+  console.log("CMNodes updated, duplicates:", dups, "all:", all);
 }
 export async function updateCMNodes() {
-  const nodes = await fetchComfyUIManagerNodeList();
+  const nodes = await fetchCMNodesWithHash();
+  console.log("CMNodes updating (" + nodes.length + " nodes)");
 
-  // assert title is no duplicated
-  const grouped = groupBy((e) => e.title, nodes);
-  const duplicates = filter(
-    (e) => e.length > 1,
-    grouped
+  // updating nodes
+  await CMNodes.bulkWrite(
+    nodes.flatMap((node) => ({
+      updateOne: {
+        filter: { hash: node.hash },
+        update: { $set: node },
+        upsert: true,
+      },
+    })),
+    { ordered: false },
   );
-  if (values(duplicates).length) {
-    throw new Error("Duplicated nodes found: " + YAML.stringify(duplicates));
+  // delete outdated
+  await CMNodes.deleteMany({ hash: { $nin: nodes.map(prop("hash")) } });
+
+  console.log("CMNodes checking duplicates");
+  // prettier-ignore
+  const dups = {
+    ID: filter((e: typeof nodes) => e.length > 1, groupBy((e) => e.id, nodes)),
+    TITLE: filter((e: typeof nodes) => e.length > 1, groupBy((e) => e.title, nodes)),
+    REFERENCE: filter((e: typeof nodes) => e.length > 1, groupBy((e) => e.reference, nodes)),
   }
-  const result = await pMap(nodes, async (node) => ({
-    ...(await CMNodes.updateOne(
-      { reference: node.reference },
-      { $set: node },
-      { upsert: true }
-    )),
-    link: {
-      name:
-        node.reference.replace(/^https?:\/\/(?:github.com\/)?/, "") +
-        " - " +
-        node.title,
-      href: node.reference,
-    },
+  const dupsSummary = JSON.stringify(map((x) => map((x) => x.length, x), dups));
+  await slackNotify(
+    `[WARN] CMNodes duplicates: ${dupsSummary}\nSolve them in https://github.com/ltdrdata/ComfyUI-Manager/blob/main/custom-node-list.json`,
+  );
+
+  await pMap(
+    toPairs(dups),
+    async ([topic, nodes]) =>
+      await pMap(
+        toPairs(nodes),
+        async ([key, nodesRaw]) => {
+          const nodes = nodesRaw.map(unary(dissoc("hash")));
+          const hashes = nodesRaw.map(prop("hash"));
+          // check sent
+          const someDuplicateSent = await CMNodes.findOne({
+            hash: { $in: hashes },
+            [`duplicated.${topic}`]: { $exists: true },
+          });
+          if (someDuplicateSent) return;
+          // send slack notification
+          const slackNotification = await slackNotify(
+            `[ACTION NEEDED WARNING]: please resolve duplicated node in ${topic}: ${key}\n` +
+              "```\n" +
+              YAML.stringify(nodes) +
+              "```" +
+              "\n\nSolve them in https://github.com/ltdrdata/ComfyUI-Manager/blob/main/custom-node-list.json",
+            { unique: true },
+          );
+          // mark duplicates
+          await CMNodes.updateMany(
+            { hash: { $in: hashes } },
+            {
+              $set: { [`duplicated.${topic}`]: { hashes, slackNotification } },
+            },
+          );
+        },
+        { concurrency: 1 },
+      ),
+    { concurrency: 1 },
+  );
+}
+
+async function fetchCMNodesWithHash() {
+  return (await fetchCMNodes()).map((e) => ({
+    ...e,
+    hash: md5("SALT=Bvxmh8mGYh6qzLGE " + jsonStableStringify(e)),
   }));
-  const upserted = result.filter((e) => e.upsertedCount).map((e) => e.link);
-  const modified = result.filter((e) => e.modifiedCount).map((e) => e.link);
-  await slackLinksNotify("Custom Nodes updated", modified);
-  await slackLinksNotify("Custom Nodes added", upserted);
-  return result;
 }

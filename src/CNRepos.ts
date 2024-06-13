@@ -1,193 +1,196 @@
-/* 
- bun src/CNRepos.ts
-  */
-import pMap from "p-map";
-import promiseAllProperties from "promise-all-properties";
-import { CMNodes, updateCMNodes, type CMNode } from "./CMNodes";
-import { CRNodes, updateCRNodes, type CRNode } from "./CRNodes";
-import { db } from "./db";
-import {
-  updateCNRepoLinkings,
-  updateCNRepoPRStatus,
-  type PRLink,
-} from "./updateRepoPRStatus";
-import { slackNotify, type SlackNotification } from "./SlackNotifications";
-import { slackLinksNotify } from "./slackUrlsNotify";
-import {
-  updateRepoPRs,
-  type GithubRepoPR,
-  type GithubRepoPRs,
-} from "./fetchRepoPRs";
+#!/usr/bin/env bun
+/*
+bun index.ts
+*/
 import DIE from "@snomiao/die";
-import { shuffleArray } from "rxdb";
-import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
-import { CNPulls } from "./CNPulls-bak";
-import { $ } from "./echoBunShell";
+import type { WithId } from "mongodb";
+import "react-hook-form";
+import { timingWith } from "timing-with";
+import { match } from "ts-pattern";
+import { type CMNode } from "./CMNodes";
+import { type CRNode } from "./CRNodes";
+import type { PushedBranch } from "./PushedBranch";
+import { type SlackMsg } from "./SlackNotifications";
+import { $OK, type Task } from "./Task";
+import { Worker, getWorker } from "./Worker";
+import { $flatten, $fresh, db } from "./db";
+import { type RelatedPull } from "./fetchRelatedPulls";
+import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
-import { repoUrlParse } from "./parseOwnerRepo";
+import { parseRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
+import { scanCNRepoPRCandidates } from "./scanCNRepoPRCandidates";
+import { updateCMRepos } from "./updateCMRepos";
+import { updateCNReposInfo } from "./updateCNReposInfo";
+import { updateCNReposPulls } from "./updateCNReposPulls";
+import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
+import { updateCRRepos } from "./updateCRRepos";
+
+type Email = {
+  from?: string;
+  title: string;
+  body: string;
+  to: string;
+};
 
 type Sent = {
-  slack?: SlackNotification;
-  emails?: { from: string; to: string; title: string; body: string }[];
+  slack?: SlackMsg;
+  emails?: Email[];
 };
 
+type GithubIssueComment = Awaited<
+  ReturnType<typeof gh.issues.getComment>
+>["data"];
+type GithubIssue = Awaited<ReturnType<typeof gh.issues.get>>["data"];
+type GithubRepo = Awaited<ReturnType<typeof gh.repos.get>>["data"];
+type CRType = "pyproject" | "publichcr";
 export type CustomNodeRepo = {
   repository: string;
-  prs?: {
-    toml?: Pick<GithubRepoPR, "html_url" | "state">;
-    action?: Pick<GithubRepoPR, "html_url" | "state">;
-    mtime?: Date;
-    error?: string;
-  };
-  candiate?: boolean;
-  archived?: boolean;
-  prsTask?: {
-    stime?: Date;
-    mtime?: Date;
-    error?: string;
-    status?: "idle" | "pending" | "done" | "error";
-  };
-  cr?: CRNode;
-  cm?: CMNode;
-  events?: { prsFound?: Sent };
+  cr?: WithId<CRNode>;
+  cm?: WithId<CMNode>;
+  info?: Task<GithubRepo>;
+  pulls?: Task<GithubPull[]>;
+  crPulls?: Task<RelatedPull[]>;
+  createFork?: Task<GithubRepo>;
+  createBranches?: Task<{ type: CRType; assigned: Worker } & PushedBranch>[];
+  createPullRequests?: Task<{ type: CRType; pr: GithubPull }>[];
 };
+
 export const CNRepos = db.collection<CustomNodeRepo>("CNRepos");
 await CNRepos.createIndex({ repository: 1 }, { unique: true });
 
 if (import.meta.main) {
+  await getWorker("Updating CNRepos");
   // await cacheHealthReport();
   await updateCNRepos();
   // updateCNReposPRTasks
-  await scanCNRepoThenPRs();
+  // await scanCNRepoThenPRs();
   // await pMap(candidates, (e) => updateCNRepoPRStatus(e.repository), { concurrency: 4 });
   // candidates
 }
+export async function scanCNRepoThenCreatePullRequests() {
+  const _candidates = await scanCNRepoPRCandidates();
+  // const candidates = await pMap(
+  //   _candidates,
+  //   async ({ repository }) => {
+  //     const ghrepo = await gh.repos.get({ ...repoUrlParse(repository) });
+  //     return (await CNRepos.findOneAndUpdate(
+  //       { repository },
+  //       { $set: { archived: ghrepo.data.archived } },
+  //       { upsert: true }
+  //     ))!;
+  //   },
+  //   { concurrency: 3 }
+  // );
 
-export async function scanCNRepoThenPRs() {
-  const _candidates = await scanCNRepoCandidates();
-  const candidates = await pMap(
-    _candidates,
-    async ({ repository }) => {
-      const ghrepo = await gh.repos.get({ ...repoUrlParse(repository) });
-      return (await CNRepos.findOneAndUpdate(
-        { repository },
-        { $set: { archived: ghrepo.data.archived } },
-        { upsert: true }
-      ))!;
-    },
-    { concurrency: 3 }
-  );
-
-  await pMap(
-    shuffleArray(candidates),
-    async ({ repository, archived }) => {
-      if (archived) return;
-      await CNRepos.updateOne(
-        { repository },
-        { $set: { prsTask: { status: "pending", stime: new Date() } } }
-      );
-      await ComfyRegistryPRs(repository).catch(async (e) => {
-        await CNRepos.updateOne(
-          { repository },
-          {
-            $set: {
-              prsTask: { status: "error", mtime: new Date(), error: e.message },
-            },
-          }
-        );
-        throw e;
-      });
-      const prUpdateResult = await updateCNRepoPRStatus(repository);
-      const links = [prUpdateResult]
-        .filter((e) => e.modifiedCount || e.upsertedCount)
-        .flatMap((e) => e.links);
-      await slackLinksNotify("Custom Node Repo prs created", links);
-      await CNRepos.updateOne(
-        { repository },
-        { $set: { prsTask: { status: "done", mtime: new Date() } } }
-      );
-    },
-    { concurrency: 1, stopOnError: false }
-  );
+  // await pMap(
+  //   shuffleArray(candidates),
+  //   async ({ repository, archived }) => {
+  //     if (archived) return;
+  //     await CNRepos.updateOne(
+  //       { repository },
+  //       { $set: { prsTask: { state: "pending", stime: new Date() } } }
+  //     );
+  //     await ComfyRegistryPRs(repository).catch(async (e) => {
+  //       await CNRepos.updateOne(
+  //         { repository },
+  //         {
+  //           $set: {
+  //             prsTask: { state: "error", mtime: new Date(), error: e.message },
+  //           },
+  //         }
+  //       );
+  //       throw e;
+  //     });
+  //     const prUpdateResult = await updateCNRepoPRStatus(repository);
+  //     const links = [prUpdateResult]
+  //       .filter((e) => e.modifiedCount || e.upsertedCount)
+  //       .flatMap((e) => e.links);
+  //     await slackLinksNotify("Custom Node Repo prs created", links);
+  //     await CNRepos.updateOne(
+  //       { repository },
+  //       { $set: { prsTask: { state: "done", mtime: new Date() } } }
+  //     );
+  //   },
+  //   { concurrency: 1, stopOnError: false }
+  // );
 }
 
-async function scanCNRepoCandidates() {
-  const candidates = (
-    await CNRepos.find({
-      "prs.mtime": { $gt: new Date(+new Date() - 86400e3) },
-      $or: [{ "prs.toml": null }, { "prs.action": null }],
-      "prs.error": null,
-      // candiate: {$ne: true},
-    }).toArray()
-  ).filter((e) => !e.candiate);
+export async function updateCNRepos() {
+  scanCNRepoThenCreatePullRequests();
+  // outdated related pulls
+  // await CNRepos.updateMany(
+  //   $flatten({ relates: { mtime: { $lt: new Date(1718213050820) } } }),
+  //   { $unset: { relates: 1 } },
+  // );
+  await Promise.all([
+    // stage 1: get repos
+    timingWith("Update Repos from ComfyUI Manager", updateCMRepos),
+    timingWith("Update Repos from ComfyRegistry", updateCRRepos),
+    // stage 2: update repo info & pulls
+    timingWith("Update CNRepos for Repo Infos", updateCNReposInfo),
+    timingWith("Update CNRepos for Github Pulls", updateCNReposPulls),
+    // stage 3: update related pulls and comments
+    timingWith("Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
+    // stage 4: update related comments (if needed)
+    // timingWith("Update CNRepos for Related Comments", udpateCNReposRelatedComments),
+    // stage 5:
+  ]);
 
-  console.log({ candidates });
-  await slackLinksNotify(
-    "New Registry PR Candidates",
-    candidates.map((e) => ({
-      href: e.repository,
-      name:
-        e.repository +
-        " ADD " +
-        [!e.prs?.toml && "TOML", !e.prs?.action && "GHACTION"]
-          .filter(Boolean)
-          .join(","),
-    }))
-  );
-  await pMap(candidates, (e) =>
-    CNRepos.updateOne(
-      { repository: e.repository },
-      { $set: { candiate: true } }
-    )
-  );
-  return candidates;
-}
-
-async function cacheHealthReport() {
-  // const aggr = await CNRepos.aggregate([
-  //   { $match: { "prs.mtime": { $gte: new Date(+Date.now() - 86400e3) } } },
-  //   { $project: { toml: { count: "prs.toml" } } },
-  // ]).toArray();
-  // console.log({ aggr });
-  const allPrs = (await CNRepos.find().toArray()).map((e) => e.prs);
-  console.log(allPrs);
-}
-
-export default async function updateCNRepos() {
-  await Promise.all([updateCRNodes(), updateCMNodes()]);
-  const { crNodes, cmNodes } = await promiseAllProperties({
-    crNodes: CRNodes.find().toArray(),
-    cmNodes: CMNodes.find().toArray(),
-  });
-  const repos = [
-    ...crNodes
-      .map(
-        (e) => e.repository // || DIE("WARN: empty repo in " + JSON.stringify(e))
-      )
-      .filter(Boolean),
-    ...cmNodes
-      .map((e) => e.reference || DIE("WARN: empty repo" + JSON.stringify(e)))
-      .filter((e) => e.startsWith("https://github.com")) // remove civitai
-      .filter(Boolean),
-  ].toSorted();
-
-  // console.log("linkings updating");
-  // await pMap(repos, updateCNRepoLinkings);
-
-  console.log("prs updating");
-  const batchSize = 8;
-  const randRepos = shuffleArray(repos);
-  for (let i = 0; i < randRepos.length; i += batchSize) {
-    const batch = randRepos.slice(i, i + batchSize);
-    const result = await pMap(batch, updateCNRepoPRStatus, {
-      concurrency: 4,
-      stopOnError: false,
-    });
-    const links = result
-      .filter((e) => e.modifiedCount || e.upsertedCount)
-      .flatMap((e) => e.links);
-    await slackLinksNotify("Custom Node Repo prs updated", links);
-  }
-
+  await updateCNRepoPullsDashboard();
+  // show related
+  // await CNRepos.find({}).to
+  // await timingWith("Make PRs", async function () {
+  //   await pMap(
+  //     CNRepos.find({ "relates.mtime": $stale("1d") }),
+  //     async (repo) => {
+  //       const { repository } = repo;
+  //       await timingWith("Making PRs for " + repository, async () => {});
+  //       // const prs = await ComfyRegistryPRs(repository);
+  //       //
+  //     },
+  //   );
+  // });
   console.log("All repo updated");
+}
+async function updateCNRepoPullsDashboard() {
+  const dashBoardIssue =
+    process.env.DASHBOARD_ISSUE_URL || DIE("DASHBOARD_ISSUE_URL not found");
+  const dashBoardRepo = dashBoardIssue.replace(/\/issues\/\d+$/, "");
+  const dashBoardIssueNumber = Number(
+    dashBoardIssue.match(/\/issues\/(\d+)$/)?.[1] ||
+      DIE("Issue number not found"),
+  );
+
+  const repos = await CNRepos.find(
+    $flatten({ crPulls: { mtime: $fresh("1d") } }),
+  ).toArray();
+  const result = repos
+    .map((repo) => {
+      const crPulls = match(repo.crPulls)
+        .with($OK, ({ data }) => data)
+        .otherwise(() => DIE("CR Pulls not found"));
+      const repoName = stringifyOwnerRepo(parseRepoUrl(repo.repository));
+      const body = crPulls
+        .map((e) => {
+          const date = new Date(e.pull.created_at).toISOString().slice(0, 10);
+          const state = e.pull.state.toUpperCase();
+          return {
+            href: e.pull.html_url,
+            name: `PR ${date} ${state}: ${repoName} #${e.type}`,
+          };
+        })
+        .map(({ href, name }) => `- [${name}](${href})`)
+        .toSorted()
+        .join("\n");
+      return body;
+    })
+    .filter(Boolean)
+    .join("\n");
+  const body = result;
+
+  await gh.issues.update({
+    ...parseRepoUrl(dashBoardRepo),
+    issue_number: dashBoardIssueNumber,
+    body,
+  });
 }
