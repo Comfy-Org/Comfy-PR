@@ -10,6 +10,7 @@ on:
       - main
       - master
     paths:
+      - ".github/workflows/*"
       - "src/*.ts"
 jobs:
   run_comfy_pr:
