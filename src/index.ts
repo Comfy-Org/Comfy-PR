@@ -2,7 +2,7 @@
 import DIE from "@snomiao/die";
 import { $ as bunSh, serve, sleep } from "bun";
 import "dotenv/config";
-import { os, question, $ as zx } from "zx";
+import { os, $ as zx } from "zx";
 import { scanCNRepoThenCreatePullRequests, updateCNRepos } from "./CNRepos";
 import { gh } from "./gh";
 
@@ -11,28 +11,21 @@ zx.verbose = true;
 // read env/parameters
 console.log("Fetch Current Github User...");
 export const user = (await gh.users.getAuthenticated()).data;
+console.log("Current Github User:", user.login);
 export const GIT_USERNAME =
   process.env.GIT_USERNAME ||
   (user.email && user.name) ||
-  (await question("Input env.GIT_USERNAME: ")) ||
   DIE("Missing env.GIT_USERNAME");
 export const GIT_USEREMAIL =
   process.env.GIT_USEREMAIL ||
   (user.email && user.email) ||
-  (await question("Input env.GIT_USEREMAIL: ")) ||
   DIE("Missing env.GIT_USEREMAIL");
 export const FORK_OWNER =
   process.env.FORK_OWNER?.replace(/"/g, "")?.trim() ||
-  user.name ||
-  (await question(
-    "Input env.FORK_OWNER (for example FORK_OWNER=ComfyNodePRs, will fork into https://github.com/ComfyNodePRs): ",
-  )) ||
+  user.login ||
   DIE("Missing env.FORK_OWNER");
 export const FORK_PREFIX =
-  (process.env.FORK_PREFIX?.replace(/"/g, "")?.trim() ||
-    (await question(
-      "Input env.FORK_PREFIX ('PR-' is Recommened, but also it could be empty): ",
-    ))) ??
+  process.env.FORK_PREFIX?.replace(/"/g, "")?.trim() ||
   DIE('Missing env.FORK_PREFIX, if you want empty maybe try FORK_PREFIX=""');
 
 console.log(`GIT_USER: ${GIT_USERNAME} <${GIT_USEREMAIL}>`);
