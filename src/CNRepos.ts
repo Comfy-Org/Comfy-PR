@@ -181,7 +181,7 @@ async function updateCNRepoPullsDashboard() {
       DIE("Issue number not found"),
   );
   // update dashboard issue if run by @snomiao
-  if (user.login === "snomiao") return;
+  if (user.login !== "snomiao") return;
 
   const repos = await CNRepos.find(
     $flatten({ crPulls: { mtime: $fresh("1d") } }),
