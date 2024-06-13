@@ -1,8 +1,10 @@
 import DIE from "@snomiao/die";
 import yaml from "yaml";
 import { chalk } from "zx";
+import type { GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
 import { parseRepoUrl } from "./parseOwnerRepo";
+
 export async function createGithubPullRequest({
   title,
   body,
@@ -38,10 +40,13 @@ export async function createGithubPullRequest({
       PR_Existed: existedList.map((e) => ({ url: e.html_url, title: e.title })),
     };
     console.log(chalk.red(yaml.stringify(msg)));
-    return;
+    return existedList[0];
   }
-  if (!process.env.GH_TOKEN_COMFY_PR) {
-    DIE("Missing env.GH_TOKEN_COMFY_PR");
+  // if (!process.env.GH_TOKEN_COMFY_PR) {
+  //   DIE("Missing env.GH_TOKEN_COMFY_PR");
+  // }
+  if (!process.env.ENABLE_GH_PR) {
+    DIE("Please set env.ENABLE_GH_PR");
   }
   const pr_result = await gh.pulls
     .create({
@@ -58,6 +63,7 @@ export async function createGithubPullRequest({
       maintainer_can_modify: true,
       // draft: true,
     })
+    .then((e) => e.data)
     .catch(async (e) => {
       if (e.message.match("A pull request already exists for")) {
         console.log("PR Existed ", e);
@@ -82,11 +88,11 @@ export async function createGithubPullRequest({
             })),
           };
           console.log(chalk.red(yaml.stringify(msg)));
-          return;
+          return existedList[0];
         }
       }
       throw e;
     });
-  console.log("PR OK", pr_result!.data.html_url);
-  return pr_result!.data;
+  console.log("PR OK", pr_result.html_url);
+  return pr_result as GithubPull;
 }

@@ -1,10 +1,9 @@
 FROM node
 
-RUN apt update -y && \
-    # install python
-    apt install -y python3 python3-pip python3-venv && \
-    # prepare bun
-    apt install unzip && curl -fsSL https://bun.sh/install | bash
+# install python
+# RUN apt update -y && apt install -y python3 python3-pip python3-venv
+# install bun
+RUN apt update -y && apt install unzip && curl -fsSL https://bun.sh/install | bash
 
 WORKDIR /app
 
@@ -27,7 +26,7 @@ RUN python3 -m venv .venv && \
     "
 
 COPY src ./
-COPY . ./
+COPY . .
 RUN chmod +x ./entry.sh
 ENTRYPOINT bash ./entry.sh
 HEALTHCHECK --interval=30m --timeout=1m --start-period=1m --retries=3 CMD curl localhost:80

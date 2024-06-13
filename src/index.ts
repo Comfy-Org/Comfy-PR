@@ -3,8 +3,7 @@ import DIE from "@snomiao/die";
 import { $ as bunSh, serve, sleep } from "bun";
 import "dotenv/config";
 import { os, question, $ as zx } from "zx";
-import { scanCNRepoThenCreatePullRequests } from "./CNRepos";
-import { updateCNRepos } from "./updateCNRepos";
+import { scanCNRepoThenCreatePullRequests, updateCNRepos } from "./CNRepos";
 import { gh } from "./gh";
 
 zx.verbose = true;
@@ -47,13 +46,21 @@ export async function checkComfyActivated() {
       ? ".venv\\Scripts\\activate"
       : "source .venv/bin/activate";
   if (!(await bunSh`comfy --help`.quiet().catch(() => null))) {
+    await bunSh`
+apt install -y python3 python3-venv
+python -m venv .venv
+${activate}
+pip install comfy-cli
+comfy-cli --help
+`.catch(console.error);
+
     DIE(
       `
 Cound not found comfy-cli.
 Please install comfy-cli before run "bunx comfy-pr" here.
 
 $ >>>>>>>>>>>>>>>>>>>>>>>>>>
-apt install -y python3-venv
+apt install -y python3 python3-venv
 python -m venv .venv
 ${activate}
 pip install comfy-cli
@@ -62,6 +69,7 @@ comfy-cli --help
     );
   }
 }
+
 if (import.meta.main) {
   serve({
     port: 80,
@@ -72,9 +80,8 @@ if (import.meta.main) {
 
   await checkComfyActivated();
   // src/CNRepos
-  await Promise.all([updateCNRepos(), scanCNRepoThenCreatePullRequests()]);
-  await scanCNRepoThenCreatePullRequests();
-
+  await updateCNRepos();
+  scanCNRepoThenCreatePullRequests;
   console.log("all done");
   await sleep(600e3); // 10min restart
   process.exit(0);

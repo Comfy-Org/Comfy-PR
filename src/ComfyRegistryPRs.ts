@@ -1,17 +1,18 @@
-import { rm } from "fs/promises";
 import md5 from "md5";
 import pMap from "p-map";
 import yaml from "yaml";
 import { argv, chalk } from "zx";
 import { FORK_OWNER, FORK_PREFIX, user } from ".";
+import type { GithubPull } from "./fetchRepoPRs";
 import { ghFork } from "./ghFork";
 import { createGithubPullRequest } from "./ghPullRequest";
-import { parseRepoUrl } from "./parseOwnerRepo";
 import { makePublishBranch } from "./makePublishBranch";
 import { makeTomlBranch } from "./makeTomlBranch";
-import { getRepoWorkingDir } from "./getRepoWorkingDir";
+import { parseRepoUrl } from "./parseOwnerRepo";
 
-export async function ComfyRegistryPRs(upstreamUrl: string) {
+export async function ComfyRegistryPRs(
+  upstreamUrl: string,
+): Promise<GithubPull[]> {
   // Repo Define
   const upstream = parseRepoUrl(upstreamUrl);
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
@@ -27,36 +28,33 @@ export async function ComfyRegistryPRs(upstreamUrl: string) {
   // console.log("PR_SRC: ", forkSSHUrl);
   // console.log("PR_DST: ", upstreamUrl);
   // console.log(forkSSHUrl);
-  console.log("Cleaning the pr before run");
-  const dir = getRepoWorkingDir(forkUrl);
-  await rm(dir, { recursive: true }).catch(() => null);
-
   //   FORK
   const forkedRepo = await ghFork(upstreamUrl, forkUrl);
 
   // prInfos
   const forkSSHUrl = `git@github.com:${forkDst}`;
+  const PR_REQUESTS = await publishBranches(upstreamUrl, forkUrl);
 
-  const PR_REQUESTS = await publishBranches(dir, upstreamUrl, forkUrl);
+  // branch ready in fork
+
+  // create prs
 
   console.log("PR Infos");
   console.log(chalk.green(yaml.stringify({ PR_REQUESTS })));
   // prs
-  const prs = await pMap(PR_REQUESTS, (prInfo) =>
-    createGithubPullRequest({ ...prInfo }),
+  const prs = await pMap(
+    PR_REQUESTS,
+    async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }),
   );
   console.log("ALL PRs DONE");
-  return prs;
+  return prs as GithubPull[];
 }
-async function publishBranches(
-  dir: string,
-  upstreamUrl: string,
-  forkUrl: string,
-) {
+
+async function publishBranches(upstreamUrl: string, forkUrl: string) {
   return (
     await Promise.all([
-      makePublishBranch(dir, upstreamUrl, forkUrl),
-      makeTomlBranch(dir, upstreamUrl, forkUrl),
+      makePublishBranch(upstreamUrl, forkUrl),
+      makeTomlBranch(upstreamUrl, forkUrl),
     ])
   ).map((content) => ({
     ...content,

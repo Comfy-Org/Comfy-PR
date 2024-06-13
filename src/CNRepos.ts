@@ -4,21 +4,22 @@ bun index.ts
 */
 import DIE from "@snomiao/die";
 import type { WithId } from "mongodb";
+import pMap from "p-map";
 import "react-hook-form";
 import { timingWith } from "timing-with";
 import { match } from "ts-pattern";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
-import type { PushedBranch } from "./PushedBranch";
+import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
 import { type SlackMsg } from "./SlackNotifications";
-import { $OK, type Task } from "./Task";
-import { Worker, getWorker } from "./Worker";
+import { $OK, TaskError, TaskOK, type Task } from "./Task";
+import { getWorker } from "./Worker";
 import { $flatten, $fresh, db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
 import { parseRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
-import { scanCNRepoPRCandidates } from "./scanCNRepoPRCandidates";
+import { updateCNRepoPRCandidates } from "./scanCNRepoPRCandidates";
 import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposInfo } from "./updateCNReposInfo";
 import { updateCNReposPulls } from "./updateCNReposPulls";
@@ -50,9 +51,10 @@ export type CustomNodeRepo = {
   info?: Task<GithubRepo>;
   pulls?: Task<GithubPull[]>;
   crPulls?: Task<RelatedPull[]>;
-  createFork?: Task<GithubRepo>;
-  createBranches?: Task<{ type: CRType; assigned: Worker } & PushedBranch>[];
-  createPullRequests?: Task<{ type: CRType; pr: GithubPull }>[];
+  candidate?: Task<boolean>;
+  // createFork?: Task<GithubRepo>;
+  // createBranches?: Task<{ type: CRType; assigned: Worker } & PushedBranch>[];
+  createdPulls?: Task<GithubPull[]>;
 };
 
 export const CNRepos = db.collection<CustomNodeRepo>("CNRepos");
@@ -68,7 +70,7 @@ if (import.meta.main) {
   // candidates
 }
 export async function scanCNRepoThenCreatePullRequests() {
-  const _candidates = await scanCNRepoPRCandidates();
+  const _candidates = await updateCNRepoPRCandidates();
   // const candidates = await pMap(
   //   _candidates,
   //   async ({ repository }) => {
@@ -116,7 +118,6 @@ export async function scanCNRepoThenCreatePullRequests() {
 }
 
 export async function updateCNRepos() {
-  scanCNRepoThenCreatePullRequests();
   // outdated related pulls
   // await CNRepos.updateMany(
   //   $flatten({ relates: { mtime: { $lt: new Date(1718213050820) } } }),
@@ -134,24 +135,40 @@ export async function updateCNRepos() {
     // stage 4: update related comments (if needed)
     // timingWith("Update CNRepos for Related Comments", udpateCNReposRelatedComments),
     // stage 5:
+    timingWith("Update CNRepos PR Candidates", updateCNRepoPRCandidates),
+    // stage 6:
+    // timingWith("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
   ]);
-
   await updateCNRepoPullsDashboard();
-  // show related
-  // await CNRepos.find({}).to
-  // await timingWith("Make PRs", async function () {
-  //   await pMap(
-  //     CNRepos.find({ "relates.mtime": $stale("1d") }),
-  //     async (repo) => {
-  //       const { repository } = repo;
-  //       await timingWith("Making PRs for " + repository, async () => {});
-  //       // const prs = await ComfyRegistryPRs(repository);
-  //       //
-  //     },
-  //   );
-  // });
+  const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
+
+  // create prs on candidates
+  await timingWith("Make PRs", async function () {
+    await pMap(
+      CNRepos.find(
+        $flatten({
+          candidate: { mtime: $fresh("1d"), ...$OK },
+          createdPulls: { $exists: false },
+        }),
+      ),
+      async (repo) => {
+        const { repository } = repo;
+        await timingWith("Making PRs for " + repository, async () => {});
+
+        const prResult = await ComfyRegistryPRs(repository)
+          .then(TaskOK)
+          .catch(TaskError);
+
+        await CNRepos.updateOne(
+          { repository },
+          { $set: { createdPulls: prResult } },
+        );
+      },
+    );
+  });
   console.log("All repo updated");
 }
+
 async function updateCNRepoPullsDashboard() {
   const dashBoardIssue =
     process.env.DASHBOARD_ISSUE_URL || DIE("DASHBOARD_ISSUE_URL not found");

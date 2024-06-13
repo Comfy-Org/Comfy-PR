@@ -1,3 +1,4 @@
+import { Octokit } from "octokit";
 import { basename, dirname } from "path";
 
 /**
@@ -23,9 +24,19 @@ export function stringifyGithubRepoUrl({
 }: ReturnType<typeof parseRepoUrl>) {
   return "https://github.com/" + owner + "/" + repo;
 }
-export function stringifyGithubRemoteSSH({
+export async function stringifyGithubOrigin({
   owner,
   repo,
 }: ReturnType<typeof parseRepoUrl>) {
-  return "git@github.com:" + owner + "/" + repo;
+  const PR_TOKEN = process.env.GITHUB_TOKEN_COMFY_PR;
+
+  if (PR_TOKEN) {
+    const USERNAME = (
+      await new Octokit({
+        auth: PR_TOKEN,
+      }).rest.users.getAuthenticated()
+    ).data.login;
+    return `${USERNAME}:${PR_TOKEN}@github.com:${owner}/${repo}`;
+  }
+  return `git@github.com:${owner}/${repo}`;
 }
