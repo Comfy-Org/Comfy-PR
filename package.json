@@ -15,12 +15,11 @@
     "comfy-pr": "./src/cli.ts"
   },
   "files": [
-    "*.ts",
-    "dist"
+    "*.ts"
   ],
   "scripts": {
     "_postinstall": "bun ./src/mute-instances.ts",
-    "build": "bun build ./src/index.ts --outdir=dist --target=bun",
+    "build": "echo no build step, only typescript",
     "prerelease": "bun run build && bun run test",
     "release": "npm version patch && npm publish",
     "test": "bun test"
