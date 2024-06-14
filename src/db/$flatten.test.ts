@@ -1,3 +1,4 @@
+import { $fresh, $stale } from ".";
 import { $elemMatch } from "./$elemMatch";
 import { $flatten } from "./$flatten";
 
@@ -64,16 +65,29 @@ it("should flatten through $ into deeper", () => {
   });
 });
 
-it("should flatten", () => {
+it("should flatten deep", () => {
   const date = new Date();
   expect(
     $flatten({
-      pulls: { mtime: { $gte: date }, state: { data: { $exists: true } } },
+      pulls: { mtime: { $gte: date }, nested: { data: { $exists: true } } },
       crPulls: { mtime: { $not: { $gte: date } } },
     }),
   ).toEqual({
     "pulls.mtime": { $gte: date },
-    "pulls.state.data": { $exists: true },
+    "pulls.nested.data": { $exists: true },
     "crPulls.mtime": { $not: { $gte: date } },
+  });
+});
+
+it("don't destroy date obj", () => {
+  jest.useFakeTimers().setSystemTime(new Date());
+  expect(
+    $flatten({
+      pulls: { mtime: $fresh("0s") },
+      crPulls: { mtime: $stale("0s") },
+    }),
+  ).toEqual({
+    "pulls.mtime": $fresh("0s"),
+    "crPulls.mtime": $stale("0s"),
   });
 });

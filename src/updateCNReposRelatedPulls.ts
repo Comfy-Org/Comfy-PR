@@ -19,8 +19,8 @@ export async function updateCNReposRelatedPulls() {
   return await pMap(
     CNRepos.find(
       $flatten({
-        pulls: { mtime: $fresh("7d") },
-        crPulls: { mtime: $stale("3d") },
+        pulls: { mtime: $fresh("1w"), data: { $exists: true } },
+        crPulls: { mtime: $stale("3d"), data: { $exists: false } },
       }),
     ),
     async (repo, i) => {
