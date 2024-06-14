@@ -122,7 +122,7 @@ export async function updateCNRepos() {
   await Promise.all([
     tLog("0 Report Worker Status", async () => {
       const worker = await getWorker("Comfy PR Bot Running");
-      
+
       const workerInfo = `${worker.geo.countryCode}/${worker.geo.region}/${worker.geo.city}`;
       const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
       return [await slackNotify(msg, { unique: true, silent: true })];

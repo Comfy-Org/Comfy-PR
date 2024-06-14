@@ -1,7 +1,7 @@
 import type { ObjectId } from "mongodb";
 import pMap from "p-map";
 import { $flatten } from "./$flatten";
-import { $fresh, db } from "./db";
+import { $fresh, $stale, db } from "./db";
 import { slack } from "./slack";
 import { slackMessagePost } from "./slackMessagePost";
 export type SlackMsg = (Awaited<ReturnType<typeof slackMessagePost>> | {}) & {
@@ -68,7 +68,13 @@ export async function slackNotifyTask() {
   return await pMap(
     SlackMsgs.find(
       $flatten({
-        status: { $in: ["pending last", "error"] },
+        $or: [
+          { status: { $exists: false } },
+          {
+            status: { $in: ["pending last", "error"] },
+            mtime: $stale("5m"), // try errors again after 5m
+          },
+        ],
       }),
     ),
     async ({ _id, text, last_id: last, silent }) => {
