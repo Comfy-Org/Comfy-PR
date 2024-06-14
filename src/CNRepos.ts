@@ -2,7 +2,6 @@
 /*
 bun index.ts
 */
-import { consolePeek } from "console-peek";
 import type { WithId } from "mongodb";
 import pMap from "p-map";
 import "react-hook-form";
@@ -144,19 +143,15 @@ export async function updateCNRepos() {
   await tLog("Make PRs", async function () {
     return await pMap(
       CNRepos.find(
-        consolePeek(
-          $flatten({
-            candidate: { mtime: $fresh("1d"), ...$OK, data: { $eq: true } },
-            $or: [
-              {
-                createdPulls: { $exists: false }, // prs that never created
-              },
-              {
-                createdPulls: { ...$ERROR, mtime: $stale("5m") }, // retry pr erros after 5m
-              },
-            ],
-          }),
-        ),
+        $flatten({
+          candidate: { mtime: $fresh("1d"), ...$OK, data: { $eq: true } },
+          $or: [
+            // prs that never created
+            { createdPulls: { $exists: false } },
+            // retry pr erros after 5m
+            { createdPulls: { ...$ERROR, mtime: $stale("5m") } },
+          ],
+        }),
       ),
       async (repo) => {
         const { repository } = repo;
