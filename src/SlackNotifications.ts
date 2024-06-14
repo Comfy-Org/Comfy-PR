@@ -10,7 +10,7 @@ export type SlackMsg = (Awaited<ReturnType<typeof slackMessagePost>> | {}) & {
   status?: "sent" | "sending" | "error" | "pending last";
   error?: string;
 };
-export const SlackMsgs = db.collection<SlackMsg>("SlackMsgs2");
+export const SlackMsgs = db.collection<SlackMsg>("SlackMsgs5");
 await SlackMsgs.createIndex({ ts: -1 });
 await SlackMsgs.createIndex({ channel: 1, ts: -1 });
 await SlackMsgs.createIndex({ text: 1 });
@@ -80,6 +80,7 @@ export async function slackNotifyTask() {
         }
       }
       await SlackMsgs.updateOne({ _id }, { $set: { error: "sending..." } });
+      console.log("SLACK POST MSG: " + JSON.stringify(text));
       const sent = await slackMessagePost(text)
         .then((e) => ({ ...e, error: undefined, status: "sent" as const }))
         .catch((e) => ({

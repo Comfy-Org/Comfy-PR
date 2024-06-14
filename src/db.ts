@@ -1,7 +1,6 @@
 import DIE from "@snomiao/die";
 import enhancedMs from "enhanced-ms";
-import { MongoClient, type Db, type Document, type Filter } from "mongodb";
-import { fromPairs, toPairs } from "rambda";
+import { MongoClient, type Db } from "mongodb";
 declare global {
   var _db: Db;
 }
@@ -11,6 +10,8 @@ export const db = (global._db ??= new MongoClient(
 
 if (import.meta.main) {
   console.log(await db.admin().ping());
+  console.log(enhancedMs("7d") === 7 * 86400e3);
+  console.log($stale("7d"));
 }
 export function $stale(interval: number | string) {
   const ms = typeof interval === "string" ? enhancedMs(interval) : interval;
@@ -18,20 +19,6 @@ export function $stale(interval: number | string) {
 }
 export function $fresh(interval: number | string) {
   const ms = typeof interval === "string" ? enhancedMs(interval) : interval;
-  return { $gt: new Date(+new Date() - ms * 1.1) };
+  return { $gte: new Date(+new Date() - ms * 1.1) };
 }
 
-export function $flatten<TSchema extends Document>(
-  filter: Filter<TSchema>,
-): Filter<TSchema> {
-  return fromPairs(
-    toPairs(filter).flatMap(([k, v]) => {
-      if (typeof v !== "object") return [k, v];
-      if (v === null) return [k, v];
-      if (k.startsWith("$")) return [k, v];
-      if (Array.isArray(v)) return [k, v];
-      if (v instanceof Date) return [k, v];
-      return toPairs(v as Object).map(([kk, vv]) => [`${k}.${kk}`, vv]);
-    }, filter) as any,
-  );
-}

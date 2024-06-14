@@ -16,7 +16,7 @@ export async function ComfyRegistryPRs(
   // Repo Define
   const upstream = parseRepoUrl(upstreamUrl);
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
-  console.log(`* Change env.SALT=${salt} will fork into a different repo`);
+  // console.log(`* Change env.SALT=${salt} will fork into a different repo`);
   const repo_hash = md5(
     `${salt}-${user.name}-${upstream.owner}/${upstream.repo}`,
   ).slice(0, 8);

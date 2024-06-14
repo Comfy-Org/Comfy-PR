@@ -64,18 +64,8 @@ comfy-cli --help
 }
 
 if (import.meta.main) {
-  serve({
-    port: 80,
-    fetch(req) {
-      return new Response("pong");
-    },
-  });
-
-  await checkComfyActivated();
-  // src/CNRepos
+  // await checkComfyActivated(); // needed if make pr
   await updateCNRepos();
-  scanCNRepoThenCreatePullRequests;
-  console.log("all done");
-  await sleep(600e3); // 10min restart
+  console.log("All done");
   process.exit(0);
 }

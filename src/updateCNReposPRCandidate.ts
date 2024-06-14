@@ -1,25 +1,29 @@
-import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
+import { YAML } from "zx";
 import { CNRepos } from "./CNRepos";
 import { $OK, TaskOK } from "./Task";
-import { $flatten, $fresh, $stale } from "./db";
+import { $fresh, $stale } from "./db";
+import { $flatten } from "./$flatten";
 import { slackLinksNotify } from "./slackUrlsNotify";
 if (import.meta.main) {
-  console.log(await updateCNRepoPRCandidates());
+  console.log(await updateCNReposPRCandidate());
+  // show candidates
   console.log(
-    await CNRepos.find({ candidate: { $exists: true } })
-      .map((e) => ({
-        candidate: match(e.candidate)
-          .with($OK, (e) => e)
-          .otherwise(() => DIE("")).data,
-        repo: e.repository,
-      }))
-      .toArray(),
+    YAML.stringify(
+      await CNRepos.find($flatten({ candidate: { data: { $eq: true } } }))
+        .map((e) => ({
+          // candidate: match(e.candidate)
+          //   .with($OK, (e) => e)
+          //   .otherwise(() => DIE("")).data,
+          repo: e.repository + '/pulls?q=',
+        }))
+        .toArray(),
+    ),
   );
 }
 
-export async function updateCNRepoPRCandidates() {
+export async function updateCNReposPRCandidate() {
   return await pMap(
     CNRepos.find(
       $flatten({

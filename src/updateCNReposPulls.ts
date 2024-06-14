@@ -1,13 +1,12 @@
 import pMap from "p-map";
-import { timingWith } from "timing-with";
-import { match } from "ts-pattern";
+import { timingLogWith } from "timing-with";
 import { CNRepos } from "./CNRepos";
-import { slackNotify } from "./SlackNotifications";
-import { $ERROR, $OK, TaskError, TaskOK } from "./Task";
-import { $flatten, $stale } from "./db";
+import { TaskError, TaskOK } from "./Task";
+import { $stale } from "./db";
+import { $flatten } from "./$flatten";
 import { fetchGithubPulls } from "./fetchGithubPulls";
 if (import.meta.main) {
-  await timingWith("Update CNRepos for Github Pulls", updateCNReposPulls);
+  console.log(await timingLogWith("Update CNRepos for Github Pulls", updateCNReposPulls));
 }
 export async function updateCNReposPulls() {
   return await pMap(
@@ -16,16 +15,9 @@ export async function updateCNReposPulls() {
       const pulls = await fetchGithubPulls(repository)
         .then(TaskOK)
         .catch(TaskError);
-      await match(pulls)
-        .with($OK, ({ data }) =>
-          console.log(`[INFO] ${data.length} Pulls for ${repository}`),
-        )
-        .with($ERROR, ({ error }) =>
-          slackNotify(
-            `[WARN] Fetching Pulls error: ${error} for ${repository}`,
-          ),
-        )
-        .exhaustive();
+      // match(pulls).with($OK, ({ data }) =>
+      //   console.debug(`[DEBUG] ${data.length} Pulls for ${repository}`),
+      // ).otherwise(() => {});
       return await CNRepos.updateOne({ repository }, { $set: { pulls } });
     },
     { concurrency: 1 },

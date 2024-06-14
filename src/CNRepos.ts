@@ -5,24 +5,25 @@ bun index.ts
 import type { WithId } from "mongodb";
 import pMap from "p-map";
 import "react-hook-form";
-import { timingWith } from "timing-with";
+import { $flatten } from "./$flatten";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
 import { type SlackMsg } from "./SlackNotifications";
 import { $OK, TaskError, TaskOK, type Task } from "./Task";
 import { getWorker } from "./Worker";
-import { $flatten, $fresh, db } from "./db";
+import { $fresh, db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
-import { updateCNRepoPRCandidates } from "./scanCNRepoPRCandidates";
+import { tLog } from "./tLog";
 import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposInfo } from "./updateCNReposInfo";
+import { updateCNReposPRCandidate } from "./updateCNReposPRCandidate";
 import { updateCNReposPulls } from "./updateCNReposPulls";
 import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
 import { updateCRRepos } from "./updateCRRepos";
-import { updateCNRepoPullsDashboard } from "./updateCNRepoPullsDashboard";
+import { updateOutdatedPullsTemplates } from "./updateOutdatedPullsTemplates";
 
 type Email = {
   from?: string;
@@ -54,7 +55,6 @@ export type CustomNodeRepo = {
   // createBranches?: Task<{ type: CRType; assigned: Worker } & PushedBranch>[];
   createdPulls?: Task<GithubPull[]>;
 };
-
 export const CNRepos = db.collection<CustomNodeRepo>("CNRepos");
 await CNRepos.createIndex({ repository: 1 }, { unique: true });
 
@@ -68,7 +68,7 @@ if (import.meta.main) {
   // candidates
 }
 export async function scanCNRepoThenCreatePullRequests() {
-  const _candidates = await updateCNRepoPRCandidates();
+  const _candidates = await updateCNReposPRCandidate();
   // const candidates = await pMap(
   //   _candidates,
   //   async ({ repository }) => {
@@ -116,54 +116,50 @@ export async function scanCNRepoThenCreatePullRequests() {
 }
 
 export async function updateCNRepos() {
-  // outdated related pulls
-  // await CNRepos.updateMany(
-  //   $flatten({ relates: { mtime: { $lt: new Date(1718213050820) } } }),
-  //   { $unset: { relates: 1 } },
-  // );
+  console.log("Prepare CNRepos");
   await Promise.all([
     // stage 1: get repos
-    timingWith("Update Repos from ComfyUI Manager", updateCMRepos),
-    timingWith("Update Repos from ComfyRegistry", updateCRRepos),
+    tLog("1 Update Repos from ComfyUI Manager", updateCMRepos),
+    tLog("2 Update Repos from ComfyRegistry", updateCRRepos),
     // stage 2: update repo info & pulls
-    timingWith("Update CNRepos for Repo Infos", updateCNReposInfo),
-    timingWith("Update CNRepos for Github Pulls", updateCNReposPulls),
+    tLog("3 Update CNRepos for Repo Infos", updateCNReposInfo),
+    tLog("4 Update CNRepos for Github Pulls", updateCNReposPulls),
+    // tLog("5 Update Pulls Dashboard", updateCNRepoPullsDashboard),
     // stage 3: update related pulls and comments
-    timingWith("Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
+    tLog("6 Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
+    tLog("7 Update Outdated Pulls Templates", updateOutdatedPullsTemplates),
     // stage 4: update related comments (if needed)
-    // timingWith("Update CNRepos for Related Comments", udpateCNReposRelatedComments),
+    // tLog("Update CNRepos for Related Comments", udpateCNReposRelatedComments),
     // stage 5:
-    timingWith("Update CNRepos PR Candidates", updateCNRepoPRCandidates),
+    tLog("8 Update CNRepos PR Candidates", updateCNReposPRCandidate),
     // stage 6:
-    // timingWith("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
+    // tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
   ]);
-  await updateCNRepoPullsDashboard();
-
-  const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
-
+  // Update outdated pr issue bodies
+  await CNRepos.updateMany({}, { $unset: { createdPulls: 1 } });
   // create prs on candidates
-  await timingWith("Make PRs", async function () {
-    await pMap(
+  await tLog("Make PRs", async function () {
+    return await pMap(
       CNRepos.find(
         $flatten({
-          candidate: { mtime: $fresh("1d"), ...$OK },
-          createdPulls: { $exists: false }, // never created
+          candidate: { mtime: $fresh("1d"), ...$OK, data: { $eq: true } },
+          createdPulls: { $exists: false }, // pr that never created
         }),
       ),
       async (repo) => {
         const { repository } = repo;
-        await timingWith("Making PRs for " + repository, async () => {});
-
+        console.log("Making PRs for " + repository);
         const createdPulls = await ComfyRegistryPRs(repository)
           .then(TaskOK)
           .catch(TaskError);
-
-        await CNRepos.updateOne({ repository }, { $set: { createdPulls } });
+        console.log(createdPulls);
+        return await CNRepos.updateOne(
+          { repository },
+          { $set: { createdPulls } },
+        );
       },
     );
   });
+
   console.log("All repo updated");
-  process.exit(0);
 }
-
-

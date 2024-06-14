@@ -1,8 +1,7 @@
+import type { GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
 import { parseRepoUrl } from "./parseOwnerRepo";
 import { parsePullsState } from "./parsePullsState";
-import { GithubPull } from "./fetchRepoPRs";
-
 
 export async function fetchGithubPulls(repository: string) {
   const data = (

@@ -1,24 +1,26 @@
 import DIE from "@snomiao/die";
 import { match } from "ts-pattern";
 import { user } from ".";
+import { CNRepos } from "./CNRepos";
 import { $OK } from "./Task";
-import { $flatten, $fresh } from "./db";
+import { $fresh } from "./db";
+import { $flatten } from "./$flatten";
 import { gh } from "./gh";
 import { parseRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
-import { CNRepos } from "./CNRepos";
 
 export async function updateCNRepoPullsDashboard() {
-  const dashBoardIssue = process.env.DASHBOARD_ISSUE_URL || DIE("DASHBOARD_ISSUE_URL not found");
+  const dashBoardIssue =
+    process.env.DASHBOARD_ISSUE_URL || DIE("DASHBOARD_ISSUE_URL not found");
   const dashBoardRepo = dashBoardIssue.replace(/\/issues\/\d+$/, "");
   const dashBoardIssueNumber = Number(
     dashBoardIssue.match(/\/issues\/(\d+)$/)?.[1] ||
-    DIE("Issue number not found")
+      DIE("Issue number not found"),
   );
   // update dashboard issue if run by @snomiao
-  if (user.login !== "snomiao") return;
+  if (user.login !== "snomiao") return [];
 
   const repos = await CNRepos.find(
-    $flatten({ crPulls: { mtime: $fresh("1d") } })
+    $flatten({ crPulls: { mtime: $fresh("1d") } }),
   ).toArray();
   const result = repos
     .map((repo) => {
@@ -44,9 +46,11 @@ export async function updateCNRepoPullsDashboard() {
     .join("\n");
   const body = result;
 
-  await gh.issues.update({
-    ...parseRepoUrl(dashBoardRepo),
-    issue_number: dashBoardIssueNumber,
-    body,
-  });
+  return [
+    await gh.issues.update({
+      ...parseRepoUrl(dashBoardRepo),
+      issue_number: dashBoardIssueNumber,
+      body,
+    }),
+  ];
 }
