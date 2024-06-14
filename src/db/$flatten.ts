@@ -6,11 +6,11 @@ import { fromPairs, toPairs } from "rambda";
  * @example
  * ```ts
  * $flatten({ a: { b: 1 } }) // { "a.b": 1 }
- * 
+ *
  * coll.find($flatten({ a: { b: 1 } })) // coll.find({ "a.b": 1 })
  * // this will match the document { a: { b: 1 } } and { a: { b: 1, c: 2 } }
  * // but not { a: { b: 2 } }
- * 
+ *
  * // by comparison:
  * coll.find({ a: { b: 1 } }) // coll.find({ a: { b: 1 } })
  * // this will only match the document { a: { b: 1 } }
@@ -23,16 +23,23 @@ export function $flatten<TSchema extends Document>(
   if (typeof filter !== "object" || !(filter instanceof Object)) return filter;
   return fromPairs(
     toPairs(filter).flatMap(([k, v]) => {
+      // console.log(JSON.stringify([k, v]));
       if (Array.isArray(v)) return [[k, v.map($flatten)]];
       if (k.startsWith("$")) return [[k, $flatten(v)]];
-      if (
-        typeof v !== "object" ||
-        !(v instanceof Object) ||
-        Object.keys(v).some((kk) => kk.startsWith("$"))
-      ) {
-        return [[k, v]];
-      }
-      return toPairs(v as Object).map(([kk, vv]) => [`${k}.${kk}`, vv]);
+      if (typeof v !== "object" || !(v instanceof Object)) return [[k, v]];
+      if (Object.keys(v).some((kk) => kk.startsWith("$")))
+        return [[k, $flatten(v)]];
+      // TODO: optimize this
+      return toPairs(
+        $flatten(
+          fromPairs(
+            toPairs(v as Object).map(([kk, vv]) => [
+              `${k}.${kk}`,
+              $flatten(vv),
+            ]),
+          ),
+        ),
+      );
     }, filter) as any,
   );
 }

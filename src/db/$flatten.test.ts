@@ -1,3 +1,4 @@
+import { $elemMatch } from "./$elemMatch";
 import { $flatten } from "./$flatten";
 
 it("should flatten the object", () => {
@@ -12,7 +13,7 @@ it("should flatten the object", () => {
 
 it("should not flatten $", () => {
   const date = new Date();
- 
+
   // $fresh is not flattened
   expect(
     $flatten({
@@ -33,5 +34,46 @@ it("should not flatten $", () => {
     }),
   ).toEqual({
     $or: [{ "a.b": "c" }, { b: 2 }],
+  });
+});
+
+it("should flatten through $ into deeper", () => {
+  const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
+  const $match = $flatten({
+    crPulls: {
+      data: $elemMatch({
+        pull: {
+          updated_at: {
+            $lte: templateOutdate.toISOString().replace(/.\d\d\dZ/, "Z"),
+          },
+        },
+      }),
+    },
+  });
+  expect($match).toEqual({
+    // flattened
+    "crPulls.data": {
+      // not flattened
+      $elemMatch: {
+        // flattened
+        "pull.updated_at": {
+          $lte: "2024-06-13T09:02:56Z",
+        },
+      },
+    },
+  });
+});
+
+it("should flatten", () => {
+  const date = new Date();
+  expect(
+    $flatten({
+      pulls: { mtime: { $gte: date }, state: { data: { $exists: true } } },
+      crPulls: { mtime: { $not: { $gte: date } } },
+    }),
+  ).toEqual({
+    "pulls.mtime": { $gte: date },
+    "pulls.state.data": { $exists: true },
+    "crPulls.mtime": { $not: { $gte: date } },
   });
 });

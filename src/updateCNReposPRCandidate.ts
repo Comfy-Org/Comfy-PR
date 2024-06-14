@@ -44,8 +44,10 @@ export async function updateCNReposPRCandidate() {
       const isCandidate =
         !info.private && !info.archived && crPulls.length === 0;
       const candidate = TaskOK(isCandidate);
-      if (isCandidate)
-        await notifySlackLinks("Found new PR candidate", [repo.repository]);
+      
+      // silent
+      // if (isCandidate)
+      //   await notifySlackLinks("Found new PR candidate", [repo.repository]);
       await CNRepos.updateOne(
         { repository: repo.repository },
         { $set: { candidate } },

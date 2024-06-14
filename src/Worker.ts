@@ -57,6 +57,9 @@ async function watchWorkerInstances() {
 
 export async function getWorkerInstance(task?: string) {
   const id = getWorkerInstanceId();
+  if(task){
+    console.log("Working on task: ", task);
+  }
   return (await WorkerInstances.findOneAndUpdate(
     { id },
     {

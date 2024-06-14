@@ -4,7 +4,7 @@ import { TaskError, TaskOK } from "./Task";
 import { $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { gh } from "./gh";
-import { parseRepoUrl } from "./parseOwnerRepo";
+import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
 if (import.meta.main) {
   console.log(await updateCNReposInfo());
@@ -15,7 +15,7 @@ export async function updateCNReposInfo() {
     CNRepos.find($flatten({ info: { mtime: $stale("1d") } })),
     async ({ repository }) => {
       const info = await gh.repos
-        .get({ ...parseRepoUrl(repository) })
+        .get({ ...parseUrlRepoOwner(repository) })
         .then(({ data }) => data)
         .then(TaskOK)
         .catch(TaskError);

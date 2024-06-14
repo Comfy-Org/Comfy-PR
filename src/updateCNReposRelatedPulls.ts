@@ -3,19 +3,23 @@ import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { $OK, TaskError, TaskOK } from "./Task";
-import { $fresh } from "./db";
-import { $stale } from "./db";
+import { $fresh, $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { matchRelatedPulls } from "./fetchRelatedPulls";
+import { tLog } from "./utils/tLog";
+await CNRepos.createIndex({
+  "pulls.mtime": -1,
+  "pulls.state": 1,
+  "crPulls.mtime": 1,
+});
 if (import.meta.main) {
-  const result = await updateCNReposRelatedPulls();
-  console.log(result.length + " CNRepos updated");
+  await tLog("updateCNReposRelatedPulls", updateCNReposRelatedPulls);
 }
 export async function updateCNReposRelatedPulls() {
   return await pMap(
     CNRepos.find(
       $flatten({
-        pulls: { mtime: $fresh("7d"), data: { $exists: true } },
+        pulls: { mtime: $fresh("7d"), state: "ok" },
         crPulls: { mtime: $stale("3d") },
       }),
     ),

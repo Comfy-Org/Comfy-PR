@@ -5,7 +5,7 @@ import { createComfyRegistryPullRequests } from "./createComfyRegistryPullReques
 import { $ERROR, $OK, TaskError, TaskOK } from "./Task";
 import { $fresh } from "./db";
 import { $stale } from "./db";
-import { parseRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
+import { parseUrlRepoOwner, stringifyOwnerRepo } from "./parseOwnerRepo";
 import { notifySlackLinks } from "./notifySlackLinks";
 import { CNRepos } from "./CNRepos";
 
@@ -32,7 +32,7 @@ export async function createComfyRegistryPRsFromCandidates() {
         const links = data.map((e) => ({
           href: e.html_url,
           name: stringifyOwnerRepo(
-            parseRepoUrl(e.html_url.replace(/\/pull\/.*$/, ""))
+            parseUrlRepoOwner(e.html_url.replace(/\/pull\/.*$/, ""))
           ) +
             " #" +
             e.title,

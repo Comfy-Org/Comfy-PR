@@ -43,13 +43,15 @@ type GithubIssueComment = Awaited<
 type GithubIssue = Awaited<ReturnType<typeof gh.issues.get>>["data"];
 type GithubRepo = Awaited<ReturnType<typeof gh.repos.get>>["data"];
 type CRType = "pyproject" | "publichcr";
+export type EditedRelatedPull = RelatedPull & { edited: Task<boolean> };
+
 export type CustomNodeRepo = {
   repository: string;
   cr?: WithId<CRNode>;
   cm?: WithId<CMNode>;
   info?: Task<GithubRepo>;
   pulls?: Task<GithubPull[]>;
-  crPulls?: Task<RelatedPull[]>;
+  crPulls?: Task<(RelatedPull | EditedRelatedPull)[]>;
   candidate?: Task<boolean>;
   // createFork?: Task<GithubRepo>;
   // createBranches?: Task<{ type: CRType; assigned: Worker } & PushedBranch>[];

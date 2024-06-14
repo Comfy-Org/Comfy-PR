@@ -1,11 +1,10 @@
 import DIE from "@snomiao/die";
-import { readFile } from "fs/promises";
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
-import { type GithubPull } from "./fetchRepoPRs";
 import { fetchPullComments } from "./fetchPullComments";
-import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
+import { type GithubPull } from "./fetchRepoPRs";
+import { readTemplateTitle } from "./readTemplateTitle";
 import { summaryLastPullComment } from "./summaryLastPullComment";
 if (import.meta.main) {
   // const repository = "https://github.com/ltdrdata/ComfyUI-Manager";
@@ -48,17 +47,15 @@ export async function fetchRelatedPullWithComments(
 }
 export type RelatedPull = Awaited<ReturnType<typeof matchRelatedPulls>>[number];
 export async function matchRelatedPulls(pulls: GithubPull[]) {
-  const readTemplateTitle = async (filename: string) =>
-    await readFile("./templates/" + filename, "utf8")
-      .then(parseTitleBodyOfMarkdown)
-      .then((e) => e.title);
+  const pyproject = await readTemplateTitle("add-toml.md");
+  const publishcr = await readTemplateTitle("add-action.md");
   const relatedPulls = await pMap(pulls, async (pull) =>
     match(pull)
-      .with({ title: await readTemplateTitle("add-toml.md") }, (pull) => ({
+      .with({ title: pyproject }, (pull) => ({
         type: "pyproject" as const,
         pull,
       }))
-      .with({ title: await readTemplateTitle("add-action.md") }, (pull) => ({
+      .with({ title: publishcr }, (pull) => ({
         type: "publishcr" as const,
         pull,
       }))

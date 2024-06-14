@@ -3,23 +3,23 @@ import { GIT_USEREMAIL, GIT_USERNAME } from ".";
 import { $ } from "./echoBunShell";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
 import { gh } from "./gh";
-import { parseRepoUrl, stringifyGithubOrigin } from "./parseOwnerRepo";
+import { parseUrlRepoOwner, stringifyGithubOrigin } from "./parseOwnerRepo";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 import { tomlFillDescription } from "./tomlFillDescription";
 
 export async function makePyprojectBranch(upstreamUrl: string, forkUrl: string) {
   const type = "pyproject" as const;
-  const origin = await stringifyGithubOrigin(parseRepoUrl(forkUrl));
+  const origin = await stringifyGithubOrigin(parseUrlRepoOwner(forkUrl));
   const branch = "pyproject";
   const tmpl = await readFile("./templates/add-toml.md", "utf8");
   const { title, body } = parseTitleBodyOfMarkdown(tmpl);
-  const repo = parseRepoUrl(forkUrl);
+  const repo = parseUrlRepoOwner(forkUrl);
 
   if (await gh.repos.getBranch({ ...repo, branch }).catch(() => null)) {
     console.log("Skip changes as branch existed: " + branch);
     return { type, title, body, branch };
   }
-  const src = parseRepoUrl(upstreamUrl);
+  const src = parseUrlRepoOwner(upstreamUrl);
   const cwd = await getBranchWorkingDir(upstreamUrl, forkUrl, branch);
 
   // commit changes

@@ -5,7 +5,7 @@ import { $ } from "./echoBunShell";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
 import { gh } from "./gh";
 import {
-  parseRepoUrl,
+  parseUrlRepoOwner,
   stringifyGithubOrigin,
   stringifyGithubRepoUrl,
 } from "./parseOwnerRepo";
@@ -25,11 +25,11 @@ export async function makePublishcrBranch(
 ) {
   const type = "publishcr" as const;
 
-  const origin = await stringifyGithubOrigin(parseRepoUrl(forkUrl));
+  const origin = await stringifyGithubOrigin(parseUrlRepoOwner(forkUrl));
   const branch = "publish";
   const tmpl = await readFile("./templates/add-action.md", "utf8");
   const { title, body } = parseTitleBodyOfMarkdown(tmpl);
-  const repo = parseRepoUrl(origin);
+  const repo = parseUrlRepoOwner(origin);
 
   if (await gh.repos.getBranch({ ...repo, branch }).catch(() => null)) {
     console.log("Skip changes as branch existed: " + branch);

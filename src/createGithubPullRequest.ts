@@ -3,7 +3,7 @@ import yaml from "yaml";
 import { chalk } from "zx";
 import type { GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
-import { parseRepoUrl } from "./parseOwnerRepo";
+import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
 export async function createGithubPullRequest({
   title, body, branch, srcUrl, dstUrl,
@@ -14,8 +14,8 @@ export async function createGithubPullRequest({
   srcUrl: string;
   dstUrl: string;
 }) {
-  const dst = parseRepoUrl(dstUrl);
-  const src = parseRepoUrl(srcUrl);
+  const dst = parseUrlRepoOwner(dstUrl);
+  const src = parseUrlRepoOwner(srcUrl);
   const repo = (await gh.repos.get({ ...dst })).data;
 
   // TODO: seems has bugs on head_repo

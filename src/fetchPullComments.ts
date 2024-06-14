@@ -1,5 +1,5 @@
 import { gh } from "./gh";
-import { parseRepoUrl } from "./parseOwnerRepo";
+import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
 
 export async function fetchPullComments(
@@ -8,7 +8,7 @@ export async function fetchPullComments(
 ) {
   const result = (
     await gh.issues.listComments({
-      ...parseRepoUrl(repo),
+      ...parseUrlRepoOwner(repo),
       issue_number: pull.number,
       direction: "asc",
       sort: "created",

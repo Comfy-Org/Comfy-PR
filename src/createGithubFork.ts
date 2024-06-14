@@ -1,14 +1,14 @@
 import { user } from ".";
-import { parseRepoUrl, stringifyGithubRepoUrl } from "./parseOwnerRepo";
+import { parseUrlRepoOwner, stringifyGithubRepoUrl } from "./parseOwnerRepo";
 import { gh } from "./gh";
 
 export async function createGithubFork(from: string, to: string) {
-  const _to = parseRepoUrl(to);
+  const _to = parseUrlRepoOwner(to);
   const forkResult = await gh.repos
     .createFork({
       ...(user.name !== _to.owner && { organization: _to.owner }),
       name: _to.repo,
-      ...parseRepoUrl(from),
+      ...parseUrlRepoOwner(from),
     })
     .catch(async (e) => {
       if (e.message.match("Name already exists on this account"))
