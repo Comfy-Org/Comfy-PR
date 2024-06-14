@@ -6,11 +6,7 @@ import { gh } from "./gh";
 import { parseRepoUrl } from "./parseOwnerRepo";
 
 export async function createGithubPullRequest({
-  title,
-  body,
-  branch,
-  srcUrl,
-  dstUrl,
+  title, body, branch, srcUrl, dstUrl,
 }: {
   title: string;
   body: string;

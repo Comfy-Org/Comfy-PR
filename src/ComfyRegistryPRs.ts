@@ -3,14 +3,14 @@ import pMap from "p-map";
 import yaml from "yaml";
 import { chalk } from "zx";
 import { clone_modify_push_Branches } from "./clone_modify_push_Branches";
-import { createGithubFork } from "./createGithubFork";
+import { createGithubForkForRepo } from "./createGithubForkForRepo";
 import type { GithubPull } from "./fetchRepoPRs";
-import { createGithubPullRequest } from "./ghPullRequest";
+import { createGithubPullRequest } from "./createGithubPullRequest";
 
 export async function ComfyRegistryPRs(
   upstreamRepoUrl: string,
 ): Promise<GithubPull[]> {
-  const forkedRepo = await createGithubFork(upstreamRepoUrl);
+  const forkedRepo = await createGithubForkForRepo(upstreamRepoUrl);
   const PR_REQUESTS = await clone_modify_push_Branches(
     upstreamRepoUrl,
     forkedRepo.html_url,

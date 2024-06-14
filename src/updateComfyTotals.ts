@@ -1,8 +1,9 @@
 import promiseAllProperties from "promise-all-properties";
-import { groupBy, map, type AnyFunction } from "rambda";
+import { groupBy, map } from "rambda";
 import { match } from "ts-pattern";
 import { YAML } from "zx";
 import { $flatten } from "./$flatten";
+import { type AwaitedReturnType } from "./AwaitedReturnType";
 import { CMNodes } from "./CMNodes";
 import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
@@ -13,13 +14,12 @@ if (import.meta.main) {
   await updateComfyTotals();
 }
 
-type AwaitedReturn<T extends AnyFunction> = Awaited<ReturnType<T>>;
-
-type Totals = AwaitedReturn<typeof analyzeTotals>;
+type Totals = AwaitedReturnType<typeof analyzeTotals>;
 export const Totals = db.collection<{
   today?: string;
   totals?: Task<Totals>;
 }>("Totals");
+
 export async function updateComfyTotals() {
   const today = new Date().toISOString().split("T")[0];
   const cached = await Totals.findOne(
