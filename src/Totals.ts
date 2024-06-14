@@ -23,9 +23,7 @@ if (import.meta.main) {
 
 export async function updateComfyTotals() {
   const today = new Date().toISOString().split("T")[0];
-  const cached = await Totals.findOne(
-    $flatten({ today, totals: { mtime: $fresh("10m"), ...$OK } }),
-  );
+  const cached = await Totals.findOne($flatten({ today, totals: { mtime: $fresh("10m"), ...$OK } }));
   if (cached?.totals?.state === "ok") return [];
 
   const totals = await analyzeTotals().then(TaskOK).catch(TaskError);
@@ -36,7 +34,7 @@ export async function updateComfyTotals() {
       return await Totals.findOneAndUpdate(
         { today },
         { $set: { totals, notification } },
-        { upsert: true , returnDocument: "after"},
+        { upsert: true, returnDocument: "after" },
       );
     })
     .otherwise(() => null);
