@@ -16,6 +16,10 @@ await Worker.createIndex({ ip: 1 });
 await Worker.createIndex({ hostname: 1 });
 if (import.meta.main) {
   console.log(await getWorker());
+
+  for await (const event of Worker.watch([],{fullDocument: 'whenAvailable'})) {
+    console.log(event);
+  }
 }
 
 export const _WorkerGeoPromise = updateWorkerGeo(); // in background
@@ -35,7 +39,6 @@ async function updateWorkerGeo() {
   );
   return geo;
 }
-
 export async function getWorker(task?: string) {
   await updateWorkerGeo();
   const worker = await Worker.findOneAndUpdate(
