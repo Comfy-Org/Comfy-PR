@@ -17,7 +17,6 @@ export async function ComfyRegistryPRs(
   );
   // branch is ready in fork now
 
-  DIE("check forks plz");
   // create prs for each branch
   console.log("PR Infos");
   console.log(chalk.green(yaml.stringify({ PR_REQUESTS })));

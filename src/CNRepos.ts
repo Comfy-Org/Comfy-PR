@@ -5,17 +5,20 @@ bun index.ts
 import type { WithId } from "mongodb";
 import pMap from "p-map";
 import "react-hook-form";
+import { match } from "ts-pattern";
 import { $flatten } from "./$flatten";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
-import { type SlackMsg } from "./SlackNotifications";
+import { slackNotify, type SlackMsg } from "./SlackNotifications";
 import { $ERROR, $OK, TaskError, TaskOK, type Task } from "./Task";
 import { getWorker } from "./Worker";
 import { $fresh, $stale, db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
+import { parseRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
+import { slackLinksNotify } from "./slackUrlsNotify";
 import { tLog } from "./tLog";
 import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposInfo } from "./updateCNReposInfo";
@@ -116,7 +119,11 @@ export async function scanCNRepoThenCreatePullRequests() {
 }
 
 export async function updateCNRepos() {
-  console.log("Prepare CNRepos");
+  const worker = await getWorker();
+  const workerInfo = `${worker.countryCode}/${worker.region}/${worker.city}`;
+  const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
+  await slackNotify(msg, { unique: true, silent: true });
+
   await Promise.all([
     // stage 1: get repos
     tLog("1 Update Repos from ComfyUI Manager", updateCMRepos),
@@ -159,10 +166,25 @@ export async function updateCNRepos() {
         const createdPulls = await ComfyRegistryPRs(repository)
           .then(TaskOK)
           .catch(TaskError);
-        console.log(createdPulls);
+        match(createdPulls).with($OK, async ({ data }) => {
+          const links = data.map((e) => ({
+            href: e.html_url,
+            name:
+              stringifyOwnerRepo(
+                parseRepoUrl(e.html_url.replace(/\/pull\/.*$/, "")),
+              ) +
+              " #" +
+              e.title,
+          }));
+          await slackLinksNotify(
+            "Custom Node Repo Pulls Created, check plz @HaoHao",
+            links,
+          );
+        });
+
         return await CNRepos.updateOne(
           { repository },
-          { $set: { createdPulls } },
+          { $set: $flatten({ createdPulls }) },
         );
       },
       { concurrency: 1 },

@@ -6,7 +6,6 @@ export async function slackLinksNotify(
   urls: (string | { href: string; name: string })[]
 ) {
   if (!urls.length) return;
-
   const urlList = sortBy((e) => JSON.stringify(e), urls)
     .map(
       (e) =>
