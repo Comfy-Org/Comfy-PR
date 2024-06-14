@@ -18,6 +18,9 @@ await SlackMsgs.createIndex({ channel: 1, ts: -1 });
 await SlackMsgs.createIndex({ text: 1 });
 await SlackMsgs.createIndex({ mtime: -1 });
 
+// try send msgs that didn't send in last run
+slackNotifyTask()
+
 if (import.meta.main) {
   await slack.api.test({});
   const text =
@@ -62,6 +65,8 @@ export async function slackNotify(
   slackNotifyTask().then(() => console.info("slack notify task done"));
   return { _id };
 }
+
+
 
 export async function slackNotifyTask() {
   // send

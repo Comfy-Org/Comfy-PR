@@ -179,7 +179,7 @@ export async function updateCNRepos() {
               e.title,
           }));
           await slackLinksNotify(
-            "Custom Node Repo Pulls Created, check plz @HaoHao",
+            "PR just Created, @HaoHao check plz",
             links,
           );
         });
