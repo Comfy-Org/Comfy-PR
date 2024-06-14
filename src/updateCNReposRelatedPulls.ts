@@ -19,7 +19,7 @@ export async function updateCNReposRelatedPulls() {
   return await pMap(
     CNRepos.find(
       $flatten({
-        pulls: { mtime: $fresh("7d"), state: "ok" },
+        pulls: { mtime: $fresh("7d") },
         crPulls: { mtime: $stale("3d") },
       }),
     ),
