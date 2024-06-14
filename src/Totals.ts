@@ -35,7 +35,7 @@ export async function updateComfyTotals() {
       return await Totals.findOneAndUpdate(
         { today },
         { $set: { totals, notification } },
-        { upsert: true },
+        { upsert: true , returnDocument: "after"},
       );
     })
     .otherwise(() => null);

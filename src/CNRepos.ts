@@ -9,7 +9,7 @@ import { type CRNode } from "./CRNodes";
 import { type SlackMsg } from "./SlackMsgs";
 import { type Task } from "./Task";
 import { updateComfyTotals } from "./Totals";
-import { getWorkerMachine } from "./Worker";
+import { getWorker } from "./Worker";
 import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
 import { db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
@@ -59,7 +59,7 @@ export const CNRepos = db.collection<CustomNodeRepo>("CNRepos");
 await CNRepos.createIndex({ repository: 1 }, { unique: true });
 
 if (import.meta.main) {
-  await getWorkerMachine("Updating CNRepos");
+  await getWorker("Updating CNRepos");
   // await cacheHealthReport();
   await updateCNRepos();
   // updateCNReposPRTasks
@@ -67,58 +67,10 @@ if (import.meta.main) {
   // await pMap(candidates, (e) => updateCNRepoPRStatus(e.repository), { concurrency: 4 });
   // candidates
 }
-export async function scanCNRepoThenCreatePullRequests() {
-  const _candidates = await updateCNReposPRCandidate();
-  // const candidates = await pMap(
-  //   _candidates,
-  //   async ({ repository }) => {
-  //     const ghrepo = await gh.repos.get({ ...repoUrlParse(repository) });
-  //     return (await CNRepos.findOneAndUpdate(
-  //       { repository },
-  //       { $set: { archived: ghrepo.data.archived } },
-  //       { upsert: true }
-  //     ))!;
-  //   },
-  //   { concurrency: 3 }
-  // );
-
-  // await pMap(
-  //   shuffleArray(candidates),
-  //   async ({ repository, archived }) => {
-  //     if (archived) return;
-  //     await CNRepos.updateOne(
-  //       { repository },
-  //       { $set: { prsTask: { state: "pending", stime: new Date() } } }
-  //     );
-  //     await ComfyRegistryPRs(repository).catch(async (e) => {
-  //       await CNRepos.updateOne(
-  //         { repository },
-  //         {
-  //           $set: {
-  //             prsTask: { state: "error", mtime: new Date(), error: e.message },
-  //           },
-  //         }
-  //       );
-  //       throw e;
-  //     });
-  //     const prUpdateResult = await updateCNRepoPRStatus(repository);
-  //     const links = [prUpdateResult]
-  //       .filter((e) => e.modifiedCount || e.upsertedCount)
-  //       .flatMap((e) => e.links);
-  //     await slackLinksNotify("Custom Node Repo prs created", links);
-  //     await CNRepos.updateOne(
-  //       { repository },
-  //       { $set: { prsTask: { state: "done", mtime: new Date() } } }
-  //     );
-  //   },
-  //   { concurrency: 1, stopOnError: false }
-  // );
-}
-
 export async function updateCNRepos() {
   await Promise.all([
     tLog("0 Report Worker Status", async () => {
-      const worker = await getWorkerMachine("Comfy PR Bot Running");
+      const worker = await getWorker("Comfy PR Bot Running");
       const workerInfo = `${worker.geo.countryCode}/${worker.geo.region}/${worker.geo.city}`;
       const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
       return [await notifySlack(msg, { unique: true, silent: true })];
