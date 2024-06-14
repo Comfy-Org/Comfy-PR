@@ -158,6 +158,7 @@ export async function updateCNRepos() {
           { $set: { createdPulls } },
         );
       },
+      {concurrency: 1}
     );
   });
 
