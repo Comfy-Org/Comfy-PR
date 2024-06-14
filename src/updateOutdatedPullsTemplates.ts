@@ -3,7 +3,7 @@ import pMap from "p-map";
 import { match } from "ts-pattern";
 import { user } from ".";
 import { CNRepos, type EditedRelatedPull } from "./CNRepos";
-import { $stale } from "./db";
+import { $fresh, $stale } from "./db";
 import { $elemMatch } from "./db/$elemMatch";
 import { $flatten } from "./db/$flatten";
 import { gh } from "./gh";
@@ -24,6 +24,7 @@ export async function updateOutdatedPullsTemplates() {
   // const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
 
   await CNRepos.createIndex({
+    "crPulls.mtime": -1,
     "crPulls.data.edited.error": -1,
     "crPulls.data.edited.mtime": -1,
     "crPulls.data.edited.state": -1,
@@ -35,6 +36,7 @@ export async function updateOutdatedPullsTemplates() {
     CNRepos.find(
       $flatten({
         crPulls: {
+          mtime: $fresh("1h"), // retry if update fails
           data: $elemMatch({
             edited: {
               mtime: $stale("30m"), // retry if update fails
