@@ -17,7 +17,7 @@ export async function createComfyRegistryPullRequests(
   );
   // branch is ready in fork now
   // create prs for each branch
-  console.log("PR Infos");
+  console.log("Going to create PRs for the following branches:");
   console.log(chalk.green(yaml.stringify({ PR_REQUESTS })));
   // prs
   const prs = await pMap(

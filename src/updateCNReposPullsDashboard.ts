@@ -29,6 +29,7 @@ export async function updateCNRepoPullsDashboard() {
         .otherwise(() => DIE("CR Pulls not found"));
       const repoName = stringifyOwnerRepo(parseRepoUrl(repo.repository));
       const body = crPulls
+        .filter((e) => e.pull.state !== "closed")
         .map((e) => {
           const date = new Date(e.pull.created_at).toISOString().slice(0, 10);
           const state = e.pull.state.toUpperCase();
