@@ -24,7 +24,7 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 - [x] Fetch pr comments (currently DISABLED)
 - [x] Automaticaly find candidates, and do the cli does
 - [x] Mention related prs in dashboard https://github.com/drip-art/Comfy-Registry-PR/issues/1
-- [ ] 
+- [ ]
 - [ ] email subscriber
 - [ ] Delete the forked repo which is Merged
 
