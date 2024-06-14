@@ -1,7 +1,8 @@
 import { getMAC } from "@ctrl/mac-address";
 import md5 from "md5";
 import { db } from "./db";
-import { fetchJson } from "./utils/fetchJson";
+import { fetchCurrentGeoInfo } from "./fetchCurrentGeoInfo";
+export type GeoInfo = Awaited<ReturnType<typeof fetchCurrentGeoInfo>>;
 export type Worker = {
   /**
    * id: hash of HOSTNAME & MAC address
@@ -10,29 +11,35 @@ export type Worker = {
   active?: Date;
   task?: string;
   geo: GeoInfo;
+  instancesIds?: string[]; // not _id
 };
-export const Worker = db.collection<Worker>("Worker");
-await Worker.createIndex({ ip: 1 });
-await Worker.createIndex({ hostname: 1 });
+export type WorkerInstance = {
+  /** id: rand */
+  id?: string;
+  active?: Date;
+  task?: string;
+  geo?: GeoInfo;
+};
+const _WorkerInstanceId = Math.random().toString(36).slice(2);
+export const Workers = db.collection<Worker>("Workers");
+export const WorkerInstances = db.collection<WorkerInstance>("WorkerInstances");
+await Workers.createIndex({ ip: 1 });
+await Workers.createIndex({ hostname: 1 });
 if (import.meta.main) {
   console.log(await getWorker());
-
-  for await (const event of Worker.watch([],{fullDocument: 'whenAvailable'})) {
+  for await (const event of Workers.watch([], {
+    fullDocument: "whenAvailable",
+  })) {
     console.log(event);
   }
 }
 
 export const _WorkerGeoPromise = updateWorkerGeo(); // in background
 
-type GeoInfo = Awaited<ReturnType<typeof updateWorkerGeo>>;
-
 async function updateWorkerGeo() {
   // - [IP-API.com - Geolocation API - Documentation - JSON]( https://ip-api.com/docs/api:json )
-  const { query, city, iat, lon, countryCode, region } = (await fetchJson(
-    "http://ip-api.com/json",
-  )) as any;
-  const geo = { ip: query, city, iat, lon, countryCode, region };
-  await Worker.updateOne(
+  const geo = await fetchCurrentGeoInfo();
+  await Workers.updateOne(
     { id: getWorkerId() },
     { $set: { geo } },
     { upsert: true },
@@ -41,15 +48,22 @@ async function updateWorkerGeo() {
 }
 export async function getWorker(task?: string) {
   await updateWorkerGeo();
-  const worker = await Worker.findOneAndUpdate(
+  const instance = getWorkerInstanceId();
+  const worker = await Workers.findOneAndUpdate(
     { id: getWorkerId() },
-    { $set: { active: new Date(), ...(task && { task }) } },
+    {
+      $set: { active: new Date(), ...(task && { task }) },
+      $addToSet: { instancesIds: instance },
+    },
     { upsert: true },
   );
   return worker!;
 }
 
-function getWorkerId() {
+export function getWorkerId() {
   const hostname = process.env.HOSTNAME || process.env.COMPUTERNAME;
   return md5(`SALT=v9yJQouMC22do66t ${hostname} ${getMAC()}`).slice(0, 8);
+}
+export function getWorkerInstanceId() {
+  return _WorkerInstanceId;
 }

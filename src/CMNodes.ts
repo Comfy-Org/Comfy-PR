@@ -63,7 +63,7 @@ export async function updateCMNodes() {
     `[WARN] CMNodes duplicates: ${dupsSummary}\nSolve them in https://github.com/ltdrdata/ComfyUI-Manager/blob/main/custom-node-list.json`,
   );
 
-  await pMap(
+  return await pMap(
     toPairs(dups),
     async ([topic, nodes]) =>
       await pMap(
