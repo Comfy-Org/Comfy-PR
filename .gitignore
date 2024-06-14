@@ -6,3 +6,4 @@ prs/
 cache
 .cache
 secrets
+dist

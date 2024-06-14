@@ -9,7 +9,7 @@ import { type CRNode } from "./CRNodes";
 import { type SlackMsg } from "./SlackMsgs";
 import { type Task } from "./Task";
 import { updateComfyTotals } from "./Totals";
-import { getWorkerInstance } from "./Worker";
+import { getWorkerInstance } from "./WorkerInstances";
 import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
 import { db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
