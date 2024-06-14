@@ -19,6 +19,7 @@ import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposInfo } from "./updateCNReposInfo";
 import { updateCNReposPRCandidate } from "./updateCNReposPRCandidate";
 import { updateCNReposPulls } from "./updateCNReposPulls";
+import { updateCNRepoPullsDashboard } from "./updateCNReposPullsDashboard";
 import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
 import { updateCRRepos } from "./updateCRRepos";
 import { updateOutdatedPullsTemplates } from "./updateOutdatedPullsTemplates";
@@ -82,24 +83,18 @@ export async function updateCNRepos() {
     // stage 2: update repo info & pulls
     tLog("Update CNRepos for Repo Infos", updateCNReposInfo),
     tLog("Update CNRepos for Github Pulls", updateCNReposPulls),
-    // await tLog("Update Pulls Dashboard", updateCNRepoPullsDashboard),
+    tLog("Update Pulls Dashboard", updateCNRepoPullsDashboard),
     // stage 3: update related pulls and comments
     tLog("Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
     tLog("Update Outdated Pulls Templates", updateOutdatedPullsTemplates),
     // stage 4: update related comments (if needed)
     //  tLog("date CNRepos for Related Comments", udpateCNReposRelatedComments),
-    // stage 5:
+    // stage 5: mark and create PRs
     tLog("Update CNRepos PR Candidates", updateCNReposPRCandidate),
-    // stage 6:
-    //  tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
-    tLog("9 Update Comfy Totals", updateComfyTotals),
     tLog("Create ComfyRegistry PRs", createComfyRegistryPRsFromCandidates),
+    // final
+    tLog("Update Comfy Totals", updateComfyTotals),
   ]);
-  // await CNRepos.updateMany(
-  //   $flatten({ createdPulls: { mdate: $stale("5m"), ...$ERROR } }),
-  //   { $unset: { createdPulls: 1 } },
-  // );
-  // create prs on candidates
 
   console.log("All repo updated");
 }
