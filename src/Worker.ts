@@ -10,9 +10,9 @@ export type WorkerInstance = {
   id: string;
   up: Date;
   active: Date;
-  workerId?: string;
+  geo: GeoInfo;
+  workerId: string;
   task?: string;
-  geo?: GeoInfo;
 };
 
 const k = "COMFY_PR_WorkerInstanceKey";

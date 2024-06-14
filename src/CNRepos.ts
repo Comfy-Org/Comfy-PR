@@ -9,7 +9,7 @@ import { type CRNode } from "./CRNodes";
 import { type SlackMsg } from "./SlackMsgs";
 import { type Task } from "./Task";
 import { updateComfyTotals } from "./Totals";
-import { getWorker } from "./Worker";
+import { getWorkerInstance } from "./Worker";
 import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
 import { db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
@@ -59,7 +59,7 @@ export const CNRepos = db.collection<CustomNodeRepo>("CNRepos");
 await CNRepos.createIndex({ repository: 1 }, { unique: true });
 
 if (import.meta.main) {
-  await getWorker("Updating CNRepos");
+  await getWorkerInstance("Updating CNRepos");
   // await cacheHealthReport();
   await updateCNRepos();
   // updateCNReposPRTasks
@@ -70,7 +70,7 @@ if (import.meta.main) {
 export async function updateCNRepos() {
   await Promise.all([
     tLog("0 Report Worker Status", async () => {
-      const worker = await getWorker("Comfy PR Bot Running");
+      const worker = await getWorkerInstance("Comfy PR Bot Running");
       const workerInfo = `${worker.geo.countryCode}/${worker.geo.region}/${worker.geo.city}`;
       const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
       return [await notifySlack(msg, { unique: true, silent: true })];
