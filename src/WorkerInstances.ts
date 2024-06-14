@@ -25,18 +25,21 @@ await WorkerInstances.createIndex({ ip: 1 });
 export const _geoPromise = fetchCurrentGeoInfo(); // in background
 
 if (import.meta.main) {
-  await watchWorkerInstances();
+  // await watchWorkerInstances();
 }
 
 (async function () {
-  // heartbeat
+  await Promise.all([postWorkerHeartBeatLoop(), watchWorkerInstancesLoop()]);
+})();
+
+async function postWorkerHeartBeatLoop() {
   while (true) {
     await new Promise((r) => setTimeout(r, 15e3));
     await getWorkerInstance();
   }
-})();
+}
 
-async function watchWorkerInstances() {
+async function watchWorkerInstancesLoop() {
   const me = await getWorkerInstance();
   console.log("Worker instance ", me.id, " is watching for conflicts");
   for await (const event of WorkerInstances.watch([], {
