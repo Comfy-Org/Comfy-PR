@@ -47,7 +47,7 @@ export async function updateCMNodes() {
     { ordered: false },
   );
   // delete outdated
-  await CMNodes.deleteMany({ hash: { $nin: nodes.map(prop("hash")) } });
+  // await CMNodes.deleteMany({ hash: { $nin: nodes.map(prop("hash")) } });
 
   console.log("CMNodes checking duplicates");
   // prettier-ignore
