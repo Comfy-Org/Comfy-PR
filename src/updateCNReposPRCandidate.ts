@@ -27,7 +27,7 @@ export async function updateCNReposPRCandidate() {
     CNRepos.find(
       $flatten({
         crPulls: { mtime: $fresh("1d"), ...$OK },
-        info: { mtime: $fresh("7d"), ...$OK },
+        info: { mtime: $fresh("7d"), ...$OK, data: { private: false, archived: false } },
         candidate: { mtime: $stale("7d") },
       }),
     ),

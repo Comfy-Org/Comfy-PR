@@ -84,16 +84,16 @@ export async function updateCNRepos() {
     tLog("Update CNRepos for Github Pulls", updateCNReposPulls),
     // await tLog("Update Pulls Dashboard", updateCNRepoPullsDashboard),
     // stage 3: update related pulls and comments
-    await tLog("Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
-    await tLog("Update Outdated Pulls Templates", updateOutdatedPullsTemplates),
+    tLog("Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
+    tLog("Update Outdated Pulls Templates", updateOutdatedPullsTemplates),
     // stage 4: update related comments (if needed)
-    // await tLog("date CNRepos for Related Comments", udpateCNReposRelatedComments),
+    //  tLog("date CNRepos for Related Comments", udpateCNReposRelatedComments),
     // stage 5:
-    await tLog("Update CNRepos PR Candidates", updateCNReposPRCandidate),
+    tLog("Update CNRepos PR Candidates", updateCNReposPRCandidate),
     // stage 6:
-    // await tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
-    await tLog("9 Update Comfy Totals", updateComfyTotals),
-    await tLog("Create ComfyRegistry PRs", createComfyRegistryPRsFromCandidates),
+    //  tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
+    tLog("9 Update Comfy Totals", updateComfyTotals),
+    tLog("Create ComfyRegistry PRs", createComfyRegistryPRsFromCandidates),
   ]);
   // await CNRepos.updateMany(
   //   $flatten({ createdPulls: { mdate: $stale("5m"), ...$ERROR } }),
