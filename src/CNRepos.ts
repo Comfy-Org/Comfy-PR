@@ -4,7 +4,7 @@ bun index.ts
 */
 import type { WithId } from "mongodb";
 import "react-hook-form";
-import { type CMNode } from "./CMNodes";
+import { updateCMNodes, type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { type SlackMsg } from "./SlackMsgs";
 import { type Task } from "./Task";
@@ -124,6 +124,7 @@ export async function updateCNRepos() {
       return [await notifySlack(msg, { unique: true, silent: true })];
     }),
     // stage 1: get repos
+    tLog("1 Update Nodes from ComfyUI Manager", updateCMNodes),
     tLog("1 Update Repos from ComfyUI Manager", updateCMRepos),
     tLog("2 Update Repos from ComfyRegistry", updateCRRepos),
     // stage 2: update repo info & pulls

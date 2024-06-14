@@ -18,7 +18,7 @@ export type CMNode = CMNodeRaw & {
     [k: string]: { hashes: string[]; slackNotification: SlackMsg };
   };
 };
-export const CMNodes = db.collection<CMNode>("CMNodes3");
+export const CMNodes = db.collection<CMNode>("CMNodes");
 await CMNodes.createIndex({ mtime: -1 });
 await CMNodes.createIndex({ hash: 1 }, { unique: true }).catch(() => {});
 
