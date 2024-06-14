@@ -4,9 +4,7 @@ import { MongoClient, type Db } from "mongodb";
 declare global {
   var _db: Db;
 }
-export const db = (global._db ??= new MongoClient(
-  process.env.MONGODB_URI ?? DIE("Missing env.MONGODB_URI"),
-).db());
+export const db = (global._db ??= new MongoClient(process.env.MONGODB_URI ?? DIE("Missing env.MONGODB_URI")).db());
 
 if (import.meta.main) {
   console.log(await db.admin().ping());

@@ -7,15 +7,15 @@ import { $fresh, $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { matchRelatedPulls } from "./fetchRelatedPulls";
 import { tLog } from "./utils/tLog";
-await CNRepos.createIndex({
-  "pulls.mtime": -1,
-  "pulls.state": 1,
-  "crPulls.mtime": 1,
-});
 if (import.meta.main) {
   await tLog("updateCNReposRelatedPulls", updateCNReposRelatedPulls);
 }
 export async function updateCNReposRelatedPulls() {
+  await CNRepos.createIndex({
+    "pulls.mtime": -1,
+    "pulls.state": 1,
+    "crPulls.mtime": 1,
+  });
   return await pMap(
     CNRepos.find(
       $flatten({
@@ -28,9 +28,7 @@ export async function updateCNReposRelatedPulls() {
       const pulls = match(repo.pulls)
         .with($OK, (e) => e.data)
         .otherwise(() => DIE("Pulls not found"));
-      const crPulls = await matchRelatedPulls(pulls)
-        .then(TaskOK)
-        .catch(TaskError);
+      const crPulls = await matchRelatedPulls(pulls).then(TaskOK).catch(TaskError);
       return await CNRepos.updateOne({ repository }, { $set: { crPulls } });
     },
   );

@@ -37,9 +37,7 @@ type Sent = {
   emails?: Email[];
 };
 
-type GithubIssueComment = Awaited<
-  ReturnType<typeof gh.issues.getComment>
->["data"];
+type GithubIssueComment = Awaited<ReturnType<typeof gh.issues.getComment>>["data"];
 type GithubIssue = Awaited<ReturnType<typeof gh.issues.get>>["data"];
 type GithubRepo = Awaited<ReturnType<typeof gh.repos.get>>["data"];
 type CRType = "pyproject" | "publichcr";
@@ -71,27 +69,27 @@ if (import.meta.main) {
 }
 export async function updateCNRepos() {
   await Promise.all([
-    tLog("0 Report Worker Status", async () => {
+    tLog("Report Worker Status", async () => {
       const worker = await getWorkerInstance("Comfy PR Bot Running");
       const workerInfo = `${worker.geo.countryCode}/${worker.geo.region}/${worker.geo.city}`;
       const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
       return [await notifySlack(msg, { unique: true, silent: true })];
     }),
     // stage 1: get repos
-    tLog("1 Update Nodes from ComfyUI Manager", updateCMNodes),
-    tLog("1 Update Repos from ComfyUI Manager", updateCMRepos),
-    tLog("2 Update Repos from ComfyRegistry", updateCRRepos),
+    tLog("Update Nodes from ComfyUI Manager", updateCMNodes),
+    tLog("Update Repos from ComfyUI Manager", updateCMRepos),
+    tLog("Update Repos from ComfyRegistry", updateCRRepos),
     // stage 2: update repo info & pulls
-    tLog("3 Update CNRepos for Repo Infos", updateCNReposInfo),
-    tLog("4 Update CNRepos for Github Pulls", updateCNReposPulls),
-    // tLog("5 Update Pulls Dashboard", updateCNRepoPullsDashboard),
+    tLog("Update CNRepos for Repo Infos", updateCNReposInfo),
+    tLog("Update CNRepos for Github Pulls", updateCNReposPulls),
+    // tLog("Update Pulls Dashboard", updateCNRepoPullsDashboard),
     // stage 3: update related pulls and comments
-    tLog("6 Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
-    tLog("7 Update Outdated Pulls Templates", updateOutdatedPullsTemplates),
+    tLog("Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
+    tLog("Update Outdated Pulls Templates", updateOutdatedPullsTemplates),
     // stage 4: update related comments (if needed)
-    // tLog("Update CNRepos for Related Comments", udpateCNReposRelatedComments),
+    // tLog("date CNRepos for Related Comments", udpateCNReposRelatedComments),
     // stage 5:
-    tLog("8 Update CNRepos PR Candidates", updateCNReposPRCandidate),
+    tLog("Update CNRepos PR Candidates", updateCNReposPRCandidate),
     // stage 6:
     // tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
     tLog("9 Update Comfy Totals", updateComfyTotals),

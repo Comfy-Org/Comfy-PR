@@ -1,5 +1,4 @@
 import pMap from "p-map";
-import { notifySlack } from "./notifySlack";
 import { CMNodes } from "./CMNodes";
 import { CNRepos } from "./CNRepos";
 

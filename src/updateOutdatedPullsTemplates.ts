@@ -1,13 +1,12 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
-import { user } from ".";
 import { CNRepos } from "./CNRepos";
 import { $OK } from "./Task";
+import { $fresh, $stale } from "./db";
 import { $elemMatch } from "./db/$elemMatch";
 import { $flatten } from "./db/$flatten";
 import { readTemplate } from "./readTemplateTitle";
 import { tLog } from "./utils/tLog";
-import { $fresh, $stale } from "./db";
 // await CNRepos.createIndex({
 //   "crPulls.data.pull.body": -1,
 //   "crPulls.data.edited.mtime": -1,
@@ -34,24 +33,24 @@ export async function updateOutdatedPullsTemplates() {
       $flatten({
         crPulls: {
           mtime: $fresh("1d"),
-          // data: $elemMatch({
-          //   // edited: {
-          //   //   mtime: $stale("30m"), // retry if update fails
-          //   //   state: { $ne: "ok" },
-          //   //   error: { $nin: ["up to date", "body mismatch"] },
-          //   // },
-          //   pull: {
-          //     // user: { login: user.login },
-          //     title: outdated_pyproject.title,
-              
-          //     // title: {
-          //     //   $in: [outdated_pyproject.title, outdated_publishcr.title],
-          //     // },
-          //     // body: {
-          //     //   $in: [outdated_pyproject.body, outdated_publishcr.body],
-          //     // },
-          //   },
-          // }),
+          data: $elemMatch({
+            edited: {
+              mtime: $stale("30m"), // retry if update fails
+              state: { $ne: "ok" },
+              error: { $nin: ["up to date", "body mismatch"] },
+            },
+            pull: {
+              // user: { login: user.login },
+              title: outdated_pyproject.title,
+
+              // title: {
+              //   $in: [outdated_pyproject.title, outdated_publishcr.title],
+              // },
+              body: {
+                $in: [outdated_pyproject.body, outdated_publishcr.body],
+              },
+            },
+          }),
         },
       }),
       // $flatten({
