@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 import DIE from "@snomiao/die";
-import { $ as bunSh, serve, sleep } from "bun";
+import { serve, sleep } from "bun";
 import "dotenv/config";
-import { os, $ as zx } from "zx";
+import { $ as zx } from "zx";
 import { scanCNRepoThenCreatePullRequests, updateCNRepos } from "./CNRepos";
 import { gh } from "./gh";
+import { checkComfyActivated } from "./checkComfyActivated";
 
 zx.verbose = true;
 
@@ -30,41 +31,8 @@ export const FORK_PREFIX =
 
 console.log(`GIT COMMIT USER: ${GIT_USERNAME} <${GIT_USEREMAIL}>`);
 
-export async function checkComfyActivated() {
-  console.log("Checking ComfyUI Activated...");
-  const platform = os.platform();
-  console.log("Platform: ", platform);
-  const activate =
-    platform === "win32"
-      ? ".venv\\Scripts\\activate"
-      : "source .venv/bin/activate";
-  if (!(await bunSh`comfy --help`.quiet().catch(() => null))) {
-    await bunSh`
-apt install -y python3 python3-venv
-python -m venv .venv
-${activate}
-pip install comfy-cli
-comfy-cli --help
-`.catch(console.error);
-
-    DIE(
-      `
-Cound not found comfy-cli.
-Please install comfy-cli before run "bunx comfy-pr" here.
-
-$ >>>>>>>>>>>>>>>>>>>>>>>>>>
-apt install -y python3 python3-venv
-python -m venv .venv
-${activate}
-pip install comfy-cli
-comfy-cli --help
-`.trim(),
-    );
-  }
-}
-
 if (import.meta.main) {
-  // await checkComfyActivated(); // needed if make pr
+  await checkComfyActivated(); // needed if make pr
   await updateCNRepos();
   console.log("All done");
   process.exit(0);

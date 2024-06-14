@@ -2,6 +2,7 @@
 /*
 bun index.ts
 */
+import { consolePeek } from "console-peek";
 import type { WithId } from "mongodb";
 import pMap from "p-map";
 import "react-hook-form";
@@ -10,9 +11,9 @@ import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
 import { type SlackMsg } from "./SlackNotifications";
-import { $OK, TaskError, TaskOK, type Task } from "./Task";
+import { $ERROR, $OK, TaskError, TaskOK, type Task } from "./Task";
 import { getWorker } from "./Worker";
-import { $fresh, db } from "./db";
+import { $fresh, $stale, db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
@@ -135,16 +136,27 @@ export async function updateCNRepos() {
     // stage 6:
     // tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
   ]);
-  // Update outdated pr issue bodies
-  // await CNRepos.updateMany({}, { $unset: { createdPulls: 1 } });
+  // await CNRepos.updateMany(
+  //   $flatten({ createdPulls: { mdate: $stale("5m"), ...$ERROR } }),
+  //   { $unset: { createdPulls: 1 } },
+  // );
   // create prs on candidates
   await tLog("Make PRs", async function () {
     return await pMap(
       CNRepos.find(
-        $flatten({
-          candidate: { mtime: $fresh("1d"), ...$OK, data: { $eq: true } },
-          createdPulls: { $exists: false }, // pr that never created
-        }),
+        consolePeek(
+          $flatten({
+            candidate: { mtime: $fresh("1d"), ...$OK, data: { $eq: true } },
+            $or: [
+              {
+                createdPulls: { $exists: false }, // prs that never created
+              },
+              {
+                createdPulls: { ...$ERROR, mtime: $stale("5m") }, // retry pr erros after 5m
+              },
+            ],
+          }),
+        ),
       ),
       async (repo) => {
         const { repository } = repo;
@@ -158,7 +170,7 @@ export async function updateCNRepos() {
           { $set: { createdPulls } },
         );
       },
-      {concurrency: 1}
+      { concurrency: 1 },
     );
   });
 

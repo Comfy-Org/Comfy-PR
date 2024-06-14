@@ -2,7 +2,7 @@
 import DIE from "@snomiao/die";
 import { readFile } from "fs/promises";
 import { argv } from "zx";
-import { checkComfyActivated } from ".";
+import { checkComfyActivated } from "./checkComfyActivated";
 import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
 if (argv.help) {
   console.log(
