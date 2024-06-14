@@ -7,7 +7,7 @@ import { parseRepoUrl, stringifyGithubOrigin } from "./parseOwnerRepo";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 import { tomlFillDescription } from "./tomlFillDescription";
 
-export async function makeTomlBranch(upstreamUrl: string, forkUrl: string) {
+export async function makePyprojectBranch(upstreamUrl: string, forkUrl: string) {
   const type = "pyproject" as const;
   const origin = await stringifyGithubOrigin(parseRepoUrl(forkUrl));
   const branch = "pyproject";

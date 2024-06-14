@@ -19,7 +19,7 @@ import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
  * @param origin
  * @returns
  */
-export async function makePublishBranch(
+export async function makePublishcrBranch(
   upstreamUrl: string,
   forkUrl: Readonly<string>,
 ) {
