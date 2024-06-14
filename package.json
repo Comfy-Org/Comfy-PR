@@ -50,7 +50,7 @@
     "promise-all-properties": "^4.0.0",
     "rambda": "^9.2.0",
     "react-hook-form": "^7.51.5",
-    "snorun": "^1.1.17",
+    "snorun": "^1.4.0",
     "timing-with": "^0.0.4",
     "toml": "^3.0.0",
     "ts-pattern": "^5.2.0",
