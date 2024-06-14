@@ -7,15 +7,15 @@ import "react-hook-form";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { type SlackMsg } from "./SlackMsgs";
-import { notifySlack } from "./notifySlack";
 import { type Task } from "./Task";
+import { updateComfyTotals } from "./Totals";
 import { getWorker } from "./Worker";
 import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
 import { db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
-import { tLog } from "./utils/tLog";
+import { notifySlack } from "./notifySlack";
 import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposInfo } from "./updateCNReposInfo";
 import { updateCNReposPRCandidate } from "./updateCNReposPRCandidate";
@@ -23,7 +23,7 @@ import { updateCNReposPulls } from "./updateCNReposPulls";
 import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
 import { updateCRRepos } from "./updateCRRepos";
 import { updateOutdatedPullsTemplates } from "./updateOutdatedPullsTemplates";
-import { updateComfyTotals } from "./updateComfyTotals";
+import { tLog } from "./utils/tLog";
 
 type Email = {
   from?: string;
@@ -139,8 +139,7 @@ export async function updateCNRepos() {
     tLog("8 Update CNRepos PR Candidates", updateCNReposPRCandidate),
     // stage 6:
     // tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
-
-    tLog("9 Totals", updateComfyTotals),
+    tLog("9 Update Comfy Totals", updateComfyTotals),
     tLog("Create ComfyRegistry PRs", createComfyRegistryPRsFromCandidates),
   ]);
   // await CNRepos.updateMany(
@@ -151,4 +150,3 @@ export async function updateCNRepos() {
 
   console.log("All repo updated");
 }
-
