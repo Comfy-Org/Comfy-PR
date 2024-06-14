@@ -1,11 +1,10 @@
 #!/usr/bin/env bun
 import DIE from "@snomiao/die";
-import { serve, sleep } from "bun";
 import "dotenv/config";
 import { $ as zx } from "zx";
-import { scanCNRepoThenCreatePullRequests, updateCNRepos } from "./CNRepos";
-import { gh } from "./gh";
+import { updateCNRepos } from "./CNRepos";
 import { checkComfyActivated } from "./checkComfyActivated";
+import { gh } from "./gh";
 
 zx.verbose = true;
 
@@ -37,3 +36,5 @@ if (import.meta.main) {
   console.log("All done");
   process.exit(0);
 }
+
+export { checkComfyActivated, updateCNRepos };

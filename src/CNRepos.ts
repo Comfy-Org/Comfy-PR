@@ -3,22 +3,17 @@
 bun index.ts
 */
 import type { WithId } from "mongodb";
-import pMap from "p-map";
 import "react-hook-form";
-import { match } from "ts-pattern";
-import { $flatten } from "./$flatten";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
-import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
 import { slackNotify, type SlackMsg } from "./SlackNotifications";
-import { $ERROR, $OK, TaskError, TaskOK, type Task } from "./Task";
+import { type Task } from "./Task";
 import { getWorker } from "./Worker";
-import { $fresh, $stale, db } from "./db";
+import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
+import { db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
-import { parseRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
-import { slackLinksNotify } from "./slackUrlsNotify";
 import { tLog } from "./tLog";
 import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposInfo } from "./updateCNReposInfo";
@@ -27,6 +22,7 @@ import { updateCNReposPulls } from "./updateCNReposPulls";
 import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
 import { updateCRRepos } from "./updateCRRepos";
 import { updateOutdatedPullsTemplates } from "./updateOutdatedPullsTemplates";
+import { updateComfyTotals } from "./updateComfyTotals";
 
 type Email = {
   from?: string;
@@ -122,7 +118,6 @@ export async function updateCNRepos() {
   await Promise.all([
     tLog("0 Report Worker Status", async () => {
       const worker = await getWorker("Comfy PR Bot Running");
-
       const workerInfo = `${worker.geo.countryCode}/${worker.geo.region}/${worker.geo.city}`;
       const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
       return [await slackNotify(msg, { unique: true, silent: true })];
@@ -143,55 +138,16 @@ export async function updateCNRepos() {
     tLog("8 Update CNRepos PR Candidates", updateCNReposPRCandidate),
     // stage 6:
     // tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
+
+    tLog("9 Totals", updateComfyTotals),
+    tLog("Create ComfyRegistry PRs", createComfyRegistryPRsFromCandidates),
   ]);
   // await CNRepos.updateMany(
   //   $flatten({ createdPulls: { mdate: $stale("5m"), ...$ERROR } }),
   //   { $unset: { createdPulls: 1 } },
   // );
   // create prs on candidates
-  await tLog("Make PRs", async function () {
-    return await pMap(
-      CNRepos.find(
-        $flatten({
-          candidate: { mtime: $fresh("1d"), ...$OK, data: { $eq: true } },
-          $or: [
-            // prs that never created
-            { createdPulls: { $exists: false } },
-            // retry pr erros after 5m
-            { createdPulls: { ...$ERROR, mtime: $stale("5m") } },
-          ],
-        }),
-      ),
-      async (repo) => {
-        const { repository } = repo;
-        console.log("Making PRs for " + repository);
-        const createdPulls = await ComfyRegistryPRs(repository)
-          .then(TaskOK)
-          .catch(TaskError);
-        match(createdPulls).with($OK, async ({ data }) => {
-          const links = data.map((e) => ({
-            href: e.html_url,
-            name:
-              stringifyOwnerRepo(
-                parseRepoUrl(e.html_url.replace(/\/pull\/.*$/, "")),
-              ) +
-              " #" +
-              e.title,
-          }));
-          await slackLinksNotify(
-            "PR just Created, @HaoHao check plz",
-            links,
-          );
-        });
-
-        return await CNRepos.updateOne(
-          { repository },
-          { $set: $flatten({ createdPulls }) },
-        );
-      },
-      { concurrency: 1 },
-    );
-  });
 
   console.log("All repo updated");
 }
+

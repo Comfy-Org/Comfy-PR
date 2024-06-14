@@ -16,17 +16,21 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 
 ### Server
 
-- [x] fetch repos from CM & CR list
-- [x] make diff
-- [x] notify to slack channel
-- [x] scan repo status (archived)
-- [x] scan pr status (open / merged / closed) + comments
-- [x] automaticaly find candidates, and do the cli does
-- [ ] Mention related prs in https://github.com/drip-art/Comfy-Registry-PR/issues/1
+- [x] Fetch repos from CM & CR list
+- [x] Make diff
+- [x] Notify to slack channel
+- [x] Fetch repo status (private or archived or ...)
+- [x] Fetch pr status (open / merged / closed) + comments
+- [x] Fetch pr comments (currently DISABLED)
+- [x] Automaticaly find candidates, and do the cli does
+- [x] Mention related prs in dashboard https://github.com/drip-art/Comfy-Registry-PR/issues/1
+- [ ] 
 - [ ] email subscriber
 - [ ] Delete the forked repo which is Merged
 
-## Get Started by
+## Usages
+
+### CLI Usage: Get Started by
 
 ```
 bunx comfy-pr [...GITHUB_REPO_URLS]
@@ -113,9 +117,9 @@ curl -fsSL https://bun.sh/install | bash
 bun i
 
 # and
-bun index.ts [REPO_PATH_NEED_TO_PR]
+bun src/cli.ts [REPO_PATH_NEED_TO_PR]
 # for example
-bun index.ts https://github.com/snomiao/ComfyNode-Registry-test
+bun src/cli.ts https://github.com/snomiao/ComfyNode-Registry-test
 
 ```
 
@@ -132,7 +136,7 @@ python3 -m venv .venv
 pip3 install comfy-cli
 
 @REM run with tsx
-npx -y cross-env REPO=https://github.com/snomiao/ComfyNode-Registry-test npx -y tsx index.ts
+npx -y cross-env REPO=https://github.com/snomiao/ComfyNode-Registry-test npx -y tsx src/cli.ts
 
 ```
 
