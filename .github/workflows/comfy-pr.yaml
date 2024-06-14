@@ -28,12 +28,12 @@ jobs:
       - run: pip install comfy-cli
       # comfy-pr
       - run: bun i
-      - run: bun src/CNRepos.ts
+      - run: bun src/index.ts
         env:
-          GH_TOKEN_COMFY_PR: ${{ secrets.GH_TOKEN_COMFY_PR }}
           COMFY_PR_REPO: ${{ secrets.COMFY_PR_REPO }}
           FORK_OWNER: "ComfyNodePRs"
           FORK_PREFIX: "PR-"
+          GH_TOKEN_COMFY_PR: ${{ secrets.GH_TOKEN_COMFY_PR }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
           SLACK_BOT_CHANNEL: ${{ secrets.SLACK_BOT_CHANNEL }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          MONGODB_URI: ${{ secrets.MONGODB_URI }}
