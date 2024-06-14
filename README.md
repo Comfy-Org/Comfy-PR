@@ -14,7 +14,7 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 - [x] Submit PR
 - [x] Clean local debris before clone
 
-### Server
+### Github Actions Worker
 
 - [x] Fetch repos from CM & CR list
 - [x] Make diff
