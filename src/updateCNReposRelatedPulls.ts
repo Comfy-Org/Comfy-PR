@@ -4,7 +4,7 @@ import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { $OK, TaskError, TaskOK } from "./Task";
 import { $fresh, $stale } from "./db";
-import { $flatten } from "./$flatten";
+import { $flatten } from "./db/$flatten";
 import { matchRelatedPulls } from "./fetchRelatedPulls";
 if (import.meta.main) {
   const result = await updateCNReposRelatedPulls();

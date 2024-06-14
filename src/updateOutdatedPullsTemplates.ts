@@ -2,7 +2,7 @@ import pMap from "p-map";
 import { match } from "ts-pattern";
 import { user } from ".";
 import { $OK } from "./Task";
-import { $flatten } from "./$flatten";
+import { $flatten } from "./db/$flatten";
 import { CNRepos } from "./CNRepos";
 
 export async function updateOutdatedPullsTemplates() {

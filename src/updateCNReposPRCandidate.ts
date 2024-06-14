@@ -1,7 +1,7 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { YAML } from "zx";
-import { $flatten } from "./$flatten";
+import { $flatten } from "./db/$flatten";
 import { CNRepos } from "./CNRepos";
 import { $OK, TaskOK } from "./Task";
 import { $fresh, $stale } from "./db";

@@ -3,7 +3,7 @@ import { timingLogWith } from "timing-with";
 import { CNRepos } from "./CNRepos";
 import { TaskError, TaskOK } from "./Task";
 import { $stale } from "./db";
-import { $flatten } from "./$flatten";
+import { $flatten } from "./db/$flatten";
 import { fetchGithubPulls } from "./fetchGithubPulls";
 if (import.meta.main) {
   console.log(await timingLogWith("Update CNRepos for Github Pulls", updateCNReposPulls));

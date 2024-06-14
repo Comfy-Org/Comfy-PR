@@ -1,6 +1,6 @@
 import { match } from "ts-pattern";
 import { YAML } from "zx";
-import { $flatten } from "./$flatten";
+import { $flatten } from "./db/$flatten";
 import { type AwaitedReturnType } from "./types/AwaitedReturnType";
 import { notifySlack } from "./notifySlack";
 import { $OK, TaskError, TaskOK, type Task } from "./Task";

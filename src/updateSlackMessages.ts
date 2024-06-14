@@ -1,5 +1,5 @@
 import pMap from "p-map";
-import { $flatten } from "./$flatten";
+import { $flatten } from "./db/$flatten";
 import { SlackMsgs } from "./SlackMsgs";
 import { $fresh, $stale } from "./db";
 import { postSlackMessage } from "./postSlackMessage";

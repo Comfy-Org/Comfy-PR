@@ -4,7 +4,7 @@ import { user } from ".";
 import { CNRepos } from "./CNRepos";
 import { $OK } from "./Task";
 import { $fresh } from "./db";
-import { $flatten } from "./$flatten";
+import { $flatten } from "./db/$flatten";
 import { gh } from "./gh";
 import { parseRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
 

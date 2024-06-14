@@ -1,6 +1,6 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
-import { $flatten } from "./$flatten";
+import { $flatten } from "./db/$flatten";
 import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
 import { $ERROR, $OK, TaskError, TaskOK } from "./Task";
 import { $fresh, $stale } from "./db";
