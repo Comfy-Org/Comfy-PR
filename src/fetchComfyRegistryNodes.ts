@@ -1,6 +1,6 @@
 import type { mockPublishedNodes } from "../mocks/mockPublishedNodes";
 import DIE from "@snomiao/die";
-import { fetchJson } from "./fetchJson";
+import { fetchJson } from "./utils/fetchJson";
 
 export async function fetchCRNodes() {
   const r = (await fetchJson<typeof mockPublishedNodes>(

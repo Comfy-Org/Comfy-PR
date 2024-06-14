@@ -7,7 +7,7 @@ const store = new KeyvDirStore(".cache/fetchJson");
 const kv = new Keyv({ store: store, ttl: 15 * 60e3 });
 const CachedWith = KeyvCachedWith(kv);
 async function fetcher<T>(url: string) {
-  console.log("Fetching ", url);
+  console.log(`[INFO] Fetching ${url}`);
   return await fetch(url).then((e) => e.json() as T);
 }
 export const fetchJson = CachedWith(fetcher) as typeof fetcher;

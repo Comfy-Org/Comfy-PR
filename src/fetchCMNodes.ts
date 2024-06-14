@@ -1,4 +1,4 @@
-import { fetchJson } from "./fetchJson";
+import { fetchJson } from "./utils/fetchJson";
 
 if (import.meta.main) {
   console.log(await fetchCMNodes());

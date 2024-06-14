@@ -1,7 +1,7 @@
 import { getMAC } from "@ctrl/mac-address";
 import md5 from "md5";
 import { db } from "./db";
-import { fetchJson } from "./fetchJson";
+import { fetchJson } from "./utils/fetchJson";
 export type Worker = {
   /**
    * id: hash of HOSTNAME & MAC address
