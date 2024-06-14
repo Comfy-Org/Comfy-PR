@@ -9,6 +9,7 @@ import { createGithubPullRequest } from "./ghPullRequest";
 import { makePublishBranch } from "./makePublishBranch";
 import { makeTomlBranch } from "./makeTomlBranch";
 import { parseRepoUrl } from "./parseOwnerRepo";
+import DIE from "@snomiao/die";
 
 export async function ComfyRegistryPRs(
   upstreamUrl: string,
@@ -37,6 +38,7 @@ export async function ComfyRegistryPRs(
 
   // branch ready in fork
 
+  DIE('check forks plz')
   // create prs
 
   console.log("PR Infos");
