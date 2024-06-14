@@ -24,6 +24,6 @@ Bun.plugin({
       const text = await Bun.file(args.path).text();
       // console.log("text", text);
       return { contents: text, loader: args.loader };
-    })
-  }
+    });
+  },
 });

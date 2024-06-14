@@ -1,11 +1,8 @@
-import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
-import { CNRepos } from "./CNRepos";
+import { fetchRelatedPullWithComments } from "./fetchRelatedPullWithComments";
 import { type GithubPull } from "./fetchRepoPRs";
 import { readTemplateTitle } from "./readTemplateTitle";
-import { $OK } from "./Task";
-import { fetchRelatedPullWithComments } from "./fetchRelatedPullWithComments";
 
 export type RelatedPullsWithComments = Awaited<ReturnType<typeof fetchRelatedPullWithComments>>;
 export type RelatedPull = Awaited<ReturnType<typeof matchRelatedPulls>>[number];

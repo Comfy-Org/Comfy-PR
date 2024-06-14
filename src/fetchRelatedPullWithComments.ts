@@ -1,12 +1,12 @@
-import pMap from "p-map";
-import { fetchPullComments } from "./fetchPullComments";
-import { type GithubPull } from "./fetchRepoPRs";
-import { summaryLastPullComment } from "./summaryLastPullComment";
-import { matchRelatedPulls } from "./fetchRelatedPulls";
 import DIE from "@snomiao/die";
+import pMap from "p-map";
+import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { $OK } from "./Task";
-import { match } from "ts-pattern";
+import { fetchPullComments } from "./fetchPullComments";
+import { matchRelatedPulls } from "./fetchRelatedPulls";
+import { type GithubPull } from "./fetchRepoPRs";
+import { summaryLastPullComment } from "./summaryLastPullComment";
 
 if (import.meta.main) {
   // const repository = "https://github.com/ltdrdata/ComfyUI-Manager";
