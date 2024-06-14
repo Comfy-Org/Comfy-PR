@@ -28,15 +28,19 @@ export async function stringifyGithubOrigin({
   owner,
   repo,
 }: ReturnType<typeof parseRepoUrl>) {
-  const PR_TOKEN = process.env.GITHUB_TOKEN_COMFY_PR;
-
+  const PR_TOKEN = process.env.GH_TOKEN_COMFY_PR;
   if (PR_TOKEN) {
-    const USERNAME = (
-      await new Octokit({
-        auth: PR_TOKEN,
-      }).rest.users.getAuthenticated()
-    ).data.login;
-    return `https://${USERNAME}:${PR_TOKEN}@github.com/${owner}/${repo}`;
+    
+    // fails: maybe permission issue
+    // const USERNAME = (
+    //   await new Octokit({
+    //     auth: PR_TOKEN,
+    //   }).rest.users.getAuthenticated()
+    // ).data.login;
+    // return `https://${USERNAME}:${PR_TOKEN}@github.com/${owner}/${repo}`;
+
+
+    return `git@github.com:${owner}/${repo}`;
   }
   return `git@github.com:${owner}/${repo}`;
 }

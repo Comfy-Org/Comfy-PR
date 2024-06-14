@@ -5,3 +5,4 @@ prs/
 *.log
 cache
 .cache
+secrets

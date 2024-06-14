@@ -17,6 +17,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Make sure the @v0.9.0 matches the current version of the action
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+            ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
       - uses: oven-sh/setup-bun@v1
       # setup comfy-cli
       - uses: actions/setup-python@v2
