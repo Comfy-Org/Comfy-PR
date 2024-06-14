@@ -2,11 +2,11 @@ import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
-import { $OK } from "./utils/Task";
 import { fetchPullComments } from "./fetchPullComments";
 import { matchRelatedPulls } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { summaryLastPullComment } from "./summaryLastPullComment";
+import { $OK } from "./utils/Task";
 
 if (import.meta.main) {
   // const repository = "https://github.com/ltdrdata/ComfyUI-Manager";

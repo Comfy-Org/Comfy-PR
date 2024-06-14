@@ -7,7 +7,6 @@ import "react-hook-form";
 import { updateCMNodes, type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { type SlackMsg } from "./SlackMsgs";
-import { type Task } from "./utils/Task";
 import { updateComfyTotals } from "./Totals";
 import { getWorkerInstance } from "./WorkerInstances";
 import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
@@ -23,6 +22,7 @@ import { updateCNReposPulls } from "./updateCNReposPulls";
 import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
 import { updateCRRepos } from "./updateCRRepos";
 import { updateOutdatedPullsTemplates } from "./updateOutdatedPullsTemplates";
+import { type Task } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 
 type Email = {

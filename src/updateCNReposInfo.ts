@@ -1,10 +1,10 @@
 import pMap from "p-map";
 import { CNRepos } from "./CNRepos";
-import { TaskError, TaskOK } from "./utils/Task";
 import { $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { gh } from "./gh";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
+import { TaskError, TaskOK } from "./utils/Task";
 
 if (import.meta.main) {
   console.log(await updateCNReposInfo());
@@ -19,11 +19,7 @@ export async function updateCNReposInfo() {
         .then(({ data }) => data)
         .then(TaskOK)
         .catch(TaskError);
-      return await CNRepos.updateOne(
-        { repository },
-        { $set: { info:info } },
-        { upsert: true },
-      );
+      return await CNRepos.updateOne({ repository }, { $set: { info: info } }, { upsert: true });
     },
     { concurrency: 1 },
   );

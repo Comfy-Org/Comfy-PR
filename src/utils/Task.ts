@@ -1,11 +1,10 @@
-
 export type Task<T> = { mtime: Date } & (
   | { state: "pending"; data?: T }
   | { state: "ok"; data: T }
   | { state: "error"; error: string }
 );
 
-export const $PENDING = {state: "pending" } as const
+export const $PENDING = { state: "pending" } as const;
 export function TaskPending<T>(data?: T) {
   return {
     state: "pending" as const,
@@ -14,7 +13,7 @@ export function TaskPending<T>(data?: T) {
   };
 }
 
-export const $OK = {state: "ok" } as const
+export const $OK = { state: "ok" } as const;
 export function TaskOK<T>(data: T) {
   return {
     state: "ok" as const,
@@ -23,7 +22,7 @@ export function TaskOK<T>(data: T) {
   };
 }
 
-export const $ERROR = {state: "error" } as const
+export const $ERROR = { state: "error" } as const;
 export function TaskError(error: any) {
   return {
     state: "error" as const,

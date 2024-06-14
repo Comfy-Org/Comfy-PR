@@ -2,10 +2,10 @@ import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
-import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { $fresh, $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { matchRelatedPulls } from "./fetchRelatedPulls";
+import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   await tLog("updateCNReposRelatedPulls", updateCNReposRelatedPulls);

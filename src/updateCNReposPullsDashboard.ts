@@ -2,26 +2,20 @@ import DIE from "@snomiao/die";
 import { match } from "ts-pattern";
 import { user } from ".";
 import { CNRepos } from "./CNRepos";
-import { $OK } from "./utils/Task";
 import { $fresh } from "./db";
 import { $flatten } from "./db/$flatten";
 import { gh } from "./gh";
 import { parseUrlRepoOwner, stringifyOwnerRepo } from "./parseOwnerRepo";
+import { $OK } from "./utils/Task";
 
 export async function updateCNRepoPullsDashboard() {
-  const dashBoardIssue =
-    process.env.DASHBOARD_ISSUE_URL || DIE("DASHBOARD_ISSUE_URL not found");
+  const dashBoardIssue = process.env.DASHBOARD_ISSUE_URL || DIE("DASHBOARD_ISSUE_URL not found");
   const dashBoardRepo = dashBoardIssue.replace(/\/issues\/\d+$/, "");
-  const dashBoardIssueNumber = Number(
-    dashBoardIssue.match(/\/issues\/(\d+)$/)?.[1] ||
-      DIE("Issue number not found"),
-  );
+  const dashBoardIssueNumber = Number(dashBoardIssue.match(/\/issues\/(\d+)$/)?.[1] || DIE("Issue number not found"));
   // update dashboard issue if run by @snomiao
   if (user.login !== "snomiao") return [];
 
-  const repos = await CNRepos.find(
-    $flatten({ crPulls: { mtime: $fresh("1d") } }),
-  ).toArray();
+  const repos = await CNRepos.find($flatten({ crPulls: { mtime: $fresh("1d") } })).toArray();
   const result = repos
     .map((repo) => {
       const crPulls = match(repo.crPulls)

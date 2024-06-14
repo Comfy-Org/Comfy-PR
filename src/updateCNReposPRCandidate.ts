@@ -1,12 +1,10 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { YAML } from "zx";
-import { $flatten } from "./db/$flatten";
 import { CNRepos } from "./CNRepos";
+import { $fresh, $stale } from "./db";
+import { $flatten } from "./db/$flatten";
 import { $OK, TaskOK } from "./utils/Task";
-import { $fresh } from "./db";
-import { $stale } from "./db";
-import { notifySlackLinks } from "./notifySlackLinks";
 if (import.meta.main) {
   console.log(await updateCNReposPRCandidate());
   // show candidates
@@ -41,17 +39,13 @@ export async function updateCNReposPRCandidate() {
         .with($OK, (e) => e.data)
         .otherwise(() => null)!;
 
-      const isCandidate =
-        !info.private && !info.archived && crPulls.length === 0;
+      const isCandidate = !info.private && !info.archived && crPulls.length === 0;
       const candidate = TaskOK(isCandidate);
-      
+
       // silent
       // if (isCandidate)
       //   await notifySlackLinks("Found new PR candidate", [repo.repository]);
-      await CNRepos.updateOne(
-        { repository: repo.repository },
-        { $set: { candidate } },
-      );
+      await CNRepos.updateOne({ repository: repo.repository }, { $set: { candidate } });
       return repo;
     },
   );

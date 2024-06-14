@@ -1,10 +1,10 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
-import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { fetchGithubPulls } from "./fetchGithubPulls";
+import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   console.log(await tLog("Update CNRepos for Github Pulls", updateCNReposPulls));

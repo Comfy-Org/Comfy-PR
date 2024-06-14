@@ -5,11 +5,11 @@ import { YAML } from "zx";
 import { CMNodes } from "./CMNodes";
 import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
-import { $OK, TaskError, TaskOK, type Task } from "./utils/Task";
 import { $fresh, db } from "./db";
 import { $flatten } from "./db/$flatten";
 import { notifySlack } from "./notifySlack";
 import { type AwaitedReturnType } from "./types/AwaitedReturnType";
+import { $OK, TaskError, TaskOK, type Task } from "./utils/Task";
 
 type Totals = AwaitedReturnType<typeof analyzeTotals>;
 export const Totals = db.collection<{
