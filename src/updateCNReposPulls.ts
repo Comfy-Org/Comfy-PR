@@ -15,7 +15,7 @@ export async function updateCNReposPulls() {
     async ({ repository }) => {
       const pulls = await fetchGithubPulls(repository).then(TaskOK).catch(TaskError);
       match(pulls)
-        .with($OK, ({ data }) => console.debug(`[DEBUG] ${data.length} Pulls for ${repository}`))
+        .with($OK, ({ data }) => console.debug(`[DEBUG] updated ${data.length} Pulls from ${repository}`))
         .otherwise(() => {});
       return await CNRepos.updateOne({ repository }, { $set: { pulls } });
     },

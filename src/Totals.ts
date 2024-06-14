@@ -10,15 +10,16 @@ import { $fresh, db } from "./db";
 import { $flatten } from "./db/$flatten";
 import { notifySlack } from "./notifySlack";
 import { type AwaitedReturnType } from "./types/AwaitedReturnType";
-if (import.meta.main) {
-  await updateComfyTotals();
-}
 
 type Totals = AwaitedReturnType<typeof analyzeTotals>;
 export const Totals = db.collection<{
   today?: string;
   totals?: Task<Totals>;
 }>("Totals");
+
+if (import.meta.main) {
+  await updateComfyTotals();
+}
 
 export async function updateComfyTotals() {
   const today = new Date().toISOString().split("T")[0];
@@ -45,9 +46,9 @@ export async function updateComfyTotals() {
 export async function analyzeTotals() {
   const repos = await CNRepos.find({}).toArray();
   const totals = await promiseAllProperties({
-    ComfyManagerNodes: CMNodes.countDocuments({}),
-    ComfyRegistryNodes: CRNodes.countDocuments({}),
-    repos: CNRepos.countDocuments(),
+    ComfyManagerNodes: CMNodes.estimatedDocumentCount(),
+    ComfyRegistryNodes: CRNodes.estimatedDocumentCount(),
+    repos: CNRepos.estimatedDocumentCount(),
     allRegistryPRs: (async function () {
       const pulls = repos
         .flatMap((repo) =>
