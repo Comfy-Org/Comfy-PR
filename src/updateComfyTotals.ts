@@ -1,11 +1,11 @@
 import { match } from "ts-pattern";
 import { YAML } from "zx";
-import { $flatten } from "./db/$flatten";
-import { type AwaitedReturnType } from "./types/AwaitedReturnType";
-import { notifySlack } from "./notifySlack";
 import { $OK, TaskError, TaskOK, type Task } from "./Task";
-import { $fresh, db } from "./db";
 import { analyzeTotals } from "./analyzeTotals";
+import { $fresh, db } from "./db";
+import { $flatten } from "./db/$flatten";
+import { notifySlack } from "./notifySlack";
+import { type AwaitedReturnType } from "./types/AwaitedReturnType";
 if (import.meta.main) {
   await updateComfyTotals();
 }
@@ -37,4 +37,3 @@ export async function updateComfyTotals() {
     .otherwise(() => null);
   return [updateResult].flatMap((e) => (e ? [e] : []));
 }
-

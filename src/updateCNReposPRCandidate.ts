@@ -4,7 +4,8 @@ import { YAML } from "zx";
 import { $flatten } from "./db/$flatten";
 import { CNRepos } from "./CNRepos";
 import { $OK, TaskOK } from "./Task";
-import { $fresh, $stale } from "./db";
+import { $fresh } from "./db";
+import { $stale } from "./db";
 import { notifySlackLinks } from "./notifySlackLinks";
 if (import.meta.main) {
   console.log(await updateCNReposPRCandidate());

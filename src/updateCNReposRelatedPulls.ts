@@ -3,7 +3,8 @@ import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { $OK, TaskError, TaskOK } from "./Task";
-import { $fresh, $stale } from "./db";
+import { $fresh } from "./db";
+import { $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { matchRelatedPulls } from "./fetchRelatedPulls";
 if (import.meta.main) {

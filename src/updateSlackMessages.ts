@@ -1,7 +1,8 @@
 import pMap from "p-map";
 import { $flatten } from "./db/$flatten";
 import { SlackMsgs } from "./SlackMsgs";
-import { $fresh, $stale } from "./db";
+import { $fresh } from "./db";
+import { $stale } from "./db";
 import { postSlackMessage } from "./postSlackMessage";
 
 export async function updateSlackMessages() {
