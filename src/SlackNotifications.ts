@@ -19,7 +19,7 @@ await SlackMsgs.createIndex({ text: 1 });
 await SlackMsgs.createIndex({ mtime: -1 });
 
 // try send msgs that didn't send in last run
-slackNotifyTask()
+slackNotifyTask();
 
 if (import.meta.main) {
   await slack.api.test({});
@@ -28,13 +28,15 @@ if (import.meta.main) {
   console.log(await slackNotify(text));
 }
 
+type SlackNotifyOptions = {
+  unique?: boolean;
+  last?: ObjectId;
+  silent?: boolean;
+};
+
 export async function slackNotify(
   text: string,
-  {
-    unique = true,
-    last,
-    silent,
-  }: { unique?: boolean; last?: ObjectId; silent?: boolean } = {},
+  { unique = true, last, silent }: SlackNotifyOptions = {},
 ) {
   const limit = 3000; // slack message limit is 3001
   if (text.length > limit) {
@@ -65,8 +67,6 @@ export async function slackNotify(
   slackNotifyTask().then(() => console.info("slack notify task done"));
   return { _id };
 }
-
-
 
 export async function slackNotifyTask() {
   // send
