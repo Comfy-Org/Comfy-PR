@@ -119,12 +119,13 @@ export async function scanCNRepoThenCreatePullRequests() {
 }
 
 export async function updateCNRepos() {
-  const worker = await getWorker();
-  const workerInfo = `${worker.countryCode}/${worker.region}/${worker.city}`;
-  const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
-  await slackNotify(msg, { unique: true, silent: true });
-
   await Promise.all([
+    tLog("0 Report Worker Status", async () => {
+      const worker = await getWorker("Comfy PR Bot Running");
+      const workerInfo = `${worker.countryCode}/${worker.region}/${worker.city}`;
+      const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
+      return [await slackNotify(msg, { unique: true, silent: true })];
+    }),
     // stage 1: get repos
     tLog("1 Update Repos from ComfyUI Manager", updateCMRepos),
     tLog("2 Update Repos from ComfyRegistry", updateCRRepos),

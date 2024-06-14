@@ -26,11 +26,16 @@ async function updateWorkerGeo() {
     await fetch("http://ip-api.com/json")
   ).json();
   const ipInfo = { ip: query, city, iat, lon, countryCode, region };
-  await Worker.updateOne({ id: getWorkerId() }, { $set: ipInfo });
+  await Worker.updateOne(
+    { id: getWorkerId() },
+    { $set: ipInfo },
+    { upsert: true },
+  );
   return ipInfo;
 }
 
 export async function getWorker(task?: string) {
+  await updateWorkerGeo();
   const worker = await Worker.findOneAndUpdate(
     { id: getWorkerId() },
     { $set: { active: new Date(), ...(task && { task }) } },
