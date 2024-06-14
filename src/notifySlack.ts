@@ -22,7 +22,7 @@ export async function notifySlack(
     const head = lines.slice(0, lineLimit).join("\n");
     const remains = lines.slice(lineLimit).join("\n");
     const sent = await notifySlack(head, { unique, silent });
-    return await notifySlack(remains, { unique, last: sent._id });
+    return await notifySlack("...\n" + remains, { unique, last: sent._id });
   }
   if (unique) {
     const existed = await SlackMsgs.findOne({ text });
