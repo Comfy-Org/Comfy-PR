@@ -36,7 +36,7 @@ export async function stringifyGithubOrigin({
         auth: PR_TOKEN,
       }).rest.users.getAuthenticated()
     ).data.login;
-    return `${USERNAME}:${PR_TOKEN}@github.com:${owner}/${repo}`;
+    return `https://${USERNAME}:${PR_TOKEN}@github.com/${owner}/${repo}`;
   }
   return `git@github.com:${owner}/${repo}`;
 }
