@@ -3,8 +3,9 @@ import { filter, groupBy, values } from "rambda";
 import { YAML } from "zx";
 import { db } from "./db";
 import pMap from "p-map";
-import { slackNotify, type SlackMsg } from "./SlackNotifications";
-import { slackLinksNotify } from "./slackUrlsNotify";
+import { type SlackMsg } from "./SlackMsgs";
+import { notifySlack } from "./notifySlack";
+import { notifySlackLinks } from "./notifySlackLinks";
 import type { ObjectId } from "mongodb";
 
 export type CRNode = Awaited<ReturnType<typeof fetchCRNodes>>[number] & {
@@ -30,7 +31,7 @@ export async function updateCRNodes() {
       "```\n" +
       YAML.stringify(duplicates) +
       "\n```";
-    await slackNotify(msg, { unique: true });
+    await notifySlack(msg, { unique: true });
   }
   return (await CRNodes.bulkWrite(
     nodes.flatMap((node) => ({

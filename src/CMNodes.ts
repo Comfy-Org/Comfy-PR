@@ -5,9 +5,10 @@ import type { ObjectId } from "mongodb";
 import pMap from "p-map";
 import { dissoc, filter, groupBy, map, prop, toPairs } from "rambda";
 import { YAML } from "zx";
-import { slackNotify, type SlackMsg } from "./SlackNotifications";
+import { type SlackMsg } from "./SlackMsgs";
 import { db } from "./db";
 import { fetchCMNodes } from "./fetchCMNodes";
+import { notifySlack } from "./notifySlack";
 
 // Raw version maybe duplicated with id or reference
 type CMNodeRaw = Awaited<ReturnType<typeof fetchCMNodesWithHash>>[number];
@@ -57,7 +58,7 @@ export async function updateCMNodes() {
     REFERENCE: filter((e: typeof nodes) => e.length > 1, groupBy((e) => e.reference, nodes)),
   }
   const dupsSummary = JSON.stringify(map((x) => map((x) => x.length, x), dups));
-  await slackNotify(
+  await notifySlack(
     `[WARN] CMNodes duplicates: ${dupsSummary}\nSolve them in https://github.com/ltdrdata/ComfyUI-Manager/blob/main/custom-node-list.json`,
   );
 
@@ -76,7 +77,7 @@ export async function updateCMNodes() {
           });
           if (someDuplicateSent) return;
           // send slack notification
-          const slackNotification = await slackNotify(
+          const slackNotification = await notifySlack(
             `[ACTION NEEDED WARNING]: please resolve duplicated node in ${topic}: ${key}\n` +
               "```\n" +
               YAML.stringify(nodes) +

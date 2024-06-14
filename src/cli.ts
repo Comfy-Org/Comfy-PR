@@ -3,7 +3,7 @@ import DIE from "@snomiao/die";
 import { readFile } from "fs/promises";
 import { argv } from "zx";
 import { checkComfyActivated } from "./checkComfyActivated";
-import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
+import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
 if (argv.help) {
   console.log(
     `
@@ -35,6 +35,6 @@ if (argv.help) {
       DIE("Missing PR target, please set env.REPO"),
     ];
   for await (const upstreamUrl of repos) {
-    await ComfyRegistryPRs(upstreamUrl);
+    await createComfyRegistryPullRequests(upstreamUrl);
   }
 }

@@ -6,7 +6,8 @@ import type { WithId } from "mongodb";
 import "react-hook-form";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
-import { slackNotify, type SlackMsg } from "./SlackNotifications";
+import { type SlackMsg } from "./SlackMsgs";
+import { notifySlack } from "./notifySlack";
 import { type Task } from "./Task";
 import { getWorker } from "./Worker";
 import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
@@ -14,7 +15,7 @@ import { db } from "./db";
 import { type RelatedPull } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
-import { tLog } from "./tLog";
+import { tLog } from "./utils/tLog";
 import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposInfo } from "./updateCNReposInfo";
 import { updateCNReposPRCandidate } from "./updateCNReposPRCandidate";
@@ -120,7 +121,7 @@ export async function updateCNRepos() {
       const worker = await getWorker("Comfy PR Bot Running");
       const workerInfo = `${worker.geo.countryCode}/${worker.geo.region}/${worker.geo.city}`;
       const msg = `COMFY-PR BOT RUNNING ${new Date().toISOString()}\nWorker: ${workerInfo}`;
-      return [await slackNotify(msg, { unique: true, silent: true })];
+      return [await notifySlack(msg, { unique: true, silent: true })];
     }),
     // stage 1: get repos
     tLog("1 Update Repos from ComfyUI Manager", updateCMRepos),

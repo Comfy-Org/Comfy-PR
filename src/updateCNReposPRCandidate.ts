@@ -5,7 +5,7 @@ import { $flatten } from "./$flatten";
 import { CNRepos } from "./CNRepos";
 import { $OK, TaskOK } from "./Task";
 import { $fresh, $stale } from "./db";
-import { slackLinksNotify } from "./slackUrlsNotify";
+import { notifySlackLinks } from "./notifySlackLinks";
 if (import.meta.main) {
   console.log(await updateCNReposPRCandidate());
   // show candidates
@@ -44,7 +44,7 @@ export async function updateCNReposPRCandidate() {
         !info.private && !info.archived && crPulls.length === 0;
       const candidate = TaskOK(isCandidate);
       if (isCandidate)
-        await slackLinksNotify("Found new PR candidate", [repo.repository]);
+        await notifySlackLinks("Found new PR candidate", [repo.repository]);
       await CNRepos.updateOne(
         { repository: repo.repository },
         { $set: { candidate } },

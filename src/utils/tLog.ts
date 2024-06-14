@@ -1,4 +1,4 @@
-import { type Awaitable } from "./Awaitable";
+import { type Awaitable } from "../types/Awaitable";
 
 export async function tLog<T>(msg: string, fn: () => Awaitable<T[]>) {
   const r = await fn();

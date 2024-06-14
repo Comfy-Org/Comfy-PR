@@ -1,11 +1,11 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { $flatten } from "./$flatten";
-import { ComfyRegistryPRs } from "./ComfyRegistryPRs";
+import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
 import { $ERROR, $OK, TaskError, TaskOK } from "./Task";
 import { $fresh, $stale } from "./db";
 import { parseRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
-import { slackLinksNotify } from "./slackUrlsNotify";
+import { notifySlackLinks } from "./notifySlackLinks";
 import { CNRepos } from "./CNRepos";
 
 export async function createComfyRegistryPRsFromCandidates() {
@@ -24,7 +24,7 @@ export async function createComfyRegistryPRsFromCandidates() {
     async (repo) => {
       const { repository } = repo;
       console.log("Making PRs for " + repository);
-      const createdPulls = await ComfyRegistryPRs(repository)
+      const createdPulls = await createComfyRegistryPullRequests(repository)
         .then(TaskOK)
         .catch(TaskError);
       match(createdPulls).with($OK, async ({ data }) => {
@@ -36,7 +36,7 @@ export async function createComfyRegistryPRsFromCandidates() {
             " #" +
             e.title,
         }));
-        await slackLinksNotify("PR just Created, @HaoHao check plz", links);
+        await notifySlackLinks("PR just Created, @HaoHao check plz", links);
       });
 
       return await CNRepos.updateOne(
