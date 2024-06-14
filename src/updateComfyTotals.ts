@@ -7,7 +7,7 @@ import { CMNodes } from "./CMNodes";
 import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
 import { slackNotify } from "./SlackNotifications";
-import { $ERROR, $OK, TaskError, TaskOK, type Task } from "./Task";
+import { $OK, TaskError, TaskOK, type Task } from "./Task";
 import { $fresh, db } from "./db";
 if (import.meta.main) {
   await updateComfyTotals();
@@ -23,24 +23,23 @@ export const Totals = db.collection<{
 export async function updateComfyTotals() {
   const today = new Date().toISOString().split("T")[0];
   const cached = await Totals.findOne(
-    $flatten({ today, totals: { mtime: $fresh("1d") } }),
+    $flatten({ today, totals: { mtime: $fresh("1d"), ...$OK } }),
   );
-  if (cached) return [];
+  if (cached?.totals?.state === "ok") return [];
 
   const totals = await analyzeTotals().then(TaskOK).catch(TaskError);
-  match(totals)
+  const updateResult = match(totals)
     .with($OK, async (totals) => {
       const msg = `Totals: \n${"```" + YAML.stringify(totals) + "```"}`;
       const notification = await slackNotify(msg, { unique: true });
-      await Totals.findOneAndUpdate(
+      return await Totals.findOneAndUpdate(
         { today },
         { $set: { totals, notification } },
         { upsert: true },
       );
     })
-    .with($ERROR, (error) => {})
-    .exhaustive();
-  return [totals];
+    .otherwise(() => null);
+  return [updateResult].flatMap((e) => (e ? [e] : []));
 }
 async function analyzeTotals() {
   const repos = await CNRepos.find({}).toArray();
