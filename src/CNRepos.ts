@@ -136,7 +136,7 @@ export async function updateCNRepos() {
     // tLog("Update CNRepos PRs", scanCNRepoThenCreatePullRequests),
   ]);
   // Update outdated pr issue bodies
-  await CNRepos.updateMany({}, { $unset: { createdPulls: 1 } });
+  // await CNRepos.updateMany({}, { $unset: { createdPulls: 1 } });
   // create prs on candidates
   await tLog("Make PRs", async function () {
     return await pMap(
