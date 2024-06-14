@@ -1,7 +1,7 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
-import { $OK, TaskError, TaskOK } from "./Task";
+import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { fetchGithubPulls } from "./fetchGithubPulls";

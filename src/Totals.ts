@@ -5,7 +5,7 @@ import { YAML } from "zx";
 import { CMNodes } from "./CMNodes";
 import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
-import { $OK, TaskError, TaskOK, type Task } from "./Task";
+import { $OK, TaskError, TaskOK, type Task } from "./utils/Task";
 import { $fresh, db } from "./db";
 import { $flatten } from "./db/$flatten";
 import { notifySlack } from "./notifySlack";

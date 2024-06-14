@@ -1,6 +1,6 @@
 import pMap from "p-map";
 import { CNRepos } from "./CNRepos";
-import { TaskError, TaskOK } from "./Task";
+import { TaskError, TaskOK } from "./utils/Task";
 import { $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { gh } from "./gh";

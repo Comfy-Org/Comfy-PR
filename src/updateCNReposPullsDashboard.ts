@@ -2,7 +2,7 @@ import DIE from "@snomiao/die";
 import { match } from "ts-pattern";
 import { user } from ".";
 import { CNRepos } from "./CNRepos";
-import { $OK } from "./Task";
+import { $OK } from "./utils/Task";
 import { $fresh } from "./db";
 import { $flatten } from "./db/$flatten";
 import { gh } from "./gh";

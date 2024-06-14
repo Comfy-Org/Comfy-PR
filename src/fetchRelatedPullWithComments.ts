@@ -2,7 +2,7 @@ import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
-import { $OK } from "./Task";
+import { $OK } from "./utils/Task";
 import { fetchPullComments } from "./fetchPullComments";
 import { matchRelatedPulls } from "./fetchRelatedPulls";
 import { type GithubPull } from "./fetchRepoPRs";

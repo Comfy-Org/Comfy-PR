@@ -3,7 +3,7 @@ import { match } from "ts-pattern";
 import { YAML } from "zx";
 import { $flatten } from "./db/$flatten";
 import { CNRepos } from "./CNRepos";
-import { $OK, TaskOK } from "./Task";
+import { $OK, TaskOK } from "./utils/Task";
 import { $fresh } from "./db";
 import { $stale } from "./db";
 import { notifySlackLinks } from "./notifySlackLinks";

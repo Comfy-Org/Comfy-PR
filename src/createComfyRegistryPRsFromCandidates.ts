@@ -2,7 +2,7 @@ import pMap from "p-map";
 import { match } from "ts-pattern";
 import { $flatten } from "./db/$flatten";
 import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
-import { $ERROR, $OK, TaskError, TaskOK } from "./Task";
+import { $ERROR, $OK, TaskError, TaskOK } from "./utils/Task";
 import { $fresh } from "./db";
 import { $stale } from "./db";
 import { parseUrlRepoOwner, stringifyOwnerRepo } from "./parseOwnerRepo";
