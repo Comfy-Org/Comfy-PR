@@ -6,7 +6,7 @@ import { readFile } from "fs/promises";
 import yaml from "yaml";
 const spec = yaml.parse(await readFile("./src/api/spec.yaml", "utf8"));
 export default function UIPage() {
-  return <>WIP</>
+  return <>WIP</>;
   // return <BadMagic workspaces={[spec]} />;
   // return <SwaggerUI spec={spec} />;
 }
