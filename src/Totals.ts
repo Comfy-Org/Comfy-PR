@@ -22,16 +22,15 @@ export async function updateComfyTotals() {
   if (cached?.totals?.state === "ok") return [];
 
   const totals = await analyzeTotals().then(TaskOK).catch(TaskError);
-  const updateResult = await match(totals)
+
+  // notify
+  await match(totals)
     .with($OK, async (totals) => {
       const msg = `Totals: \n${"```" + YAML.stringify(totals) + "```"}`;
-      const notification = await notifySlack(msg, { unique: true });
-      return await Totals.findOneAndUpdate(
-        { today },
-        { $set: { totals, notification } },
-        { upsert: true, returnDocument: "after" },
-      );
+      await notifySlack(msg, { unique: true });
     })
     .otherwise(() => null);
-  return [updateResult].flatMap((e) => (e ? [e] : []));
+
+  const insertResult = await Totals.insertOne({ totals, notification });
+  return [insertResult].flatMap((e) => (e ? [e] : []));
 }

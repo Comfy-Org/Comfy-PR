@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 import DIE from "@snomiao/die";
 import "dotenv/config";
-import { $ as zx } from "zx";
+// import { $ as zx } from "zx";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { gh } from "./gh";
 import { updateCNRepos } from "./updateCNRepos";
 
-zx.verbose = true;
+// zx.verbose = true;
 
 // read env/parameters
 console.log("Fetch Current Github User...");
@@ -29,5 +29,3 @@ if (import.meta.main) {
   console.log("All done");
   process.exit(0);
 }
-
-export { checkComfyActivated, updateCNRepos };

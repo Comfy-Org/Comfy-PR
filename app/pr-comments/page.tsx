@@ -1,21 +1,23 @@
-import { CommentEditor } from "./CommentEditor";
+import { updateCNReposCRPullsComments } from "@/src/updateCNReposCRPullsComments";
+import { readFile } from "fs/promises";
+import RuleEditor from "./RuleEditor";
+
 /**
  *
  * @author: snomiao <snomiao@gmail.com>
  */
 export default async function PRCommentsPage() {
   await updateCNReposCRPullsComments();
-  const value = '```json\n{\n  "name": "snomiao"\n}\n```';
+  const defaultValue = await readFile("./app/pr-comments/default-rule.yaml",'utf8');
   return (
-    <CommentEditor
+    <RuleEditor
       onChange={async (text) => {
         "use server";
-        // value=text
         console.log({ text });
         return { text };
       }}
-      defaultValue={value}
-      defaultLanguage={"markdown"}
+      defaultValue={defaultValue}
+      defaultLanguage={"yaml"}
     />
   );
 }

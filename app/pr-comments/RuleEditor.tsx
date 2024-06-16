@@ -1,14 +1,27 @@
 "use client";
+import { loader } from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
+
+loader.config({ monaco });
+
 import Editor from "@monaco-editor/react";
 /**
  * @author: snomiao <snomiao@gmail.com>
  */
-export default function CommentEditor({ onChange, defaultValue, defaultLanguage }) {
+export default function RuleEditor({
+  onChange,
+  defaultValue,
+  defaultLanguage,
+}: {
+  onChange: (text?: string) => void;
+  defaultValue: string;
+  defaultLanguage: string;
+}) {
   return (
     <Editor
       height="90vh"
-      defaultLanguage="markdown"
-      defaultValue="write comment template here"
+      defaultLanguage={defaultLanguage}
+      defaultValue={defaultValue}
       onChange={function handleEditorChange(value, event) {
         // here is the current value
         onChange(value);

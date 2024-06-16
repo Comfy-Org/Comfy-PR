@@ -1,6 +1,6 @@
 import DIE from "@snomiao/die";
 import md5 from "md5";
-import { argv } from "zx";
+import minimist from 'minimist'
 import { FORK_OWNER, FORK_PREFIX, user } from ".";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 import { createGithubFork } from "./createGithubFork";
@@ -23,6 +23,7 @@ export async function createGithubForkForRepo(upstreamRepoUrl: string) {
   // console.log("PR_DST: ", upstreamUrl);
   // console.log(forkSSHUrl);
   const upstream = parseUrlRepoOwner(upstreamRepoUrl);
+  const argv = minimist(process.argv.slice(2))
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
   const repo_hash = md5(
     `${salt}-${user.name}-${upstream.owner}/${upstream.repo}`
