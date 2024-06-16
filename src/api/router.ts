@@ -7,13 +7,13 @@ export const router = t.router({
     .input(z.object({ name: z.string() }))
     .output(z.object({ greeting: z.string() }))
     .query(({ input }) => {
-      return { greeting: `Hello ${input.name}!` };
+      return { greeting: `Hello ${input.name} 1!` };
     }),
   followComments: t.procedure
-    .meta({ openapi: { method: "GET", path: "/say-hello", description: "say hello" } })
+    .meta({ openapi: { method: "POST", path: "/follow", description: "follow comments" } })
     .input(z.object({ name: z.string() }))
     .output(z.object({ greeting: z.string() }))
     .query(({ input }) => {
-      return { greeting: `Hello ${input.name}!` };
+      return { greeting: `Hello ${input.name} 2!` };
     }),
 });

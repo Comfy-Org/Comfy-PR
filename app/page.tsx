@@ -3,6 +3,7 @@ import { analyzeTotals } from "@/src/analyzeTotals";
 import { dumpDashboard } from "@/src/dumpDashboard";
 import { redirect, RedirectType } from "next/navigation";
 import Markdown from "react-markdown";
+import {rm, mkdir, cp } from 'fs/promises'
 import { v4 as uuid } from "uuid";
 import yaml from "yaml";
 import { DownloadButton } from "./DownloadButton";
@@ -42,7 +43,7 @@ async function dump(ext = "yaml") {
   "use server";
   const id = uuid();
   console.log({ id });
-  await rm("./public/downloads", { recursive: true });
+  await rm("./public/downloads", { recursive: true }).catch(()=>null);
   await mkdir("./.cache", { recursive: true });
   await mkdir("./public/downloads", { recursive: true });
   // will dump to .cache/dump.yaml and .cache/dump.csv

@@ -3,8 +3,9 @@ info:
   title: ComfyPR OpenAPI
   version: 1.0.0
 servers:
-  - url: https://comfy-pr.vercel.app/api/
-  - url: http://localhost:3000
+  - url: /api
+  - url: https://comfy-pr.vercel.app/api
+  - url: http://localhost:3000/api
 paths:
   /say-hello:
     get:
