@@ -1,8 +1,8 @@
 import type { ObjectId } from "mongodb";
-import { updateSlackMessages } from "./updateSlackMessages";
 import { db } from "./db";
-import { slack } from "./slack";
 import { postSlackMessage } from "./postSlackMessage";
+import { slack } from "./slack";
+import { updateSlackMessages } from "./updateSlackMessages";
 
 export const SlackMsgs = db.collection<SlackMsg>("SlackMsgs6");
 

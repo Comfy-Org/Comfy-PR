@@ -1,6 +1,6 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
-import YAML from "yaml"
+import YAML from "yaml";
 import { CNRepos } from "./CNRepos";
 import { $fresh, $stale } from "./db";
 import { $flatten } from "./db/$flatten";

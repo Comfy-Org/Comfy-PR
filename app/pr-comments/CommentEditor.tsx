@@ -1,16 +1,17 @@
-'use client'
-import Editor from '@monaco-editor/react'
+"use client";
+import Editor from "@monaco-editor/react";
 /**
  * @author: snomiao <snomiao@gmail.com>
  */
-export default  function CommentEditor({onChange, defaultValue, defaultLanguage}) {
-return     <Editor
+export default function CommentEditor({ onChange, defaultValue, defaultLanguage }) {
+  return (
+    <Editor
       height="90vh"
       defaultLanguage="markdown"
       defaultValue="write comment template here"
       onChange={function handleEditorChange(value, event) {
         // here is the current value
-        onChange(value)
+        onChange(value);
       }}
       onMount={function handleEditorDidMount(editor, monaco) {
         console.log("onMount: the editor instance:", editor);
@@ -21,7 +22,8 @@ return     <Editor
       }}
       onValidate={function handleEditorValidation(markers) {
         // model markers
-        markers.forEach(marker => console.log('onValidate:', marker.message));
+        markers.forEach((marker) => console.log("onValidate:", marker.message));
       }}
     />
-};
+  );
+}

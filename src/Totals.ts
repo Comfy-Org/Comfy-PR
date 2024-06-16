@@ -1,10 +1,10 @@
 import { match } from "ts-pattern";
-import YAML from "yaml"
+import YAML from "yaml";
+import { analyzeTotals } from "./analyzeTotals";
 import { $flatten, $fresh, db } from "./db";
 import { notifySlack } from "./notifySlack";
 import { type AwaitedReturnType } from "./types/AwaitedReturnType";
 import { $OK, TaskError, TaskOK, type Task } from "./utils/Task";
-import { analyzeTotals } from "./analyzeTotals";
 
 type Totals = AwaitedReturnType<typeof analyzeTotals>;
 export const Totals = db.collection<{
@@ -35,5 +35,3 @@ export async function updateComfyTotals() {
     .otherwise(() => null);
   return [updateResult].flatMap((e) => (e ? [e] : []));
 }
-
-

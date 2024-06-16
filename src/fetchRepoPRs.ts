@@ -1,4 +1,4 @@
-import YAML from "yaml"
+import YAML from "yaml";
 import { fetchGithubPulls } from "./fetchGithubPulls";
 import { fetchIssueComments } from "./fetchPullComments";
 import { gh } from "./gh";
@@ -18,6 +18,4 @@ if (import.meta.main) {
 }
 
 export type GithubPull = Awaited<ReturnType<typeof gh.pulls.get>>["data"];
-export type GithubIssueComments = Awaited<
-  ReturnType<typeof fetchIssueComments>
->[number];
+export type GithubIssueComments = Awaited<ReturnType<typeof fetchIssueComments>>[number];

@@ -1,12 +1,10 @@
-import { fetchCRNodes } from "./fetchComfyRegistryNodes";
-import { filter, groupBy, values } from "rambda";
-import YAML from "yaml"
-import { db } from "./db";
-import pMap from "p-map";
-import { type SlackMsg } from "./SlackMsgs";
-import { notifySlack } from "./notifySlack";
-import { notifySlackLinks } from "./notifySlackLinks";
 import type { ObjectId } from "mongodb";
+import { filter, groupBy, values } from "rambda";
+import YAML from "yaml";
+import { type SlackMsg } from "./SlackMsgs";
+import { db } from "./db";
+import { fetchCRNodes } from "./fetchComfyRegistryNodes";
+import { notifySlack } from "./notifySlack";
 
 export type CRNode = Awaited<ReturnType<typeof fetchCRNodes>>[number] & {
   sent?: { slack?: SlackMsg };
@@ -27,13 +25,10 @@ export async function updateCRNodes() {
   const duplicates = filter((e) => e.length > 1, group);
   if (values(duplicates).length) {
     const msg =
-      "[WARN] Same repo but different ids found in comfyregistry:\n" +
-      "```\n" +
-      YAML.stringify(duplicates) +
-      "\n```";
+      "[WARN] Same repo but different ids found in comfyregistry:\n" + "```\n" + YAML.stringify(duplicates) + "\n```";
     await notifySlack(msg, { unique: true });
   }
-  return (await CRNodes.bulkWrite(
+  return await CRNodes.bulkWrite(
     nodes.flatMap((node) => ({
       updateOne: {
         filter: { id: node.id },
@@ -41,6 +36,6 @@ export async function updateCRNodes() {
         upsert: true,
       },
     })),
-    { ordered: false }
-  ));
+    { ordered: false },
+  );
 }

@@ -4,7 +4,7 @@ import type { Filter } from "mongodb";
  * Wraps a filter in an $elemMatch expression.
  * @param filter The filter to wrap.
  * @returns The filter wrapped in an $elemMatch expression.
- * 
+ *
  * @example
  * ```ts
  * $flatten({

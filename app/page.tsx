@@ -5,7 +5,6 @@ import { redirect, RedirectType } from "next/navigation";
 import Markdown from "react-markdown";
 import { v4 as uuid } from "uuid";
 import { DownloadButton } from "./DownloadButton";
-import yaml from 'yaml'
 export default async function CRPullsDump() {
   const totals = await analyzeTotals();
   return (
@@ -47,7 +46,7 @@ async function dump(ext = "yaml") {
   await mkdir("./public/downloads", { recursive: true });
   // will dump to .cache/dump.yaml and .cache/dump.csv
   await dumpDashboard();
-  await cp(`.cache/dump.${ext}`, `./public/downloads/${id}/dump.${ext}`)
+  await cp(`.cache/dump.${ext}`, `./public/downloads/${id}/dump.${ext}`);
   redirect(`./downloads/${id}/dump.${ext}`, RedirectType.replace);
   return id;
 }

@@ -1,6 +1,6 @@
 import { type Document, type Filter } from "mongodb";
 import { fromPairs, toPairs } from "rambda";
-import type { UnwrapArrayDeep, UnwrapArrayValue } from "./$pipeline";
+import type { UnwrapArrayDeep } from "./$pipeline";
 /**
  * This function flattens the filter object, used for mongodb partial queries.
  * otherwise, mongodb will match the nested object as a whole.

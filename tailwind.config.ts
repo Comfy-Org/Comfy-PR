@@ -1,5 +1,5 @@
+import daisyui from "daisyui";
 import type { Config } from "tailwindcss";
-import daisyui from "daisyui"
 const config: Config = {
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",

@@ -1,11 +1,7 @@
 import { gh } from "./gh";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
-
-export async function fetchIssueComments(
-  repo: string,
-  pull: { number: number; }
-) {
+export async function fetchIssueComments(repo: string, pull: { number: number }) {
   const result = (
     await gh.issues.listComments({
       ...parseUrlRepoOwner(repo),
@@ -14,8 +10,6 @@ export async function fetchIssueComments(
       sort: "created",
     })
   ).data;
-  console.log(
-    `[INFO] Fetchd ${result.length} Comments from ${repo}/pull/${pull.number}`
-  );
+  console.log(`[INFO] Fetchd ${result.length} Comments from ${repo}/pull/${pull.number}`);
   return result;
 }

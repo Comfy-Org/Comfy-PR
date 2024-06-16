@@ -6,7 +6,7 @@ function handler(req: Request) {
     req,
     router: router,
     createContext: () => ({
-        user: null,
+      user: null,
     }),
   });
 }
