@@ -1,4 +1,4 @@
-    qq# Comfy-PR
+# Comfy-PR
 
 Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.comfyregistry.org/).
 
