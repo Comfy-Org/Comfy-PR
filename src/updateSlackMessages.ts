@@ -35,10 +35,7 @@ export async function updateSlackMessages() {
       if (silent) return await SlackMsgs.updateOne({ _id }, { $set: { status: "sent", mtime: new Date() } });
       const sent = await postSlackMessage(text)
         .then((e) => ({ ...e, error: undefined, status: "sent" as const }))
-        .catch((e) => ({
-          error: e.message ?? String(e),
-          status: "error" as const,
-        }));
+        .catch((e) => ({ error: e.message ?? String(e), status: "error" as const }));
       await SlackMsgs.updateOne({ _id }, { $set: { ...sent, mtime: new Date() } });
     },
     { concurrency: 1 },

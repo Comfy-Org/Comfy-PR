@@ -2,7 +2,7 @@
 import { analyzeTotals } from "@/src/analyzeTotals";
 import { dumpDashboard } from "@/src/dumpDashboard";
 import { cp, mkdir, rm } from "fs/promises";
-import { redirect, RedirectType } from "next/navigation";
+import { RedirectType, redirect } from "next/navigation";
 import Markdown from "react-markdown";
 import { v4 as uuid } from "uuid";
 import yaml from "yaml";

@@ -158,3 +158,42 @@ ENV FORK_PREFIX=PR-
 ENV GIT_USEREMAIL=comfy-ci@drip.art
 ENV GIT_USERNAME=comfy-ci
 ```
+
+
+## Github Action Worker & server Development
+
+1. Setup envs in the usages section above
+
+2. Run mongodb with docker compose
+
+```sh
+docker compose -f docker-compose.mongodb.yml up
+```
+
+```yaml
+services:
+  mongdb:
+    restart: always
+    image: mongo
+    ports: ["27017:27017"]
+    volumes: [./data/mongodb:/data/db]
+```
+
+And fill URI into env
+
+```env
+MONGODB_URI=mongodb://localhost:27017
+```
+
+3. Play with codes...
+
+```sh
+# To initialize your database, run:
+bun src/index.ts
+
+# To start develop in any of other scripts:
+bun src/THAT_FILE_YOU_WANT_TO_RUN.ts
+
+# To check if you didn't break anything?
+bun test --watch
+```
