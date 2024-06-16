@@ -5,7 +5,7 @@ import { CommentEditor } from "./CommentEditor";
  */
 export default async function PRCommentsPage() {
   await updateCNReposCRPullsComments();
-  const value;
+  const value = '```json\n{\n  "name": "snomiao"\n}\n```';
   return (
     <CommentEditor
       onChange={async (text) => {
