@@ -5,7 +5,11 @@ import { gh } from "./gh";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
 export async function createGithubPullRequest({
-  title, body, branch, srcUrl, dstUrl,
+  title,
+  body,
+  branch,
+  srcUrl,
+  dstUrl,
 }: {
   title: string;
   body: string;
@@ -34,7 +38,7 @@ export async function createGithubPullRequest({
     const msg = {
       PR_Existed: existedList.map((e) => ({ url: e.html_url, title: e.title })),
     };
-    console.log((yaml.stringify(msg)));
+    console.log(yaml.stringify(msg));
     return existedList[0];
   }
   if (!process.env.GH_TOKEN_COMFY_PR) {
@@ -79,7 +83,7 @@ export async function createGithubPullRequest({
               title: e.title,
             })),
           };
-          console.log((yaml.stringify(msg)));
+          console.log(yaml.stringify(msg));
           return existedList[0];
         }
       }

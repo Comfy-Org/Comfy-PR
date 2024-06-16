@@ -4,7 +4,7 @@ import { dumpDashboard } from "@/src/dumpDashboard";
 import { redirect, RedirectType } from "next/navigation";
 import Markdown from "react-markdown";
 import { v4 as uuid } from "uuid";
-import yaml from 'yaml'
+import yaml from "yaml";
 import { DownloadButton } from "./DownloadButton";
 export default async function CRPullsDump() {
   const totals = await analyzeTotals();

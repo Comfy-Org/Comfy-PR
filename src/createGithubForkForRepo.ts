@@ -1,9 +1,9 @@
 import DIE from "@snomiao/die";
 import md5 from "md5";
-import minimist from 'minimist'
+import minimist from "minimist";
 import { FORK_OWNER, FORK_PREFIX, user } from ".";
-import { parseUrlRepoOwner } from "./parseOwnerRepo";
 import { createGithubFork } from "./createGithubFork";
+import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
 /**
  * this function creates a fork of the upstream repo,
@@ -11,9 +11,9 @@ import { createGithubFork } from "./createGithubFork";
  * - the prefix is optional, if not provided, the repo name will be the same as the upstream repo
  * - the prefix is useful to distinguish the forked repo from the other repo in the same owner
  * SALT is used to generate a unique repo name, so that the forked repo will not conflict with other forks
- * 
+ *
  * @author snomiao <snomiao@gmail.com>
- * @param upstreamRepoUrl 
+ * @param upstreamRepoUrl
  * @returns forked repo info
  */
 export async function createGithubForkForRepo(upstreamRepoUrl: string) {
@@ -23,13 +23,10 @@ export async function createGithubForkForRepo(upstreamRepoUrl: string) {
   // console.log("PR_DST: ", upstreamUrl);
   // console.log(forkSSHUrl);
   const upstream = parseUrlRepoOwner(upstreamRepoUrl);
-  const argv = minimist(process.argv.slice(2))
+  const argv = minimist(process.argv.slice(2));
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
-  const repo_hash = md5(
-    `${salt}-${user.name}-${upstream.owner}/${upstream.repo}`
-  ).slice(0, 8);
-  const forkRepoName = (FORK_PREFIX && `${FORK_PREFIX}${upstream.repo}-${repo_hash}`) ||
-    upstream.repo;
+  const repo_hash = md5(`${salt}-${user.name}-${upstream.owner}/${upstream.repo}`).slice(0, 8);
+  const forkRepoName = (FORK_PREFIX && `${FORK_PREFIX}${upstream.repo}-${repo_hash}`) || upstream.repo;
   const forkDst = `${FORK_OWNER}/${forkRepoName}`;
   const forkUrl = `https://github.com/${forkDst}`;
   const forked = await createGithubFork(upstreamRepoUrl, forkUrl);

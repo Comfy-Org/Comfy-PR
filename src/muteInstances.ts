@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFile, writeFile } from "fs/promises";
+import { globby } from "globby";
 import pMap from "p-map";
-import {globby} from "globby";
 if (import.meta.main) {
   const files = await globby("node_modules/**/*instance*.js");
   await pMap(files, async (file) => {

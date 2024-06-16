@@ -8,7 +8,7 @@ import RuleEditor from "./RuleEditor";
  */
 export default async function PRCommentsPage() {
   await updateCNReposCRPullsComments();
-  const defaultValue = await readFile("./app/pr-comments/default-rule.yaml",'utf8');
+  const defaultValue = await readFile("./app/pr-comments/default-rule.yaml", "utf8");
   return (
     <RuleEditor
       onChange={async (text) => {

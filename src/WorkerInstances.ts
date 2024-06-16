@@ -54,7 +54,7 @@ async function watchWorkerInstancesLoop() {
     if (updated && updated.id !== me.id) {
       console.log("Another worker is updated", updated);
       if (+updated.up > +me.up && updated.task === me.task) {
-        console.log(("[EXIT] I'm outdated, new instance is: " + updated.id));
+        console.log("[EXIT] I'm outdated, new instance is: " + updated.id);
         process.exit(0);
       }
     }
