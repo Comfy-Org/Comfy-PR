@@ -4,7 +4,7 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 
 ## Project Goals: (aka roadmap)
 
-### cli:
+### Cli usage:
 
 - [x] fork repo
 - [x] clone repo locally
@@ -25,13 +25,17 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 - [x] Fetch pr comments
 - [x] Automaticaly find candidates, and do the cli does
 - [x] Mention related prs in dashboard https://github.com/drip-art/Comfy-Registry-PR/issues/1
-- [x] Report Totals into slack
-- [ ] email subscriber (not planned)
+- [x] Analyze Totals
+- [ ] Follow-up prs by state
+  - [ ] Issues Comment
+  - [ ] Slack
+  - [ ] Email
 - [ ] Delete the forked repo which is Merged
 
-### Web
+### Web Site https://comfy-pr.vercel.app
 
-- [ ] A dashboard csv exporter site for @haohao
+- [x] A dashboard csv/yaml exporter site for @haohao
+- [ ]
 
 ## Usages
 
