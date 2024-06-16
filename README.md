@@ -161,7 +161,7 @@ ENV GIT_USERNAME=comfy-ci
 
 ## Github Action Worker & server Development
 
-1. Setup envs in the usages section above
+1. Setup envs in the usages section above (plz check bun src/cli.ts runnable first)
 
 2. Run mongodb with docker compose
 
