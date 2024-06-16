@@ -1,7 +1,7 @@
 import { unary } from "lodash-es";
 import pMap from "p-map";
 import { dissoc, filter, groupBy, map, prop, toPairs } from "rambda";
-import { YAML } from "zx";
+import YAML from "yaml"
 import { CMNodes, type CMNode } from "./CMNodes";
 import { notifySlack } from "./notifySlack";
 

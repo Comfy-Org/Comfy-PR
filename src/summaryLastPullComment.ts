@@ -1,6 +1,6 @@
-import { type GithubPullComment } from "./fetchRepoPRs";
+import { type GithubIssueComments } from "./fetchRepoPRs";
 
-export function summaryLastPullComment(comments: GithubPullComment[]) {
+export function summaryLastPullComment(comments: GithubIssueComments[]) {
   // assume ascending order
   const last = comments.toReversed()[0];
   const lastText =

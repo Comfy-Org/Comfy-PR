@@ -1,6 +1,6 @@
-import { YAML } from "zx";
+import YAML from "yaml"
 import { fetchGithubPulls } from "./fetchGithubPulls";
-import { fetchPullComments } from "./fetchPullComments";
+import { fetchIssueComments } from "./fetchPullComments";
 import { gh } from "./gh";
 
 if (import.meta.main) {
@@ -13,11 +13,11 @@ if (import.meta.main) {
   const relatedTitle = "Add Github Action for Publishing to Comfy Registry";
   const pull = pulls.find((e) => e.title === relatedTitle)!;
   console.log(JSON.stringify({ pull }));
-  const comments = await fetchPullComments(repo, { number: 11 });
+  const comments = await fetchIssueComments(repo, { number: 11 });
   console.log(YAML.stringify(comments));
 }
 
 export type GithubPull = Awaited<ReturnType<typeof gh.pulls.get>>["data"];
-export type GithubPullComment = Awaited<
-  ReturnType<typeof fetchPullComments>
+export type GithubIssueComments = Awaited<
+  ReturnType<typeof fetchIssueComments>
 >[number];

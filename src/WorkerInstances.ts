@@ -18,8 +18,15 @@ export type WorkerInstance = {
 
 const k = "COMFY_PR_WorkerInstanceKey";
 type g = typeof globalThis & { [k]: any };
-const instanceId = ((global as any as g)[k] ??= createInstanceId());
-
+function getWorkerInstanceId() {
+  // ensure only one instance
+  if (!(global as any as g)[k])
+    (async function () {
+      await Promise.all([postWorkerHeartBeatLoop(), watchWorkerInstancesLoop()]);
+    })();
+  const instanceId = ((global as any as g)[k] ??= createInstanceId());
+  return instanceId;
+}
 export const WorkerInstances = db.collection<WorkerInstance>("WorkerInstances");
 await WorkerInstances.createIndex({ id: 1 }, { unique: true });
 await WorkerInstances.createIndex({ ip: 1 });
@@ -28,10 +35,6 @@ export const _geoPromise = fetchCurrentGeoInfo(); // in background
 if (import.meta.main) {
   // await watchWorkerInstances();
 }
-
-(async function () {
-  await Promise.all([postWorkerHeartBeatLoop(), watchWorkerInstancesLoop()]);
-})();
 
 async function postWorkerHeartBeatLoop() {
   while (true) {
@@ -79,10 +82,7 @@ export async function getWorkerInstance(task?: string) {
     { upsert: true, returnDocument: "after" },
   ))!;
 }
-export function getWorkerId() {
+function getWorkerId() {
   const hostname = process.env.HOSTNAME || process.env.COMPUTERNAME;
   return md5(`SALT=v9yJQouMC22do66t ${hostname} ${getMAC()}`).slice(0, 8);
-}
-export function getWorkerInstanceId() {
-  return instanceId;
 }

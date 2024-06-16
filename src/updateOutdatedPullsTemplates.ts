@@ -2,7 +2,7 @@ import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { user } from ".";
-import { CNRepos, type EditedRelatedPull } from "./CNRepos";
+import { CNRepos, type CRPull } from "./CNRepos";
 import { $fresh, $stale } from "./db";
 import { $elemMatch } from "./db/$elemMatch";
 import { $flatten } from "./db/$flatten";
@@ -83,7 +83,7 @@ export async function updateOutdatedPullsTemplates() {
       // edit CRPulls templates to latest
       const crPullsEdited = await pMap(
         crPulls,
-        async (data, i): Promise<EditedRelatedPull> => {
+        async (data, i): Promise<CRPull> => {
           const { pull, type } = data;
           const { number } = pull;
           if (pull.user.login !== user.login) DIE("not editable");

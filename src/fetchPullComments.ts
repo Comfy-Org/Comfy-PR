@@ -2,7 +2,7 @@ import { gh } from "./gh";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
 
-export async function fetchPullComments(
+export async function fetchIssueComments(
   repo: string,
   pull: { number: number; }
 ) {
@@ -15,7 +15,7 @@ export async function fetchPullComments(
     })
   ).data;
   console.log(
-    `[INFO] fetchd Pull Comments (${result.length}) from ${repo} #${pull.number}`
+    `[INFO] Fetchd ${result.length} Comments from ${repo}/pull/${pull.number}`
   );
   return result;
 }

@@ -1,7 +1,9 @@
+import { $flatten } from "@/packages/mongodb-pipeline-ts/$flatten";
+import { $fresh, $freshAt, $stale, $staleAt } from "@/packages/mongodb-pipeline-ts/$fresh";
 import DIE from "@snomiao/die";
 import enhancedMs from "enhanced-ms";
 import { MongoClient, type Db } from "mongodb";
-import { $flatten } from "./$flatten";
+
 declare global {
   var _db: Db;
 }
@@ -15,18 +17,4 @@ if (import.meta.main) {
   console.log(JSON.stringify($flatten({ mtime: new Date() })));
 }
 
-export function $staleAt(date: Date | string) {
-  return { $not: { $gt: new Date(date) } };
-}
-export function $stale(interval: number | string) {
-  const ms = typeof interval === "string" ? enhancedMs(interval) : interval;
-  return { $not: { $gt: new Date(+new Date() - ms) } };
-}
-
-export function $freshAt(date: Date | string) {
-  return { $gte: new Date(date) };
-}
-export function $fresh(interval: number | string) {
-  const ms = typeof interval === "string" ? enhancedMs(interval) : interval;
-  return { $gte: new Date(+new Date() - ms) };
-}
+export { $flatten, $fresh, $freshAt, $stale, $staleAt };

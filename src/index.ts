@@ -2,7 +2,7 @@
 import DIE from "@snomiao/die";
 import "dotenv/config";
 import { $ as zx } from "zx";
-import { updateCNRepos } from "./CNRepos";
+import { updateCNRepos } from "./updateCNRepos";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { gh } from "./gh";
 

@@ -13,6 +13,7 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 - [x] create PR to original repository with template PR description.
 - [x] Submit PR
 - [x] Clean local debris before clone
+- [/] DOING: Export PR status into csv for @haohao
 
 ### Github Actions Worker
 
@@ -21,12 +22,16 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 - [x] Notify to slack channel
 - [x] Fetch repo status (private or archived or ...)
 - [x] Fetch pr status (open / merged / closed) + comments
-- [x] Fetch pr comments (currently DISABLED)
+- [x] Fetch pr comments
 - [x] Automaticaly find candidates, and do the cli does
 - [x] Mention related prs in dashboard https://github.com/drip-art/Comfy-Registry-PR/issues/1
-- [ ]
-- [ ] email subscriber
+- [x] Report Totals into slack
+- [ ] email subscriber (not planned)
 - [ ] Delete the forked repo which is Merged
+
+### Web
+
+- [ ] A dashboard csv exporter site for @haohao
 
 ## Usages
 

@@ -1,6 +1,6 @@
 import { fetchCRNodes } from "./fetchComfyRegistryNodes";
 import { filter, groupBy, values } from "rambda";
-import { YAML } from "zx";
+import YAML from "yaml"
 import { db } from "./db";
 import pMap from "p-map";
 import { type SlackMsg } from "./SlackMsgs";

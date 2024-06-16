@@ -1,8 +1,7 @@
+import { $fresh, $stale } from "@/packages/mongodb-pipeline-ts";
+import { $flatten } from "@/packages/mongodb-pipeline-ts/$flatten";
 import pMap from "p-map";
-import { $flatten } from "./db/$flatten";
 import { SlackMsgs } from "./SlackMsgs";
-import { $fresh } from "./db";
-import { $stale } from "./db";
 import { postSlackMessage } from "./postSlackMessage";
 
 export async function updateSlackMessages() {
@@ -28,29 +27,19 @@ export async function updateSlackMessages() {
         // check if last succ
         const lastSent = await SlackMsgs.findOne({ _id: last });
         if (lastSent?.status !== "sent") {
-          await SlackMsgs.updateOne(
-            { _id },
-            { $set: { status: "pending last" } },
-          );
+          await SlackMsgs.updateOne({ _id }, { $set: { status: "pending last" } });
           return;
         }
       }
       console.log("SLACK POST MSG: " + JSON.stringify(text));
-      if (silent)
-        return await SlackMsgs.updateOne(
-          { _id },
-          { $set: { status: "sent", mtime: new Date() } },
-        );
+      if (silent) return await SlackMsgs.updateOne({ _id }, { $set: { status: "sent", mtime: new Date() } });
       const sent = await postSlackMessage(text)
         .then((e) => ({ ...e, error: undefined, status: "sent" as const }))
         .catch((e) => ({
           error: e.message ?? String(e),
           status: "error" as const,
         }));
-      await SlackMsgs.updateOne(
-        { _id },
-        { $set: { ...sent, mtime: new Date() } },
-      );
+      await SlackMsgs.updateOne({ _id }, { $set: { ...sent, mtime: new Date() } });
     },
     { concurrency: 1 },
   );

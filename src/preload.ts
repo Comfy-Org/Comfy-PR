@@ -17,6 +17,7 @@ await Bun.plugin({
     });
   },
 });
+
 Bun.plugin({
   name: "preload-plugin",
   setup(builder) {

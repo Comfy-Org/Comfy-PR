@@ -9,12 +9,11 @@ import { parseUrlRepoOwner, stringifyOwnerRepo } from "./parseOwnerRepo";
 import { $OK } from "./utils/Task";
 
 export async function updateCNRepoPullsDashboard() {
+  if (user.login !== "snomiao") return [];
   const dashBoardIssue = process.env.DASHBOARD_ISSUE_URL || DIE("DASHBOARD_ISSUE_URL not found");
   const dashBoardRepo = dashBoardIssue.replace(/\/issues\/\d+$/, "");
   const dashBoardIssueNumber = Number(dashBoardIssue.match(/\/issues\/(\d+)$/)?.[1] || DIE("Issue number not found"));
   // update dashboard issue if run by @snomiao
-  if (user.login !== "snomiao") return [];
-
   const repos = await CNRepos.find($flatten({ crPulls: { mtime: $fresh("1d") } })).toArray();
   const result = repos
     .map((repo) => {
