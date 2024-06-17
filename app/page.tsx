@@ -26,8 +26,12 @@ ${"```"}
           </div>
           <div className="flex gap-4">
             {/* two super big buttons: 1. dump yaml, 2. dump csv */}
-            <Link className="btn" href='/api/dump.yaml'>Dump .YAML</Link>
-            <Link className="btn" href='/api/dump.csv'>Dump .CSV</Link>
+            <Link className="btn" href="/api/dump.yaml">
+              Dump .YAML
+            </Link>
+            <Link className="btn" href="/api/dump.csv">
+              Dump .CSV
+            </Link>
           </div>
         </div>
       </div>

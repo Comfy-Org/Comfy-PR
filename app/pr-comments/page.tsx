@@ -1,4 +1,3 @@
-import { updateCNReposCRPullsComments } from "@/src/updateCNReposCRPullsComments";
 import { readFile } from "fs/promises";
 import dynamic from "next/dynamic";
 
