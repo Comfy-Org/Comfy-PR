@@ -15,9 +15,9 @@ export type UnwrapArrayDeep<TSchema extends Document> = {
       : U
     : UnwrapArrayDeep<TSchema[P]>;
 };
-
+export type Expression<TSchema extends Document> = $Path<TSchema> & any;
 export type $Set<TSchema extends Document> = {
-  [P in keyof TSchema]?: TSchema[P] | `$${"_id" | FieldPath<TSchema>}`;
+  [P in keyof TSchema]?: Expression<TSchema>;
 } & Record<string, any>;
 export type $SetResult<TSchema extends Document, Set extends $Set<TSchema>> = TSchema & {
   [P in keyof Set]?: Set[P] extends `$${infer Path extends string}`
@@ -26,17 +26,21 @@ export type $SetResult<TSchema extends Document, Set extends $Set<TSchema>> = TS
       : any
     : Set[P];
 };
-export type $Project<TSchema extends Document> = {
-  [P in FieldPath<TSchema>]?: 1 | 0 | $Path<TSchema>;
-};
+export type $Project<TSchema extends Document> = { _id?: 1 | 0 } & {
+  [P in FieldPath<TSchema>]?: 1 | 0 | Expression<TSchema>;
+} & Record<string, Expression<TSchema>>;
 export type $ProjectResult<TSchema extends Document, Project extends $Project<TSchema>> = {
+  _id?: Project["_id"] extends 1 ? TSchema["_id"] : Project["_id"] extends 0 ? never : TSchema["_id"];
+} & {
   [P in FieldPath<TSchema>]?: Project[P] extends 1
     ? TSchema[P]
     : Project[P] extends 0
       ? never
-      : Project[P] extends `$${infer K extends FieldPath<TSchema>}`
+      : Project[P] extends $Path<TSchema, infer K>
         ? FieldPathValue<TSchema, K>
-        : never;
+        : any;
+} & {
+  [P in keyof Project]?: Project[P] extends $Path<TSchema, infer K> ? FieldPathValue<TSchema, K> : any;
 };
 
 type CollectionPipelineStages<TSchema extends Document = Document> = {
@@ -203,7 +207,7 @@ export function $pipeline<TSchema extends Document>(coll?: Collection<TSchema>, 
       if (!coll) throw new Error("Collection not provided");
       return coll.aggregate([...pipeline]) as unknown as FindCursor<TSchema>;
     },
-    as<RSchema extends Document>() {
+    as<RSchema extends Document = TSchema>() {
       return $pipeline<RSchema>(_coll, pipeline);
     },
     stage<
