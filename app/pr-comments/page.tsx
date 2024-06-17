@@ -1,13 +1,13 @@
-import { updateCNReposCRPullsComments } from "@/src/updateCNReposCRPullsComments";
 import { readFile } from "fs/promises";
-import RuleEditor from "./RuleEditor";
+import dynamic from "next/dynamic";
+
+const RuleEditor = dynamic(() => import("./RuleEditor"), { ssr: false });
 
 /**
  *
  * @author: snomiao <snomiao@gmail.com>
  */
 export default async function PRCommentsPage() {
-  await updateCNReposCRPullsComments();
   const defaultValue = await readFile("./app/pr-comments/default-rule.yaml", "utf8");
   return (
     <RuleEditor

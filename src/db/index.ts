@@ -1,5 +1,5 @@
 import { $flatten } from "@/packages/mongodb-pipeline-ts/$flatten";
-import { $fresh, $freshAt, $stale, $staleAt } from "@/packages/mongodb-pipeline-ts/$fresh";
+import { $fresh, $stale } from "@/packages/mongodb-pipeline-ts/$fresh";
 import DIE from "@snomiao/die";
 import enhancedMs from "enhanced-ms";
 import { MongoClient, type Db } from "mongodb";
@@ -17,4 +17,4 @@ if (import.meta.main) {
   console.log(JSON.stringify($flatten({ mtime: new Date() })));
 }
 
-export { $flatten, $fresh, $freshAt, $stale, $staleAt };
+export { $flatten, $fresh, $stale };

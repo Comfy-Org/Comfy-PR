@@ -7,7 +7,9 @@ import { $flatten } from "./db/$flatten";
 import { notifySlackLinks } from "./notifySlackLinks";
 import { parseUrlRepoOwner, stringifyOwnerRepo } from "./parseOwnerRepo";
 import { $ERROR, $OK, TaskError, TaskOK } from "./utils/Task";
-
+if (import.meta.main) {
+  // await createComfyRegistryPRsFromCandidates();
+}
 export async function createComfyRegistryPRsFromCandidates() {
   return await pMap(
     CNRepos.find(
@@ -31,10 +33,17 @@ export async function createComfyRegistryPRsFromCandidates() {
           name: stringifyOwnerRepo(parseUrlRepoOwner(e.html_url.replace(/\/pull\/.*$/, ""))) + " #" + e.title,
         }));
         await notifySlackLinks("PR just Created, @HaoHao check plz", links);
+        await pMap(data, async (pull) => {
+          const { html_url } = pull;
+          // also update to crPulls
+          await CNRepos.updateOne($flatten({ repository, crPulls: { data: { pull: { html_url } } } }), {
+            $set: { "crPulls.data.$.pull": pull },
+          });
+        });
       });
 
-      return await CNRepos.updateOne({ repository }, { $set: $flatten({ createdPulls }) });
+      return await CNRepos.updateOne({ repository }, { $set: { createdPulls } });
     },
-    { concurrency: 3, stopOnError: false },
+    { concurrency: Number(process.env.createComfyRegistryPRsFromCandidate_concurrency || 5), stopOnError: false },
   );
 }

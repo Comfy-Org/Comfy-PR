@@ -3,7 +3,10 @@ import type { FieldArrayPath, FieldArrayPathValue, FieldPath, FieldPathValue } f
 export declare type NODOT<T extends string = string> = T extends `${infer K}.${infer _}` ? never : T;
 export declare type TypedPath<TSchema extends Document, Type> =
   Type extends NonNullable<FieldPathValue<TSchema, infer Path>> ? Path : never;
-export declare type $Path<TSchema extends Document, Path extends FieldPath<TSchema> = any> = `$${Path}`;
+export declare type $Path<
+  TSchema extends Document,
+  Path extends string & FieldPath<TSchema> = FieldPath<TSchema>,
+> = `$${Path}`;
 export type UnwrapArrayValue<V> = NonNullable<V> extends any[] ? NonNullable<V>[number] : V;
 export type UnwrapArrayDeep<TSchema extends Document> = {
   [P in keyof TSchema]: TSchema[P] extends ReadonlyArray<infer U>
@@ -12,9 +15,9 @@ export type UnwrapArrayDeep<TSchema extends Document> = {
       : U
     : UnwrapArrayDeep<TSchema[P]>;
 };
-
+export type Expression<TSchema extends Document> = $Path<TSchema> & any;
 export type $Set<TSchema extends Document> = {
-  [P in keyof TSchema]?: TSchema[P] | `$${"_id" | FieldPath<TSchema>}`;
+  [P in keyof TSchema]?: Expression<TSchema>;
 } & Record<string, any>;
 export type $SetResult<TSchema extends Document, Set extends $Set<TSchema>> = TSchema & {
   [P in keyof Set]?: Set[P] extends `$${infer Path extends string}`
@@ -23,17 +26,21 @@ export type $SetResult<TSchema extends Document, Set extends $Set<TSchema>> = TS
       : any
     : Set[P];
 };
-export type $Project<TSchema extends Document> = {
-  [P in FieldPath<TSchema>]?: 1 | 0 | $Path<TSchema>;
-};
+export type $Project<TSchema extends Document> = { _id?: 1 | 0 } & {
+  [P in FieldPath<TSchema>]?: 1 | 0 | Expression<TSchema>;
+} & Record<string, Expression<TSchema>>;
 export type $ProjectResult<TSchema extends Document, Project extends $Project<TSchema>> = {
+  _id?: Project["_id"] extends 1 ? TSchema["_id"] : Project["_id"] extends 0 ? never : TSchema["_id"];
+} & {
   [P in FieldPath<TSchema>]?: Project[P] extends 1
     ? TSchema[P]
     : Project[P] extends 0
       ? never
-      : Project[P] extends `$${infer K extends FieldPath<TSchema>}`
+      : Project[P] extends $Path<TSchema, infer K>
         ? FieldPathValue<TSchema, K>
-        : never;
+        : any;
+} & {
+  [P in keyof Project]?: Project[P] extends $Path<TSchema, infer K> ? FieldPathValue<TSchema, K> : any;
 };
 
 type CollectionPipelineStages<TSchema extends Document = Document> = {
@@ -53,7 +60,7 @@ type CollectionPipelineStages<TSchema extends Document = Document> = {
   $collStats: Document;
   /** Returns a count of the number of documents at this stage of the aggregation pipeline.
    * Distinct from the $count aggregation accumulator. */
-  $count: $Path<TSchema>;
+  $count: string;
   /** Creates new documents in a sequence of documents where certain values in a field are missing. */
   $densify: Document;
   /** Returns literal documents from input expressions. */
@@ -91,7 +98,7 @@ type CollectionPipelineStages<TSchema extends Document = Document> = {
 
   /** Reshapes each document in the stream, such as by adding new fields or removing existing fields. For each input document, outputs one document.
    * See also $unset for removing existing fields. */
-  $project: Document;
+  $project: $Project<TSchema>;
 
   /** Reshapes each document in the stream by restricting the content for each document based on information stored in the documents themselves. Incorporates the functionality of $project and $match. Can be used to implement field level redaction. For each input document, outputs either one or zero documents. */
   $redact: Document;
@@ -141,55 +148,58 @@ type CollectionPipelineStages<TSchema extends Document = Document> = {
 };
 export type CollectionPipelineStagesResult<
   TSchema extends Document,
-  K extends keyof CollectionPipelineStages<TSchema>,
-  $ extends Pick<CollectionPipelineStages<TSchema>, K>,
+  $ extends Partial<CollectionPipelineStages<TSchema>>,
+  K extends keyof $ = keyof $,
 > = {
-  $addFields: K extends "$addFields" ? TSchema & $[K] : never;
-  $bucket: K extends "$bucket" ? TSchema : never;
-  $bucketAuto: K extends "$bucketAuto" ? TSchema : never;
-  $changeStream: K extends "$changeStream" ? TSchema : never;
-  $changeStreamSplitLargeEvent: K extends "$changeStreamSplitLargeEvent" ? TSchema : never;
-  $collStats: K extends "$collStats" ? TSchema : never;
-  $count: K extends "$count" ? Record<$[K] extends `$${infer Path}` ? Path : never, number> : never;
-  $densify: K extends "$densify" ? TSchema : never;
-  $documents: K extends "$documents" ? TSchema : never;
-  $facet: K extends "$facet" ? TSchema : never;
-  $fill: K extends "$fill" ? TSchema : never;
-  $geoNear: K extends "$geoNear" ? TSchema : never;
-  $graphLookup: K extends "$graphLookup" ? TSchema : never;
-  $group: K extends "$group" ? Record<$[K] extends `$${infer Path}` ? Path : never, TSchema[]> : never;
-  $indexStats: K extends "$indexStats" ? TSchema : never;
-  $limit: K extends "$limit" ? TSchema : never;
-  $listSampledQueries: K extends "$listSampledQueries" ? TSchema : never;
-  $listSearchIndexes: K extends "$listSearchIndexes" ? TSchema : never;
-  $listSessions: K extends "$listSessions" ? TSchema : never;
-  $lookup: K extends "$lookup" ? TSchema : never;
-  $match: K extends "$match" ? TSchema : never;
-  $merge: K extends "$merge" ? TSchema : never;
-  $out: K extends "$out" ? TSchema : never;
-  $planCacheStats: K extends "$planCacheStats" ? TSchema : never;
-  $project: K extends "$project" ? TSchema : never;
-  $redact: K extends "$redact" ? TSchema : never;
-  $replaceRoot: K extends "$replaceRoot" ? TSchema : never;
-  $replaceWith: K extends "$replaceWith" ? TSchema : never;
-  $sample: K extends "$sample" ? TSchema : never;
-  $search: K extends "$search" ? TSchema : never;
-  $searchMeta: K extends "$searchMeta" ? TSchema : never;
-  $set: K extends "$set" ? TSchema : never;
-  $setWindowFields: K extends "$setWindowFields" ? TSchema : never;
-  $skip: K extends "$skip" ? TSchema : never;
-  $sort: K extends "$sort" ? TSchema : never;
-  $sortByCount: K extends "$sortByCount" ? TSchema : never;
-  $unionWith: K extends "$unionWith" ? TSchema : never;
-  $unset: K extends "$unset" ? TSchema : never;
-  $unwind: K extends "$unwind" ? $UnwindResult<TSchema, $[K] extends FieldArrayPath<TSchema> ? $[K] : never> : never;
-  $vectorSearch: K extends "$vectorSearch" ? TSchema : never;
+  $addFields: $[K] extends NonNullable<$["$addFields"]> ? TSchema & $[K] : never;
+  $bucket: $[K] extends NonNullable<$["$bucket"]> ? TSchema : never;
+  $bucketAuto: $[K] extends NonNullable<$["$bucketAuto"]> ? TSchema : never;
+  $changeStream: $[K] extends NonNullable<$["$changeStream"]> ? TSchema : never;
+  $changeStreamSplitLargeEvent: $[K] extends NonNullable<$["$changeStreamSplitLargeEvent"]> ? TSchema : never;
+  $collStats: $[K] extends NonNullable<$["$collStats"]> ? TSchema : never;
+  $count: $[K] extends NonNullable<$["$count"]> ? Record<$[K], number> : never;
+  $densify: $[K] extends NonNullable<$["$densify"]> ? TSchema : never;
+  $documents: $[K] extends NonNullable<$["$documents"]> ? TSchema : never;
+  $facet: $[K] extends NonNullable<$["$facet"]> ? TSchema : never;
+  $fill: $[K] extends NonNullable<$["$fill"]> ? TSchema : never;
+  $geoNear: $[K] extends NonNullable<$["$geoNear"]> ? TSchema : never;
+  $graphLookup: $[K] extends NonNullable<$["$graphLookup"]> ? TSchema : never;
+  $group: $[K] extends NonNullable<$["$group"]> ? any : never;
+  $indexStats: $[K] extends NonNullable<$["$indexStats"]> ? TSchema : never;
+  $limit: $[K] extends NonNullable<$["$limit"]> ? TSchema : never;
+  $listSampledQueries: $[K] extends NonNullable<$["$listSampledQueries"]> ? TSchema : never;
+  $listSearchIndexes: $[K] extends NonNullable<$["$listSearchIndexes"]> ? TSchema : never;
+  $listSessions: $[K] extends NonNullable<$["$listSessions"]> ? TSchema : never;
+  $lookup: $[K] extends NonNullable<$["$lookup"]> ? TSchema : never;
+  $match: $[K] extends NonNullable<$["$match"]> ? TSchema : never;
+  $merge: $[K] extends NonNullable<$["$merge"]> ? TSchema : never;
+  $out: $[K] extends NonNullable<$["$out"]> ? TSchema : never;
+  $planCacheStats: $[K] extends NonNullable<$["$planCacheStats"]> ? TSchema : never;
+  $project: $[K] extends NonNullable<$["$project"]> ? $ProjectResult<TSchema, $[K]> : never;
+  $redact: $[K] extends NonNullable<$["$redact"]> ? TSchema : never;
+  $replaceRoot: $[K] extends NonNullable<$["$replaceRoot"]> ? TSchema : never;
+  $replaceWith: $[K] extends NonNullable<$["$replaceWith"]> ? TSchema : never;
+  $sample: $[K] extends NonNullable<$["$sample"]> ? TSchema : never;
+  $search: $[K] extends NonNullable<$["$search"]> ? TSchema : never;
+  $searchMeta: $[K] extends NonNullable<$["$searchMeta"]> ? TSchema : never;
+  $set: $[K] extends NonNullable<$["$set"]> ? TSchema : never;
+  $setWindowFields: $[K] extends NonNullable<$["$setWindowFields"]> ? TSchema : never;
+  $skip: $[K] extends NonNullable<$["$skip"]> ? TSchema : never;
+  $sort: $[K] extends NonNullable<$["$sort"]> ? TSchema : never;
+  $sortByCount: $[K] extends NonNullable<$["$sortByCount"]> ? TSchema : never;
+  $unionWith: $[K] extends NonNullable<$["$unionWith"]> ? TSchema : never;
+  $unset: $[K] extends NonNullable<$["$unset"]> ? TSchema : never;
+  $unwind: $[K] extends NonNullable<$["$unwind"]>
+    ? $UnwindResult<TSchema, $[K] extends FieldArrayPath<TSchema> ? $[K] : never>
+    : never;
+  $vectorSearch: $[K] extends NonNullable<$["$vectorSearch"]> ? TSchema : never;
   [key: string]: TSchema | any;
-}[K];
+};
 
 export type $UnwindResult<TSchema extends Document, Path extends FieldArrayPath<TSchema>> = {
   [k in Path]: NonNullable<FieldArrayPathValue<TSchema, Path>>[number];
 } & Omit<TSchema, Path extends `${infer Head}.${string}` ? Head : Path extends string ? Path : never>;
+export type $Pipeline<TSchema extends Document> = ReturnType<typeof $pipeline<TSchema>>;
 export function $pipeline<TSchema extends Document>(coll?: Collection<TSchema>, pipeline = [] as readonly Document[]) {
   const _coll = coll as any;
   return {
@@ -197,10 +207,15 @@ export function $pipeline<TSchema extends Document>(coll?: Collection<TSchema>, 
       if (!coll) throw new Error("Collection not provided");
       return coll.aggregate([...pipeline]) as unknown as FindCursor<TSchema>;
     },
+    satisfies<RSchema extends TSchema = TSchema>() {
+      return $pipeline<RSchema>(_coll, pipeline);
+    },
+    as<RSchema extends Document = TSchema>() {
+      return $pipeline<RSchema>(_coll, pipeline);
+    },
     stage<
-      K extends keyof CollectionPipelineStages<TSchema>,
-      Stage extends Pick<CollectionPipelineStages<TSchema>, K>,
-      RSchema extends CollectionPipelineStagesResult<TSchema, K, Stage>,
+      Stage extends Partial<CollectionPipelineStages<TSchema>>,
+      RSchema extends CollectionPipelineStagesResult<TSchema, Stage>,
     >(stage: Stage) {
       if (!stage || !Object.keys(stage).length) return $pipeline<RSchema>(_coll, pipeline);
       return $pipeline<RSchema>(_coll, [...pipeline, stage]);

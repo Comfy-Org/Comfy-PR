@@ -1,5 +1,6 @@
 volumes:
   venv:
+  test_db_data:
 services:
   crpr:
     restart: always
@@ -12,3 +13,8 @@ services:
     env_file:
       - .env
       - .env.production.local
+  mongdb:
+    restart: always
+    image: mongo
+    ports: ["27017:27017"]
+    volumes: [test_db_data:/data/db]

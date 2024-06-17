@@ -20,13 +20,12 @@ export async function updateComfyTotals() {
   const today = new Date().toISOString().split("T")[0];
   const cached = await Totals.findOne($flatten({ today, totals: { mtime: $fresh("10m"), ...$OK } }));
   if (cached?.totals?.state === "ok") return [];
-
   const totals = await analyzeTotals().then(TaskOK).catch(TaskError);
 
   // notify
   await match(totals)
     .with($OK, async (totals) => {
-      const msg = `Totals: \n${"```" + YAML.stringify(totals) + "```"}`;
+      const msg = `Totals: \n${"```"}\n${YAML.stringify(totals)}\n${"```"}`;
       await notifySlack(msg, { unique: true });
     })
     .otherwise(() => null);

@@ -1,1 +1,1 @@
-export { $fresh, $freshAt, $stale, $staleAt } from "./$fresh";
+export { $fresh, $stale } from "./$fresh";

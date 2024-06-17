@@ -1,4 +1,5 @@
-import { router } from "@/src/api/router";
+import { router } from "../router";
+// todo replace with `trpc-swagger`
 import { createOpenApiAwsLambdaHandler } from "trpc-openapi";
 
 const lambdaHander = createOpenApiAwsLambdaHandler({
@@ -105,7 +106,7 @@ const handler = async (req: Request) => {
     },
   );
   return new Response(body, {
-    headers: new Headers([...Object.entries(headers || {})].map(([k, v]) => [k, String(v)] as const)),
+    headers: new Headers([...Object.entries(headers || {})].map(([k, v]) => [k, String(v)] as [string, string])),
     status: statusCode,
   });
 };

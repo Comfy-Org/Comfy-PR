@@ -2,9 +2,9 @@ import { getMAC } from "@ctrl/mac-address";
 import { defer } from "lodash-es";
 import md5 from "md5";
 import type { WithId } from "mongodb";
-import { createInstanceId } from "./createInstanceId";
 import { db } from "./db";
 import { fetchCurrentGeoInfo } from "./fetchCurrentGeoInfo";
+import { createInstanceId } from "./utils/createInstanceId";
 export type GeoInfo = Awaited<ReturnType<typeof fetchCurrentGeoInfo>>;
 export type WorkerInstance = {
   /** id: rand */
@@ -33,12 +33,13 @@ await WorkerInstances.createIndex({ ip: 1 });
 export const _geoPromise = fetchCurrentGeoInfo(); // in background
 
 if (import.meta.main) {
-  // await watchWorkerInstances();
+  console.log(await getWorkerInstance());
 }
 
 async function postWorkerHeartBeatLoop() {
+  // 30s heartbeat
   while (true) {
-    await new Promise((r) => setTimeout(r, 15e3));
+    await new Promise((r) => setTimeout(r, 30e3));
     await getWorkerInstance();
   }
 }
