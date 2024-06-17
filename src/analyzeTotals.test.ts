@@ -1,3 +1,3 @@
-it('analyze totals',()=>{
-    analyzeTotals()
-})
+it("analyze totals", () => {
+  analyzeTotals();
+});
