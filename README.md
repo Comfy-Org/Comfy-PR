@@ -175,7 +175,7 @@ cd comfy-pr
 # Prepare code and environments
 git clone https://github.com/drip-art/Comfy-Registry-PR .
 
-# Prepare bun 
+# Prepare bun
 # go here - [Installation \| Bun Docs]( https://bun.sh/docs/installation )
 
 # Install project
@@ -185,7 +185,7 @@ bun i
 bun i
 ```
 
-### Github Action Worker & server 
+### Github Action Worker & server
 
 1. Setup envs in the usages section above (plz check bun src/cli.ts runnable first)
 

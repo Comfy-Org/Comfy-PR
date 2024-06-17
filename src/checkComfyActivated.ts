@@ -1,7 +1,6 @@
 import DIE from "@snomiao/die";
 import { $ as bunSh } from "bun";
-import { os, $ as zx } from "zx";
-import { getActivatedShell } from "./getActivatedShell";
+import { os } from "zx";
 import { getActivateCMD } from "./getActivateCMD";
 
 export async function checkComfyActivated() {
@@ -38,4 +37,3 @@ comfy-cli --help
     );
   }
 }
-

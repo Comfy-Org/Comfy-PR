@@ -1,7 +1,6 @@
 import { $ as zx } from "zx";
 import { getActivateCMD } from "./getActivateCMD";
 
-
 if (import.meta.main) {
   // await checkComfyActivated();
   zx.verbose = true;
@@ -10,7 +9,6 @@ if (import.meta.main) {
   console.log(p.stdout);
   // zx({ prefix:  })`comfy-cli --help`;
 }
-
 
 export function getActivatedShell() {
   const activate = getActivateCMD();
