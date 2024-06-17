@@ -1,12 +1,10 @@
 #!/usr/bin/env bun
 import DIE from "@snomiao/die";
 import "dotenv/config";
-// import { $ as zx } from "zx";
+import { $ as zx } from "zx";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { gh } from "./gh";
 import { updateCNRepos } from "./updateCNRepos";
-
-// zx.verbose = true;
 
 // read env/parameters
 console.log("Fetch Current Github User...");
@@ -24,6 +22,7 @@ export const FORK_PREFIX =
 console.log(`GIT COMMIT USER: ${GIT_USERNAME} <${GIT_USEREMAIL}>`);
 
 if (import.meta.main) {
+  zx.verbose = true;
   await checkComfyActivated(); // needed if make pr
   await updateCNRepos();
   console.log("All done");
