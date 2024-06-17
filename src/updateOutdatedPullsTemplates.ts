@@ -4,7 +4,6 @@ import { match } from "ts-pattern";
 import { user } from ".";
 import { CNRepos, type CRPull } from "./CNRepos";
 import { $fresh, $stale } from "./db";
-import { $elemMatch } from "./db/$elemMatch";
 import { $flatten } from "./db/$flatten";
 import { gh } from "./gh";
 import { notifySlackLinks } from "./notifySlackLinks";
@@ -12,6 +11,7 @@ import { parseUrlRepoOwner } from "./parseOwnerRepo";
 import { readTemplate } from "./readTemplateTitle";
 import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
+import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
 if (import.meta.main) {
   await tLog("updateOutdatedPullsTemplates", updateOutdatedPullsTemplates);
 }

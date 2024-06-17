@@ -3,10 +3,14 @@ import type { FieldArrayPath, FieldArrayPathValue, FieldPath, FieldPathValue } f
 export declare type NODOT<T extends string = string> = T extends `${infer K}.${infer _}` ? never : T;
 export declare type TypedPath<TSchema extends Document, Type> =
   Type extends NonNullable<FieldPathValue<TSchema, infer Path>> ? Path : never;
-export declare type $Path<TSchema extends Document> = `$${FieldPath<TSchema>}`;
+export declare type $Path<TSchema extends Document, Path extends FieldPath<TSchema> = any> = `$${Path}`;
 export type UnwrapArrayValue<V> = NonNullable<V> extends any[] ? NonNullable<V>[number] : V;
-export type UnwrapArrayDeep<TSchema> = {
-  [P in keyof TSchema]: UnwrapArrayDeep<TSchema[P] extends ReadonlyArray<infer U> ? U : TSchema[P]>;
+export type UnwrapArrayDeep<TSchema extends Document> = {
+  [P in keyof TSchema]: TSchema[P] extends ReadonlyArray<infer U>
+    ? U extends Document
+      ? UnwrapArrayDeep<U>
+      : U
+    : UnwrapArrayDeep<TSchema[P]>;
 };
 
 export type $Set<TSchema extends Document> = {
@@ -178,7 +182,7 @@ export type CollectionPipelineStagesResult<
   $sortByCount: K extends "$sortByCount" ? TSchema : never;
   $unionWith: K extends "$unionWith" ? TSchema : never;
   $unset: K extends "$unset" ? TSchema : never;
-  $unwind: K extends "$unwind" ? $UnwindResult<TSchema, $[K] extends `$${infer Path}` ? Path : never> : never;
+  $unwind: K extends "$unwind" ? $UnwindResult<TSchema, $[K] extends FieldArrayPath<TSchema> ? $[K] : never> : never;
   $vectorSearch: K extends "$vectorSearch" ? TSchema : never;
   [key: string]: TSchema | any;
 }[K];

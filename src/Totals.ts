@@ -31,6 +31,6 @@ export async function updateComfyTotals() {
     })
     .otherwise(() => null);
 
-  const insertResult = await Totals.insertOne({ totals, notification });
+  const insertResult = await Totals.insertOne({ totals });
   return [insertResult].flatMap((e) => (e ? [e] : []));
 }

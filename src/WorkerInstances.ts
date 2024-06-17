@@ -1,4 +1,5 @@
 import { getMAC } from "@ctrl/mac-address";
+import { defer } from "lodash-es";
 import md5 from "md5";
 import type { WithId } from "mongodb";
 import { createInstanceId } from "./createInstanceId";
@@ -20,9 +21,9 @@ type g = typeof globalThis & { [k]: any };
 function getWorkerInstanceId() {
   // ensure only one instance
   if (!(global as any as g)[k])
-    (async function () {
+    defer(async function () {
       await Promise.all([postWorkerHeartBeatLoop(), watchWorkerInstancesLoop()]);
-    })();
+    });
   const instanceId = ((global as any as g)[k] ??= createInstanceId());
   return instanceId;
 }
