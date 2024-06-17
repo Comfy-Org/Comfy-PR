@@ -27,7 +27,7 @@ if (import.meta.main) {
   tLog("updateCNReposPulls", updateCNReposPulls);
   tLog("updateCNReposRelatedPulls", updateCNReposRelatedPulls);
 
-  await CNRepos.createIndex("crPulls.mtime")
+  await CNRepos.createIndex("crPulls.mtime");
   // show candidates
   peekYaml(
     await $pipeline(CNRepos)
