@@ -207,6 +207,9 @@ export function $pipeline<TSchema extends Document>(coll?: Collection<TSchema>, 
       if (!coll) throw new Error("Collection not provided");
       return coll.aggregate([...pipeline]) as unknown as FindCursor<TSchema>;
     },
+    satisfies<RSchema extends TSchema = TSchema>() {
+      return $pipeline<RSchema>(_coll, pipeline);
+    },
     as<RSchema extends Document = TSchema>() {
       return $pipeline<RSchema>(_coll, pipeline);
     },
