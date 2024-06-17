@@ -29,6 +29,7 @@ if (import.meta.main) {
         $flatten({
           crPulls: { mtime: $fresh("1d"), ...$OK },
           info: { mtime: $fresh("7d"), ...$OK, data: { private: false, archived: false } },
+          createdPulls: { mtime: $stale("7d"), data: { $exists: false } },
         }),
       )
       .aggregate()

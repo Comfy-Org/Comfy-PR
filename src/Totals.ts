@@ -20,7 +20,6 @@ export async function updateComfyTotals() {
   const today = new Date().toISOString().split("T")[0];
   const cached = await Totals.findOne($flatten({ today, totals: { mtime: $fresh("10m"), ...$OK } }));
   if (cached?.totals?.state === "ok") return [];
-
   const totals = await analyzeTotals().then(TaskOK).catch(TaskError);
 
   // notify

@@ -1,12 +1,8 @@
 "use server";
 import { analyzeTotals } from "@/src/analyzeTotals";
-import { dumpDashboard } from "@/src/dumpDashboard";
-import { cp, mkdir, rm } from "fs/promises";
-import { RedirectType, redirect } from "next/navigation";
+import Link from "next/link";
 import Markdown from "react-markdown";
-import { v4 as uuid } from "uuid";
 import yaml from "yaml";
-import { DownloadButton } from "./DownloadButton";
 export default async function CRPullsDump() {
   const totals = await analyzeTotals();
   return (
@@ -30,8 +26,8 @@ ${"```"}
           </div>
           <div className="flex gap-4">
             {/* two super big buttons: 1. dump yaml, 2. dump csv */}
-            <DownloadButton action={dump.bind(null, "yaml")}>Dump .YAML</DownloadButton>
-            <DownloadButton action={dump.bind(null, "csv")}>Dump .CSV</DownloadButton>
+            <Link className="btn" href='/api/dump.yaml'>Dump .YAML</Link>
+            <Link className="btn" href='/api/dump.csv'>Dump .CSV</Link>
           </div>
         </div>
       </div>
@@ -39,16 +35,16 @@ ${"```"}
   );
 }
 
-async function dump(ext = "yaml") {
-  "use server";
-  const id = uuid();
-  console.log({ id });
-  await rm("./public/downloads", { recursive: true }).catch(() => null);
-  await mkdir("./.cache", { recursive: true });
-  await mkdir("./public/downloads", { recursive: true });
-  // will dump to .cache/dump.yaml and .cache/dump.csv
-  await dumpDashboard();
-  await cp(`.cache/dump.${ext}`, `./public/downloads/${id}/dump.${ext}`);
-  redirect(`./downloads/${id}/dump.${ext}`, RedirectType.replace);
-  return id;
-}
+// async function dump(ext = "yaml") {
+//   "use server";
+//   const id = uuid();
+//   console.log({ id });
+//   await rm("./public/downloads", { recursive: true }).catch(() => null);
+//   await mkdir("./.cache", { recursive: true });
+//   await mkdir("./public/downloads", { recursive: true });
+//   // will dump to .cache/dump.yaml and .cache/dump.csv
+//   const r = await dumpDashboard();
+//   await cp(`.cache/dump.${ext}`, `./public/downloads/${id}/dump.${ext}`);
+//   redirect(`./downloads/${id}/dump.${ext}`, RedirectType.replace);
+//   return id;
+// }

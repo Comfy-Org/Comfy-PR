@@ -9,7 +9,6 @@ const RuleEditor = dynamic(() => import("./RuleEditor"), { ssr: false });
  * @author: snomiao <snomiao@gmail.com>
  */
 export default async function PRCommentsPage() {
-  await updateCNReposCRPullsComments();
   const defaultValue = await readFile("./app/pr-comments/default-rule.yaml", "utf8");
   return (
     <RuleEditor

@@ -9,11 +9,18 @@ import { CNRepos } from "./CNRepos";
 // bun --env-file .env.production.local src/dump.ts > dump.csv
 
 if (import.meta.main) {
-  await dumpDashboard();
+  const r = await dumpDashboard();
+
+  await writeFile(".cache/dump.yaml", YAML.stringify(r));
+  await writeFile(".cache/dump.csv", csvFormat(r));
+  console.log("done");
 }
 export async function dumpDashboard(limit?: number) {
   "use server";
-  const r = await $pipeline<any>(CNRepos)
+  return await dumpDashboardPipeline(limit).toArray();
+}
+export function dumpDashboardPipeline(limit?: number) {
+  return $pipeline<any>(CNRepos)
     .unwind("$crPulls.data")
     .match({ "crPulls.data.comments.data": { $exists: true } })
     .set({ "crPulls.data.pull.repo": "$repository" })
@@ -44,11 +51,5 @@ export async function dumpDashboard(limit?: number) {
         ...pull,
         created,
       };
-    })
-    .toArray();
-
-  await writeFile(".cache/dump.yaml", YAML.stringify(r));
-  await writeFile(".cache/dump.csv", csvFormat(r));
-  console.log("done");
-  return r;
+    });
 }

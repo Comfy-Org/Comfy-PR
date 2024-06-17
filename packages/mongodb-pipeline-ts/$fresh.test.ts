@@ -1,6 +1,6 @@
 import DIE from "@snomiao/die";
 import { Db, MongoClient, type ObjectId } from "mongodb";
-import { $fresh, $freshAt, $stale, $staleAt } from ".";
+import { $fresh, $stale } from ".";
 
 type g = typeof globalThis & { _db: Db };
 export const db = ((global as any as g)._db ??= new MongoClient(
@@ -25,19 +25,19 @@ const tooFreshDate = new Date(+freshDate + 1);
 const notFreshDate = new Date(+freshDate - 1);
 const tNull = undefined;
 
-it("staleAt", async () => {
-  expect(await Test.findOne({ _id: await at(tNull), t: $staleAt(staleDate) })).toBeTruthy();
+it("stale at", async () => {
+  expect(await Test.findOne({ _id: await at(tNull), t: $stale(staleDate) })).toBeTruthy();
   expect(
     await Test.findOne({
       _id: await at(tooStaleDate),
-      t: $staleAt(staleDate),
+      t: $stale(staleDate),
     }),
   ).toBeTruthy();
-  expect(await Test.findOne({ _id: await at(staleDate), t: $staleAt(staleDate) })).toBeTruthy();
+  expect(await Test.findOne({ _id: await at(staleDate), t: $stale(staleDate) })).toBeTruthy();
   expect(
     await Test.findOne({
       _id: await at(notStaleDate),
-      t: $staleAt(staleDate),
+      t: $stale(staleDate),
     }),
   ).toBe(null);
 });
@@ -48,19 +48,19 @@ it("stale", async () => {
   expect(await Test.findOne({ _id: await at(notStaleDate), t: $stale("1d") })).toBe(null);
 });
 
-it("freshAt", async () => {
-  expect(await Test.findOne({ _id: await at(tNull), t: $freshAt(freshDate) })).toBeNull();
+it("fresh at", async () => {
+  expect(await Test.findOne({ _id: await at(tNull), t: $fresh(freshDate) })).toBeNull();
   expect(
     await Test.findOne({
       _id: await at(notFreshDate),
-      t: $freshAt(freshDate),
+      t: $fresh(freshDate),
     }),
   ).toBeNull();
-  expect(await Test.findOne({ _id: await at(freshDate), t: $freshAt(freshDate) })).toBeTruthy();
+  expect(await Test.findOne({ _id: await at(freshDate), t: $fresh(freshDate) })).toBeTruthy();
   expect(
     await Test.findOne({
       _id: await at(tooFreshDate),
-      t: $freshAt(freshDate),
+      t: $fresh(freshDate),
     }),
   ).toBeTruthy();
 });

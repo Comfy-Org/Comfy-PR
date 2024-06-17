@@ -106,7 +106,7 @@ const handler = async (req: Request) => {
     },
   );
   return new Response(body, {
-    headers: new Headers([...Object.entries(headers || {})].map(([k, v]) => [k, String(v)])),
+    headers: new Headers([...Object.entries(headers || {})].map(([k, v]) => [k, String(v)] as [string, string])),
     status: statusCode,
   });
 };
