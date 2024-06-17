@@ -1,11 +1,11 @@
+import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import pMap from "p-map";
+import { peekYaml } from "peek-log";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { $fresh, $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { $OK, TaskOK } from "./utils/Task";
-import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
-import { peekYaml } from "peek-log";
 if (import.meta.main) {
   console.log(await updateCNReposPRCandidate());
   // show candidates
@@ -25,10 +25,12 @@ if (import.meta.main) {
   // show candidates
   peekYaml(
     await $pipeline(CNRepos)
-      .match($flatten({
-        crPulls: { mtime: $fresh("1d"), ...$OK },
-        info: { mtime: $fresh("7d"), ...$OK, data: { private: false, archived: false } },
-      }))
+      .match(
+        $flatten({
+          crPulls: { mtime: $fresh("1d"), ...$OK },
+          info: { mtime: $fresh("7d"), ...$OK, data: { private: false, archived: false } },
+        }),
+      )
       .aggregate()
       .map((e) => ({ repo: e.repository + "/pulls?q=" }))
       .toArray(),

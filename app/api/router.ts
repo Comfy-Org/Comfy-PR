@@ -8,7 +8,9 @@ export const router = t.router({
     .meta({ openapi: { method: "GET", path: "/say-hello", description: "say hello" } })
     .input(z.object({ name: z.string() }))
     .output(z.object({ greeting: z.string() }))
-    .query(({ input }) => {      return { greeting: `Hello ${input.name} 1!` };    }),
+    .query(({ input }) => {
+      return { greeting: `Hello ${input.name} 1!` };
+    }),
   version: t.procedure
     .meta({ openapi: { method: "GET", path: "/version", description: "Get version" } })
     .input(z.object({}))
