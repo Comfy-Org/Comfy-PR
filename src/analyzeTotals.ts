@@ -12,6 +12,7 @@ if (import.meta.main) {
   });
 }
 export async function analyzeTotals() {
+  'use server'
   const totals = await promiseAllProperties({
     "Total Nodes on UI-Manager": CMNodes.estimatedDocumentCount(),
     "Total PRs Made": $pipeline<any>(CNRepos)

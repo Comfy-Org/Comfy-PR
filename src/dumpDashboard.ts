@@ -1,5 +1,6 @@
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import { csvFormat } from "d3";
+import { mkdir } from "fs";
 import { writeFile } from "fs/promises";
 import prettyMs from "pretty-ms";
 import YAML from "yaml";
@@ -10,7 +11,7 @@ import { CNRepos } from "./CNRepos";
 
 if (import.meta.main) {
   const r = await dumpDashboard();
-
+  await mkdir(".cache").catch(() => null);
   await writeFile(".cache/dump.yaml", YAML.stringify(r));
   await writeFile(".cache/dump.csv", csvFormat(r));
   console.log("done");

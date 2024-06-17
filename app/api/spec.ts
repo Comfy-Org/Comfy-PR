@@ -1,6 +1,4 @@
-import { writeFile } from "fs/promises";
-import http from "http";
-import { createOpenApiHttpHandler, generateOpenApiDocument } from "trpc-openapi";
+import { generateOpenApiDocument } from "trpc-openapi";
 import YAML from "yaml";
 import { router } from "./router";
 export const spec = generateOpenApiDocument(router, {
@@ -9,8 +7,5 @@ export const spec = generateOpenApiDocument(router, {
   baseUrl: "/api",
 });
 if (import.meta.main) {
-  const server = http.createServer(createOpenApiHttpHandler({ router } as any));
-  server.listen(8200);
-  await writeFile("./app/api/spec.yaml", YAML.stringify(spec));
-  console.log("hello");
+  console.log(YAML.stringify(spec));
 }
