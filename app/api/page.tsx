@@ -1,4 +1,3 @@
-import { readFile } from "fs/promises";
 // import yaml from "yaml";
 // const spec = yaml.parse(await readFile("./app/api/spec.yaml", "utf8"));
 import { spec } from "./spec";
@@ -21,4 +20,3 @@ export default function UIPage() {
   // return <BadMagic workspaces={[spec]} />;
   // return <API apiDescriptionUrl="./openapi.yaml" />;
 }
-
