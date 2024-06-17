@@ -33,7 +33,7 @@ await WorkerInstances.createIndex({ ip: 1 });
 export const _geoPromise = fetchCurrentGeoInfo(); // in background
 
 if (import.meta.main) {
-  console.log(await getWorkerInstance())
+  console.log(await getWorkerInstance());
 }
 
 async function postWorkerHeartBeatLoop() {
