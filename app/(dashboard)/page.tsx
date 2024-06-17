@@ -22,7 +22,7 @@ export default async function CRPullsDump() {
             </Link>
           </div>
 
-          <DetailsTable limit={40}/>
+          <DetailsTable limit={40} />
         </div>
       </div>
     </main>

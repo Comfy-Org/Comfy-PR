@@ -18,15 +18,17 @@ export default async function DetailsTable({ skip = 0, limit = 0 }) {
       <thead>
         <tr className="capitalize text-start bg-blue-800">
           {header.map((key) => (
-            <th key={key} className='p-2'>{key}</th>
+            <th key={key} className="p-2">
+              {key}
+            </th>
           ))}
         </tr>
       </thead>
       <tbody>
         {r.map((item) => (
-          <tr key={item.url} className='even:bg-cyan-700'>
+          <tr key={item.url} className="even:bg-cyan-700">
             {header.map((key) => (
-              <td key={key} className='p-2'>
+              <td key={key} className="p-2">
                 {(() => {
                   const value = item[key];
                   if (key === "url") {

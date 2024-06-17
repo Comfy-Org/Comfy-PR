@@ -25,7 +25,7 @@ export async function analyzeCRPullsDetails({ skip = 0, limit = 0 } = {}) {
       return {
         updated, //: updated === created ? "never" : updated,
         ...pull,
-        lastwords: pull.lastwords?.replace(/\s+/g, " ").replace(/\*\*\*.*/g, "...")
+        lastwords: pull.lastwords?.replace(/\s+/g, " ").replace(/\*\*\*.*/g, "..."),
       };
     })
     .toArray();
