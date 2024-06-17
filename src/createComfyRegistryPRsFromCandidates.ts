@@ -1,28 +1,35 @@
+import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
-import { $fresh, $stale } from "./db";
+import { $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { notifySlackLinks } from "./notifySlackLinks";
 import { parseUrlRepoOwner, stringifyOwnerRepo } from "./parseOwnerRepo";
-import { $ERROR, $OK, TaskError, TaskOK } from "./utils/Task";
+import { $OK, TaskError, TaskOK } from "./utils/Task";
+import { tLog } from "./utils/tLog";
 if (import.meta.main) {
-  // await createComfyRegistryPRsFromCandidates();
+  await tLog("createComfyRegistryPRsFromCandidates", createComfyRegistryPRsFromCandidates);
+  console.log("all done");
 }
 export async function createComfyRegistryPRsFromCandidates() {
+  await CNRepos.createIndex($flatten({ candidate: { data: 1 } }));
+  await CNRepos.createIndex(
+    $flatten({
+      candidate: { data: 1 },
+      createdPulls: { state: 1, mtime: 1 },
+    }),
+  );
   return await pMap(
-    CNRepos.find(
-      $flatten({
-        candidate: { mtime: $fresh("1d"), ...$OK, data: { $eq: true } },
-        $or: [
-          // prs that never created
-          { createdPulls: { $exists: false } },
-          // retry pr erros after 5m
-          { createdPulls: { ...$ERROR, mtime: $stale("5m") } },
-        ],
-      }),
-    ),
+    $pipeline(CNRepos)
+      .match(
+        $flatten({
+          candidate: { data: { $eq: true } },
+          createdPulls: { state: { $ne: "ok" }, mtime: $stale("5m") },
+        }),
+      )
+      .aggregate(),
     async (repo) => {
       const { repository } = repo;
       console.log("Making PRs for " + repository);
