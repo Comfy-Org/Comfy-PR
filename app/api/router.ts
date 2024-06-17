@@ -1,4 +1,5 @@
 import pkg from "@/package.json";
+import { getWorkerInstance } from "@/src/WorkerInstances";
 import DIE from "@snomiao/die";
 import { initTRPC } from "@trpc/server";
 import { type OpenApiMeta } from "trpc-openapi";
@@ -27,4 +28,9 @@ export const router = t.router({
     .input(z.object({}))
     .output(z.string())
     .query(() => DIE("Should impl in nextjs route.")),
+  getWorker: t.procedure
+    .meta({ openapi: { method: "GET", path: "/worker", description: "Get current worker" } })
+    .input(z.object({}))
+    .output(z.any())
+    .query(async () => await getWorkerInstance()),
 });
