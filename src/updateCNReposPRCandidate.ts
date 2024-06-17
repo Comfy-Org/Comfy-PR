@@ -1,24 +1,37 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
-import YAML from "yaml";
 import { CNRepos } from "./CNRepos";
 import { $fresh, $stale } from "./db";
 import { $flatten } from "./db/$flatten";
 import { $OK, TaskOK } from "./utils/Task";
+import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import { peekYaml } from "peek-log";
 if (import.meta.main) {
   console.log(await updateCNReposPRCandidate());
   // show candidates
-  console.log(
-    YAML.stringify(
-      await CNRepos.find($flatten({ candidate: { data: { $eq: true } } }))
-        .map((e) => ({
-          // candidate: match(e.candidate)
-          //   .with($OK, (e) => e)
-          //   .otherwise(() => DIE("")).data,
-          repo: e.repository + "/pulls?q=",
-        }))
-        .toArray(),
-    ),
+  // console.log(
+  //   YAML.stringify(
+  //     await CNRepos.find($flatten({ candidate: { data: { $eq: true } } }))
+  //       .map((e) => ({
+  //         // candidate: match(e.candidate)
+  //         //   .with($OK, (e) => e)
+  //         //   .otherwise(() => DIE("")).data,
+  //         repo: e.repository + "/pulls?q=",
+  //       }))
+  //       .toArray(),
+  //   ),
+  // );
+
+  // show candidates
+  peekYaml(
+    await $pipeline(CNRepos)
+      .match($flatten({
+        crPulls: { mtime: $fresh("1d"), ...$OK },
+        info: { mtime: $fresh("7d"), ...$OK, data: { private: false, archived: false } },
+      }))
+      .aggregate()
+      .map((e) => ({ repo: e.repository + "/pulls?q=" }))
+      .toArray(),
   );
 }
 

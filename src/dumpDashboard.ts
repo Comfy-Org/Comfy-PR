@@ -50,4 +50,5 @@ export async function dumpDashboard(limit?: number) {
   await writeFile(".cache/dump.yaml", YAML.stringify(r));
   await writeFile(".cache/dump.csv", csvFormat(r));
   console.log("done");
+  return r
 }

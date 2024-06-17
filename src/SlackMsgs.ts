@@ -1,7 +1,6 @@
 import type { ObjectId } from "mongodb";
 import { db } from "./db";
 import { postSlackMessage } from "./postSlackMessage";
-import { slack } from "./slack";
 import { updateSlackMessages } from "./updateSlackMessages";
 
 export const SlackMsgs = db.collection<SlackMsg>("SlackMsgs6");
@@ -28,7 +27,3 @@ export type SlackNotifyOptions = {
 
 // try send msgs that didn't send in last run
 updateSlackMessages();
-
-if (import.meta.main) {
-  await slack.api.test({});
-}

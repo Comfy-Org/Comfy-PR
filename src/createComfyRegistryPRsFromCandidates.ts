@@ -7,7 +7,9 @@ import { $flatten } from "./db/$flatten";
 import { notifySlackLinks } from "./notifySlackLinks";
 import { parseUrlRepoOwner, stringifyOwnerRepo } from "./parseOwnerRepo";
 import { $ERROR, $OK, TaskError, TaskOK } from "./utils/Task";
-
+if (import.meta.main) {
+  // await createComfyRegistryPRsFromCandidates();
+}
 export async function createComfyRegistryPRsFromCandidates() {
   return await pMap(
     CNRepos.find(
@@ -35,6 +37,6 @@ export async function createComfyRegistryPRsFromCandidates() {
 
       return await CNRepos.updateOne({ repository }, { $set: $flatten({ createdPulls }) });
     },
-    { concurrency: 3, stopOnError: false },
+    { concurrency: Number(process.env.createComfyRegistryPRsFromCandidate_concurrency || 5), stopOnError: false },
   );
 }

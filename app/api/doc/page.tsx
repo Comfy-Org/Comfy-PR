@@ -4,7 +4,7 @@ import { readFile } from "fs/promises";
 // import 'lodash-es'
 // import { BadMagic } from "badmagic";
 import yaml from "yaml";
-const spec = yaml.parse(await readFile("./src/api/spec.yaml", "utf8"));
+const spec = yaml.parse(await readFile("./app/api/spec.yaml", "utf8"));
 export default function UIPage() {
   return <>WIP</>;
   // return <BadMagic workspaces={[spec]} />;

@@ -1,0 +1,65 @@
+openapi: 3.0.3
+info:
+  title: ComfyPR OpenAPI
+  version: 1.0.0
+servers:
+  - url: /api
+  - url: https://comfy-pr.vercel.app/api
+  - url: http://localhost:3000/api
+paths:
+  /say-hello:
+    get:
+      operationId: sayHello
+      description: say hello
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  greeting:
+                    type: string
+                required:
+                  - greeting
+                additionalProperties: false
+        default:
+          $ref: "#/components/responses/error"
+components:
+  securitySchemes:
+    Authorization:
+      type: http
+      scheme: bearer
+  responses:
+    error:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              code:
+                type: string
+              issues:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    message:
+                      type: string
+                  required:
+                    - message
+                  additionalProperties: false
+            required:
+              - message
+              - code
+            additionalProperties: false

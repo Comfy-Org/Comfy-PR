@@ -1,6 +1,8 @@
 import { updateCNReposCRPullsComments } from "@/src/updateCNReposCRPullsComments";
 import { readFile } from "fs/promises";
-import RuleEditor from "./RuleEditor";
+import dynamic from "next/dynamic";
+
+const RuleEditor = dynamic(() => import("./RuleEditor"), { ssr: false });
 
 /**
  *

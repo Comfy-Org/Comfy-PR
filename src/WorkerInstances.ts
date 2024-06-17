@@ -2,7 +2,7 @@ import { getMAC } from "@ctrl/mac-address";
 import { defer } from "lodash-es";
 import md5 from "md5";
 import type { WithId } from "mongodb";
-import { createInstanceId } from "./createInstanceId";
+import { createInstanceId } from "./utils/createInstanceId";
 import { db } from "./db";
 import { fetchCurrentGeoInfo } from "./fetchCurrentGeoInfo";
 export type GeoInfo = Awaited<ReturnType<typeof fetchCurrentGeoInfo>>;

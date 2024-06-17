@@ -1,19 +1,17 @@
 # yaml
 - name: rule0 - kill stale repos
- match:
-    state: 
-      OPEN
-    repo-updated: #SNO, not sure if this is a field we can get, but if it is ideally we can mark it as stale
-      before: 6M
-    set-state: 
-      state: STALE
+  match:
+    state: OPEN
+    updated: #SNO, not sure if this is a field we can get, but if it is ideally we can mark it as stale
+      before: 180d # 6M
+  set:
+    tag: STALE
 
 - name: rule1 - follow up on zero comments
   match:
-    state: 
-      OPEN
+    state: OPEN
     updated:
-      before: 4D #anything 4 days and more 
+      before: 4d #anything 4 days and more 
     comments: 
       lessthan: 0
     action: 
@@ -22,17 +20,16 @@
 
 - name: rule2 - second follow up on one comment 
   match:
-    state: 
-      OPEN
+    state: OPEN
     updated:
-      before: 7D # anything 7 days and more 
+      before: 1w # anything 7 days and more 
     lastwords: 
       contains: "haohaocreates"
     comments: 
       lessthan: 1 # I want to make sure it's just "1" comment AND that that comment belongs to me
     action: 
       add-comment: 
-        body: "@repo-authors-gh-username, wondering if there's any way we can support you on this PR!"  
+        body: "@repo-authors-gh-username, wondering if there's any way we can support you on this PR!"
 
 - name: rule3 - merge but not on registry 
   match:
@@ -43,7 +40,7 @@
     action: 
       send-email:
         provider: google
-        to: "{{ author-email }}" #not sure if we can grab their email but if we can this is what it would look like
+        to: "{{ author-email }}" # not sure if we can grab their email but if we can this is what it would look like
         subject: Comfy Registry PR Follow Up
         body: |
           Saw that you merged the PR which is amazing!!!!! Just a few last steps to get you onboarded 🚀
@@ -59,8 +56,7 @@
 
 - name: rule4 - closed 
   match:
-    state: 
-      CLOSED # but ideally we would want closed PRs that weren't merged or anything at all
+    state: CLOSED # but ideally we would want closed PRs that weren't merged or anything at all
     action: 
       send-email:
         provider: google

@@ -26,7 +26,7 @@ export async function updateComfyTotals() {
   // notify
   await match(totals)
     .with($OK, async (totals) => {
-      const msg = `Totals: \n${"```" + YAML.stringify(totals) + "```"}`;
+      const msg = `Totals: \n${"```"}\n${YAML.stringify(totals)}\n${"```"}`;
       await notifySlack(msg, { unique: true });
     })
     .otherwise(() => null);
