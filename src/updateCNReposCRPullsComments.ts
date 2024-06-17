@@ -36,6 +36,6 @@ export async function updateCNReposCRPullsComments() {
         ),
       ]);
     },
-    { concurrency: 1 },
+    { concurrency: 2 },
   );
 }

@@ -2,7 +2,7 @@ volumes:
   venv:
   test_db_data:
 services:
-  crpr:
+  comfy-pr:
     restart: always
     image: snomiao/comfy-registry-pr
     build: .
@@ -12,7 +12,7 @@ services:
       - ./prs:/app/prs
     env_file:
       - .env
-      - .env.production.local
+      - .env.development.local
   mongdb:
     restart: always
     image: mongo

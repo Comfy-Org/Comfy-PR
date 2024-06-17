@@ -50,3 +50,6 @@ export type CustomNodeRepo = {
 export type CNRepo = CustomNodeRepo;
 export const CNRepos = db.collection<CNRepo>("CNRepos");
 await CNRepos.createIndex({ repository: 1 }, { unique: true });
+
+// fix cr null, it should be not exists
+await CNRepos.updateMany({ cr: null as unknown as WithId<CRNode> }, { $unset: { cr: 1 } });

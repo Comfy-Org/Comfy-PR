@@ -24,6 +24,24 @@ export async function analyzeTotals() {
       .aggregate()
       .map((e: any) => e.pairs)
       .next(),
+    "Total Repos": $pipeline<any>(CNRepos)
+      // .match({ "info.data": { $exists: true } })
+      .stage({
+        $group: {
+          _id: null,
+          "on Comfy Manager List": { $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] } },
+          "on Registry": { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
+          Archived: { $sum: { $cond: ["$info.data.archived", 1, 0] } },
+          All: { $sum: 1 },
+        },
+      })
+      // .stage({ $sort: { _id: 1 } })
+      // .stage({ $set: { id_total: [[{ $toString: "$_id" }, "$archived"]] } })
+      // .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
+      .project({ _id: 0 })
+      .aggregate()
+      // .map((e: any) => e.pairs)
+      .next(),
     "Total Open": $pipeline<any>(CNRepos)
       .unwind("$crPulls.data")
       .match({ "crPulls.data.pull.prState": "open" })

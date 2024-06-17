@@ -38,6 +38,6 @@ export async function updateSlackMessages() {
         .catch((e) => ({ error: e.message ?? String(e), status: "error" as const }));
       await SlackMsgs.updateOne({ _id }, { $set: { ...sent, mtime: new Date() } });
     },
-    { concurrency: 1 },
+    { concurrency: 2 },
   );
 }

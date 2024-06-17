@@ -1,4 +1,5 @@
 import pMap from "p-map";
+import { peekYaml } from "peek-log";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { $stale } from "./db";
@@ -6,12 +7,17 @@ import { $flatten } from "./db/$flatten";
 import { fetchGithubPulls } from "./fetchGithubPulls";
 import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
+import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 if (import.meta.main) {
   console.log(await tLog("Update CNRepos for Github Pulls", updateCNReposPulls));
 }
 export async function updateCNReposPulls() {
+  await CNRepos.createIndex("pulls.mtime");
   return await pMap(
-    CNRepos.find($flatten({ pulls: { mtime: $stale("1d") } })),
+    $pipeline(CNRepos)
+      .match(peekYaml($flatten({ pulls: { mtime: $stale("1d") } })))
+      .project({ repository: 1 })
+      .aggregate(),
     async ({ repository }) => {
       const pulls = await fetchGithubPulls(repository).then(TaskOK).catch(TaskError);
       match(pulls)
@@ -19,6 +25,6 @@ export async function updateCNReposPulls() {
         .otherwise(() => {});
       return await CNRepos.updateOne({ repository }, { $set: { pulls } });
     },
-    { concurrency: 1 },
+    { concurrency: 2 },
   );
 }

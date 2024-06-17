@@ -53,6 +53,6 @@ export async function updateCNReposInfo() {
 
       return await CNRepos.updateOne({ repository: url }, { $set: { info } }, { upsert: true });
     },
-    { concurrency: 1 },
+    { concurrency: 2 },
   );
 }

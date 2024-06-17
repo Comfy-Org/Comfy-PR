@@ -1,18 +1,14 @@
 import { readFile } from "fs/promises";
 import dynamic from "next/dynamic";
 
-const RuleEditor = dynamic(() => import("./RuleEditor"), { ssr: false });
-
-/**
- *
- * @author: snomiao <snomiao@gmail.com>
- */
+const Editor = dynamic(() => import("../../components/CodeEditor"), { ssr: false });
 export default async function PRCommentsPage() {
   const defaultValue = await readFile("./app/pr-comments/default-rule.yaml", "utf8");
   return (
-    <RuleEditor
+    <Editor
       onChange={async (text) => {
         "use server";
+        // update rules by yaml
         console.log({ text });
         return { text };
       }}

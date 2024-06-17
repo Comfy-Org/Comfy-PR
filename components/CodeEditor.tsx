@@ -8,22 +8,26 @@ import Editor from "@monaco-editor/react";
 /**
  * @author: snomiao <snomiao@gmail.com>
  */
-export default function RuleEditor({
+export default function CodeEditor({
   onChange,
   defaultValue,
   defaultLanguage,
+  width = "100vh",
+  height = "100vw",
 }: {
   onChange: (text?: string) => void;
   defaultValue: string;
   defaultLanguage: string;
+  width?: string;
+  height?: string;
 }) {
   return (
     <Editor
-      height="90vh"
+      height={height}
+      width={width}
       defaultLanguage={defaultLanguage}
       defaultValue={defaultValue}
       onChange={function handleEditorChange(value, event) {
-        // here is the current value
         onChange(value);
       }}
       onMount={function handleEditorDidMount(editor, monaco) {

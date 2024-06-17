@@ -44,6 +44,6 @@ export async function createComfyRegistryPRsFromCandidates() {
 
       return await CNRepos.updateOne({ repository }, { $set: { createdPulls } });
     },
-    { concurrency: Number(process.env.createComfyRegistryPRsFromCandidate_concurrency || 5), stopOnError: false },
+    { concurrency: 2, stopOnError: false },
   );
 }

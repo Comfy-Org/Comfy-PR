@@ -49,8 +49,8 @@ export async function updateCMNodesDuplicationWarnings(nodes: CMNode[]) {
             },
           );
         },
-        { concurrency: 1 },
+        { concurrency: 2 },
       ),
-    { concurrency: 1 },
+    { concurrency: 2 },
   );
 }

@@ -1,6 +1,10 @@
+import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import type { ObjectId } from "mongodb";
+import pMap from "p-map";
+import { peekYaml } from "peek-log";
 import { filter, groupBy, values } from "rambda";
 import YAML from "yaml";
+import { CNRepos } from "./CNRepos";
 import { type SlackMsg } from "./SlackMsgs";
 import { db } from "./db";
 import { fetchCRNodes } from "./fetchComfyRegistryNodes";
@@ -14,8 +18,16 @@ export const CRNodes = db.collection<CRNode>("CRNodes");
 await CRNodes.createIndex({ id: 1 }, { unique: true });
 await CRNodes.createIndex({ repository: 1 }, { unique: false }); // WARN: duplicate is allowed
 if (import.meta.main) {
-  console.log(await updateCRNodes());
-  console.log("CRNodes updated");
+  const r = await pMap(
+    $pipeline(CNRepos)
+      .match({ cr: { $exists: true } })
+      .replaceRoot({ newRoot: "$cr" })
+      .aggregate(),
+    (e) => e,
+  );
+  peekYaml({ r, len: r.length });
+  // console.log(await updateCRNodes());
+  // console.log("CRNodes updated");
 }
 export async function updateCRNodes() {
   const nodes = await fetchCRNodes();

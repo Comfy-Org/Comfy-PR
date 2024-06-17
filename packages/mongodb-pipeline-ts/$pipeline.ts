@@ -26,6 +26,12 @@ export type $SetResult<TSchema extends Document, Set extends $Set<TSchema>> = TS
       : any
     : Set[P];
 };
+export type $Unset<TSchema extends Document> = {
+  [P in keyof TSchema]?: 1 | 0;
+};
+export type $UnsetResult<TSchema extends Document, Unset extends $Unset<TSchema>> = TSchema & {
+  [P in keyof Unset & keyof TSchema]?: Unset[P] extends 1 ? never : TSchema[P];
+};
 export type $Project<TSchema extends Document> = { _id?: 1 | 0 } & {
   [P in FieldPath<TSchema>]?: 1 | 0 | Expression<TSchema>;
 } & Record<string, Expression<TSchema>>;
@@ -203,31 +209,44 @@ export type $Pipeline<TSchema extends Document> = ReturnType<typeof $pipeline<TS
 export function $pipeline<TSchema extends Document>(coll?: Collection<TSchema>, pipeline = [] as readonly Document[]) {
   const _coll = coll as any;
   return {
-    aggregate() {
-      if (!coll) throw new Error("Collection not provided");
-      return coll.aggregate([...pipeline]) as unknown as FindCursor<TSchema>;
+    // debug
+    _coll,
+    _peek(fn = <T>(e: Readonly<T>): T => e) {
+      return $pipeline<TSchema>(_coll, fn(pipeline));
     },
+    // type helper
     satisfies<RSchema extends TSchema = TSchema>() {
       return $pipeline<RSchema>(_coll, pipeline);
     },
     as<RSchema extends Document = TSchema>() {
       return $pipeline<RSchema>(_coll, pipeline);
     },
+
+    // out
+    aggregate() {
+      if (!coll) throw new Error("Collection not provided");
+      return coll.aggregate([...pipeline]) as unknown as FindCursor<TSchema>;
+    },
+
+    // all general stage
     stage<
       Stage extends Partial<CollectionPipelineStages<TSchema>>,
-      RSchema extends CollectionPipelineStagesResult<TSchema, Stage>,
+      StageResults extends CollectionPipelineStagesResult<TSchema, Stage>,
+      RSchema extends TSchema | StageResults[keyof StageResults] = TSchema,
     >(stage: Stage) {
       if (!stage || !Object.keys(stage).length) return $pipeline<RSchema>(_coll, pipeline);
       return $pipeline<RSchema>(_coll, [...pipeline, stage]);
     },
-    _peek(fn = <T>(e: Readonly<T>): T => e) {
-      return $pipeline<TSchema>(_coll, fn(pipeline));
-    },
+
+    // quick-stages
     project<P extends $Project<TSchema>>($project: P) {
       return $pipeline<$ProjectResult<TSchema, P>>(_coll, [...pipeline, { $project }]);
     },
     set<T extends $Set<TSchema>>($set: T) {
       return $pipeline<$SetResult<TSchema, T>>(_coll, [...pipeline, { $set }]);
+    },
+    unset<T extends $Unset<TSchema>>($unset: T) {
+      return $pipeline<TSchema>(_coll, [...pipeline, { $unset }]);
     },
     match(filter: Filter<TSchema>) {
       return $pipeline<TSchema>(_coll, [...pipeline, { $match: filter }]);
@@ -238,6 +257,15 @@ export function $pipeline<TSchema extends Document>(coll?: Collection<TSchema>, 
     replaceRoot<Path extends FieldPath<TSchema>>(opt: { newRoot: `$${Path}` }) {
       type Replaced = NonNullable<FieldPathValue<TSchema, Path> | TSchema[Path]>;
       return $pipeline<Replaced>(_coll, [...pipeline, { $replaceRoot: opt }]);
+    },
+    skip(n: number) {
+      return $pipeline<TSchema>(_coll, [...pipeline, { $skip: n }]);
+    },
+    limit(n: number) {
+      return $pipeline<TSchema>(_coll, [...pipeline, { $limit: n }]);
+    },
+    sort(opt: IndexSpecification) {
+      return $pipeline<TSchema>(_coll, [...pipeline, { $sort: opt }]);
     },
   };
 }

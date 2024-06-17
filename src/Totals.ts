@@ -5,8 +5,7 @@ import { $flatten, $fresh, db } from "./db";
 import { notifySlack } from "./notifySlack";
 import { type AwaitedReturnType } from "./types/AwaitedReturnType";
 import { $OK, TaskError, TaskOK, type Task } from "./utils/Task";
-
-type Totals = AwaitedReturnType<typeof analyzeTotals>;
+export type Totals = AwaitedReturnType<typeof analyzeTotals>;
 export const Totals = db.collection<{
   today?: string;
   totals?: Task<Totals>;

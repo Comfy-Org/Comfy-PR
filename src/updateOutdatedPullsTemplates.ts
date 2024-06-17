@@ -114,7 +114,7 @@ export async function updateOutdatedPullsTemplates() {
           await CNRepos.updateOne({ repository }, { $set: { [`crPulls.data.${i}.edited`]: edited } });
           return { pull: updatedPull, type, edited };
         },
-        { concurrency: 1 },
+        { concurrency: 2 },
       )
         .then(TaskOK)
         .catch(TaskError);
@@ -130,6 +130,6 @@ export async function updateOutdatedPullsTemplates() {
       // update outdated pr issue bodies
       return crPullsEdited;
     },
-    { concurrency: 1 },
+    { concurrency: 2 },
   );
 }

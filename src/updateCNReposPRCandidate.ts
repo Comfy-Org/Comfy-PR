@@ -5,7 +5,10 @@ import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { $fresh, $stale } from "./db";
 import { $flatten } from "./db/$flatten";
+import { updateCNReposPulls } from "./updateCNReposPulls";
+import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
 import { $OK, TaskOK } from "./utils/Task";
+import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   console.log(await updateCNReposPRCandidate());
   // show candidates
@@ -21,19 +24,23 @@ if (import.meta.main) {
   //       .toArray(),
   //   ),
   // );
+  tLog("updateCNReposPulls", updateCNReposPulls);
+  tLog("updateCNReposRelatedPulls", updateCNReposRelatedPulls);
 
   // show candidates
   peekYaml(
     await $pipeline(CNRepos)
       .match(
-        $flatten({
-          crPulls: { mtime: $fresh("1d"), ...$OK },
-          // info: { mtime: $fresh("7d"), data: { private: false, archived: false } },
-          // createdPulls: { mtime: $stale("7d"), data: { $exists: false } },
-        }),
+        peekYaml(
+          $flatten({
+            crPulls: { mtime: $stale("7d") },
+            // info: { mtime: $fresh("7d"), data: { private: false, archived: false } },
+            // createdPulls: { mtime: $stale("7d"), data: { $exists: false } },
+          }),
+        ),
       )
       .aggregate()
-      .map((e) => ({ repo: e.repository + "/pulls?q=" }))
+      .map((e) => ({ repo: e.repository + "/pulls?q=", pulls: e.pulls?.length, crPulls: e.crPulls?.length }))
       .toArray(),
   );
 }
