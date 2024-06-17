@@ -1,0 +1,3 @@
+it('analyze totals',()=>{
+    analyzeTotals()
+})
