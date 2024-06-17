@@ -1,3 +1,4 @@
+import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
 import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
@@ -11,7 +12,6 @@ import { parseUrlRepoOwner } from "./parseOwnerRepo";
 import { readTemplate } from "./readTemplateTitle";
 import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
-import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
 if (import.meta.main) {
   await tLog("updateOutdatedPullsTemplates", updateOutdatedPullsTemplates);
 }
