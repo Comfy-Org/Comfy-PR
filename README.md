@@ -163,7 +163,29 @@ ENV GIT_USEREMAIL=comfy-ci@drip.art
 ENV GIT_USERNAME=comfy-ci
 ```
 
-## Github Action Worker & server Development
+## Development
+
+### Cli
+
+```sh
+# Create comfy pr dir and go into it
+mkdir comfy-pr
+cd comfy-pr
+
+# Prepare code and environments
+git clone https://github.com/drip-art/Comfy-Registry-PR .
+
+# Prepare bun 
+# go here - [Installation \| Bun Docs]( https://bun.sh/docs/installation )
+
+# Install project
+bun i
+
+# Prepare bun
+bun i
+```
+
+### Github Action Worker & server 
 
 1. Setup envs in the usages section above (plz check bun src/cli.ts runnable first)
 
