@@ -15,15 +15,6 @@ export async function analyzeTotals() {
   "use server";
   const totals = await promiseAllProperties({
     "Total Nodes on UI-Manager": CMNodes.estimatedDocumentCount(),
-    "Total PRs Made": $pipeline<any>(CNRepos)
-      .unwind("$crPulls.data")
-      .stage({ $group: { _id: "$crPulls.data.type", total: { $sum: 1 } } })
-      .stage({ $sort: { _id: 1 } })
-      .stage({ $set: { id_total: [["$_id", "$total"]] } })
-      .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
-      .aggregate()
-      .map((e: any) => e.pairs)
-      .next(),
     "Total Repos": $pipeline<any>(CNRepos)
       // .match({ "info.data": { $exists: true } })
       .stage({
@@ -43,6 +34,15 @@ export async function analyzeTotals() {
       .project({ _id: 0 })
       .aggregate()
       // .map((e: any) => e.pairs)
+      .next(),
+    "Total PRs Made": $pipeline<any>(CNRepos)
+      .unwind("$crPulls.data")
+      .stage({ $group: { _id: "$crPulls.data.type", total: { $sum: 1 } } })
+      .stage({ $sort: { _id: 1 } })
+      .stage({ $set: { id_total: [["$_id", "$total"]] } })
+      .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
+      .aggregate()
+      .map((e: any) => e.pairs)
       .next(),
     "Total Open": $pipeline<any>(CNRepos)
       .unwind("$crPulls.data")
