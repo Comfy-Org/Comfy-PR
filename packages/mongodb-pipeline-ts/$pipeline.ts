@@ -3,36 +3,36 @@ import type { FieldArrayPath, FieldArrayPathValue } from "react-hook-form";
 // import type { FieldPath, FieldPathValue } from "react-hook-form";
 
 // react-hook-form path match is extremely slow, while generating 3k+ paths for a object
- type FieldPath<TSchema extends Document> = string;
- type FieldPathValue<TSchema extends Document, Path extends string> = any;
+type FieldPath<TSchema extends Document> = string;
+type FieldPathValue<TSchema extends Document, Path extends string> = any;
 //  type FieldArrayPath<TSchema extends Document> = string;
 //  type FieldArrayPathValue<TSchema extends Document, Path extends string> = any;
 
- type $Path<
+type $Path<
   TSchema extends Document,
   Path extends string & FieldPath<TSchema> = string & FieldPath<TSchema>,
 > = `$${Path}`;
- type Expression<TSchema extends Document> = $Path<TSchema> & any;
- type $Set<TSchema extends Document> = {
+type Expression<TSchema extends Document> = $Path<TSchema> & any;
+type $Set<TSchema extends Document> = {
   [P in keyof TSchema]?: Expression<TSchema>;
 } & Record<string, any>;
- type $SetResult<TSchema extends Document, Set extends $Set<TSchema>> = TSchema & {
+type $SetResult<TSchema extends Document, Set extends $Set<TSchema>> = TSchema & {
   [P in keyof Set]?: Set[P] extends `$${infer Path extends string}`
     ? Path extends FieldPath<TSchema>
       ? FieldPathValue<TSchema, Path>
       : any
     : Set[P];
 };
- type $Unset<TSchema extends Document> = {
+type $Unset<TSchema extends Document> = {
   [P in keyof TSchema]?: 1 | 0;
 };
- type $UnsetResult<TSchema extends Document, Unset extends $Unset<TSchema>> = TSchema & {
+type $UnsetResult<TSchema extends Document, Unset extends $Unset<TSchema>> = TSchema & {
   [P in keyof Unset & keyof TSchema]?: Unset[P] extends 1 ? never : TSchema[P];
 };
- type $Project<TSchema extends Document> = { _id?: 1 | 0 } & {
+type $Project<TSchema extends Document> = { _id?: 1 | 0 } & {
   [P in FieldPath<TSchema>]?: 1 | 0 | Expression<TSchema>;
 } & Record<string, Expression<TSchema>>;
- type $ProjectResult<TSchema extends Document, Project extends $Project<TSchema>> = {
+type $ProjectResult<TSchema extends Document, Project extends $Project<TSchema>> = {
   _id?: Project["_id"] extends 1 ? TSchema["_id"] : Project["_id"] extends 0 ? never : TSchema["_id"];
 } & {
   [P in FieldPath<TSchema>]?: Project[P] extends 1
