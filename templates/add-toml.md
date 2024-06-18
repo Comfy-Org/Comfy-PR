@@ -8,10 +8,10 @@ The main benefits are that authors can
 
 Action Required:
 
-- [ ] Go to the [registry](https://comfyregistry.org/). Login and create a publisher id. Add the publisher id into the pyproject.toml file.
+- [ ] Go to the [registry](https://registry.comfy.org). Login and create a publisher id. Add the publisher id into the pyproject.toml file.
 - [ ] Write a short description.
 - [ ] Merge the separate Github Actions PR and run the workflow.
 
-If you want to publish the node manually, [install the cli](https://comfydocs.org/comfy-cli/getting-started#install-cli) and run `comfy node publish`
+If you want to publish the node manually, [install the cli](https://docs.comfy.org/comfy-cli/getting-started#install-cli) and run `comfy node publish`
 
-Check out our [docs](https://comfydocs.org/registry/overview#introduction) page or message me on [Discord](https://discord.com/invite/comfyorg) if you have any questions!
+Check out our [docs](https://docs.comfy.org/registry/overview#introduction) if you want to know more about the registry. Otherwise, feel free to message me on discord at haohao_81202 or join our [server](https://discord.com/invite/comfyorg) if you have any questions!
