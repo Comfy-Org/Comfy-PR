@@ -13,4 +13,6 @@ Action Required:
 - [ ] Write a short description.
 - [ ] Merge the separate Github Actions PR and run the workflow.
 
-If you want to publish the node manually, [install the cli](https://comfydocs.org/comfy-cli/getting-started#install-cli) and run `comfy node publish`. Please message me on [Discord](https://discord.com/invite/comfyorg) if you have any questions!
+If you want to publish the node manually, [install the cli](https://comfydocs.org/comfy-cli/getting-started#install-cli) and run `comfy node publish`
+
+Please message me on [Discord](https://discord.com/invite/comfyorg) if you have any questions!
