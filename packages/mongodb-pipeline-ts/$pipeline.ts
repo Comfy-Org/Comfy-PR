@@ -49,41 +49,42 @@ type $ProjectResult<TSchema extends Document, Project extends $Project<TSchema>>
 type StageBuilder<TSchema extends Document | null = Document> = BasePipeline<TSchema> &
   (TSchema extends Document ? Stages<TSchema> : {});
 
-export const $pipeline: <TSchema extends Document>(coll?: Collection<TSchema>) => StageBuilder<TSchema> =
-  function $pipeline<TSchema extends Document = Document>(
-    coll?: Collection<TSchema>,
-    pipeline = [] as readonly Document[],
-  ) {
-    const _coll = coll as any;
-    return new Proxy(
-      {
-        // type helper
-        satisfies<RSchema extends TSchema = TSchema>() {
-          return $pipeline<RSchema>(_coll, pipeline);
-        },
-        as<RSchema extends Document = TSchema>() {
-          return $pipeline<RSchema>(_coll, pipeline);
-        },
-        // output
-        aggregate() {
-          if (!coll) throw new Error("Collection not provided");
-          return coll.aggregate([...pipeline]) as unknown as FindCursor<TSchema>;
-        },
-        // all general stage
-        stage<RSchema extends Document = TSchema>(stage: any): StageBuilder<RSchema> {
-          if (!stage || !Object.keys(stage).length) return $pipeline(_coll, pipeline);
-          return $pipeline(_coll, [...pipeline, stage]);
-        },
-      } as any,
-      {
-        get(target, prop, receiver) {
-          if (prop in target) return Reflect.get(target, prop, receiver);
-          if (typeof prop !== "string") return;
-          return (stage: any) => $pipeline(_coll, [...pipeline, { [`$${prop}`]: stage }]);
-        },
+type PipelineLauncher = <TSchema extends Document>(coll?: Collection<TSchema>) => StageBuilder<TSchema>;
+
+export const $pipeline: PipelineLauncher = function $pipeline<TSchema extends Document = Document>(
+  coll?: Collection<TSchema>,
+  pipeline = [] as readonly Document[],
+) {
+  const _coll = coll as any;
+  return new Proxy(
+    {
+      // type helper
+      satisfies<RSchema extends TSchema = TSchema>() {
+        return $pipeline<RSchema>(_coll, pipeline);
       },
-    );
-  };
+      as<RSchema extends Document = TSchema>() {
+        return $pipeline<RSchema>(_coll, pipeline);
+      },
+      // output
+      aggregate() {
+        if (!coll) throw new Error("Collection not provided");
+        return coll.aggregate([...pipeline]) as unknown as FindCursor<TSchema>;
+      },
+      // all general stage
+      stage<RSchema extends Document = TSchema>(stage: any): StageBuilder<RSchema> {
+        if (!stage || !Object.keys(stage).length) return $pipeline(_coll, pipeline);
+        return $pipeline(_coll, [...pipeline, stage]);
+      },
+    } as any,
+    {
+      get(target, prop, receiver) {
+        if (prop in target) return Reflect.get(target, prop, receiver);
+        if (typeof prop !== "string") return;
+        return (stage: any) => $pipeline(_coll, [...pipeline, { [`$${prop}`]: stage }]);
+      },
+    },
+  );
+};
 type BasePipeline<TSchema extends Document | null = Document> = {
   aggregate(): FindCursor<TSchema>;
   as<RSchema extends Document>(): StageBuilder<RSchema>;
