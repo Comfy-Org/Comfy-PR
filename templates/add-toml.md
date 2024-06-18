@@ -1,9 +1,9 @@
 # Add pyproject.toml for Custom Node Registry
 
-We are building a global registry for custom nodes (similar to PyPI) with dr.lt.data and comfyanon. Eventually, the registry will be used as a backend for the UI-manager. All nodes will go through a verification proess before being published to users.
+We are working with dr.lt.data and comfyanon to build a global registry for custom nodes (similar to PyPI). Eventually, the registry will be used as a backend for the UI-manager. All nodes go through a verification proess before being published to users.
 
 The main benefits are that authors can
-- publish nodes by version, and users can safely update nodes knowing their workflows won't break. 
+- publish nodes by version and users can safely update nodes knowing their workflows won't break
 - automate testing against new commits in the comfy repo and existing workflows through our CI/CD dashboard
 
 Action Required:
