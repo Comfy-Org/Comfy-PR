@@ -1,9 +1,9 @@
 import { $fresh, $stale } from ".";
 import { $elemMatch } from "./$elemMatch";
-import { $flatten } from "./$flatten";
+import { $filaten } from "./$filaten";
 
 it("should flatten the object", () => {
-  const result = $flatten({
+  const result = $filaten({
     nested: { hello: "world" }, // never created
   });
   const expected = {
@@ -17,7 +17,7 @@ it("should not flatten $", () => {
 
   // $fresh is not flattened
   expect(
-    $flatten({
+    $filaten({
       candidate: { mtime: { $gt: date }, state: "ok", data: { $eq: true } },
       createdPulls: { $exists: false },
     }),
@@ -30,7 +30,7 @@ it("should not flatten $", () => {
 
   // $or is not flattened, but its children are
   expect(
-    $flatten({
+    $filaten({
       $or: [{ a: { b: "c" } }, { b: 2 }],
     }),
   ).toEqual({
@@ -40,7 +40,7 @@ it("should not flatten $", () => {
 
 it("should flatten through $ into deeper", () => {
   const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
-  const $match = $flatten({
+  const $match = $filaten({
     crPulls: {
       data: $elemMatch({
         pull: {
@@ -68,7 +68,7 @@ it("should flatten through $ into deeper", () => {
 it("should flatten deep", () => {
   const date = new Date();
   expect(
-    $flatten({
+    $filaten({
       pulls: { mtime: { $gte: date }, nested: { data: { $exists: true } } },
       crPulls: { mtime: { $not: { $gte: date } } },
     }),
@@ -82,7 +82,7 @@ it("should flatten deep", () => {
 it("don't destroy date obj", () => {
   jest.useFakeTimers().setSystemTime(new Date());
   expect(
-    $flatten({
+    $filaten({
       pulls: { mtime: $fresh("0s") },
       crPulls: { mtime: $stale("0s") },
     }),
