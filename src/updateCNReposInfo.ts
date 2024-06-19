@@ -4,7 +4,7 @@ import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { getWorkerInstance } from "./WorkerInstances";
 import { $stale } from "./db";
-import { $flatten } from "./db/$flatten";
+import { $filaten } from "./db";
 import { gh } from "./gh";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 import { $OK, TaskError, TaskOK } from "./utils/Task";
@@ -16,9 +16,9 @@ if (import.meta.main) {
 }
 
 export async function updateCNReposInfo() {
-  await CNRepos.createIndex($flatten({ info: { mtime: 1 } }));
+  await CNRepos.createIndex($filaten({ info: { mtime: 1 } }));
   return await pMap(
-    CNRepos.find($flatten({ info: { mtime: $stale("1d") } })),
+    CNRepos.find($filaten({ info: { mtime: $stale("1d") } })),
     async (repo) => {
       const { repository } = repo;
       console.log("[INFO] Fetching meta info from " + repository);

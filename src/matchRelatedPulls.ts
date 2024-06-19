@@ -1,12 +1,12 @@
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { fetchRelatedPullWithComments } from "./fetchRelatedPullWithComments";
-import { type GithubPull } from "./fetchRepoPRs";
+import type { GithubPullParsed } from "./parsePullsState";
 import { readTemplateTitle } from "./readTemplateTitle";
 
 export type RelatedPullsWithComments = Awaited<ReturnType<typeof fetchRelatedPullWithComments>>;
 export type RelatedPull = Awaited<ReturnType<typeof matchRelatedPulls>>[number];
-export async function matchRelatedPulls(pulls: GithubPull[]) {
+export async function matchRelatedPulls(pulls: GithubPullParsed[]) {
   const pyproject = await readTemplateTitle("add-toml.md");
   const publishcr = await readTemplateTitle("add-action.md");
   const relatedPulls = await pMap(pulls, async (pull) =>

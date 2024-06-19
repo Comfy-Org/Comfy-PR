@@ -1,8 +1,7 @@
 import { updateCMNodes } from "./CMNodes";
-import { updateComfyTotals } from "./Totals";
 import { getWorkerInstance } from "./WorkerInstances";
 import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
-import { notifySlack } from "./notifySlack";
+import { notifySlack } from "./slack/notifySlack";
 import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposCRPullsComments } from "./updateCNReposCRPullsComments";
 import { updateCNReposInfo } from "./updateCNReposInfo";
@@ -10,7 +9,9 @@ import { updateCNReposPRCandidate } from "./updateCNReposPRCandidate";
 import { updateCNReposPulls } from "./updateCNReposPulls";
 import { updateCNRepoPullsDashboard } from "./updateCNReposPullsDashboard";
 import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
+import { updateCRNodes } from "./updateCRNodes";
 import { updateCRRepos } from "./updateCRRepos";
+import { updateComfyTotals } from "./updateComfyTotals";
 import { updateOutdatedPullsTemplates } from "./updateOutdatedPullsTemplates";
 import { tLog } from "./utils/tLog";
 
@@ -35,6 +36,7 @@ export async function updateCNRepos() {
     // stage 1: get repos
     tLog("Update Nodes from ComfyUI Manager", updateCMNodes),
     tLog("Update Repos from ComfyUI Manager", updateCMRepos),
+    tLog("Update Nodes from ComfyRegistry", updateCRNodes),
     tLog("Update Repos from ComfyRegistry", updateCRRepos),
     // stage 2: update repo info & pulls
     tLog("Update CNRepos for Repo Infos", updateCNReposInfo),

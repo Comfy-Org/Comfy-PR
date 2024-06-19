@@ -1,10 +1,7 @@
 import type { ObjectId } from "mongodb";
-import { db } from "./db";
-import { postSlackMessage } from "./postSlackMessage";
-import { updateSlackMessages } from "./updateSlackMessages";
-
-export const SlackMsgs = db.collection<SlackMsg>("SlackMsgs6");
-
+import { db } from "../db";
+import { postSlackMessage } from "../postSlackMessage";
+export const SlackMsgs = db.collection<SlackMsg>("SlackMsgs");
 await SlackMsgs.createIndex({ ts: -1 });
 await SlackMsgs.createIndex({ channel: 1, ts: -1 });
 await SlackMsgs.createIndex({ text: 1 });
@@ -25,5 +22,4 @@ export type SlackNotifyOptions = {
   silent?: boolean;
 };
 
-// try send msgs that didn't send in last run
-updateSlackMessages();
+

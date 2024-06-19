@@ -1,8 +1,7 @@
-import YAML from "yaml";
+import { YAML } from "zx";
+import { gh } from ".";
+import { parseUrlRepoOwner } from "../parseOwnerRepo";
 import { fetchGithubPulls } from "./fetchGithubPulls";
-import { fetchIssueComments } from "./fetchPullComments";
-import { gh } from "./gh";
-
 if (import.meta.main) {
   // const repo = "https://github.com/ltdrdata/ComfyUI-Manager";
   // const repo = "https://github.com/WASasquatch/PPF_Noise_ComfyUI";
@@ -17,5 +16,16 @@ if (import.meta.main) {
   console.log(YAML.stringify(comments));
 }
 
-export type GithubPull = Awaited<ReturnType<typeof gh.pulls.get>>["data"];
-export type GithubIssueComments = Awaited<ReturnType<typeof fetchIssueComments>>[number];
+export async function fetchIssueComments(repo: string, pull: { number: number }) {
+  const result = (
+    await gh.issues.listComments({
+      ...parseUrlRepoOwner(repo),
+      issue_number: pull.number,
+      direction: "asc",
+      sort: "created",
+    })
+  ).data;
+  console.log(`[INFO] Fetchd ${result.length} Comments from ${repo}/pull/${pull.number}`);
+  return result;
+}
+

@@ -2,13 +2,10 @@ import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import type { ObjectId } from "mongodb";
 import pMap from "p-map";
 import { peekYaml } from "peek-log";
-import { filter, groupBy, values } from "rambda";
-import YAML from "yaml";
 import { CNRepos } from "./CNRepos";
-import { type SlackMsg } from "./SlackMsgs";
 import { db } from "./db";
 import { fetchCRNodes } from "./fetchComfyRegistryNodes";
-import { notifySlack } from "./notifySlack";
+import { type SlackMsg } from "./slack/SlackMsgs";
 
 export type CRNode = Awaited<ReturnType<typeof fetchCRNodes>>[number] & {
   sent?: { slack?: SlackMsg };
@@ -26,28 +23,4 @@ if (import.meta.main) {
     (e) => e,
   );
   peekYaml({ r, len: r.length });
-  // console.log(await updateCRNodes());
-  // console.log("CRNodes updated");
-}
-export async function updateCRNodes() {
-  const nodes = await fetchCRNodes();
-
-  // check src duplicated
-  const group = groupBy((e) => e.repository, nodes);
-  const duplicates = filter((e) => e.length > 1, group);
-  if (values(duplicates).length) {
-    const msg =
-      "[WARN] Same repo but different ids found in comfyregistry:\n" + "```\n" + YAML.stringify(duplicates) + "\n```";
-    await notifySlack(msg, { unique: true });
-  }
-  return await CRNodes.bulkWrite(
-    nodes.flatMap((node) => ({
-      updateOne: {
-        filter: { id: node.id },
-        update: { $set: node },
-        upsert: true,
-      },
-    })),
-    { ordered: false },
-  );
 }

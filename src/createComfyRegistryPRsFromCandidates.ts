@@ -3,10 +3,9 @@ import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
-import { $stale } from "./db";
-import { $flatten } from "./db/$flatten";
-import { notifySlackLinks } from "./notifySlackLinks";
+import { $filaten, $stale } from "./db";
 import { parseUrlRepoOwner, stringifyOwnerRepo } from "./parseOwnerRepo";
+import { notifySlackLinks } from "./slack/notifySlackLinks";
 import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
@@ -14,9 +13,9 @@ if (import.meta.main) {
   console.log("all done");
 }
 export async function createComfyRegistryPRsFromCandidates() {
-  await CNRepos.createIndex($flatten({ candidate: { data: 1 } }));
+  await CNRepos.createIndex($filaten({ candidate: { data: 1 } }));
   await CNRepos.createIndex(
-    $flatten({
+    $filaten({
       candidate: { data: 1 },
       createdPulls: { state: 1, mtime: 1 },
     }),
@@ -24,9 +23,11 @@ export async function createComfyRegistryPRsFromCandidates() {
   return await pMap(
     $pipeline(CNRepos)
       .match(
-        $flatten({
+        
+        $filaten({
           candidate: { data: { $eq: true } },
           createdPulls: { state: { $ne: "ok" }, mtime: $stale("5m") },
+          
         }),
       )
       .aggregate(),
@@ -43,7 +44,7 @@ export async function createComfyRegistryPRsFromCandidates() {
         await pMap(data, async (pull) => {
           const { html_url } = pull;
           // also update to crPulls
-          await CNRepos.updateOne($flatten({ repository, crPulls: { data: { pull: { html_url } } } }), {
+          await CNRepos.updateOne($filaten({ repository, crPulls: { data: { pull: { html_url } } } }), {
             $set: { "crPulls.data.$.pull": pull },
           });
         });

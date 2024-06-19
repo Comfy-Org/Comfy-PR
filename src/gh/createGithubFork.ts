@@ -1,12 +1,12 @@
-import { user } from ".";
-import { parseUrlRepoOwner, stringifyGithubRepoUrl } from "./parseOwnerRepo";
-import { gh } from "./gh";
+import { gh } from ".";
+import { ghUser } from "../ghUser";
+import { parseUrlRepoOwner, stringifyGithubRepoUrl } from "../parseOwnerRepo";
 
 export async function createGithubFork(from: string, to: string) {
   const _to = parseUrlRepoOwner(to);
   const forkResult = await gh.repos
     .createFork({
-      ...(user.name !== _to.owner && { organization: _to.owner }),
+      ...(ghUser.name !== _to.owner && { organization: _to.owner }),
       name: _to.repo,
       ...parseUrlRepoOwner(from),
     })

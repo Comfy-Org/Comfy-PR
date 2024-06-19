@@ -1,77 +1,101 @@
-import { Collection, FindCursor, type Document, type Filter, type IndexSpecification } from "mongodb";
-import type { FieldArrayPath, FieldArrayPathValue } from "react-hook-form";
-// import type { FieldPath, FieldPathValue } from "react-hook-form";
-
+import {
+  AggregationCursor,
+  Collection,
+  FindCursor,
+  type Document,
+  type Filter,
+  type IndexSpecification,
+} from "mongodb";
+import type { FieldArrayPath } from "react-hook-form";
+import type { AutoPath } from "ts-toolbelt/out/Function/AutoPath";
+import type { Path } from "ts-toolbelt/out/Object/Path";
+import type { Split } from "ts-toolbelt/out/String/Split";
+type ValueOfPath<T extends any, P extends string> = Path<T, Split<P, ".">>;
+// import type { ArrayPath, PathValue } from "react-hook-form";
+// import type { ArrayPath, FieldPath, PathValue } from "react-hook-form";
+// import type { FieldPath, $Value } from "react-hook-form";
 // react-hook-form path match is extremely slow, while generating 3k+ paths for a object
-type FieldPath<TSchema extends Document> = string;
-type FieldPathValue<TSchema extends Document, Path extends string> = any;
-//  type FieldArrayPath<TSchema extends Document> = string;
-//  type FieldArrayPathValue<TSchema extends Document, Path extends string> = any;
 
-type $Path<
-  TSchema extends Document,
-  Path extends string & FieldPath<TSchema> = string & FieldPath<TSchema>,
-> = `$${Path}`;
-type Expression<TSchema extends Document> = $Path<TSchema> & any;
-type $Set<TSchema extends Document> = {
-  [P in keyof TSchema]?: Expression<TSchema>;
-} & Record<string, any>;
-type $SetResult<TSchema extends Document, Set extends $Set<TSchema>> = TSchema & {
+// type FieldPath<S extends Document> = string;
+// type $Value<S extends Document, Path extends string> = any;
+//  type FieldArrayPath<S extends Document> = string;
+//  type FieldArrayPathValue<S extends Document, Path extends string> = any;
+// type Head<T extends any[]> = T extends [infer H, ...any] ? H : never;
+// type PathHead<T extends string> = T extends `${infer H}.${infer R}` ? H : T extends `${infer H}` ? H : never;
+// type PathTail<T extends string> = T extends `${infer H}.${infer R}` ? R : never;
+// type $Value<S extends Document, P extends string = string> = Path<S, Split<P, ".">>;
+// type $Path<S extends Document, P extends string = string> = `$${string}`;
+// type $Value<S extends Document, P extends string = string> = Path<S, Split<P, ".">>;
+type PathFrom$Path<P extends string> = P extends `$${infer R}` ? R : never;
+type $Path<S extends Document, P extends string = string> = `$${AutoPath<S, P>}`;
+// type $Path<S extends Document, P extends string = string> = `$${P}`;
+type DeepRecord<Path extends string, Value> = Path extends `${infer Head}.${infer Tail}`
+  ? { [K in Head]: DeepRecord<Tail, Value> }
+  : { [K in Path]: Value };
+
+// type $PathOf<S extends Document, V extends any = any> = `$${string}`;
+// type $PathOf<S extends Document, V extends any = any> = `$${AllPathOf<S, V>}`;
+
+// type AllPathOf<S extends Document, V extends any = any> = ValueOfPath<S, infer P extends AllPath<S>> extends V ? P : never;
+type $Value<S extends Document, P extends string = string> = any;
+
+type Expression<S extends Document> = any;
+type $Set<S extends Document> = {
+  [P in keyof S]?: Expression<S>;
+} & Record<string, Expression<S>>;
+type $SetResult<S extends Document, Set extends $Set<S>> = S & {
   [P in keyof Set]?: Set[P] extends `$${infer Path extends string}`
-    ? Path extends FieldPath<TSchema>
-      ? FieldPathValue<TSchema, Path>
+    ? Path extends string
+      ? $Value<S, Path>
       : any
     : Set[P];
 };
-type $Unset<TSchema extends Document> = {
-  [P in keyof TSchema]?: 1 | 0;
+type $Unset<S extends Document> = {
+  [P in keyof S]?: 1 | 0;
 };
-type $UnsetResult<TSchema extends Document, Unset extends $Unset<TSchema>> = TSchema & {
-  [P in keyof Unset & keyof TSchema]?: Unset[P] extends 1 ? never : TSchema[P];
+type $UnsetResult<S extends Document, Unset extends $Unset<S>> = S & {
+  [P in keyof Unset & keyof S]?: Unset[P] extends 1 ? never : S[P];
 };
-type $Project<TSchema extends Document> = { _id?: 1 | 0 } & {
-  [P in FieldPath<TSchema>]?: 1 | 0 | Expression<TSchema>;
-} & Record<string, Expression<TSchema>>;
-type $ProjectResult<TSchema extends Document, Project extends $Project<TSchema>> = {
-  _id?: Project["_id"] extends 1 ? TSchema["_id"] : Project["_id"] extends 0 ? never : TSchema["_id"];
+type $Project<S extends Document> = { _id?: 1 | 0 } & {
+  [P in keyof S]?: 1 | 0 | Expression<S>;
+} & Record<string, Expression<S>>;
+type $ProjectResult<S extends Document, Project extends $Project<S>> = {
+  _id?: Project["_id"] extends 1 ? S["_id"] : Project["_id"] extends 0 ? never : S["_id"];
 } & {
-  [P in FieldPath<TSchema>]?: Project[P] extends 1
-    ? TSchema[P]
+  [P in keyof S]?: Project[P] extends 1
+    ? S[P]
     : Project[P] extends 0
       ? never
-      : Project[P] extends $Path<TSchema, infer K>
-        ? FieldPathValue<TSchema, K>
+      : Project[P] extends $Path<S, infer K>
+        ? $Value<S, K>
         : any;
 } & {
-  [P in keyof Project]?: Project[P] extends $Path<TSchema, infer K> ? FieldPathValue<TSchema, K> : any;
+  [P in keyof Project]?: Project[P] extends $Path<S, infer K> ? $Value<S, K> : any;
 };
 
-type StageBuilder<TSchema extends Document | null = Document> = BasePipeline<TSchema> &
-  (TSchema extends Document ? Stages<TSchema> : {});
+type PipelineLauncher = <S extends Document>(coll?: Collection<S>) => StageBuilder<S>;
 
-type PipelineLauncher = <TSchema extends Document>(coll?: Collection<TSchema>) => StageBuilder<TSchema>;
-
-export const $pipeline: PipelineLauncher = function $pipeline<TSchema extends Document = Document>(
-  coll?: Collection<TSchema>,
+export const $pipeline: PipelineLauncher = function $pipeline<S extends Document = Document>(
+  coll?: Collection<S>,
   pipeline = [] as readonly Document[],
 ) {
   const _coll = coll as any;
   return new Proxy(
     {
       // type helper
-      satisfies<RSchema extends TSchema = TSchema>() {
+      satisfies<RSchema extends S = S>() {
         return $pipeline<RSchema>(_coll, pipeline);
       },
-      as<RSchema extends Document = TSchema>() {
+      as<RSchema extends Document = S>() {
         return $pipeline<RSchema>(_coll, pipeline);
       },
       // output
       aggregate() {
         if (!coll) throw new Error("Collection not provided");
-        return coll.aggregate([...pipeline]) as unknown as FindCursor<TSchema>;
+        return coll.aggregate([...pipeline]) as unknown as FindCursor<S>;
       },
       // all general stage
-      stage<RSchema extends Document = TSchema>(stage: any): StageBuilder<RSchema> {
+      stage<RSchema extends Document = S>(stage: any): StageBuilder<RSchema> {
         if (!stage || !Object.keys(stage).length) return $pipeline(_coll, pipeline);
         return $pipeline(_coll, [...pipeline, stage]);
       },
@@ -85,13 +109,14 @@ export const $pipeline: PipelineLauncher = function $pipeline<TSchema extends Do
     },
   );
 };
-type BasePipeline<TSchema extends Document | null = Document> = {
-  aggregate(): FindCursor<TSchema>;
-  as<RSchema extends Document>(): StageBuilder<RSchema>;
-  satisfies<RSchema extends TSchema = TSchema>(): StageBuilder<RSchema>;
-  stage<RSchema extends Document>(stage: any): StageBuilder<RSchema>;
+type StageBuilder<S extends Document | null = Document> = BasePipeline<S> & (S extends Document ? Stages<S> : {});
+type BasePipeline<S extends Document | null = Document> = {
+  aggregate(): AggregationCursor<S>;
+  as<R extends Document>(): StageBuilder<R>;
+  satisfies<R extends S>(): StageBuilder<R>;
+  stage<R extends Document>(stage: any): StageBuilder<R>;
 };
-type Stages<S extends Document = Document> = {
+type Stages<S extends Document> = {
   /** Adds new fields to documents. Similar to $project, $addFields reshapes each document in the stream; specifically, by adding new fields to output documents that contain both the existing fields from the input documents and the newly added fields.
    * $set is an alias for $addFields. */
   addFields<I extends $Set<S>>(i: I): StageBuilder<$SetResult<S, I>>;
@@ -160,10 +185,10 @@ type Stages<S extends Document = Document> = {
   redact<I extends Document>(i: I): StageBuilder<S>;
   /** Replaces a document with the specified embedded document. The operation replaces all existing fields in the input document, including the _id field. Specify a document embedded in the input document to promote the embedded document to the top level.
    * $replaceWith is an alias for $replaceRoot stage. */
-  replaceRoot<I extends { newRoot: $Path<S> }>(i: I): StageBuilder<S>;
+  replaceRoot<P extends string, I extends { newRoot: $Path<S, P> }>(i: I): StageBuilder<Document>; //TODO: fixme
   /** Replaces a document with the specified embedded document. The operation replaces all existing fields in the input document, including the _id field. Specify a document embedded in the input document to promote the embedded document to the top level.
    * $replaceWith is an alias for $replaceRoot stage. */
-  replaceWith<I extends { newRoot: $Path<S> }>(i: I): StageBuilder<S>;
+  replaceWith<P extends string, I extends { newRoot: $Path<S, P> }>(i: I): StageBuilder<Document>; //TODO: fixme
   /** Randomly selects the specified number of documents from its input. */
   sample<I extends { size: number }>(i: I): StageBuilder<S>;
   /** Performs a full-text search of the field or fields in an Atlas collection.
@@ -192,9 +217,7 @@ type Stages<S extends Document = Document> = {
    * $unset is an alias for $project stage that removes fields. */
   unset<I extends string | string[]>(i: I): StageBuilder<Omit<S, I extends any[] ? I[number] : I>>;
   /** Deconstructs an array field from the input documents to output a document for each element. Each output document replaces the array with an element value. For each input document, outputs n documents where n is the number of array elements and can be zero for an empty array. */
-  unwind<Path extends FieldArrayPath<S>, I extends `$${Path}`>(
-    i: I,
-  ): StageBuilder<{ [k in Path]: NonNullable<FieldArrayPathValue<S, Path>>[number] } & Omit<S, Path>>;
+  unwind: <P extends FieldArrayPath<S> = FieldArrayPath<S>, I extends `$${P}` = `$${P}`>(i: I) => StageBuilder<S>;
   /** Performs an ANN search on a vector in the specified field of an Atlas collection.
    * New in version 7.0.2. */
   vectorSearch<I extends Document>(i: I): StageBuilder<S>;

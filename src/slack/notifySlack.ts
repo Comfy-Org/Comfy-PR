@@ -1,5 +1,5 @@
+import { updateSlackMessages } from "../updateSlackMessages";
 import { SlackMsgs, type SlackNotifyOptions } from "./SlackMsgs";
-import { updateSlackMessages } from "./updateSlackMessages";
 
 if (import.meta.main) {
   const text =

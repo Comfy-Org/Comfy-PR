@@ -1,8 +1,10 @@
 import DIE from "@snomiao/die";
 import md5 from "md5";
 import minimist from "minimist";
-import { FORK_OWNER, FORK_PREFIX, user } from ".";
-import { createGithubFork } from "./createGithubFork";
+import { FORK_OWNER } from "./FORK_OWNER";
+import { FORK_PREFIX } from "./FORK_PREFIX";
+import { createGithubFork } from "./gh/createGithubFork";
+import { ghUser } from "./ghUser";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
 /**
@@ -25,7 +27,7 @@ export async function createGithubForkForRepo(upstreamRepoUrl: string) {
   const upstream = parseUrlRepoOwner(upstreamRepoUrl);
   const argv = minimist(process.argv.slice(2));
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
-  const repo_hash = md5(`${salt}-${user.name}-${upstream.owner}/${upstream.repo}`).slice(0, 8);
+  const repo_hash = md5(`${salt}-${ghUser.name}-${upstream.owner}/${upstream.repo}`).slice(0, 8);
   const forkRepoName = (FORK_PREFIX && `${FORK_PREFIX}${upstream.repo}-${repo_hash}`) || upstream.repo;
   const forkDst = `${FORK_OWNER}/${forkRepoName}`;
   const forkUrl = `https://github.com/${forkDst}`;

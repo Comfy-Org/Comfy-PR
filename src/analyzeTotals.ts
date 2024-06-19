@@ -1,9 +1,17 @@
+'use server'
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import DIE from "@snomiao/die";
+import pMap from "p-map";
 import promiseAllProperties from "promise-all-properties";
 import YAML from "yaml";
 import { CMNodes } from "./CMNodes";
 import { CNRepos } from "./CNRepos";
+import { CRNodes } from "./CRNodes";
+import { FollowRuleSets, type FollowRule } from "./FollowRules";
+import { analyzePullsStatusPipeline } from "./analyzePullsStatus";
+import { $OK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
+import { tsmatch } from "./utils/tsmatch";
 
 if (import.meta.main) {
   await tLog("analyzeTotals", async () => {
@@ -11,79 +19,117 @@ if (import.meta.main) {
     return [];
   });
 }
+/**
+ * @warning this function is heavy
+ */
 export async function analyzeTotals() {
   "use server";
   const totals = await promiseAllProperties({
-    "Total Nodes on UI-Manager": CMNodes.estimatedDocumentCount(),
-    "Total Repos": $pipeline<any>(CNRepos)
-      // .match({ "info.data": { $exists: true } })
-      .stage({
-        $group: {
-          _id: null,
-          "on Comfy Manager List": { $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] } },
-          "on Registry": { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
-          Archived: { $sum: { $cond: ["$info.data.archived", 1, 0] } },
-          All: { $sum: 1 },
-          Candidates: { $sum: { $cond: ["$candidate.data", 1, 0] } },
-          "Got ERROR on creating PR": { $sum: { $cond: [{ $eq: ["$createdPulls.state", "error"] }, 1, 0] } },
-        },
+    Now: new Date().toISOString(),
+    "Total Nodes": promiseAllProperties({
+      "on ComfyUI Manager": CMNodes.estimatedDocumentCount(),
+      "on Registry": CRNodes.estimatedDocumentCount(),
+    }),
+    "Total Repos": $pipeline(CNRepos)
+      .group({
+        _id: null,
+        "on Comfy Manager List": { $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] } },
+        "on Registry": { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
+        Archived: { $sum: { $cond: ["$info.data.archived", 1, 0] } },
+        All: { $sum: 1 },
+        Candidates: { $sum: { $cond: ["$candidate.data", 1, 0] } },
+        "Got ERROR on creating PR": { $sum: { $cond: [{ $eq: ["$createdPulls.state", "error"] }, 1, 0] } },
       })
-      // .stage({ $sort: { _id: 1 } })
-      // .stage({ $set: { id_total: [[{ $toString: "$_id" }, "$archived"]] } })
-      // .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
       .project({ _id: 0 })
       .aggregate()
       // .map((e: any) => e.pairs)
       .next(),
-    "Total PRs Made": $pipeline<any>(CNRepos)
+    "Total Authors": $pipeline(CNRepos)
+      .group({
+        _id: "$info.data.author",
+        "on Comfy Manager List": { $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] } },
+        "on Registry": { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
+        Archived: { $sum: { $cond: ["$info.data.archived", 1, 0] } },
+        All: { $sum: 1 },
+        Candidates: { $sum: { $cond: ["$candidate.data", 1, 0] } },
+        "Got ERROR on creating PR": { $sum: { $cond: [{ $eq: ["$createdPulls.state", "error"] }, 1, 0] } },
+      })
+      .project({ _id: 0 })
+      .aggregate()
+      // .map((e: any) => e.pairs)
+      .next(),
+    "Total PRs Made": $pipeline(CNRepos)
       .unwind("$crPulls.data")
-      .stage({ $group: { _id: "$crPulls.data.type", total: { $sum: 1 } } })
-      .stage({ $sort: { _id: 1 } })
-      .stage({ $set: { id_total: [["$_id", "$total"]] } })
-      .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
+      .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
+      .sort({ _id: 1 })
+      .set({ id_total: [["$_id", "$total"]] })
+      .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
       .map((e: any) => e.pairs)
       .next(),
-    "Total Open": $pipeline<any>(CNRepos)
+    "Total Open": $pipeline(CNRepos)
       .unwind("$crPulls.data")
       .match({ "crPulls.data.pull.prState": "open" })
-      .stage({ $group: { _id: "$crPulls.data.type", total: { $sum: 1 } } })
-      .stage({ $sort: { _id: 1 } })
-      .stage({ $set: { id_total: [["$_id", "$total"]] } })
-      .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
+      .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
+      .sort({ _id: 1 })
+      .set({ id_total: [["$_id", "$total"]] })
+      .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
       .map((e: any) => e.pairs)
       .next(),
-    "Total Merged (on Registry)": $pipeline<any>(CNRepos)
+    "Total Merged (on Registry)": $pipeline(CNRepos)
       .unwind("$crPulls.data")
       .match({ cr: { $exists: true }, "crPulls.data.pull.prState": "merged" })
-      .stage({ $group: { _id: "$crPulls.data.type", total: { $sum: 1 } } })
-      .stage({ $sort: { _id: 1 } })
-      .stage({ $set: { id_total: [["$_id", "$total"]] } })
-      .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
+      .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
+      .sort({ _id: 1 })
+      .set({ id_total: [["$_id", "$total"]] })
+      .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
       .map((e: any) => e.pairs)
       .next(),
-    "Total Merged (not on Registry)": $pipeline<any>(CNRepos)
+    "Total Merged (not on Registry)": $pipeline(CNRepos)
       .unwind("$crPulls.data")
       .match({ cr: { $exists: false }, "crPulls.data.pull.prState": "merged" })
-      .stage({ $group: { _id: "$crPulls.data.type", total: { $sum: 1 } } })
-      .stage({ $sort: { _id: 1 } })
-      .stage({ $set: { id_total: [["$_id", "$total"]] } })
-      .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
+      .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
+      .sort({ _id: 1 })
+      .set({ id_total: [["$_id", "$total"]] })
+      .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
       .map((e: any) => e.pairs)
       .next(),
-    "Total Closed": $pipeline<any>(CNRepos)
+    "Total Closed": $pipeline(CNRepos)
       .unwind("$crPulls.data")
       .match({ "crPulls.data.pull.prState": "closed" })
-      .stage({ $group: { _id: "$crPulls.data.type", total: { $sum: 1 } } })
-      .stage({ $sort: { _id: 1 } })
-      .stage({ $set: { id_total: [["$_id", "$total"]] } })
-      .stage({ $group: { _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } } })
+      .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
+      .sort({ _id: 1 })
+      .set({ id_total: [["$_id", "$total"]] })
+      .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
       .map((e: any) => e.pairs)
       .next(),
+
+    // // Follow Rules
+    "Follow Up Rules": (async function () {
+      await pMap($pipeline(FollowRuleSets).unwind("$rules.data").aggregate(), async (ruleset) => {
+        const rulesetname = ruleset.name;
+        const rule = tsmatch(ruleset.rules)
+          .with($OK, ({ data }) => data satisfies FollowRule[] as unknown as FollowRule)
+          .otherwise(() => null);
+        if (!rule) DIE("should never happen");
+        return {
+          name: ruleset.name + "/" + rule.name,
+          // $match: JSON.stringify(rule.$match),
+          // description: rule.description ?? null,
+          // action: "",
+          matched: await analyzePullsStatusPipeline()
+            .match(rule.$match)
+            .count("total")
+            .aggregate()
+            .next()
+            .then((e) => e?.total),
+        };
+      });
+    })(),
   });
   return totals;
 }

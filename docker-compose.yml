@@ -13,7 +13,7 @@ services:
     env_file:
       - .env
       - .env.development.local
-  mongdb:
+  mongodb:
     restart: always
     image: mongo
     ports: ["27017:27017"]

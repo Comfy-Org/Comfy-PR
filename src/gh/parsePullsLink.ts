@@ -1,5 +1,5 @@
-import { type GithubPull } from "./fetchRepoPRs";
-import { type Link } from "./types/Link";
+import { type Link } from "../types/Link";
+import { type GithubPull } from "./GithubPull";
 export function parsePRlink(e: GithubPull): Link {
   const { number, title, html_url, state, merged_at } = e;
   const repo = html_url

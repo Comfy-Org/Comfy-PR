@@ -3,9 +3,8 @@ import pMap from "p-map";
 import { peekYaml } from "peek-log";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
-import { $stale } from "./db";
-import { $flatten } from "./db/$flatten";
-import { fetchGithubPulls } from "./fetchGithubPulls";
+import { $filaten, $stale } from "./db";
+import { fetchGithubPulls } from "./gh/fetchGithubPulls";
 import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
@@ -15,7 +14,7 @@ export async function updateCNReposPulls() {
   await CNRepos.createIndex("pulls.mtime");
   return await pMap(
     $pipeline(CNRepos)
-      .match(peekYaml($flatten({ pulls: { mtime: $stale("1d") } })))
+      .match(peekYaml($filaten({ pulls: { mtime: $stale("1d") } })))
       .project({ repository: 1 })
       .aggregate(),
     async ({ repository }) => {

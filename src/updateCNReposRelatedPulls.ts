@@ -2,8 +2,8 @@ import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
-import { $flatten, $stale } from "./db";
-import { matchRelatedPulls } from "./fetchRelatedPulls";
+import { $filaten, $stale } from "./db";
+import { matchRelatedPulls } from "./matchRelatedPulls";
 import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
@@ -16,7 +16,7 @@ export async function updateCNReposRelatedPulls() {
   });
   return await pMap(
     CNRepos.find(
-      $flatten({
+      $filaten({
         pulls: { state: "ok" },
         crPulls: { mtime: $stale("3d") },
       }),

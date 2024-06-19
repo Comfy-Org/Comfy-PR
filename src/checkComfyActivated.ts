@@ -1,7 +1,7 @@
 import DIE from "@snomiao/die";
 import { $ as bunSh } from "bun";
 import { os } from "zx";
-import { getActivateCMD } from "./getActivateCMD";
+import { getActivateCMD } from "./cli/getActivateCMD";
 
 export async function checkComfyActivated() {
   console.log("Checking ComfyUI Activated...");
