@@ -37,7 +37,7 @@ export async function analyzeTotals() {
         "on Registry": { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
         Archived: { $sum: { $cond: ["$info.data.archived", 1, 0] } },
         All: { $sum: 1 },
-        Candidates: { $sum: { $cond: ["$candidate.data", 1, 0] } },
+        // Candidates: { $sum: { $cond: ["$candidate.data", 1, 0] } },
         "Got ERROR on creating PR": { $sum: { $cond: [{ $eq: ["$createdPulls.state", "error"] }, 1, 0] } },
       })
       .project({ _id: 0 })

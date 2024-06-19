@@ -23,28 +23,29 @@ export default function RuleWhirler({
   const defaultLanguage = "yaml";
   return (
     <div className="card card-body overflow-hidden">
-      <div className="flex ">
-        <CodeEditor
-          {...{
-            onChange: async (code) => {
-              if (code === undefined) return;
-              const results = await onChange(code);
-              setResults(results);
-            },
-            defaultValue,
-            defaultLanguage,
-          }}
-          height="80vh"
-        />
-
-        <div className="card-body bg-cyan-600">
+      <div className="flex">
+        <div className="grow">
+          <CodeEditor
+            {...{
+              onChange: async (code) => {
+                if (code === undefined) return;
+                const results = await onChange(code);
+                setResults(results);
+              },
+              defaultValue,
+              defaultLanguage,
+            }}
+            height="80vh"
+          />
+        </div>
+        <div className="card-body bg-cyan-600 w-[40%]">
           <Markdown>
             {`${tsmatch(results)
               .with($OK, ({ data }) => {
-                yaml.stringify(data);
+                return yaml.stringify(data);
               })
               .with($ERROR, ({ error }) => {
-                yaml.stringify(error);
+                return yaml.stringify(error);
               })
               .otherwise(() => {
                 // maybe pending

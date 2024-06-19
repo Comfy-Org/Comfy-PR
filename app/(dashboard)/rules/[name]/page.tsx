@@ -7,9 +7,9 @@ const RuleWhirler = dynamic(() => import("./RuleWhirler"), { ssr: false });
 export default async function FollowRulesPage({ params: { name = "default" } }) {
   const defaultValue = (await FollowRuleSets.findOne({ name }))?.yaml ?? notFound();
   return (
-    <main>
+    <main className="grow card-body gap-4">
       <h1>Follow Rules Edit</h1>
-      <div className="card-body">
+      <div className="card">
         <RuleWhirler
           onChange={async (yaml) => {
             "use server";

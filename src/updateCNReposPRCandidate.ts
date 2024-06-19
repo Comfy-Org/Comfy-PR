@@ -31,13 +31,11 @@ if (import.meta.main) {
   peekYaml(
     await $pipeline(CNRepos)
       .match(
-        peekYaml(
-          $filaten({
-            crPulls: { mtime: $stale("7d") },
-            // info: { mtime: $fresh("7d"), data: { private: false, archived: false } },
-            // createdPulls: { mtime: $stale("7d"), data: { $exists: false } },
-          }),
-        ),
+        $filaten({
+          crPulls: { mtime: $stale("7d") },
+          // info: { mtime: $fresh("7d"), data: { private: false, archived: false } },
+          // createdPulls: { mtime: $stale("7d"), data: { $exists: false } },
+        }),
       )
       .aggregate()
       .map((e) => ({
@@ -55,13 +53,17 @@ if (import.meta.main) {
 
 export async function updateCNReposPRCandidate() {
   return await pMap(
-    CNRepos.find(
-      $filaten({
-        crPulls: { mtime: $fresh("1d"), ...$OK },
-        info: { mtime: $fresh("7d"), ...$OK, data: { private: false, archived: false } },
-        candidate: { mtime: $stale("7d") },
-      }),
-    ),
+    $pipeline(CNRepos)
+      .match(
+        $filaten({
+          crPulls: { mtime: $fresh("1d"), ...$OK },
+          // info: { mtime: $fresh("7d"), ...$OK, data: { private: false, archived: false } },
+          info: { mtime: $fresh("7d"), ...$OK },
+          // createdPulls: { state: { $ne: "ok" }, mtime: $stale("5m") },
+          candidate: { mtime: $stale("1d") },
+        }),
+      )
+      .aggregate(),
     async (repo) => {
       const crPulls = match(repo.crPulls)
         .with($OK, (e) => e.data)

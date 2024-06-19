@@ -41,6 +41,7 @@ export type CustomNodeRepo = {
 
   /** @deprecated use cr_ids or on_registry */
   cr?: Pick<WithId<CRNode>, "_id" | "id" | "name">;
+  
   cr_ids?: ObjectId[];
   on_registry?: Task<boolean>; // check if cr_ids is not empty
 
@@ -48,15 +49,18 @@ export type CustomNodeRepo = {
   cm?: Pick<WithId<CMNode>, "_id" | "id" | "title">;
   cm_ids?: ObjectId[];
 
+  // cache
   pulls?: Task<GithubPullParsed[]>;
-  /** @deprecated use CRPulls */
+  
   crPulls?: Task<CRPull[]>;
+  
+  /** @deprecated TODO: NOT IMPLEMENTD */
   crPull_ids: ObjectId[];
-
+  
   candidate?: Task<boolean>;
   // createFork?: Task<GithubRepo>;
   // createBranches?: Task<{ type: CRType; assigned: Worker } & PushedBranch>[];
-
+  
   /** @deprecated use CRPulls.pull */
   createdPulls?: Task<GithubPullParsed[]>;
 };

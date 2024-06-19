@@ -6,49 +6,20 @@ import {
   type Filter,
   type IndexSpecification,
 } from "mongodb";
-import type { FieldArrayPath } from "react-hook-form";
-import type { AutoPath } from "ts-toolbelt/out/Function/AutoPath";
-import type { Path } from "ts-toolbelt/out/Object/Path";
-import type { Split } from "ts-toolbelt/out/String/Split";
-type ValueOfPath<T extends any, P extends string> = Path<T, Split<P, ".">>;
-// import type { ArrayPath, PathValue } from "react-hook-form";
-// import type { ArrayPath, FieldPath, PathValue } from "react-hook-form";
-// import type { FieldPath, $Value } from "react-hook-form";
-// react-hook-form path match is extremely slow, while generating 3k+ paths for a object
-
-// type FieldPath<S extends Document> = string;
-// type $Value<S extends Document, Path extends string> = any;
-//  type FieldArrayPath<S extends Document> = string;
-//  type FieldArrayPathValue<S extends Document, Path extends string> = any;
-// type Head<T extends any[]> = T extends [infer H, ...any] ? H : never;
-// type PathHead<T extends string> = T extends `${infer H}.${infer R}` ? H : T extends `${infer H}` ? H : never;
-// type PathTail<T extends string> = T extends `${infer H}.${infer R}` ? R : never;
-// type $Value<S extends Document, P extends string = string> = Path<S, Split<P, ".">>;
-// type $Path<S extends Document, P extends string = string> = `$${string}`;
-// type $Value<S extends Document, P extends string = string> = Path<S, Split<P, ".">>;
-type PathFrom$Path<P extends string> = P extends `$${infer R}` ? R : never;
-type $Path<S extends Document, P extends string = string> = `$${AutoPath<S, P>}`;
-// type $Path<S extends Document, P extends string = string> = `$${P}`;
-type DeepRecord<Path extends string, Value> = Path extends `${infer Head}.${infer Tail}`
-  ? { [K in Head]: DeepRecord<Tail, Value> }
-  : { [K in Path]: Value };
-
-// type $PathOf<S extends Document, V extends any = any> = `$${string}`;
-// type $PathOf<S extends Document, V extends any = any> = `$${AllPathOf<S, V>}`;
-
-// type AllPathOf<S extends Document, V extends any = any> = ValueOfPath<S, infer P extends AllPath<S>> extends V ? P : never;
+import type { FieldArrayPath, FieldArrayPathValue, FieldPath, FieldPathValue } from "react-hook-form";
+import type { AllPath } from "./AllPath";
+type $Path<S extends Document, P extends string = string> = `$${AllPath<S>}`;
+type PathOf$Path<P extends string> = P extends `$${infer Path}` ? Path : never;
+// type DeepRecord<Path extends string, Value> = Path extends `${infer Head}.${infer Tail}`
+//   ? { [K in Head]: DeepRecord<Tail, Value> }
+//   : { [K in Path]: Value };
 type $Value<S extends Document, P extends string = string> = any;
-
 type Expression<S extends Document> = any;
 type $Set<S extends Document> = {
   [P in keyof S]?: Expression<S>;
 } & Record<string, Expression<S>>;
 type $SetResult<S extends Document, Set extends $Set<S>> = S & {
-  [P in keyof Set]?: Set[P] extends `$${infer Path extends string}`
-    ? Path extends string
-      ? $Value<S, Path>
-      : any
-    : Set[P];
+  [P in keyof Set]?: Set[P] extends `$${infer P extends FieldPath<S>}` ? FieldPathValue<S, P> : Set[P];
 };
 type $Unset<S extends Document> = {
   [P in keyof S]?: 1 | 0;
@@ -217,7 +188,9 @@ type Stages<S extends Document> = {
    * $unset is an alias for $project stage that removes fields. */
   unset<I extends string | string[]>(i: I): StageBuilder<Omit<S, I extends any[] ? I[number] : I>>;
   /** Deconstructs an array field from the input documents to output a document for each element. Each output document replaces the array with an element value. For each input document, outputs n documents where n is the number of array elements and can be zero for an empty array. */
-  unwind: <P extends FieldArrayPath<S> = FieldArrayPath<S>, I extends `$${P}` = `$${P}`>(i: I) => StageBuilder<S>;
+  unwind: <P extends FieldArrayPath<S>>(
+    i: `$${P}`,
+  ) => StageBuilder<S & { [k in P]: FieldArrayPathValue<S, k>[number] }>;
   /** Performs an ANN search on a vector in the specified field of an Atlas collection.
    * New in version 7.0.2. */
   vectorSearch<I extends Document>(i: I): StageBuilder<S>;

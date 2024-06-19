@@ -15,6 +15,14 @@ if (import.meta.main) {
     initializeFollowRules(),
     updateCNRepos(),
   ]);
+  // second round
+  await Promise.all([
+    // try send msgs that didn't send in last run
+    updateSlackMessages(),
+    checkComfyActivated(), // needed if make pr
+    initializeFollowRules(),
+    updateCNRepos(),
+  ]);
   console.log("All done");
   process.exit(0);
 }

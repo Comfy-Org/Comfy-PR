@@ -47,6 +47,7 @@ export function analyzePullsStatusPipeline() {
       .set({ "crPulls.data.pull.on_registry": "$on_registry" })
       .set({ "crPulls.data.pull.type": "$crPulls.data.type" })
       .set({ "crPulls.data.pull.comments": "$crPulls.data.comments.data" })
+      .set({ "crPulls.data.pull": "$crPulls.data.pull" })
       .replaceRoot({ newRoot: "$crPulls.data.pull" })
       .as<
         CRPull & {

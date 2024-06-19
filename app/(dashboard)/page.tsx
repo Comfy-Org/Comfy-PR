@@ -6,12 +6,8 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   return (
     <main className="flex flex-wrap">
-      <Suspense>
-        <TotalsPage />
-      </Suspense>
-      <Suspense>
-        <LatestDetails />
-      </Suspense>
+      <TotalsPage />
+      <LatestDetails />
     </main>
   );
 }
