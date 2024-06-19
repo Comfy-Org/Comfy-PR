@@ -10,25 +10,15 @@ export function parseUrlRepoOwner(gitUrl: string) {
     repo: basename(gitUrl.replace(/:/, "/")).replace(/\.git$/, ""),
   };
 }
-export function stringifyOwnerRepo({
-  owner,
-  repo,
-}: ReturnType<typeof parseUrlRepoOwner>) {
+export function stringifyOwnerRepo({ owner, repo }: ReturnType<typeof parseUrlRepoOwner>) {
   return owner + "/" + repo;
 }
-export function stringifyGithubRepoUrl({
-  owner,
-  repo,
-}: ReturnType<typeof parseUrlRepoOwner>) {
+export function stringifyGithubRepoUrl({ owner, repo }: ReturnType<typeof parseUrlRepoOwner>) {
   return "https://github.com/" + owner + "/" + repo;
 }
-export async function stringifyGithubOrigin({
-  owner,
-  repo,
-}: ReturnType<typeof parseUrlRepoOwner>) {
+export async function stringifyGithubOrigin({ owner, repo }: ReturnType<typeof parseUrlRepoOwner>) {
   const PR_TOKEN = process.env.GH_TOKEN_COMFY_PR;
   if (PR_TOKEN) {
-    
     // fails: maybe permission issue
     // const USERNAME = (
     //   await new Octokit({
@@ -36,7 +26,6 @@ export async function stringifyGithubOrigin({
     //   }).rest.users.getAuthenticated()
     // ).data.login;
     // return `https://${USERNAME}:${PR_TOKEN}@github.com/${owner}/${repo}`;
-
 
     return `git@github.com:${owner}/${repo}`;
   }

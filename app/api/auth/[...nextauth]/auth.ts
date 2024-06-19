@@ -7,7 +7,7 @@ import Nodemailer from "next-auth/providers/nodemailer";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: MongoDBAdapter(Promise.resolve(mongoClient)),
-  
+
   providers: [
     ...(process.env.AUTH_EMAIL_SERVER
       ? [

@@ -87,7 +87,7 @@ type BasePipeline<S extends Document | null = Document> = {
   aggregate(): AggregationCursor<S>;
   as<R extends Document>(): StageBuilder<R>;
   satisfies<R extends S>(): StageBuilder<R>;
-  with<R extends Document>(): StageBuilder<S&R>;
+  with<R extends Document>(): StageBuilder<S & R>;
   stage<R extends Document>(stage: any): StageBuilder<R>;
 };
 type Stages<S extends Document> = {

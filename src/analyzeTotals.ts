@@ -106,7 +106,7 @@ export async function analyzeTotals() {
     // // Follow Rules
     // "Follow Up Rules": (async function () {
     //   await pMap($pipeline(FollowRuleSets).aggregate(), async (ruleset) => {
-        
+
     //   });
     // })(),
   });
