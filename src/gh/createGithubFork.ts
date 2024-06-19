@@ -11,8 +11,7 @@ export async function createGithubFork(from: string, to: string) {
       ...parseUrlRepoOwner(from),
     })
     .catch(async (e) => {
-      if (e.message.match("Name already exists on this account"))
-        return await gh.repos.get({ ..._to });
+      if (e.message.match("Name already exists on this account")) return await gh.repos.get({ ..._to });
       throw e;
     });
   const forkedUrl = forkResult!.data.html_url ?? stringifyGithubRepoUrl(_to);

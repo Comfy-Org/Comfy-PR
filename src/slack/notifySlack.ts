@@ -2,15 +2,11 @@ import { updateSlackMessages } from "../updateSlackMessages";
 import { SlackMsgs, type SlackNotifyOptions } from "./SlackMsgs";
 
 if (import.meta.main) {
-  const text =
-    "# Hello world\n\ntest rich message at " + new Date().toISOString();
+  const text = "# Hello world\n\ntest rich message at " + new Date().toISOString();
   console.log(await notifySlack(text));
 }
 
-export async function notifySlack(
-  text: string,
-  { unique = true, last, silent }: SlackNotifyOptions = {},
-) {
+export async function notifySlack(text: string, { unique = true, last, silent }: SlackNotifyOptions = {}) {
   const limit = 3000; // slack message limit is 3001
   if (text.length > limit) {
     const lines = text.split("\n");

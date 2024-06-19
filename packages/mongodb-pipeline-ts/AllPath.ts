@@ -1,4 +1,3 @@
-
 /**
  * Checks whether T1 can be exactly (mutually) assigned to T2
  * @typeParam T1 - type to check
@@ -19,14 +18,7 @@ export type IsEqual<T1, T2> = T1 extends T2
     : false
   : false;
 
-export type Primitive =
-  | null
-  | undefined
-  | string
-  | number
-  | boolean
-  | symbol
-  | bigint;
+export type Primitive = null | undefined | string | number | boolean | symbol | bigint;
 
 export type BrowserNativeObject = Date | FileList | File;
 
@@ -38,10 +30,7 @@ export type BrowserNativeObject = Date | FileList | File;
  * TupleKeys<[number, string]> = '0' | '1'
  * ```
  */
-export type TupleKeys<T extends ReadonlyArray<any>> = Exclude<
-  keyof T,
-  keyof any[]
->;
+export type TupleKeys<T extends ReadonlyArray<any>> = Exclude<keyof T, keyof any[]>;
 
 /**
  * Type to query whether an array type T is a tuple type.
@@ -52,25 +41,19 @@ export type TupleKeys<T extends ReadonlyArray<any>> = Exclude<
  * IsTuple<number[]> = false
  * ```
  */
-export type IsTuple<T extends ReadonlyArray<any>> = number extends T["length"]
-  ? false
-  : true;
+export type IsTuple<T extends ReadonlyArray<any>> = number extends T["length"] ? false : true;
 
 /**
  * Type which can be used to index an array or tuple type.
  */
-export type ArrayKey = number ;
+export type ArrayKey = number;
 
 /**
  * Helper function to break apart T1 and check if any are equal to T2
  *
  * See {@link IsEqual}
  */
-type AnyIsEqual<T1, T2> = T1 extends T2
-  ? IsEqual<T1, T2> extends true
-    ? true
-    : never
-  : never;
+type AnyIsEqual<T1, T2> = T1 extends T2 ? (IsEqual<T1, T2> extends true ? true : never) : never;
 
 /**
  * Helper type for recursively constructing paths through a type.
@@ -79,16 +62,14 @@ type AnyIsEqual<T1, T2> = T1 extends T2
  *
  * See {@link AllPath}
  */
-type PathImpl<K extends string | number, V, TraversedTypes> = V extends
-  | Primitive
-  | BrowserNativeObject
+type PathImpl<K extends string | number, V, TraversedTypes> = V extends Primitive | BrowserNativeObject
   ? `${K}`
   : // Check so that we don't recurse into the same type
-  // by ensuring that the types are mutually assignable
-  // mutually required to avoid false positives of subtypes
-  true extends AnyIsEqual<TraversedTypes, V>
-  ? `${K}`
-  : `${K}` | `${K}.${PathInternal<V, TraversedTypes | V>}`;
+    // by ensuring that the types are mutually assignable
+    // mutually required to avoid false positives of subtypes
+    true extends AnyIsEqual<TraversedTypes, V>
+    ? `${K}`
+    : `${K}` | `${K}.${PathInternal<V, TraversedTypes | V>}`;
 
 /**
  * Helper type for recursively constructing paths through a type.
@@ -96,15 +77,16 @@ type PathImpl<K extends string | number, V, TraversedTypes> = V extends
  *
  * See {@link AllPath}
  */
-type PathInternal<T, TraversedTypes = T> = T extends ReadonlyArray<infer V>
-  ? IsTuple<T> extends true
-    ? {
-        [K in TupleKeys<T>]-?: PathImpl<K & string, T[K], TraversedTypes>;
-      }[TupleKeys<T>]
-    : PathImpl<ArrayKey, V, TraversedTypes>
-  : {
-      [K in keyof T]-?: PathImpl<K & string, T[K], TraversedTypes>;
-    }[keyof T];
+type PathInternal<T, TraversedTypes = T> =
+  T extends ReadonlyArray<infer V>
+    ? IsTuple<T> extends true
+      ? {
+          [K in TupleKeys<T>]-?: PathImpl<K & string, T[K], TraversedTypes>;
+        }[TupleKeys<T>]
+      : PathImpl<ArrayKey, V, TraversedTypes>
+    : {
+        [K in keyof T]-?: PathImpl<K & string, T[K], TraversedTypes>;
+      }[keyof T];
 
 /**
  * Type which eagerly collects all paths through a type
@@ -117,4 +99,3 @@ type PathInternal<T, TraversedTypes = T> = T extends ReadonlyArray<infer V>
 // We want to explode the union type and process each individually
 // so assignable types don't leak onto the stack from the base.
 export type AllPath<T> = T extends any ? PathInternal<T> : never;
-

@@ -8,10 +8,7 @@ import { $ as bunSh, ShellPromise, type ShellExpression } from "bun";
  * // 1
  * // 3
  */
-export function $(
-  strings: TemplateStringsArray,
-  ...expressions: ShellExpression[]
-): ShellPromise {
+export function $(strings: TemplateStringsArray, ...expressions: ShellExpression[]): ShellPromise {
   console.log(
     strings
       .map((s, i) => s + (expressions[i] ?? ""))
@@ -19,7 +16,7 @@ export function $(
       .trim()
       .split("\n")
       .map((e, i) => (i === 0 ? "$ " : "> ") + e)
-      .join("\n")
+      .join("\n"),
   );
   return bunSh(strings, ...expressions);
 }

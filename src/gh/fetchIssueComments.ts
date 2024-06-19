@@ -28,4 +28,3 @@ export async function fetchIssueComments(repo: string, pull: { number: number })
   console.log(`[INFO] Fetchd ${result.length} Comments from ${repo}/pull/${pull.number}`);
   return result;
 }
-

@@ -13,8 +13,8 @@ const zFollowRule = z.object({
 });
 
 // migrate data
-await db.renameCollection("FollowRules", "FollowRuleSets").catch(()=>null)
-export type FollowRule = z.infer<typeof zFollowUpRules>[number]
+await db.renameCollection("FollowRules", "FollowRuleSets").catch(() => null);
+export type FollowRule = z.infer<typeof zFollowUpRules>[number];
 export type FollowRuleSet = z.infer<typeof zFollowRule> & {
   rules?: Task<FollowRule[]>;
   matched?: Task<PullsStatus>;
@@ -24,7 +24,5 @@ export type FollowRuleSet = z.infer<typeof zFollowRule> & {
     result: Task<any>;
   }[];
 };
-export const FollowRuleSets = db.collection<
-FollowRuleSet
->("FollowRuleSets");
+export const FollowRuleSets = db.collection<FollowRuleSet>("FollowRuleSets");
 await FollowRuleSets.createIndex("name", { unique: true });

@@ -23,11 +23,9 @@ export async function createComfyRegistryPRsFromCandidates() {
   return await pMap(
     $pipeline(CNRepos)
       .match(
-        
         $filaten({
           candidate: { data: { $eq: true } },
           createdPulls: { state: { $ne: "ok" }, mtime: $stale("5m") },
-          
         }),
       )
       .aggregate(),

@@ -1,4 +1,4 @@
-'use server'
+"use server";
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import DIE from "@snomiao/die";
 import pMap from "p-map";

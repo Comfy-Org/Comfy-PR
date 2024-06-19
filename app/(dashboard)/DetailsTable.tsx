@@ -1,4 +1,4 @@
-'use server'
+"use server";
 import { analyzePullsStatus } from "@/src/analyzePullsStatus";
 import { csvFormat, csvParse } from "d3";
 import Link from "next/link";
@@ -7,7 +7,7 @@ import Link from "next/link";
  * @author: snomiao <snomiao@gmail.com>
  */
 export default async function DetailsTable({ skip = 0, limit = 0 }) {
-  'use server'
+  "use server";
   const r = await analyzePullsStatus({ skip, limit });
   // const th = ["created_at", "updated_at", "repository", "registryId", "state", "url", "comments", "lastwords"];
   const data = csvParse(csvFormat(r));

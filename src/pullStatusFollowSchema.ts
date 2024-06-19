@@ -8,5 +8,5 @@ export const zPullStatusFollow = z.array(
     head: z.string(),
     comments: z.number(),
     lastwords: z.string(),
-  })
+  }),
 );

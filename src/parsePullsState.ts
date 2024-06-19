@@ -4,4 +4,3 @@ export type GithubPullParsed = ReturnType<typeof parsePulls>[number];
 export function parsePulls(data: GithubPull[]) {
   return data.map((e) => parsePull(e));
 }
-

@@ -12,8 +12,8 @@ export default function CodeEditor({
   onChange,
   defaultValue,
   defaultLanguage,
-  width ,
-  height ,
+  width,
+  height,
 }: {
   onChange: (text?: string) => void;
   defaultValue: string;

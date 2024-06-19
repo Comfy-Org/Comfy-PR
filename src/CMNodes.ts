@@ -48,7 +48,7 @@ export async function updateCMNodes() {
   // await CMNodes.deleteMany({ hash: { $nin: nodes.map(prop("hash")) } });
 
   await updateCMNodesDuplicationWarnings(nodes);
-  
+
   return [updateResult];
 }
 

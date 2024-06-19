@@ -65,5 +65,3 @@ const zFollowUpRule = z.object({
 });
 // zPullsStatus
 export const zFollowUpRules = zFollowUpRule.array();
-
-

@@ -21,5 +21,3 @@ export type SlackNotifyOptions = {
   last?: ObjectId;
   silent?: boolean;
 };
-
-

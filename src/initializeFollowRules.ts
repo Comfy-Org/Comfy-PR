@@ -16,7 +16,9 @@ if (import.meta.main) {
   // await peekYaml(FollowRules.find({}).toArray())
   const results = peekYaml(
     await pMap(
-      tsmatch(followRules.rules).with($OK, ({data})=>data).otherwise(()=>null) ?? [],
+      tsmatch(followRules.rules)
+        .with($OK, ({ data }) => data)
+        .otherwise(() => null) ?? [],
       async ({ name, $match, action }) =>
         promiseAllProperties({
           name,

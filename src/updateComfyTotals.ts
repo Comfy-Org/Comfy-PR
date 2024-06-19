@@ -11,7 +11,7 @@ if (import.meta.main) {
   await updateComfyTotals();
 }
 
-export async function updateComfyTotals({ notify = true, fresh ='30m'} = {}) {
+export async function updateComfyTotals({ notify = true, fresh = "30m" } = {}) {
   const today = new Date().toISOString().split("T")[0];
   const cached = await Totals.findOne($filaten({ today, totals: { mtime: $fresh(fresh), ...$OK } }));
   if (cached?.totals?.state === "ok")

@@ -3,7 +3,7 @@ import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
-  await tLog('updateCRRepos', updateCRRepos)
+  await tLog("updateCRRepos", updateCRRepos);
 }
 export async function updateCRRepos() {
   await CRNodes.createIndex({ repo_id: 1 });
