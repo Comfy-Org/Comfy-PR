@@ -6,13 +6,16 @@ import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
 import { fetchCRNodes } from "./fetchComfyRegistryNodes";
 import { notifySlack } from "./slack/notifySlack";
+import { TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 
 if (import.meta.main) {
   peekYaml(await tLog(updateCRNodes));
   console.log("CRNodes updated");
 
-  // peekYaml(await CNRepos.aggregate([{ $sample: { size: 2 } }]).toArray());
+  peekYaml(
+    await $pipeline(CNRepos).project({ repository: 1, on_registry: 1 }).sample({ size: 8 }).aggregate().toArray(),
+  );
 }
 export async function updateCRNodes() {
   const nodes = await fetchCRNodes();
@@ -27,24 +30,9 @@ export async function updateCRNodes() {
   }
 
   return [
-    // await CNRepos.bulkWrite(
-    //   nodes.map(({ repository }) => ({
-    //     updateOne: {
-    //       filter: $filaten<CNRepo>({ repository }),
-    //       update: { $set: { on_registry: TaskOK(true) } },
-    //       upsert: true,
-    //     },
-    //   })),
-    // ),
     await $pipeline(CNRepos)
-      .project({
-        repository: 1,
-        on_registry: {
-          state: "ok",
-          mtime: new Date(),
-          data: { $in: ["$repository", nodes.map(({ repository }) => repository).filter(Boolean)] },
-        },
-      })
+      .project({ repository: 1 })
+      .set({ on_registry: TaskOK({ $in: ["$repository", nodes.map(({ repository }) => repository).filter(Boolean)] }) })
       .merge({ into: "CNRepos", on: "repository", whenMatched: "merge", whenNotMatched: "insert" })
       .aggregate()
       .next(),

@@ -7,6 +7,8 @@ import {
   type IndexSpecification,
 } from "mongodb";
 import type { FieldArrayPath, FieldArrayPathValue, FieldPath, FieldPathValue } from "react-hook-form";
+import type { Update as UpdateAt } from "ts-toolbelt/out/Object/P/Update";
+import type { Split } from "ts-toolbelt/out/String/Split";
 import type { AllPath } from "./AllPath";
 type $Path<S extends Document, P extends string = string> = `$${AllPath<S>}`;
 type PathOf$Path<P extends string> = P extends `$${infer Path}` ? Path : never;
@@ -85,6 +87,7 @@ type BasePipeline<S extends Document | null = Document> = {
   aggregate(): AggregationCursor<S>;
   as<R extends Document>(): StageBuilder<R>;
   satisfies<R extends S>(): StageBuilder<R>;
+  with<R extends Document>(): StageBuilder<S&R>;
   stage<R extends Document>(stage: any): StageBuilder<R>;
 };
 type Stages<S extends Document> = {
@@ -190,7 +193,7 @@ type Stages<S extends Document> = {
   /** Deconstructs an array field from the input documents to output a document for each element. Each output document replaces the array with an element value. For each input document, outputs n documents where n is the number of array elements and can be zero for an empty array. */
   unwind: <P extends FieldArrayPath<S>>(
     i: `$${P}`,
-  ) => StageBuilder<S & { [k in P]: FieldArrayPathValue<S, k>[number] }>;
+  ) => StageBuilder<UpdateAt<S, Split<P, ".">, FieldArrayPathValue<S, P>[number]>>;
   /** Performs an ANN search on a vector in the specified field of an Atlas collection.
    * New in version 7.0.2. */
   vectorSearch<I extends Document>(i: I): StageBuilder<S>;

@@ -1,38 +1,38 @@
 # yaml
 - name: rule 0 - kill stale repos
-  $match:
+  match:
     state: OPEN
     updated_at:
       $before: 180d # 6M #SNO, not sure if this is a field we can get, but if it is ideally we can mark it as stale
   action:
-    update-issue:
-      tags: STALE
+    # update-issue:
+    #   tags: STALE
 
 - name: rule1 - follow up on zero comments
-  $match:
+  match:
     state: OPEN
     updated_at:
       $before: 4d #anything 4 days and more
     comments: 0
   action:
     add-comment:
-      by: haohaocreates
+      by: haohaocreates # WARNING: edit this comment body may lead to create multiple comments
       body: "hey {{$ownername}}, wanted to send a small nudge and ask if you had any questions!"
 
 - name: rule2 - second follow up on one comment
-  $match:
+  match:
     state: OPEN
     updated_at:
       $before: 1w # anything 7 days and more
     lastwords: /haohaocreates/
     comments: 1 # I want to make sure it's just "1" comment AND that that comment belongs to me
   action:
-    add-comment:
-      by: haohaocreates
-      body: "{{$ownername}}, wondering if there's any way we can support you on this PR!"
+    # add-comment:
+    #   by: haohaocreates
+    #   body: "{{$ownername}}, wondering if there's any way we can support you on this PR!"
 
 - name: rule3 - merge but not on registry
-  $match:
+  match:
     state: MERGED #SNO, not sure if this is an option right now
     on_registry: false #SNO, I'm not sure if this can be done in yaml, but ideally we check if the state is MERGE and if it's not on registry, then we follow up through email
     # not on registry
@@ -55,7 +55,7 @@
         Let me know if there is anything else I can help with!!"
 
 - name: rule4 - closed
-  $match:
+  match:
     state: CLOSED # but ideally we would want closed PRs that weren't merged or anything at all
     on_registry: false # but ideally we would want closed PRs that weren't merged or anything at all
   action:

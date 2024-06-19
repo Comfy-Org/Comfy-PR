@@ -17,7 +17,9 @@ export default async function RulesList() {
               return (
                 <li key={e.name} className="card-body">
                   [{e.enabled ? "ENABLED" : "DISABLED"}]
-                  {`${e.name}: (${TaskDataOrNull(e.rules)?.length ?? "FAIL to parse"} rules, matched ${TaskDataOrNull(e.matched)?.length} prs, performed ${e.action_results?.map((r) => TaskDataOrNull(r.result).length).join("/") ?? "NO"} actions)`}
+                  {`${e.name}: (${
+                    e.rules?.length ?? "FAIL to parse"
+                  } rules, matched ${TaskDataOrNull(e.matched)?.length} prs, performed ${e.action_results?.map((r) => TaskDataOrNull(r.result).length).join("/") ?? "NO"} actions)`}
                   <Link className="btn" href={`/rules/${e.name}`}>
                     [Edit]
                   </Link>

@@ -14,19 +14,22 @@ export default function CodeEditor({
   defaultLanguage,
   width,
   height,
+  readOnly
 }: {
   onChange: (text?: string) => void;
   defaultValue: string;
   defaultLanguage: string;
   width?: string;
   height?: string;
+  readOnly?: boolean
 }) {
   return (
     <Editor
       height={height}
       width={width}
+    
       saveViewState={true}
-      options={{ wordWrap: "on" }}
+      options={{ wordWrap: "on",readOnly: readOnly }}
       defaultLanguage={defaultLanguage}
       defaultValue={defaultValue}
       onChange={function handleEditorChange(value, event) {

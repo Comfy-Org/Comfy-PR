@@ -24,6 +24,12 @@ const mNumber = z
   .or(z.object({ $ne: z.number() }))
   .or(z.object({ $gte: z.number() }))
   .or(z.object({ $lte: z.number() }));
+export const zAddCommentAction = z
+  .object({
+    by: z.string(),
+    body: z.string(),
+  })
+  .strict();
 const zFollowUpRule = z.object({
   name: z.string(),
   $match: z
@@ -38,12 +44,7 @@ const zFollowUpRule = z.object({
     .partial(),
   action: z
     .object({
-      "add-comment": z
-        .object({
-          by: z.string(),
-          body: z.string(),
-        })
-        .strict(),
+      "add-comment": zAddCommentAction,
       "send-email": z
         .object({
           provider: z.string(),
@@ -52,13 +53,13 @@ const zFollowUpRule = z.object({
           subject: z.string(),
           body: z.string(),
         })
-        .strict(), // not implementd
+        .strict(), // WARN: not implementd
       "update-issue": z
         .object({
           tags: mAny,
         })
         .strict(),
-      close: z.boolean(),
+      // close: z.any(),
     })
     .partial()
     .strict(),

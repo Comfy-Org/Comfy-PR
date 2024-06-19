@@ -6,12 +6,13 @@ import type { GithubIssueComment } from "./GithubIssueComments";
 import { db } from "./db";
 import type { Task } from "./utils/Task";
 import type { zPullStatus } from "./zod/zPullsStatus";
+import { peekYaml } from "peek-log";
 // import { $pipeline } from "./db/$pipeline";
 // in case of dump production in local environment:
 // bun --env-file .env.production.local src/dump.ts > dump.csv
 export const DashboardDetails = db.collection<any>("DashboardDetails");
 if (import.meta.main) {
-  // const r = await analyzePullsStatus();
+  const r = peekYaml(await analyzePullsStatus());
   // await mkdir(".cache").catch(() => null);
   // await writeFile(".cache/dump.yaml", YAML.stringify(r));
   // await writeFile(".cache/dump.csv", csvFormat(r));

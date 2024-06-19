@@ -1,4 +1,3 @@
-import { Octokit } from "octokit";
 import { basename, dirname } from "path";
 
 /**
@@ -11,7 +10,6 @@ export function parseUrlRepoOwner(gitUrl: string) {
     repo: basename(gitUrl.replace(/:/, "/")).replace(/\.git$/, ""),
   };
 }
-
 export function stringifyOwnerRepo({
   owner,
   repo,

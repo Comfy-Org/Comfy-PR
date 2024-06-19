@@ -1,17 +1,12 @@
 "use server";
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
-import DIE from "@snomiao/die";
-import pMap from "p-map";
 import promiseAllProperties from "promise-all-properties";
 import YAML from "yaml";
 import { CMNodes } from "./CMNodes";
 import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
-import { FollowRuleSets, type FollowRule } from "./FollowRules";
-import { analyzePullsStatusPipeline } from "./analyzePullsStatus";
-import { $OK } from "./utils/Task";
+import { $filaten } from "./db";
 import { tLog } from "./utils/tLog";
-import { tsmatch } from "./utils/tsmatch";
 
 if (import.meta.main) {
   await tLog("analyzeTotals", async () => {
@@ -45,14 +40,14 @@ export async function analyzeTotals() {
       // .map((e: any) => e.pairs)
       .next(),
     "Total Authors": $pipeline(CNRepos)
+      .match($filaten({ info: { data: { owner: { login: { $exists: true } } } } }))
       .group({
-        _id: "$info.data.author",
+        _id: "$info.data.owner.login",
+        // author: "$info.data.owner.email",
         "on Comfy Manager List": { $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] } },
         "on Registry": { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
         Archived: { $sum: { $cond: ["$info.data.archived", 1, 0] } },
         All: { $sum: 1 },
-        Candidates: { $sum: { $cond: ["$candidate.data", 1, 0] } },
-        "Got ERROR on creating PR": { $sum: { $cond: [{ $eq: ["$createdPulls.state", "error"] }, 1, 0] } },
       })
       .project({ _id: 0 })
       .aggregate()
@@ -109,27 +104,11 @@ export async function analyzeTotals() {
       .next(),
 
     // // Follow Rules
-    "Follow Up Rules": (async function () {
-      await pMap($pipeline(FollowRuleSets).unwind("$rules.data").aggregate(), async (ruleset) => {
-        const rulesetname = ruleset.name;
-        const rule = tsmatch(ruleset.rules)
-          .with($OK, ({ data }) => data satisfies FollowRule[] as unknown as FollowRule)
-          .otherwise(() => null);
-        if (!rule) DIE("should never happen");
-        return {
-          name: ruleset.name + "/" + rule.name,
-          // $match: JSON.stringify(rule.$match),
-          // description: rule.description ?? null,
-          // action: "",
-          matched: await analyzePullsStatusPipeline()
-            .match(rule.$match)
-            .count("total")
-            .aggregate()
-            .next()
-            .then((e) => e?.total),
-        };
-      });
-    })(),
+    // "Follow Up Rules": (async function () {
+    //   await pMap($pipeline(FollowRuleSets).aggregate(), async (ruleset) => {
+        
+    //   });
+    // })(),
   });
   return totals;
 }

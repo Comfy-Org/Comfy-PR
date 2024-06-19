@@ -11,3 +11,4 @@ export async function tLog<T, F extends () => Awaitable<T[]>>(arg1: string | F, 
   console.log(`[${prettyMs(e - s)}] ${msg} done (count: ${r.length})`);
   return r;
 }
+export { prettyMs };
