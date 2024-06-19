@@ -21,7 +21,19 @@ if (import.meta.main) {
 }
 
 export type PullStatus = z.infer<typeof zPullStatus>;
-export type PullsStatus = PullStatus[];
+export type PullsStatus = PullStatus[] &
+  {
+    lastwords: string;
+    repository: string;
+    author_email: string;
+    ownername: string;
+    on_registry: boolean;
+    state: "OPEN" | "MERGED" | "CLOSED";
+    url: string;
+    head: string;
+    comments: number;
+    updated: string;
+  }[];
 export async function analyzePullsStatus({ skip = 0, limit = 0 } = {}) {
   "use server";
   return await analyzePullsStatusPipeline()
@@ -79,6 +91,7 @@ export function analyzePullsStatusPipeline() {
         MERGED: { $eq: ["$state", "MERGED"] },
         OPEN: { $eq: ["$state", "OPEN"] },
       })
+      .sort({ ownername: 1 })
       .sort({ OPEN: -1, MERGED: -1, CLOSED: -1, updated_at: 1 })
       .unset(["CLOSED", "MERGED", "OPEN"])
       .as<{

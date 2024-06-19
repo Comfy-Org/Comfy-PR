@@ -25,7 +25,7 @@ async function LatestDetails() {
           </Link>
         </div>
       </div>
-      <div className="gap-8">
+      <div className="flex-col flex gap-8">
         <div className="card overflow-hidden">
           <Suspense>
             <DetailsTable limit={20} />

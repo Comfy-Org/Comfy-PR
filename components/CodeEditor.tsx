@@ -25,6 +25,8 @@ export default function CodeEditor({
     <Editor
       height={height}
       width={width}
+      saveViewState={true}
+      options={{ wordWrap: "on" }}
       defaultLanguage={defaultLanguage}
       defaultValue={defaultValue}
       onChange={function handleEditorChange(value, event) {

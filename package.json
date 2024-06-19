@@ -68,6 +68,7 @@
     "rambda": "^9.2.0",
     "react-hook-form": "^7.51.5",
     "react-markdown": "^9.0.1",
+    "react-use": "^17.5.0",
     "snorun": "^1.4.0",
     "swagger-ui-react": "^5.17.14",
     "swr": "^2.2.5",
