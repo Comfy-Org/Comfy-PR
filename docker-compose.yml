@@ -2,17 +2,17 @@ volumes:
   venv:
   test_db_data:
 services:
-  comfy-pr:
-    restart: always
-    image: snomiao/comfy-registry-pr
-    build: .
-    volumes:
-      - $HOME/.ssh:/root/.ssh:ro
-      - venv:/app/.venv
-      - ./prs:/app/prs
-    env_file:
-      - .env
-      - .env.development.local
+  # comfy-pr:
+  #   restart: always
+  #   image: snomiao/comfy-registry-pr
+  #   build: .
+  #   volumes:
+  #     - $HOME/.ssh:/root/.ssh:ro
+  #     - venv:/app/.venv
+  #     - ./prs:/app/prs
+  #   env_file:
+  #     - .env
+  #     - .env.test
   mongodb:
     restart: always
     image: mongo

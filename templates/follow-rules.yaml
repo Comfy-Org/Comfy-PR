@@ -14,13 +14,13 @@
     state: OPEN
     on_registry: false
     updated_at:
-      $before: 4d #anything 4 days and more
+      $before: 20d #anything 4 days and more
     comments: 0
     head: .*:pyproject
   action:
     add-comment:
       by: haohaocreates
-      body: "hey {{$ownername}}, wanted to send a small nudge and ask if you had any questions!"
+      body: "hey @{{$ownername}}, wanted to send a small nudge and ask if you had any questions!"
 
 # - name: rule2 - second follow up on one comment
 #   $match:
@@ -33,7 +33,7 @@
 #   action:
 #     add-comment:
 #       by: haohaocreates
-#       body: "{{$ownername}}, wondering if there's any way we can support you on this PR!"
+#       body: "@{{$ownername}}, wondering if there's any way we can support you on this PR!"
 
 - name: rule3 - merge but not on registry
   $match:
