@@ -46,7 +46,7 @@ export async function updateOutdatedPullsTemplates() {
               error: { $nin: ["up to date", "body mismatch"] },
             },
             pull: {
-              user: { login: user.login },
+              user: { login: ghUser.login },
               title: {
                 $in: [outdated_pyproject.title, outdated_pyproject_v2.title, outdated_publishcr.title],
               },
