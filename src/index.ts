@@ -17,7 +17,7 @@ if (import.meta.main) {
     updateCNRepos(),
   ]);
   await initializeFollowRules();
-   await tLog("runFollowRuleSet", runFollowRuleSet);
+  await tLog("runFollowRuleSet", runFollowRuleSet);
   console.log("All done");
   process.exit(0);
 }

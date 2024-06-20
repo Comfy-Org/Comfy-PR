@@ -24,12 +24,14 @@ if (import.meta.main) {
 
 export async function runFollowRuleSet({ name = "default" } = {}) {
   const ruleset = (await FollowRuleSets.findOne({ name })) ?? DIE("default ruleset not found");
-  return peekYaml(await updateFollowRuleSet({
-    name: ruleset.name,
-    enable: ruleset.enabled ?? DIE("Ruleset is not enabled"),
-    yaml: ruleset.yamlWhenEnabled ?? DIE("Enabled yaml is not found"),
-    runAction: true,
-  }));
+  return peekYaml(
+    await updateFollowRuleSet({
+      name: ruleset.name,
+      enable: ruleset.enabled ?? DIE("Ruleset is not enabled"),
+      yaml: ruleset.yamlWhenEnabled ?? DIE("Enabled yaml is not found"),
+      runAction: true,
+    }),
+  );
 }
 export type updateFollowRuleSet = typeof updateFollowRuleSet;
 export async function updateFollowRuleSet({
