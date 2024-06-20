@@ -29,6 +29,7 @@
 #       $before: 1w # anything 7 days and more
 #     lastwords: /haohaocreates/
 #     comments: 1 # I want to make sure it's just "1" comment AND that that comment belongs to me
+#     head: .*:pyproject
 #   action:
 #     add-comment:
 #       by: haohaocreates

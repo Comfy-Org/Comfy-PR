@@ -24,7 +24,7 @@
     "dev": "next dev",
     "lint": "next lint",
     "prerelease": "bun run build && bun run test && vercel --prod",
-    "release": "npm version patch && npm publish",
+    "release": "bunx standard-version && npm publish",
     "start": "next start",
     "test": "bun test"
   },

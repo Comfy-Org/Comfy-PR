@@ -142,7 +142,9 @@ export async function updateFollowRuleSet({
       { concurrency: 1 },
     );
     if (enable) {
-      await FollowRuleSets.updateOne({ name }, { $set: { enabled: true, yamlWhenEnabled: code } });
+      await FollowRuleSets.updateOne({ name }, { $set: { enabled: true, yamlWhenEnabled: code, yaml: code } });
+    } else {
+      await FollowRuleSets.updateOne({ name }, { $set: { yaml: code } });
     }
     return parseResult;
   })()
