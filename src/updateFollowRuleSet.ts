@@ -98,10 +98,11 @@ export async function updateFollowRuleSet({
             const comments = await fetchIssueComments(repository, { number: pull_number })
               .then(TaskOK)
               .catch(TaskError);
-            (await CNRepos.updateOne(
-              $filaten({ repository, crPulls: { data: { pull: { html_url } } } }),
-              { $set: { "crPulls.data.$.comments": comments } },
-            )).matchedCount ?? DIE("pre-matched comments is not found");
+            (
+              await CNRepos.updateOne($filaten({ repository, crPulls: { data: { pull: { html_url } } } }), {
+                $set: { "crPulls.data.$.comments": comments },
+              })
+            ).matchedCount ?? DIE("pre-matched comments is not found");
           });
         }
 
