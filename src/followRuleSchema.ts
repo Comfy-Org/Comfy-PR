@@ -38,6 +38,7 @@ const zFollowUpRule = z.object({
       on_registry: z.boolean(),
       updated_at: mDate,
       lastwords: mString,
+      head: mString,
       comments: mNumber,
     })
     .strict()

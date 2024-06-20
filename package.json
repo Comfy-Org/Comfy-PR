@@ -1,7 +1,6 @@
 {
   "name": "comfy-pr",
-  "title": "Comfy-PR",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry]( https://www.comfyregistry.org/ ).",
   "keywords": [],
   "license": "ISC",
@@ -12,6 +11,7 @@
     "types": "./index.ts"
   },
   "main": "index.ts",
+  "module": "index.ts",
   "bin": {
     "comfy-pr": "./src/cli.ts"
   },
@@ -89,7 +89,7 @@
   },
   "devDependencies": {
     "@tanstack/react-table": "^8.17.3",
-    "@types/bun": "^1.1.4",
+    "@types/bun": "^1.1.5",
     "@types/json-stable-stringify": "^1.0.36",
     "@types/lodash-es": "^4.17.12",
     "@types/md5": "^2.3.5",
@@ -110,5 +110,6 @@
   },
   "peerDependencies": {
     "typescript": "^5.4.5"
-  }
+  },
+  "title": "Comfy-PR"
 }
