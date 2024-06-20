@@ -14,7 +14,7 @@ import { $filaten } from "./db";
 import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
 import { initializeFollowRules } from "./initializeFollowRules";
 import { notifySlackLinks } from "./slack/notifySlackLinks";
-import { TaskError, TaskOK } from "./utils/Task";
+import { TaskError, TaskOK, type Task } from "./utils/Task";
 import { prettyMs } from "./utils/tLog";
 import { yaml } from "./utils/yaml";
 
@@ -104,17 +104,20 @@ export async function updateFollowRuleSet({
                     };
 
                     if (runAction) {
-                      const existedComments =
+                      const existedCommentsTask =
                         (await $pipeline(CNRepos)
                           .unwind("$crPulls.data")
                           .match({ "crPulls.data.pull.html_url": loadedAction.url })
                           .with<{ "crPulls.data": CRPull }>()
-                          .replaceRoot({ newRoot: "$crPulls.data.comments.data" })
-                          .as<GithubIssueComment[]>()
+                          .replaceRoot({ newRoot: "$crPulls.data.comments" })
+                          .as<Task<GithubIssueComment[]>>()
                           .aggregate()
                           .next()) ??
                         DIE("comments is not fetched before, plz check " + loadedAction.url + " in CNRepos");
 
+                      const existedComments =
+                        TaskDataOrNull(existedCommentsTask) ??
+                        DIE("NO-COMMENTS-FOUND should never happen here, bcz pipeline filtered at first");
                       const existedComment = existedComments.find((e) => e.body === loadedAction.body);
                       if (!existedComment) {
                         const { comments, comment } = await createIssueComment(
