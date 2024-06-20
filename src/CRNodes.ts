@@ -14,6 +14,7 @@ export type CRNode = Awaited<ReturnType<typeof fetchCRNodes>>[number] & {
 export const CRNodes = db.collection<CRNode>("CRNodes");
 await CRNodes.createIndex({ id: 1 }, { unique: true });
 await CRNodes.createIndex({ repository: 1 }, { unique: false }); // WARN: duplicate is allowed
+
 if (import.meta.main) {
   const r = await pMap(
     $pipeline(CNRepos)

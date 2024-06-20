@@ -1,4 +1,3 @@
-import { peekYaml } from "peek-log";
 import { gh } from ".";
 import { parseUrlRepoOwner } from "../parseOwnerRepo";
 import { parsePulls } from "../parsePullsState";
@@ -10,5 +9,5 @@ export async function fetchGithubPulls(repository: string) {
       state: "all",
     })
   ).data as GithubPull[];
-  return parsePulls(peekYaml(data));
+  return parsePulls((data));
 }

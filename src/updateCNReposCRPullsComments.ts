@@ -1,5 +1,4 @@
 import pMap from "p-map";
-import { peekYaml } from "peek-log";
 import { CNRepos, type CRPull } from "./CNRepos";
 import { $fresh, $stale } from "./db";
 // import { $filaten } from "./db";
@@ -28,13 +27,13 @@ export async function updateCNReposCRPullsComments() {
       const { repository, pull } = data as unknown as { repository: string } & CRPull;
       const html_url = pull.html_url;
       const comments = await fetchIssueComments(repository, pull).then(TaskOK).catch(TaskError);
-      return peekYaml([
+      return [
         await CNRepos.findOneAndUpdate(
           $filaten({ repository, crPulls: { data: { pull: { html_url } } } }),
           { $set: { "crPulls.data.$.comments": comments } },
           { upsert: true, returnDocument: "after" },
         ),
-      ]);
+      ];
     },
     { concurrency: 2 },
   );
