@@ -50,11 +50,7 @@ export async function updateOutdatedPullsTemplates() {
                 $in: [outdated_pyproject.title, outdated_pyproject_v2.title, outdated_publishcr.title],
               },
               body: {
-                $in: [
-                  outdated_pyproject.body,
-                  outdated_pyproject_v2.body,
-                   outdated_publishcr.body,
-                  ],
+                $in: [outdated_pyproject.body, outdated_pyproject_v2.body, outdated_publishcr.body],
               },
             },
           }),
