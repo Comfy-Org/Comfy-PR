@@ -12,6 +12,7 @@ import { analyzePullsStatusPipeline, type PullStatus } from "./analyzePullsStatu
 import { createIssueComment } from "./createIssueComment";
 import { $filaten } from "./db";
 import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
+import { ghUser } from "./ghUser";
 import { initializeFollowRules } from "./initializeFollowRules";
 import { notifySlackLinks } from "./slack/notifySlackLinks";
 import { TaskError, TaskOK, type Task } from "./utils/Task";
@@ -103,7 +104,7 @@ export async function updateFollowRuleSet({
                       ),
                     };
 
-                    if (runAction) {
+                    if (runAction && loadedAction.by === ghUser.login) {
                       const existedCommentsTask =
                         (await $pipeline(CNRepos)
                           .unwind("$crPulls.data")
