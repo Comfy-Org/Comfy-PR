@@ -56,12 +56,9 @@ export const $pipeline: PipelineLauncher = function $pipeline<S extends Document
   return new Proxy(
     {
       // type helper
-      satisfies<RSchema extends S = S>() {
-        return $pipeline<RSchema>(_coll, pipeline);
-      },
-      as<RSchema extends Document = S>() {
-        return $pipeline<RSchema>(_coll, pipeline);
-      },
+      satisfies: () => $pipeline(_coll, pipeline),
+      as:() => $pipeline(_coll, pipeline),
+      with: () => $pipeline(_coll, pipeline),
       // output
       aggregate() {
         if (!coll) throw new Error("Collection not provided");
