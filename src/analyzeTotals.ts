@@ -20,7 +20,7 @@ if (import.meta.main) {
 export async function analyzeTotals() {
   "use server";
   const totals = await promiseAllProperties({
-    Now: new Date().toISOString(),
+    // Now: new Date().toISOString(),
     "Total Nodes": promiseAllProperties({
       "on ComfyUI Manager": CMNodes.estimatedDocumentCount(),
       "on Registry": CRNodes.estimatedDocumentCount(),
