@@ -10,17 +10,9 @@ if (import.meta.main) {
   await tLog("updateCNReposRelatedPulls", updateCNReposRelatedPulls);
 }
 export async function updateCNReposRelatedPulls() {
-  await CNRepos.createIndex({
-    "pulls.state": 1,
-    "crPulls.mtime": 1,
-  });
+  await CNRepos.createIndex({ "pulls.state": 1, "crPulls.mtime": 1 });
   return await pMap(
-    CNRepos.find(
-      $filaten({
-        pulls: { state: "ok" },
-        crPulls: { mtime: $stale("3d") },
-      }),
-    ),
+    CNRepos.find($filaten({ pulls: { state: "ok" }, crPulls: { mtime: $stale("1d") } })),
     async (repo, i) => {
       const { repository } = repo;
       const pulls = match(repo.pulls)

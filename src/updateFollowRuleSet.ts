@@ -21,9 +21,9 @@ if (import.meta.main) {
   await runFollowRuleSet();
 }
 
-async function runFollowRuleSet({ name = "default" } = {}) {
+export async function runFollowRuleSet({ name = "default" } = {}) {
   const ruleset = (await FollowRuleSets.findOne({ name })) ?? DIE("default ruleset not found");
-  await updateFollowRuleSet({
+  return await updateFollowRuleSet({
     name: ruleset.name,
     enable: ruleset.enabled ?? DIE("Ruleset is not enabled"),
     yaml: ruleset.yamlWhenEnabled ?? DIE("Enabled yaml is not found"),

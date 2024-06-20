@@ -1,6 +1,5 @@
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import pMap from "p-map";
-import { peekYaml } from "peek-log";
 import { match } from "ts-pattern";
 import { CNRepos } from "./CNRepos";
 import { $filaten, $stale } from "./db";
@@ -14,7 +13,7 @@ export async function updateCNReposPulls() {
   await CNRepos.createIndex("pulls.mtime");
   return await pMap(
     $pipeline(CNRepos)
-      .match(peekYaml($filaten({ pulls: { mtime: $stale("1d") } })))
+      .match($filaten({ pulls: { mtime: $stale("1d") } }))
       .project({ repository: 1 })
       .aggregate(),
     async ({ repository }) => {

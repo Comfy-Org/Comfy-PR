@@ -4,6 +4,7 @@ import { $ as zx } from "zx";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { initializeFollowRules } from "./initializeFollowRules";
 import { updateCNRepos } from "./updateCNRepos";
+import { runFollowRuleSet } from "./updateFollowRuleSet";
 import { updateSlackMessages } from "./updateSlackMessages";
 
 if (import.meta.main) {
@@ -13,7 +14,7 @@ if (import.meta.main) {
     updateSlackMessages(),
     checkComfyActivated(), // needed if make pr
     initializeFollowRules(),
-    // runDefaultFollowRuleSet(),
+    runFollowRuleSet(),
     updateCNRepos(),
   ]);
   console.log("All done");
