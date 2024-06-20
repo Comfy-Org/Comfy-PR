@@ -4,6 +4,7 @@ bun index.ts
 */
 import type { ObjectId, WithId } from "mongodb";
 import "react-hook-form";
+import { type Task } from "../packages/mongodb-pipeline-ts/Task";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { db } from "./db";
@@ -11,7 +12,6 @@ import { gh } from "./gh";
 import { type RelatedPull } from "./matchRelatedPulls";
 import type { GithubPullParsed } from "./parsePullsState";
 import { type SlackMsg } from "./slack/SlackMsgs";
-import { type Task } from "./utils/Task";
 
 type Email = {
   from?: string;

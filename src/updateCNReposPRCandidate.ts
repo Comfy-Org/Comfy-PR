@@ -2,11 +2,11 @@ import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import pMap from "p-map";
 import { peekYaml } from "peek-log";
 import { match } from "ts-pattern";
+import { $OK, TaskOK } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos } from "./CNRepos";
 import { $filaten, $fresh, $stale } from "./db";
 import { updateCNReposPulls } from "./updateCNReposPulls";
 import { updateCNReposRelatedPulls } from "./updateCNReposRelatedPulls";
-import { $OK, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   console.log(await updateCNReposPRCandidate());

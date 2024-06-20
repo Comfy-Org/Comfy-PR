@@ -2,10 +2,10 @@ import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import { peekYaml } from "peek-log";
 import prettyMs from "pretty-ms";
 import type { z } from "zod";
+import type { Task } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos, type CRPull } from "./CNRepos";
 import type { GithubIssueComment } from "./GithubIssueComments";
 import { db } from "./db";
-import type { Task } from "./utils/Task";
 import type { zPullStatus } from "./zod/zPullsStatus";
 // import { $pipeline } from "./db/$pipeline";
 // in case of dump production in local environment:

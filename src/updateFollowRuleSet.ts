@@ -1,10 +1,11 @@
 "use server";
-import { TaskDataOrNull } from "@/app/(dashboard)/rules/TaskDataOrNull";
 import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import { TaskDataOrNull } from "@/packages/mongodb-pipeline-ts/Task";
 import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { peekYaml } from "peek-log";
+import { TaskError, TaskOK, type Task } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos, type CRPull } from "./CNRepos";
 import { FollowRuleSets } from "./FollowRules";
 import type { GithubIssueComment } from "./GithubIssueComments";
@@ -15,7 +16,6 @@ import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
 import { ghUser } from "./ghUser";
 import { initializeFollowRules } from "./initializeFollowRules";
 import { notifySlackLinks } from "./slack/notifySlackLinks";
-import { TaskError, TaskOK, type Task } from "./utils/Task";
 import { prettyMs } from "./utils/tLog";
 import { yaml } from "./utils/yaml";
 
@@ -120,6 +120,7 @@ export async function updateFollowRuleSet({
                         TaskDataOrNull(existedCommentsTask) ??
                         DIE("NO-COMMENTS-FOUND should never happen here, bcz pipeline filtered at first");
                       const existedComment = existedComments.find((e) => e.body === loadedAction.body);
+                      
                       if (!existedComment) {
                         const { comments, comment } = await createIssueComment(
                           loadedAction.url,

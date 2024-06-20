@@ -1,3 +1,4 @@
+import { match as tsmatch } from "ts-pattern";
 export type Task<T> = { mtime: Date } & (
   | { state: "pending"; data?: T }
   | { state: "ok"; data: T }
@@ -30,3 +31,15 @@ export function TaskError(error: any) {
     error: String(error.message || error),
   };
 }
+export function TaskDataOrNull<T>(e?: Task<T>) {
+  return tsmatch(e)
+    .with($OK, ({ data }) => data)
+    .otherwise(() => null);
+}
+export function TaskErrorOrNull<T>(e?: Task<T>) {
+  return tsmatch(e)
+    .with($ERROR, ({ error }) => error)
+    .otherwise(() => null);
+}
+
+export { tsmatch };

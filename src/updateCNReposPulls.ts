@@ -1,10 +1,10 @@
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import pMap from "p-map";
 import { match } from "ts-pattern";
+import { $OK, TaskError, TaskOK } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos } from "./CNRepos";
 import { $filaten, $stale } from "./db";
 import { fetchGithubPulls } from "./gh/fetchGithubPulls";
-import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   console.log(await tLog("Update CNRepos for Github Pulls", updateCNReposPulls));

@@ -1,6 +1,6 @@
+import { TaskDataOrNull } from "@/packages/mongodb-pipeline-ts/Task";
 import { FollowRuleSets } from "@/src/FollowRules";
 import Link from "next/link";
-import { TaskDataOrNull } from "./TaskDataOrNull";
 
 /**
  * @author: snomiao <snomiao@gmail.com>

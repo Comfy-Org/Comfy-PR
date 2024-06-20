@@ -43,10 +43,16 @@ export async function analyzeTotals() {
       .match($filaten({ info: { data: { owner: { login: { $exists: true } } } } }))
       .group({
         _id: "$info.data.owner.login",
-        // author: "$info.data.owner.email",
-        "on Comfy Manager List": { $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] } },
-        "on Registry": { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
-        Archived: { $sum: { $cond: ["$info.data.archived", 1, 0] } },
+        // author: "$info.data.owner.login",
+        cm: { $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] } },
+        cr: { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
+        All: { $sum: 1 },
+      })
+      .set({ author: "$_id" })
+      .group({
+        _id: null,
+        "on Comfy Manager List": { $sum: { $cond: [{ $eq: ["$cm", 0] }, 0, 1] } },
+        "on Registry": { $sum: { $cond: [{ $eq: ["$cr", 0] }, 0, 1] } },
         All: { $sum: 1 },
       })
       .project({ _id: 0 })
