@@ -24,12 +24,12 @@ export async function updateComfyTotals({ notify = true, fresh = "30m" } = {}) {
   // notify
   if (notify) {
     // ignore today
-    (await match(totals)
+    await match(totals)
       .with($OK, async (totals) => {
         const msg = `Totals: \n${"```"}\n${YAML.stringify(totals)}\n${"```"}`;
         await notifySlack(msg, { unique: true });
       })
-      .otherwise(() => null));
+      .otherwise(() => null);
   }
 
   const insertResult = await Totals.insertOne({ totals });

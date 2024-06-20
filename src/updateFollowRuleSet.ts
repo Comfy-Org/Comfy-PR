@@ -120,7 +120,7 @@ export async function updateFollowRuleSet({
                         TaskDataOrNull(existedCommentsTask) ??
                         DIE("NO-COMMENTS-FOUND should never happen here, bcz pipeline filtered at first");
                       const existedComment = existedComments.find((e) => e.body === loadedAction.body);
-                      
+
                       if (!existedComment) {
                         const { comments, comment } = await createIssueComment(
                           loadedAction.url,
