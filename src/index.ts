@@ -16,7 +16,8 @@ if (import.meta.main) {
     checkComfyActivated(), // needed if make pr
     updateCNRepos(),
   ]);
-  await initializeFollowRules(), await tLog("runFollowRuleSet", runFollowRuleSet);
+  await initializeFollowRules();
+   await tLog("runFollowRuleSet", runFollowRuleSet);
   console.log("All done");
   process.exit(0);
 }
