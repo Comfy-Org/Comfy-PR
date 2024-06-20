@@ -26,6 +26,7 @@ export function PullsStatusTable({
       <table className="shadow-md w-[-webkit-fill-available]">
         <thead className="sticky top-0">
           <tr className="capitalize text-start bg-blue-800">
+            <th className="p-2">{"No."}</th>
             {header.map((key) => (
               <th key={String(key)} className="p-2">
                 {String(key)}
@@ -36,6 +37,7 @@ export function PullsStatusTable({
         <tbody>
           {pullsStatus.map((item) => (
             <tr key={item.url} className="even:bg-cyan-700 odd:bg-cyan-800">
+              <td className="p-2">{pullsStatus.indexOf(item) + 1}</td>
               {header.map((key) => (
                 <td key={key} className="p-2">
                   <div className="max-w-20em">
