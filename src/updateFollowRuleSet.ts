@@ -12,6 +12,7 @@ import { analyzePullsStatusPipeline, type PullStatus } from "./analyzePullsStatu
 import { createIssueComment } from "./createIssueComment";
 import { $filaten } from "./db";
 import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
+import { initializeFollowRules } from "./initializeFollowRules";
 import { notifySlackLinks } from "./slack/notifySlackLinks";
 import { TaskError, TaskOK } from "./utils/Task";
 import { prettyMs } from "./utils/tLog";
@@ -19,6 +20,10 @@ import { yaml } from "./utils/yaml";
 
 if (import.meta.main) {
   // updateFollowRuleSet({yaml: 'default'})
+  await FollowRuleSets.drop();
+  const defaultRuleSet = await initializeFollowRules();
+
+  await updateFollowRuleSet({ name: "default", enable: true, yaml: defaultRuleSet.yaml });
   await runFollowRuleSet();
 }
 
@@ -130,7 +135,7 @@ export async function updateFollowRuleSet({
 
                     return loadedAction;
                   },
-                  { stopOnError: false, concurrency: 1 },
+                  { concurrency: 1 },
                 );
               }
             },

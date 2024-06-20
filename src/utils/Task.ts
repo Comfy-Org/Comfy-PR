@@ -27,6 +27,6 @@ export function TaskError(error: any) {
   return {
     state: "error" as const,
     mtime: new Date(),
-    error: String(error.message ?? error),
+    error: String(error.message || error),
   };
 }
