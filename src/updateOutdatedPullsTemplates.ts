@@ -20,6 +20,7 @@ export async function updateOutdatedPullsTemplates() {
   const pyproject = await readTemplate("add-toml.md");
   const publishcr = await readTemplate("add-action.md");
   const outdated_pyproject = await readTemplate("outdated/add-toml.md");
+  const outdated_pyproject_v2 = await readTemplate("outdated/add-toml-v2.md");
   const outdated_publishcr = await readTemplate("outdated/add-action.md");
   // const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
 
@@ -45,12 +46,15 @@ export async function updateOutdatedPullsTemplates() {
             },
             pull: {
               user: { login: user.login },
-              title: outdated_pyproject.title,
-              // title: {
-              //   $in: [outdated_pyproject.title, outdated_publishcr.title],
-              // },
+              title: {
+                $in: [outdated_pyproject.title, outdated_pyproject_v2.title, outdated_publishcr.title],
+              },
               body: {
-                $in: [outdated_pyproject.body, outdated_publishcr.body],
+                $in: [
+                  outdated_pyproject.body,
+                  outdated_pyproject_v2.body,
+                   outdated_publishcr.body,
+                  ],
               },
             },
           }),
@@ -91,6 +95,7 @@ export async function updateOutdatedPullsTemplates() {
             .with(pyproject, () => DIE("is already latest template"))
             .with(publishcr, () => DIE("is already latest template"))
             .with(outdated_pyproject, () => pyproject)
+            .with(outdated_pyproject_v2, () => pyproject)
             .with(outdated_publishcr, () => publishcr)
             .otherwise(() => DIE("Template not found: " + pull.title));
           if (!replacement) return { ...data, edited: TaskError("Template mismatch") };
