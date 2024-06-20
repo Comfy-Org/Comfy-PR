@@ -1,0 +1,73 @@
+# follow-rules template
+
+- name: rule 0 - kill stale repos
+  $match:
+    state: OPEN
+    updated_at:
+      $before: 180d # 6M #SNO, not sure if this is a field we can get, but if it is ideally we can mark it as stale
+  action:
+    update-issue:
+      tags: STALE
+
+- name: rule1 - follow up on zero comments
+  $match:
+    state: OPEN
+    on_registry: false
+    updated_at:
+      $before: 20d #anything 4 days and more
+    comments: 0
+    head: .*:pyproject
+  action:
+    add-comment:
+      by: haohaocreates
+      body: "hey @{{$ownername}}, wanted to send a small nudge and ask if you had any questions!"
+
+# - name: rule2 - second follow up on one comment
+#   $match:
+#     state: OPEN
+#     updated_at:
+#       $before: 1w # anything 7 days and more
+#     lastwords: /haohaocreates/
+#     comments: 1 # I want to make sure it's just "1" comment AND that that comment belongs to me
+#     head: .*:pyproject
+#   action:
+#     add-comment:
+#       by: haohaocreates
+#       body: "@{{$ownername}}, wondering if there's any way we can support you on this PR!"
+
+- name: rule3 - merge but not on registry
+  $match:
+    state: MERGED #SNO, not sure if this is an option right now
+    on_registry: false #SNO, I'm not sure if this can be done in yaml, but ideally we check if the state is MERGE and if it's not on registry, then we follow up through email
+    # not on registry
+    head: .*:pyproject
+  action:
+    send-email:
+      provider: google
+      from: haohaocreates@drip.art
+      to: "{{$author_email}}" # not sure if we can grab their email but if we can this is what it would look like
+      subject: Comfy Registry PR Follow Up
+      body: |
+        Saw that you merged the PR which is amazing!!!!! Just a few last steps to get you onboarded 🚀
+
+        Steps:
+        1. Go to the registry. [https://www.comfyregistry.org/]
+        2. Login and create a publisher id.
+        3. Update the toml file with your publisher ID, and publish your node either through the CLI or with GH Actions!
+
+        There's also like a 1minute video we made too teehee - https://youtu.be/WhOZZOgBggU
+
+        Let me know if there is anything else I can help with!!"
+
+- name: rule4 - closed
+  $match:
+    state: CLOSED # but ideally we would want closed PRs that weren't merged or anything at all
+    on_registry: false # but ideally we would want closed PRs that weren't merged or anything at all
+  action:
+    send-email:
+      provider: google
+      from: haohaocreates@drip.art
+      to: "{{$author_email}}" #not sure if we can grab their email but if we can this is what it would look like
+      subject: Comfy Registry PR Follow Up
+      body: |
+        Saw that you closed the recent PR which is completely understandable!!!!! Just wondering if there were any questions that we could help answer in the meantime!

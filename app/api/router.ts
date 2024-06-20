@@ -1,5 +1,7 @@
 import pkg from "@/package.json";
 import { getWorkerInstance } from "@/src/WorkerInstances";
+import { analyzePullsStatus } from "@/src/analyzePullsStatus";
+import { zPullsStatus } from "@/src/zod/zPullsStatus";
 import DIE from "@snomiao/die";
 import { initTRPC } from "@trpc/server";
 import { type OpenApiMeta } from "trpc-openapi";
@@ -33,4 +35,9 @@ export const router = t.router({
     .input(z.object({}))
     .output(z.any())
     .query(async () => await getWorkerInstance()),
+  analyzePullsStatus: t.procedure
+    .meta({ openapi: { method: "GET", path: "/analyze-pulls-status", description: "Get current worker" } })
+    .input(z.object({ skip: z.number(), limit: z.number() }).partial())
+    .output(zPullsStatus)
+    .query(async ({ input: { limit = 0, skip = 0 } }) => (await analyzePullsStatus({ limit, skip })) as any),
 });

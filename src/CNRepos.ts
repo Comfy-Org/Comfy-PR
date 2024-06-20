@@ -2,15 +2,15 @@
 /*
 bun index.ts
 */
-import type { WithId } from "mongodb";
+import type { ObjectId, WithId } from "mongodb";
 import "react-hook-form";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
-import { type SlackMsg } from "./SlackMsgs";
 import { db } from "./db";
-import { type RelatedPull } from "./fetchRelatedPulls";
-import { type GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
+import { type RelatedPull } from "./matchRelatedPulls";
+import type { GithubPullParsed } from "./parsePullsState";
+import { type SlackMsg } from "./slack/SlackMsgs";
 import { type Task } from "./utils/Task";
 
 type Email = {
@@ -31,21 +31,38 @@ type GithubRepo = Awaited<ReturnType<typeof gh.repos.get>>["data"];
 export type CRType = "pyproject" | "publichcr";
 export type CRPull = RelatedPull & {
   edited?: Task<boolean>;
-  comments?: Task<GithubIssueComment[]>;
-  issue?: Task<GithubIssue>;
+  comments?: Task<Pick<GithubIssueComment, "body">[]>;
+  issue?: Task<Pick<GithubIssue, "number" | "html_url" | "body" | "updated_at">>;
 };
 
 export type CustomNodeRepo = {
   repository: string;
-  cr?: WithId<CRNode>;
-  cm?: WithId<CMNode>;
-  info?: Task<GithubRepo>;
-  pulls?: Task<GithubPull[]>;
+  info?: Task<Pick<GithubRepo, "html_url" | "archived" | "default_branch" | "private">>;
+
+  /** @deprecated use cr_ids or on_registry */
+  cr?: Pick<WithId<CRNode>, "_id" | "id" | "name">;
+
+  cr_ids?: ObjectId[];
+  on_registry?: Task<boolean>; // check if cr_ids is not empty
+
+  /** @deprecated use cm_ids */
+  cm?: Pick<WithId<CMNode>, "_id" | "id" | "title">;
+  cm_ids?: ObjectId[];
+
+  // cache
+  pulls?: Task<GithubPullParsed[]>;
+
   crPulls?: Task<CRPull[]>;
+
+  /** @deprecated TODO: NOT IMPLEMENTD */
+  crPull_ids: ObjectId[];
+
   candidate?: Task<boolean>;
   // createFork?: Task<GithubRepo>;
   // createBranches?: Task<{ type: CRType; assigned: Worker } & PushedBranch>[];
-  createdPulls?: Task<GithubPull[]>;
+
+  /** @deprecated use CRPulls.pull */
+  createdPulls?: Task<GithubPullParsed[]>;
 };
 export type CNRepo = CustomNodeRepo;
 export const CNRepos = db.collection<CNRepo>("CNRepos");

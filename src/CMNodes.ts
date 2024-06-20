@@ -1,9 +1,9 @@
 import jsonStableStringify from "json-stable-stringify";
 import md5 from "md5";
 import type { ObjectId } from "mongodb";
-import { type SlackMsg } from "./SlackMsgs";
 import { db } from "./db";
 import { fetchCMNodes } from "./fetchCMNodes";
+import { type SlackMsg } from "./slack/SlackMsgs";
 import { updateCMNodesDuplicationWarnings } from "./updateCMNodesDuplicationWarnings";
 
 // Raw version maybe duplicated with id or reference
@@ -48,7 +48,7 @@ export async function updateCMNodes() {
   // await CMNodes.deleteMany({ hash: { $nin: nodes.map(prop("hash")) } });
 
   await updateCMNodesDuplicationWarnings(nodes);
-  
+
   return [updateResult];
 }
 

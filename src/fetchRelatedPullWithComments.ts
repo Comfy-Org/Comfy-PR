@@ -1,10 +1,10 @@
 import pMap from "p-map";
-import { fetchIssueComments } from "./fetchPullComments";
-import { matchRelatedPulls } from "./fetchRelatedPulls";
-import { type GithubPull } from "./fetchRepoPRs";
+import { fetchIssueComments } from "./gh/fetchIssueComments";
+import { matchRelatedPulls } from "./matchRelatedPulls";
+import type { GithubPullParsed } from "./parsePullsState";
 import { summaryLastPullComment } from "./summaryLastPullComment";
-
-export async function fetchRelatedPullWithComments(repository: string, pulls: GithubPull[]) {
+/** @deprecated */
+export async function fetchRelatedPullWithComments(repository: string, pulls: GithubPullParsed[]) {
   const relatedPulls = await matchRelatedPulls(pulls);
   const relatedPullsWithComment = await pMap(relatedPulls, async (data) => {
     const comments = await fetchIssueComments(repository, data.pull);

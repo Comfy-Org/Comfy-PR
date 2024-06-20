@@ -1,30 +1,40 @@
 import Link from "next/link";
-import DetailsTable from "./Details";
-import { Totals } from "./Totals";
+import { Suspense } from "react";
+import DetailsTable from "./DetailsTable";
+import TotalsPage from "./totals/page";
 export const dynamic = "force-dynamic";
-
-export default async function CRPullsDump() {
+export default async function DashboardPage() {
   return (
-    <main className="flex">
-      <Totals />
-      <div className="h-full card-body justify-center gap-4">
-        <div className="h-[48px] flex">
-          <h3 className="self-end">Details</h3>
-        </div>
-        <div className="card gap-8">
-          <div className="flex gap-4">
-            {/* two super big buttons: 1. dump yaml, 2. dump csv */}
-            <Link className="btn" href="/api/dump.csv" target="dump">
-              Dump .CSV
-            </Link>
-            <Link className="btn" href="/api/dump.yaml" target="dump">
-              Dump .YAML
-            </Link>
-          </div>
-
-          <DetailsTable limit={40} />
+    <main className="flex flex-wrap">
+      <TotalsPage />
+      <LatestDetails />
+    </main>
+  );
+}
+async function LatestDetails() {
+  return (
+    <div className="h-full card-body justify-center gap-4 min-w-0 overflow-hidden grow-1">
+      <div className="text-2xl flex justify-between">
+        <h2 className="">Latest</h2>
+        <div className="flex gap-4">
+          <Link className="btn" href="/api/dump.csv" target="dump">
+            Dump .CSV
+          </Link>
+          <Link className="btn" href="/api/dump.yaml" target="dump">
+            Dump .YAML
+          </Link>
         </div>
       </div>
-    </main>
+      <div className="flex-col flex gap-8">
+        <div className="card overflow-hidden">
+          <Suspense>
+            <DetailsTable limit={20} />
+          </Suspense>
+        </div>
+        <Link href="/details" className="p-4 btn btn-ghost">
+          See More?
+        </Link>
+      </div>
+    </div>
   );
 }

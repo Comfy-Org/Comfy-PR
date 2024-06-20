@@ -1,7 +1,10 @@
 import pMap from "p-map";
 import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
-
+import { tLog } from "./utils/tLog";
+if (import.meta.main) {
+  await tLog("updateCRRepos", updateCRRepos);
+}
 export async function updateCRRepos() {
   await CRNodes.createIndex({ repo_id: 1 });
   return await pMap(CRNodes.find({ repo_id: { $exists: false } }), async (cr, i) => {

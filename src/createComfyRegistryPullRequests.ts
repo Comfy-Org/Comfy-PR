@@ -4,9 +4,10 @@ import yaml from "yaml";
 import { clone_modify_push_Branches } from "./clone_modify_push_Branches";
 import { createGithubForkForRepo } from "./createGithubForkForRepo";
 import { createGithubPullRequest } from "./createGithubPullRequest";
-import type { GithubPull } from "./fetchRepoPRs";
+import type { GithubPull } from "./gh/GithubPull";
+import { parsePulls } from "./parsePullsState";
 
-export async function createComfyRegistryPullRequests(upstreamRepoUrl: string): Promise<GithubPull[]> {
+export async function createComfyRegistryPullRequests(upstreamRepoUrl: string) {
   const forkedRepo = await createGithubForkForRepo(upstreamRepoUrl);
   const PR_REQUESTS = await clone_modify_push_Branches(upstreamRepoUrl, forkedRepo.html_url);
   // branch is ready in fork now
@@ -17,5 +18,5 @@ export async function createComfyRegistryPullRequests(upstreamRepoUrl: string): 
   // prs
   const prs = await pMap(PR_REQUESTS, async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }));
   console.log("ALL PRs DONE");
-  return prs as GithubPull[];
+  return (prs as GithubPull[]).map((e) => parsePulls([e])[0]);
 }

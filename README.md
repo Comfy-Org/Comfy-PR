@@ -217,6 +217,7 @@ MONGODB_URI=mongodb://localhost:27017
 bun src/index.ts
 
 # To start develop in any of other scripts:
+# Feel free to run any scripts in src/, they are safe to re-run and stop in any time.
 bun src/THAT_FILE_YOU_WANT_TO_RUN.ts
 
 # To check if you didn't break anything?

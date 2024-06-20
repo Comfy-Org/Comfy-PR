@@ -1,14 +1,11 @@
 import { readFile } from "fs/promises";
 import { dirname } from "path";
-import { GIT_USEREMAIL, GIT_USERNAME } from ".";
-import { $ } from "./echoBunShell";
+import { GIT_USEREMAIL } from "./GIT_USEREMAIL";
+import { GIT_USERNAME } from "./GIT_USERNAME";
+import { $ } from "./cli/echoBunShell";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
 import { gh } from "./gh";
-import {
-  parseUrlRepoOwner,
-  stringifyGithubOrigin,
-  stringifyGithubRepoUrl,
-} from "./parseOwnerRepo";
+import { parseUrlRepoOwner, stringifyGithubOrigin, stringifyGithubRepoUrl } from "./parseOwnerRepo";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 
 /**
@@ -19,10 +16,7 @@ import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
  * @param origin
  * @returns
  */
-export async function makePublishcrBranch(
-  upstreamUrl: string,
-  forkUrl: Readonly<string>,
-) {
+export async function makePublishcrBranch(upstreamUrl: string, forkUrl: Readonly<string>) {
   const type = "publishcr" as const;
 
   const origin = await stringifyGithubOrigin(parseUrlRepoOwner(forkUrl));

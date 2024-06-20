@@ -1,1 +1,1 @@
-export { $flatten } from "@/packages/mongodb-pipeline-ts/$flatten";
+export { $filaten } from "@/packages/mongodb-pipeline-ts/$filaten";

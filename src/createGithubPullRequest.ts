@@ -1,7 +1,7 @@
 import DIE from "@snomiao/die";
 import yaml from "yaml";
-import type { GithubPull } from "./fetchRepoPRs";
 import { gh } from "./gh";
+import type { GithubPull } from "./gh/GithubPull";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
 export async function createGithubPullRequest({

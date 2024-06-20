@@ -2,16 +2,17 @@ import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
 import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { match } from "ts-pattern";
-import { user } from ".";
 import { CNRepos, type CRPull } from "./CNRepos";
-import { $fresh, $stale } from "./db";
-import { $flatten } from "./db/$flatten";
+import { $filaten, $fresh, $stale } from "./db";
 import { gh } from "./gh";
-import { notifySlackLinks } from "./notifySlackLinks";
+import { parsePull } from "./gh/parsePull";
+import { ghUser } from "./ghUser";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 import { readTemplate } from "./readTemplateTitle";
+import { notifySlackLinks } from "./slack/notifySlackLinks";
 import { $OK, TaskError, TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
+import { tsmatch } from "./utils/tsmatch";
 if (import.meta.main) {
   await tLog("updateOutdatedPullsTemplates", updateOutdatedPullsTemplates);
 }
@@ -35,7 +36,7 @@ export async function updateOutdatedPullsTemplates() {
   });
   return await pMap(
     CNRepos.find(
-      $flatten({
+      $filaten({
         crPulls: {
           mtime: $fresh("1h"), // retry if update fails
           data: $elemMatch({
@@ -56,7 +57,7 @@ export async function updateOutdatedPullsTemplates() {
           }),
         },
       }),
-      // $flatten({
+      // $filaten({
       //   crPulls: {
       //     data: $elemMatch({
       //       edited: {
@@ -86,13 +87,14 @@ export async function updateOutdatedPullsTemplates() {
         async (data, i): Promise<CRPull> => {
           const { pull, type } = data;
           const { number } = pull;
-          if (pull.user.login !== user.login) DIE("not editable");
+          if (pull.user.login !== ghUser.login) DIE("not editable");
           const replacement = match(pull)
             .with(pyproject, () => DIE("is already latest template"))
             .with(publishcr, () => DIE("is already latest template"))
             .with(outdated_pyproject, () => pyproject)
             .with(outdated_pyproject_v2, () => pyproject)
             .with(outdated_publishcr, () => publishcr)
+            // in case author clicked some task as completed, body will be different, may cause template mismatch
             .otherwise(() => DIE("Template not found: " + pull.title));
           if (!replacement) return { ...data, edited: TaskError("Template mismatch") };
 
@@ -113,13 +115,13 @@ export async function updateOutdatedPullsTemplates() {
             })
           ).data;
           await CNRepos.updateOne({ repository }, { $set: { [`crPulls.data.${i}.edited`]: edited } });
-          return { pull: updatedPull, type, edited };
+          return { pull: parsePull(updatedPull), type, edited };
         },
         { concurrency: 2 },
       )
         .then(TaskOK)
         .catch(TaskError);
-      match(crPullsEdited)
+      tsmatch(crPullsEdited)
         .with($OK, async ({ data }) => {
           await notifySlackLinks(
             `Updated PR body to latest template`,

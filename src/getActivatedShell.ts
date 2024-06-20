@@ -1,5 +1,5 @@
 import { $ as zx } from "zx";
-import { getActivateCMD } from "./getActivateCMD";
+import { getActivateCMD } from "./cli/getActivateCMD";
 
 if (import.meta.main) {
   // await checkComfyActivated();

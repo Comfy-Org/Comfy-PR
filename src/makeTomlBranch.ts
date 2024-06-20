@@ -1,6 +1,7 @@
 import { readFile } from "fs/promises";
-import { GIT_USEREMAIL, GIT_USERNAME } from ".";
-import { $ } from "./echoBunShell";
+import { GIT_USEREMAIL } from "./GIT_USEREMAIL";
+import { GIT_USERNAME } from "./GIT_USERNAME";
+import { $ } from "./cli/echoBunShell";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
 import { gh } from "./gh";
 import { parseUrlRepoOwner, stringifyGithubOrigin } from "./parseOwnerRepo";

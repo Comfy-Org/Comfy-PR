@@ -3,7 +3,7 @@ import pMap from "p-map";
 import { dissoc, filter, groupBy, map, prop, toPairs } from "rambda";
 import YAML from "yaml";
 import { CMNodes, type CMNode } from "./CMNodes";
-import { notifySlack } from "./notifySlack";
+import { notifySlack } from "./slack/notifySlack";
 
 export async function updateCMNodesDuplicationWarnings(nodes: CMNode[]) {
   console.log("CMNodes checking duplicates");

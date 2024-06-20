@@ -19,8 +19,9 @@
     "esModuleInterop": true,
     "resolvePackageJsonImports": true,
     "resolvePackageJsonExports": true,
-    // Best practices
+    // Best practices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
     "strict": true,
+    "strictNullChecks": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     // Some stricter flags (disabled by default)
@@ -49,7 +50,8 @@
   ],
   "exclude": [
     "node_modules",
-    "packages/*",
     "prs/*",
+    ".cache",
+    "dist"
   ]
 }
