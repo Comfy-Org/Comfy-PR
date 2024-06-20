@@ -57,7 +57,7 @@ export const $pipeline: PipelineLauncher = function $pipeline<S extends Document
     {
       // type helper
       satisfies: () => $pipeline(_coll, pipeline),
-      as:() => $pipeline(_coll, pipeline),
+      as: () => $pipeline(_coll, pipeline),
       with: () => $pipeline(_coll, pipeline),
       // output
       aggregate() {
