@@ -9,5 +9,5 @@ export async function fetchGithubPulls(repository: string) {
       state: "all",
     })
   ).data as GithubPull[];
-  return parsePulls((data));
+  return parsePulls(data);
 }
