@@ -1,23 +1,28 @@
 {
   "name": "react-api-doc",
-  "module": "index.tsx",
+  "version": "0.0.1",
+  "author": "snomiao <snomiao@gmail.com>",
   "type": "module",
+  "exports": {
+    "import": "./dist/index.js",
+    "types": "./index.tsx"
+  },
+  "module": "index.tsx",
+  "types": "index.tsx",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "esbuild ./index.tsx --bundle --minify --outdir=dist",
+    "prerelease": "bun run build && bun run test",
+    "release": "bunx standard-version && git push --follow-tags && npm publish",
+    "test": "bun test"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "swagger-ui-react": "^5.17.14"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
-  },
-  "scripts": {
-    "build": "esbuild ./index.tsx --bundle --minify --outdir=dist"
-  },
-  "exports": {
-    "import": "./dist/index.js",
-    "types": "./index.tsx"
-  },
-  "types": "index.tsx",
-  "files": [
-    "dist"
-  ]
+  }
 }
