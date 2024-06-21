@@ -4,7 +4,7 @@ import { readFile } from "fs/promises";
 import { argv, $ as zx } from "zx";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
-  zx.verbose = true;
+zx.verbose = true;
 
 if (argv.help) {
   console.log(
@@ -33,9 +33,7 @@ if (argv.help) {
     [];
   const repos = (listRepos.length && listRepos) ||
     (argvRepos.length && argvRepos) ||
-    (envRepos.length && envRepos) || [
-      DIE("Missing PR target, please set env.REPO"),
-    ];
+    (envRepos.length && envRepos) || [DIE("Missing PR target, please set env.REPO")];
   for await (const upstreamUrl of repos) {
     await createComfyRegistryPullRequests(upstreamUrl);
   }
