@@ -10,7 +10,8 @@
   "module": "index.tsx",
   "types": "index.tsx",
   "files": [
-    "dist"
+    "dist",
+    "index.tsx"
   ],
   "scripts": {
     "build": "esbuild ./index.tsx --bundle --minify --outdir=dist",
