@@ -2,11 +2,11 @@ import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import { peekYaml } from "peek-log";
 import { filter, groupBy, values } from "rambda";
 import YAML from "yaml";
+import { TaskOK } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
 import { fetchCRNodes } from "./fetchComfyRegistryNodes";
 import { notifySlack } from "./slack/notifySlack";
-import { TaskOK } from "./utils/Task";
 import { tLog } from "./utils/tLog";
 
 if (import.meta.main) {

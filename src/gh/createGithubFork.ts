@@ -2,6 +2,15 @@ import { gh } from ".";
 import { ghUser } from "../ghUser";
 import { parseUrlRepoOwner, stringifyGithubRepoUrl } from "../parseOwnerRepo";
 
+if (import.meta.main) {
+  const randomId = Math.random().toString(36).slice(2);
+  console.log(
+    await createGithubFork(
+      "https://github.com/latenightlabs/ComfyUI-LNL",
+      "https://github.com/ComfyNodePRs/PR-ComfyUI-LNL-" + randomId,
+    ),
+  );
+}
 export async function createGithubFork(from: string, to: string) {
   const _to = parseUrlRepoOwner(to);
   const forkResult = await gh.repos

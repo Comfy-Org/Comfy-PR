@@ -1,8 +1,8 @@
 import { z } from "zod";
+import { type Task } from "../packages/mongodb-pipeline-ts/Task";
 import type { PullsStatus } from "./analyzePullsStatus";
 import { db } from "./db";
 import type { zFollowUpRules } from "./followRuleSchema";
-import { type Task } from "./utils/Task";
 
 // migrate data
 // await db.renameCollection("FollowRules", "FollowRuleSets").catch(() => null);

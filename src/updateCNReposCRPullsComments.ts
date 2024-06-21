@@ -5,9 +5,9 @@ import { $fresh, $stale } from "./db";
 // import { $pipeline } from "./db/$pipeline";
 import { $filaten } from "@/packages/mongodb-pipeline-ts/$filaten";
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import { TaskError, TaskOK } from "../packages/mongodb-pipeline-ts/Task";
 import { getWorkerInstance } from "./WorkerInstances";
 import { fetchIssueComments } from "./gh/fetchIssueComments";
-import { TaskError, TaskOK } from "./utils/Task";
 
 if (import.meta.main) {
   await getWorkerInstance("updateCNReposCRPullsComments");

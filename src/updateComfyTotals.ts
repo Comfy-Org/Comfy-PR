@@ -1,11 +1,10 @@
 import { match } from "ts-pattern";
 import YAML from "yaml";
+import { $OK, TaskError, TaskOK, tsmatch } from "../packages/mongodb-pipeline-ts/Task";
 import { Totals } from "./Totals";
 import { analyzeTotals } from "./analyzeTotals";
 import { $filaten, $fresh } from "./db";
 import { notifySlack } from "./slack/notifySlack";
-import { $OK, TaskError, TaskOK } from "./utils/Task";
-import { tsmatch } from "./utils/tsmatch";
 
 if (import.meta.main) {
   await updateComfyTotals();
@@ -23,13 +22,15 @@ export async function updateComfyTotals({ notify = true, fresh = "30m" } = {}) {
   const totals = await analyzeTotals().then(TaskOK).catch(TaskError);
 
   // notify
-  notify &&
-    (await match(totals)
+  if (notify) {
+    // ignore today
+    await match(totals)
       .with($OK, async (totals) => {
         const msg = `Totals: \n${"```"}\n${YAML.stringify(totals)}\n${"```"}`;
         await notifySlack(msg, { unique: true });
       })
-      .otherwise(() => null));
+      .otherwise(() => null);
+  }
 
   const insertResult = await Totals.insertOne({ totals });
   return [

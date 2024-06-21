@@ -1,10 +1,11 @@
 "use server";
-import { TaskDataOrNull } from "@/app/(dashboard)/rules/TaskDataOrNull";
 import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import { TaskDataOrNull } from "@/packages/mongodb-pipeline-ts/Task";
 import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { peekYaml } from "peek-log";
+import { TaskError, TaskOK, type Task } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos, type CRPull } from "./CNRepos";
 import { FollowRuleSets } from "./FollowRules";
 import type { GithubIssueComment } from "./GithubIssueComments";
@@ -12,10 +13,12 @@ import { analyzePullsStatusPipeline, type PullStatus } from "./analyzePullsStatu
 import { createIssueComment } from "./createIssueComment";
 import { $filaten } from "./db";
 import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
+import { fetchIssueComments } from "./gh/fetchIssueComments";
 import { ghUser } from "./ghUser";
 import { initializeFollowRules } from "./initializeFollowRules";
+import { stringifyGithubRepoUrl } from "./parseOwnerRepo";
+import { parsePullUrl } from "./parsePullUrl";
 import { notifySlackLinks } from "./slack/notifySlackLinks";
-import { TaskError, TaskOK, type Task } from "./utils/Task";
 import { prettyMs } from "./utils/tLog";
 import { yaml } from "./utils/yaml";
 
@@ -68,6 +71,41 @@ export async function updateFollowRuleSet({
     const parseResult = await pMap(
       rules,
       async (rule) => {
+        if (runAction) {
+          // pre-fetch comments before run a rule -> match -> action, to prevent comment on a outdated pull state
+          const preMatched = await analyzePullsStatusPipeline()
+            .match(rule.$match)
+            .aggregate()
+            .map(({ updated_at, created_at, on_registry_at, ...pull }) => {
+              const updated = prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
+              return {
+                updated, //: updated === created ? "never" : updated,
+                ...pull,
+                lastwords: pull.lastwords?.replace(/\s+/g, " ").replace(/\*\*\*.*/g, "..."),
+              } as PullStatus;
+            })
+            .toArray()
+            .then(TaskOK)
+            .catch(TaskError);
+
+          // update comments before run action
+          const matchedData = TaskDataOrNull(preMatched) ?? DIE("NO-PAYLOAD-AVAILABLE");
+          await pMap(matchedData, async (payload) => {
+            const html_url = payload.url;
+            const { owner, repo, pull_number } = parsePullUrl(payload.url);
+            const repository = stringifyGithubRepoUrl({ owner, repo });
+
+            const comments = await fetchIssueComments(repository, { number: pull_number })
+              .then(TaskOK)
+              .catch(TaskError);
+            (
+              await CNRepos.updateOne($filaten({ repository, crPulls: { data: { pull: { html_url } } } }), {
+                $set: { "crPulls.data.$.comments": comments },
+              })
+            ).matchedCount ?? DIE("pre-matched comments is not found");
+          });
+        }
+
         const matched = await analyzePullsStatusPipeline()
           .match(rule.$match)
           .aggregate()
@@ -82,6 +120,7 @@ export async function updateFollowRuleSet({
           .toArray()
           .then(TaskOK)
           .catch(TaskError);
+
         const actions = await (async function () {
           return await pMap(
             Object.entries(rule.action),
@@ -120,6 +159,7 @@ export async function updateFollowRuleSet({
                         TaskDataOrNull(existedCommentsTask) ??
                         DIE("NO-COMMENTS-FOUND should never happen here, bcz pipeline filtered at first");
                       const existedComment = existedComments.find((e) => e.body === loadedAction.body);
+
                       if (!existedComment) {
                         const { comments, comment } = await createIssueComment(
                           loadedAction.url,

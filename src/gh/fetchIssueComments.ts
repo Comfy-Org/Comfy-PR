@@ -1,6 +1,6 @@
-import { YAML } from "zx";
 import { gh } from ".";
 import { parseUrlRepoOwner } from "../parseOwnerRepo";
+import { yaml } from "../utils/yaml";
 import { fetchGithubPulls } from "./fetchGithubPulls";
 if (import.meta.main) {
   // const repo = "https://github.com/ltdrdata/ComfyUI-Manager";
@@ -13,7 +13,7 @@ if (import.meta.main) {
   const pull = pulls.find((e) => e.title === relatedTitle)!;
   console.log(JSON.stringify({ pull }));
   const comments = await fetchIssueComments(repo, { number: 11 });
-  console.log(YAML.stringify(comments));
+  console.log(yaml.stringify(comments));
 }
 
 export async function fetchIssueComments(repo: string, pull: { number: number }) {
