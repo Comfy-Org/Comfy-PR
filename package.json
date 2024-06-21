@@ -8,10 +8,11 @@
   "type": "module",
   "exports": {
     "import": "./src/index.ts",
-    "types": "./index.ts"
+    "types": "./src/index.ts"
   },
   "main": "index.ts",
   "module": "index.ts",
+  "types": "./src/index.ts",
   "bin": {
     "comfy-pr": "./src/cli.ts"
   },
@@ -106,7 +107,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5.4.5"
+    "typescript": "^5.5.2"
   },
   "peerDependencies": {
     "typescript": "^5.4.5"
