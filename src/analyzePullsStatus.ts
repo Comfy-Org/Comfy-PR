@@ -54,6 +54,7 @@ export async function analyzePullsStatus({ skip = 0, limit = 0 } = {}) {
 export function analyzePullsStatusPipeline() {
   return (
     $pipeline(CNRepos)
+      .set({'crPulls.data.pull.latest_comment_at': {$max: {$max: '$crPulls.data.comments.data.updated_at'}}})
       .unwind("$crPulls.data")
       .match({ "crPulls.data.comments.data": { $exists: true } })
       .set({ "crPulls.data.pull.repo": "$repository" })
@@ -83,10 +84,11 @@ export function analyzePullsStatusPipeline() {
         head: { $concat: ["$user.login", ":", "$type"] },
         comments: { $size: "$comments" },
         lastwords: { $arrayElemAt: ["$comments", -1] },
+        latest_comment_at: {$toDate: '$latest_comment_at'},
       })
-      .set({ last_comment_at: { $toDate: "$lastwords.created_at" } })
-      .set({ updated_at: { $max: ["$last_comment_at", "$updated_at"] } })
-      .project({ last_comment_at: 0 })
+      // .project({ latest_comment_at: {$toDate: '$latest_comment_at'} })
+      .set({ updated_at: { $max: ["$latest_comment_at", "$updated_at"] } })
+      .project({ latest_comment_at: 0 })
       .set({ lastwords: { $concat: ["$lastwords.user.login", ": ", "$lastwords.body"] } })
       .set({ lastwords: { $ifNull: ["$lastwords", ""] } })
       // .set({ state: { $nin: ["CLOSED"] } })
