@@ -1,6 +1,6 @@
 {
   "name": "react-api-doc",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "snomiao <snomiao@gmail.com>",
   "type": "module",
   "exports": {
@@ -20,8 +20,10 @@
     "test": "bun test"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "swagger-ui-react": "^5.17.14"
+    "@types/bun": "^1.1.5",
+    "@types/jest": "^29.5.12",
+    "swagger-ui-react": "^5.17.14",
+    "typescript": "^5.5.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
