@@ -4,8 +4,12 @@
   "author": "snomiao <snomiao@gmail.com>",
   "type": "module",
   "exports": {
-    "import": "./dist/index.js",
-    "types": "./index.tsx"
+    ".": {
+      "import": "./dist/index.js"
+    },
+    "./dist/index.css": {
+      "import": "./dist/index.css"
+    }
   },
   "module": "index.tsx",
   "types": "index.tsx",
@@ -14,7 +18,7 @@
     "index.tsx"
   ],
   "scripts": {
-    "build": "esbuild ./index.tsx --bundle --minify --outdir=dist",
+    "build": "esbuild ./index.tsx --bundle --format=esm --outdir=dist",
     "prerelease": "bun run build && bun run test",
     "release": "bunx standard-version && git push --follow-tags && npm publish",
     "test": "bun test"
