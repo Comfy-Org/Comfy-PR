@@ -17,7 +17,7 @@ pre-commit:
   commands:
     prettier:
       glob: "*.{js,ts,jsx,tsx,md}"
-      run: bun x prettier -w {staged_files}
+      run: bun x prettier -w "{staged_files}"
 #     rubocop:
 #       tags: backend style
 #       glob: "*.rb"

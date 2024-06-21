@@ -88,6 +88,7 @@
     "zx": "^8.1.2"
   },
   "devDependencies": {
+    "ts-toolbelt": "^9.6.0",
     "@tanstack/react-table": "^8.17.3",
     "@types/bun": "^1.1.5",
     "@types/json-stable-stringify": "^1.0.36",
