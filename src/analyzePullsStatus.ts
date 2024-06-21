@@ -84,6 +84,9 @@ export function analyzePullsStatusPipeline() {
         comments: { $size: "$comments" },
         lastwords: { $arrayElemAt: ["$comments", -1] },
       })
+      .set({ last_comment_at: { $toDate: "$lastwords.created_at" } })
+      .set({ updated_at: { $max: ["$last_comment_at", "$updated_at"] } })
+      .project({ last_comment_at: 0 })
       .set({ lastwords: { $concat: ["$lastwords.user.login", ": ", "$lastwords.body"] } })
       .set({ lastwords: { $ifNull: ["$lastwords", ""] } })
       // .set({ state: { $nin: ["CLOSED"] } })
