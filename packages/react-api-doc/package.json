@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": {
+      "types": "./index.tsx",
       "import": "./dist/index.js"
     },
     "./dist/index.css": {
