@@ -1,9 +1,11 @@
 #!bun
 import DIE from "@snomiao/die";
 import { readFile } from "fs/promises";
-import { argv } from "zx";
+import { argv, $ as zx } from "zx";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
+  zx.verbose = true;
+
 if (argv.help) {
   console.log(
     `
