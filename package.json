@@ -1,6 +1,6 @@
 {
   "name": "comfy-pr",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "description": "Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry]( https://www.comfyregistry.org/ ).",
   "keywords": [],
   "license": "ISC",
@@ -51,7 +51,7 @@
     "minimist": "^1.2.8",
     "monaco-editor": "^0.50.0",
     "mongodb": "^6.7.0",
-    "next-auth": "^4.24.7",
+    "next-auth": "^5.0.0-beta.19",
     "nodemailer": "^6.9.14",
     "octokit": "^4.0.2",
     "p-map": "^7.0.2",
