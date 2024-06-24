@@ -22,6 +22,7 @@ export async function updateOutdatedPullsTemplates() {
   const outdated_pyproject = await readTemplate("outdated/add-toml.md");
   const outdated_pyproject_v2 = await readTemplate("outdated/add-toml-v2.md");
   const outdated_publishcr = await readTemplate("outdated/add-action.md");
+  const outdated_publishcr_v2 = await readTemplate("outdated/add-action-v2.md");
   // const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
 
   await CNRepos.createIndex({
@@ -47,10 +48,10 @@ export async function updateOutdatedPullsTemplates() {
             pull: {
               user: { login: ghUser.login },
               title: {
-                $in: [outdated_pyproject.title, outdated_pyproject_v2.title, outdated_publishcr.title],
+                $in: [outdated_pyproject.title, outdated_pyproject_v2.title, outdated_publishcr.title, outdated_publishcr_v2.title],
               },
               body: {
-                $in: [outdated_pyproject.body, outdated_pyproject_v2.body, outdated_publishcr.body],
+                $in: [outdated_pyproject.body, outdated_pyproject_v2.body, outdated_publishcr.body, outdated_publishcr_v2.body],
               },
             },
           }),
@@ -93,6 +94,7 @@ export async function updateOutdatedPullsTemplates() {
             .with(outdated_pyproject, () => pyproject)
             .with(outdated_pyproject_v2, () => pyproject)
             .with(outdated_publishcr, () => publishcr)
+            .with(outdated_publishcr_v2, () => publishcr)
             // in case author clicked some task as completed, body will be different, may cause template mismatch
             .otherwise(() => DIE("Template not found: " + pull.title));
           if (!replacement) return { ...data, edited: TaskError("Template mismatch") };
