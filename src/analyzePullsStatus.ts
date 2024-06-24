@@ -33,12 +33,13 @@ export type PullsStatus = PullStatus[] &
     url: string;
     head: string;
     comments: number;
+    updated?: string;
     pull_updated: string;
     repo_updated: string;
   }[];
-export async function analyzePullsStatus({ skip = 0, limit = 0 } = {}) {
+export async function analyzePullsStatus({ skip = 0, limit = 0, pipeline = analyzePullsStatusPipeline() } = {}) {
   "use server";
-  return await analyzePullsStatusPipeline()
+  return await pipeline
     .skip(skip)
     .limit(limit || 2 ** 31 - 1)
     .aggregate()
@@ -46,6 +47,7 @@ export async function analyzePullsStatus({ skip = 0, limit = 0 } = {}) {
       const pull_updated = prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
       const repo_updated = prettyMs(+new Date() - +new Date(actived_at), { compact: true }) + " ago";
       return {
+        updated: pull_updated, // @deprecated
         pull_updated,
         repo_updated,
         ...pull,
