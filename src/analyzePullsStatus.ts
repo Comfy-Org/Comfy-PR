@@ -22,7 +22,7 @@ if (import.meta.main) {
 }
 
 export type PullStatus = z.infer<typeof zPullStatus>;
-export type PullsStatus = PullStatus[] 
+export type PullsStatus = PullStatus[];
 export async function analyzePullsStatus({ skip = 0, limit = 0, pipeline = analyzePullsStatusPipeline() } = {}) {
   "use server";
   return await pipeline
