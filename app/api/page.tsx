@@ -8,6 +8,6 @@
 //   return <APIDoc spec={spec} />;
 // }
 export default async function PRCommentsPage() {
-  return <>WIP</>
+  return <>WIP</>;
   // return <APIDoc spec={spec} />;
 }
