@@ -47,7 +47,9 @@ export function PullsStatusTable({
                       if (key === "url") {
                         const value = item[key];
                         return (
-                          <Link href={value}>{value.replace("https://github.com", "").replace("/pull/", " #")}</Link>
+                          <Link href={value} target="_blank">
+                            {value.replace("https://github.com", "").replace("/pull/", " #")}
+                          </Link>
                         );
                       }
                       return value;
