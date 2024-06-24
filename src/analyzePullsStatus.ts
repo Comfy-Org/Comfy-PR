@@ -108,7 +108,7 @@ export function analyzePullsStatusPipeline() {
       .as<{
         updated_at: Date;
         created_at: Date;
-        actived_at: Date,
+        actived_at: Date;
         repository: string;
         author_email: string;
         ownername: string;
