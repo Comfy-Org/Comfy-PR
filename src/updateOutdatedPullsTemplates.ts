@@ -48,10 +48,20 @@ export async function updateOutdatedPullsTemplates() {
             pull: {
               user: { login: ghUser.login },
               title: {
-                $in: [outdated_pyproject.title, outdated_pyproject_v2.title, outdated_publishcr.title, outdated_publishcr_v2.title],
+                $in: [
+                  outdated_pyproject.title,
+                  outdated_pyproject_v2.title,
+                  outdated_publishcr.title,
+                  outdated_publishcr_v2.title,
+                ],
               },
               body: {
-                $in: [outdated_pyproject.body, outdated_pyproject_v2.body, outdated_publishcr.body, outdated_publishcr_v2.body],
+                $in: [
+                  outdated_pyproject.body,
+                  outdated_pyproject_v2.body,
+                  outdated_publishcr.body,
+                  outdated_publishcr_v2.body,
+                ],
               },
             },
           }),
