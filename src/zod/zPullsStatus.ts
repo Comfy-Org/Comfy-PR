@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const zPullStatus = z.object({
-  updated: z.string(),
+  pull_updated: z.string(),
+  repo_updated: z.string(),
   on_registry: z.boolean(),
   state: z.string(),
   url: z.string(),
