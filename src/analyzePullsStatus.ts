@@ -22,21 +22,7 @@ if (import.meta.main) {
 }
 
 export type PullStatus = z.infer<typeof zPullStatus>;
-export type PullsStatus = PullStatus[] &
-  {
-    lastwords: string;
-    repository: string;
-    author_email: string;
-    ownername: string;
-    on_registry: boolean;
-    state: "OPEN" | "MERGED" | "CLOSED";
-    url: string;
-    head: string;
-    comments: number;
-    updated?: string;
-    pull_updated: string;
-    repo_updated: string;
-  }[];
+export type PullsStatus = PullStatus[] 
 export async function analyzePullsStatus({ skip = 0, limit = 0, pipeline = analyzePullsStatusPipeline() } = {}) {
   "use server";
   return await pipeline
