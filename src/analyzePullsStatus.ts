@@ -22,29 +22,20 @@ if (import.meta.main) {
 }
 
 export type PullStatus = z.infer<typeof zPullStatus>;
-export type PullsStatus = PullStatus[] &
-  {
-    lastwords: string;
-    repository: string;
-    author_email: string;
-    ownername: string;
-    on_registry: boolean;
-    state: "OPEN" | "MERGED" | "CLOSED";
-    url: string;
-    head: string;
-    comments: number;
-    updated: string;
-  }[];
-export async function analyzePullsStatus({ skip = 0, limit = 0 } = {}) {
+export type PullsStatus = PullStatus[];
+export async function analyzePullsStatus({ skip = 0, limit = 0, pipeline = analyzePullsStatusPipeline() } = {}) {
   "use server";
-  return await analyzePullsStatusPipeline()
+  return await pipeline
     .skip(skip)
     .limit(limit || 2 ** 31 - 1)
     .aggregate()
-    .map(({ updated_at, created_at, on_registry_at, ...pull }) => {
-      const updated = prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
+    .map(({ updated_at, created_at, actived_at, on_registry_at, ...pull }) => {
+      const pull_updated = prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
+      const repo_updated = prettyMs(+new Date() - +new Date(actived_at), { compact: true }) + " ago";
       return {
-        updated, //: updated === created ? "never" : updated,
+        updated: pull_updated, // @deprecated
+        pull_updated,
+        repo_updated,
         ...pull,
         lastwords: pull.lastwords?.replace(/\s+/g, " ").replace(/\*\*\*.*/g, "..."),
       };
@@ -57,6 +48,7 @@ export function analyzePullsStatusPipeline() {
       .set({ "crPulls.data.pull.latest_comment_at": { $max: { $max: "$crPulls.data.comments.data.updated_at" } } })
       .unwind("$crPulls.data")
       .match({ "crPulls.data.comments.data": { $exists: true } })
+      .set({ "crPulls.data.pull.actived_at": { $toDate: "$info.data.updated_at" } })
       .set({ "crPulls.data.pull.repo": "$repository" })
       .set({ "crPulls.data.pull.on_registry": "$on_registry" })
       .set({ "crPulls.data.pull.type": "$crPulls.data.type" })
@@ -85,6 +77,7 @@ export function analyzePullsStatusPipeline() {
         comments: { $size: "$comments" },
         lastwords: { $arrayElemAt: ["$comments", -1] },
         latest_comment_at: { $toDate: "$latest_comment_at" },
+        actived_at: 1,
       })
       // .project({ latest_comment_at: {$toDate: '$latest_comment_at'} })
       .set({ updated_at: { $max: ["$latest_comment_at", "$updated_at"] } })
@@ -103,6 +96,7 @@ export function analyzePullsStatusPipeline() {
       .as<{
         updated_at: Date;
         created_at: Date;
+        actived_at: Date;
         repository: string;
         author_email: string;
         ownername: string;

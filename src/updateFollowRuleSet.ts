@@ -9,7 +9,7 @@ import { TaskError, TaskOK, type Task } from "../packages/mongodb-pipeline-ts/Ta
 import { CNRepos, type CRPull } from "./CNRepos";
 import { FollowRuleSets } from "./FollowRules";
 import type { GithubIssueComment } from "./GithubIssueComments";
-import { analyzePullsStatusPipeline, type PullStatus } from "./analyzePullsStatus";
+import { analyzePullsStatus, analyzePullsStatusPipeline } from "./analyzePullsStatus";
 import { createIssueComment } from "./createIssueComment";
 import { $filaten } from "./db";
 import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
@@ -19,7 +19,6 @@ import { initializeFollowRules } from "./initializeFollowRules";
 import { stringifyGithubRepoUrl } from "./parseOwnerRepo";
 import { parsePullUrl } from "./parsePullUrl";
 import { notifySlackLinks } from "./slack/notifySlackLinks";
-import { prettyMs } from "./utils/tLog";
 import { yaml } from "./utils/yaml";
 
 if (import.meta.main) {
@@ -73,18 +72,7 @@ export async function updateFollowRuleSet({
       async (rule) => {
         if (runAction) {
           // pre-fetch comments before run a rule -> match -> action, to prevent comment on a outdated pull state
-          const preMatched = await analyzePullsStatusPipeline()
-            .match(rule.$match)
-            .aggregate()
-            .map(({ updated_at, created_at, on_registry_at, ...pull }) => {
-              const updated = prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
-              return {
-                updated, //: updated === created ? "never" : updated,
-                ...pull,
-                lastwords: pull.lastwords?.replace(/\s+/g, " ").replace(/\*\*\*.*/g, "..."),
-              } as PullStatus;
-            })
-            .toArray()
+          const preMatched = await analyzePullsStatus({ pipeline: analyzePullsStatusPipeline().match(rule.$match) })
             .then(TaskOK)
             .catch(TaskError);
 
@@ -106,18 +94,7 @@ export async function updateFollowRuleSet({
           });
         }
 
-        const matched = await analyzePullsStatusPipeline()
-          .match(rule.$match)
-          .aggregate()
-          .map(({ updated_at, created_at, on_registry_at, ...pull }) => {
-            const updated = prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
-            return {
-              updated, //: updated === created ? "never" : updated,
-              ...pull,
-              lastwords: pull.lastwords?.replace(/\s+/g, " ").replace(/\*\*\*.*/g, "..."),
-            } as PullStatus;
-          })
-          .toArray()
+        const matched = await analyzePullsStatus({ pipeline: analyzePullsStatusPipeline().match(rule.$match) })
           .then(TaskOK)
           .catch(TaskError);
 

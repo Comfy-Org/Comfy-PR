@@ -1,22 +1,8 @@
+import type { PullsStatus } from "@/src/analyzePullsStatus";
 import { csvFormat, csvParse } from "d3";
 import Link from "next/link";
 
-export function PullsStatusTable({
-  pullsStatus,
-}: {
-  pullsStatus: {
-    lastwords: string;
-    repository: string;
-    author_email: string;
-    ownername: string;
-    on_registry: boolean;
-    state: "OPEN" | "MERGED" | "CLOSED";
-    url: string;
-    head: string;
-    comments: number;
-    updated: string;
-  }[];
-}) {
+export function PullsStatusTable({ pullsStatus }: { pullsStatus: PullsStatus }) {
   const rows = csvParse(csvFormat(pullsStatus));
   const header = Object.keys(rows[0]) as (keyof (typeof pullsStatus)[number])[];
   // cosnt data = yaml.pasre(yaml.stringify(r))
