@@ -71,3 +71,16 @@
       subject: Comfy Registry PR Follow Up
       body: |
         Saw that you closed the recent PR which is completely understandable!!!!! Just wondering if there were any questions that we could help answer in the meantime!
+
+# avaliable $match fields:
+#   actived_at
+#   author_email
+#   comments
+#   created_at
+#   head
+#   lastwords
+#   on_registry
+#   ownername
+#   state
+#   updated_at
+#   url
