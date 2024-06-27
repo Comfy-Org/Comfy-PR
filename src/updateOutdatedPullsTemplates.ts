@@ -20,9 +20,28 @@ export async function updateOutdatedPullsTemplates() {
   const pyproject = await readTemplate("add-toml.md");
   const publishcr = await readTemplate("add-action.md");
   const outdated_pyproject = await readTemplate("outdated/add-toml.md");
-  const outdated_pyproject_v2 = await readTemplate("outdated/add-toml-v2.md");
   const outdated_publishcr = await readTemplate("outdated/add-action.md");
+  const outdated_pyproject_v2 = await readTemplate("outdated/add-toml-v2.md");
   const outdated_publishcr_v2 = await readTemplate("outdated/add-action-v2.md");
+  const outdated_pyproject_v3 = await readTemplate("outdated/add-toml-v3.md");
+  const outdated_publishcr_v3 = await readTemplate("outdated/add-action-v3.md");
+  const outdateTitles = [
+    outdated_pyproject.title,
+    outdated_publishcr.title,
+    outdated_pyproject_v2.title,
+    outdated_publishcr_v2.title,
+    outdated_pyproject_v3.title,
+    outdated_publishcr_v3.title,
+  ];
+  const outdateBodies = [
+    outdated_pyproject.body,
+    outdated_publishcr.body,
+    outdated_pyproject_v2.body,
+    outdated_publishcr_v2.body,
+    outdated_pyproject_v3.body,
+    outdated_publishcr_v3.body,
+  ];
+
   // const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
 
   await CNRepos.createIndex({
@@ -47,22 +66,8 @@ export async function updateOutdatedPullsTemplates() {
             },
             pull: {
               user: { login: ghUser.login },
-              title: {
-                $in: [
-                  outdated_pyproject.title,
-                  outdated_pyproject_v2.title,
-                  outdated_publishcr.title,
-                  outdated_publishcr_v2.title,
-                ],
-              },
-              body: {
-                $in: [
-                  outdated_pyproject.body,
-                  outdated_pyproject_v2.body,
-                  outdated_publishcr.body,
-                  outdated_publishcr_v2.body,
-                ],
-              },
+              title: { $in: outdateTitles },
+              body: { $in: outdateBodies },
             },
           }),
         },
@@ -99,12 +104,14 @@ export async function updateOutdatedPullsTemplates() {
           const { number } = pull;
           if (pull.user.login !== ghUser.login) DIE("not editable");
           const replacement = match(pull)
-            .with(pyproject, () => DIE("is already latest template"))
-            .with(publishcr, () => DIE("is already latest template"))
+            .with(pyproject, () => DIE("Is already latest, should never happen here"))
+            .with(publishcr, () => DIE("Is already latest, should never happen here"))
             .with(outdated_pyproject, () => pyproject)
             .with(outdated_pyproject_v2, () => pyproject)
+            .with(outdated_pyproject_v3, () => pyproject)
             .with(outdated_publishcr, () => publishcr)
             .with(outdated_publishcr_v2, () => publishcr)
+            .with(outdated_publishcr_v3, () => publishcr)
             // in case author clicked some task as completed, body will be different, may cause template mismatch
             .otherwise(() => DIE("Template not found: " + pull.title));
           if (!replacement) return { ...data, edited: TaskError("Template mismatch") };
