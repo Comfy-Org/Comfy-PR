@@ -34,12 +34,17 @@ const zFollowUpRule = z.object({
   name: z.string(),
   $match: z
     .object({
-      state: z.enum(["OPEN", "CLOSED", "MERGED"]),
-      on_registry: z.boolean(),
-      updated_at: mDate,
-      lastwords: mString,
-      head: mString,
+      actived_at: mDate,
+      author_email: mString,
       comments: mNumber,
+      created_at: mDate,
+      head: mString,
+      lastwords: mString,
+      on_registry: z.boolean(),
+      ownername: mString,
+      state: z.enum(["OPEN", "CLOSED", "MERGED"]),
+      updated_at: mDate,
+      url: mString,
     })
     .strict()
     .partial(),

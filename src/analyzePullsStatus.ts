@@ -94,19 +94,19 @@ export function analyzePullsStatusPipeline() {
       .sort({ OPEN: -1, MERGED: -1, CLOSED: -1, updated_at: 1 })
       .unset(["CLOSED", "MERGED", "OPEN"])
       .as<{
-        updated_at: Date;
-        created_at: Date;
         actived_at: Date;
-        repository: string;
         author_email: string;
-        ownername: string;
-        on_registry: boolean;
-        on_registry_at: Date;
-        state: "OPEN" | "MERGED" | "CLOSED";
-        url: string;
-        head: string;
         comments: number;
+        created_at: Date;
+        head: string;
         lastwords: string;
+        on_registry_at: Date;
+        on_registry: boolean;
+        ownername: string;
+        repository: string;
+        state: "OPEN" | "MERGED" | "CLOSED";
+        updated_at: Date;
+        url: string;
       }>()
     // .stage({ ...(!!skip && { $skip: skip }) })
     // .stage({ ...(!!limit && { $limit: limit }) })
