@@ -11,6 +11,7 @@ if (import.meta.main) {
 }
 
 export async function updateComfyTotals({ notify = true, fresh = "30m" } = {}) {
+  await Totals.createIndex({today: 1, "totals.mtime": 1, "totals.state": 1})
   const today = new Date().toISOString().split("T")[0];
   const cached = await Totals.findOne($filaten({ today, totals: { mtime: $fresh(fresh), ...$OK } }));
   if (cached?.totals?.state === "ok")
@@ -21,8 +22,9 @@ export async function updateComfyTotals({ notify = true, fresh = "30m" } = {}) {
     ].flatMap((e) => (e ? [e] : []));
   const totals = await analyzeTotals().then(TaskOK).catch(TaskError);
 
-  // notify
+  // notify if today is not already notify
   if (notify) {
+    if(!await Totals.findOne($filaten({ today, totals: { mtime: $fresh('0.9d'), ...$OK } }))) 
     // ignore today
     await match(totals)
       .with($OK, async (totals) => {
