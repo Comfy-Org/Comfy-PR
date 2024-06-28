@@ -6,9 +6,7 @@ import { readTemplateTitle } from "./readTemplateTitle";
 
 export type RelatedPullsWithComments = Awaited<ReturnType<typeof fetchRelatedPullWithComments>>;
 export type RelatedPull = Awaited<ReturnType<typeof matchRelatedPulls>>[number];
-export async function matchRelatedPulls(
-  pulls: GithubPullParsed[],
-): Promise<
+export async function matchRelatedPulls(pulls: GithubPullParsed[]): Promise<
   (
     | {
         type: "pyproject";
