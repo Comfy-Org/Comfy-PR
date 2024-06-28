@@ -42,6 +42,7 @@ const zFollowUpRule = z.object({
       head: mString,
       lastwords: mString,
       on_registry: z.boolean(),
+      nickName: mString,
       ownername: mString,
       state: z.enum(["OPEN", "CLOSED", "MERGED"]),
       updated_at: mDate,

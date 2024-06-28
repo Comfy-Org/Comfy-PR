@@ -1,5 +1,5 @@
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
-import { peekYaml } from "peek-log";
+import pMap from "p-map";
 import prettyMs from "pretty-ms";
 import type { z } from "zod";
 import type { Task } from "../packages/mongodb-pipeline-ts/Task";
@@ -12,7 +12,7 @@ import type { zPullStatus } from "./zod/zPullsStatus";
 // bun --env-file .env.production.local src/dump.ts > dump.csv
 export const DashboardDetails = db.collection<any>("DashboardDetails");
 if (import.meta.main) {
-  const r = peekYaml(await analyzePullsStatus());
+  // const r = peekYaml(await analyzePullsStatus());
 
   // await mkdir(".cache").catch(() => null);
   // await writeFile(".cache/dump.yaml", YAML.stringify(r));
@@ -22,6 +22,8 @@ if (import.meta.main) {
   // await writeFile("src/zPullsStatus.ts", jsonToZod(await analyzePullsStatus({ limit: 1 }), "zPullsStatus", true));
 
   // analyzePullsStatusPipeline
+
+  const base = await pMap(analyzePullsStatusPipeline().group({ _id: "$ownername" }).aggregate(), (e) => e);
 }
 
 export type PullStatus = z.infer<typeof zPullStatus>;
@@ -76,6 +78,7 @@ export function analyzePullsStatusPipeline() {
         url: "$html_url",
         author_email: "$base.user.email",
         ownername: "$base.user.login",
+        nickName: "$base.user.name",
         head: { $concat: ["$user.login", ":", "$type"] },
         comments: { $size: "$comments" },
         comments_author: {
@@ -119,6 +122,7 @@ export function analyzePullsStatusPipeline() {
         on_registry: boolean;
         comments_author: string;
         ownername: string;
+        nickName: string;
         repository: string;
         state: "OPEN" | "MERGED" | "CLOSED";
         updated_at: Date;
