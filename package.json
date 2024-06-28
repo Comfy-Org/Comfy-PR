@@ -1,6 +1,6 @@
 {
   "name": "comfy-pr",
-  "version": "0.2.18",
+  "version": "0.2.19",
   "description": "Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry]( https://www.comfyregistry.org/ ).",
   "keywords": [],
   "license": "ISC",
