@@ -79,11 +79,16 @@ export function analyzePullsStatusPipeline() {
         head: { $concat: ["$user.login", ":", "$type"] },
         comments: { $size: "$comments" },
         comments_author: {
-           $trim: { input: {$reduce: {
-            input: "$comments.user.login",
-            initialValue: "",
-            in: { $concat: ["$$value", " ", "$$this"] },
-          },}, chars: " " } 
+          $trim: {
+            input: {
+              $reduce: {
+                input: "$comments.user.login",
+                initialValue: "",
+                in: { $concat: ["$$value", " ", "$$this"] },
+              },
+            },
+            chars: " ",
+          },
         },
         lastwords: { $arrayElemAt: ["$comments", -1] },
         latest_comment_at: { $toDate: "$latest_comment_at" },
