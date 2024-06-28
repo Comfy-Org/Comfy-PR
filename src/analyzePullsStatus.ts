@@ -13,12 +13,15 @@ import type { zPullStatus } from "./zod/zPullsStatus";
 export const DashboardDetails = db.collection<any>("DashboardDetails");
 if (import.meta.main) {
   const r = peekYaml(await analyzePullsStatus());
+
   // await mkdir(".cache").catch(() => null);
   // await writeFile(".cache/dump.yaml", YAML.stringify(r));
   // await writeFile(".cache/dump.csv", csvFormat(r));
   // console.log("done");
   // generate zod schema
   // await writeFile("src/zPullsStatus.ts", jsonToZod(await analyzePullsStatus({ limit: 1 }), "zPullsStatus", true));
+
+  // analyzePullsStatusPipeline
 }
 
 export type PullStatus = z.infer<typeof zPullStatus>;
@@ -75,6 +78,13 @@ export function analyzePullsStatusPipeline() {
         ownername: "$base.user.login",
         head: { $concat: ["$user.login", ":", "$type"] },
         comments: { $size: "$comments" },
+        comments_author: {
+           $trim: { input: {$reduce: {
+            input: "$comments.user.login",
+            initialValue: "",
+            in: { $concat: ["$$value", " ", "$$this"] },
+          },}, chars: " " } 
+        },
         lastwords: { $arrayElemAt: ["$comments", -1] },
         latest_comment_at: { $toDate: "$latest_comment_at" },
         actived_at: 1,
@@ -102,6 +112,7 @@ export function analyzePullsStatusPipeline() {
         lastwords: string;
         on_registry_at: Date;
         on_registry: boolean;
+        comments_author: string;
         ownername: string;
         repository: string;
         state: "OPEN" | "MERGED" | "CLOSED";
