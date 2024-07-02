@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.19](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.18...v0.2.19) (2024-06-28)
+
+### [0.2.18](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.17...v0.2.18) (2024-06-27)
+
+### Bug Fixes
+
+- **follow-rules:** add matcher fields into follow-rule ([4d7bbe7](https://github.com/drip-art/Comfy-Registry-PR/commit/4d7bbe7b941242cbb8edcd73ead6df61d26824df))
+- **is-already-sent-totals-today:** notify if today is not already noti ([33cec0a](https://github.com/drip-art/Comfy-Registry-PR/commit/33cec0adde44612ca66213ce989d0d25f7549aec))
+- **main:** env file tips ([02636f3](https://github.com/drip-art/Comfy-Registry-PR/commit/02636f3beb2efddcb2de69b3dece02816f542b49))
+- **main:** update follow up rule matcher ([57302c3](https://github.com/drip-art/Comfy-Registry-PR/commit/57302c30a119f3275c4626d4f09123f6ac2d7aed))
+- **toml-template-v3:** update template ts file ([24df794](https://github.com/drip-art/Comfy-Registry-PR/commit/24df794851cc6b7190bc0fb3c75ef02a76fed926))
+
 ### [0.2.17](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.8...v0.2.17) (2024-06-24)
 
 ### Features

@@ -1,5 +1,5 @@
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
-import { peekYaml } from "peek-log";
+import pMap from "p-map";
 import prettyMs from "pretty-ms";
 import type { z } from "zod";
 import type { Task } from "../packages/mongodb-pipeline-ts/Task";
@@ -12,13 +12,18 @@ import type { zPullStatus } from "./zod/zPullsStatus";
 // bun --env-file .env.production.local src/dump.ts > dump.csv
 export const DashboardDetails = db.collection<any>("DashboardDetails");
 if (import.meta.main) {
-  const r = peekYaml(await analyzePullsStatus());
+  // const r = peekYaml(await analyzePullsStatus());
+
   // await mkdir(".cache").catch(() => null);
   // await writeFile(".cache/dump.yaml", YAML.stringify(r));
   // await writeFile(".cache/dump.csv", csvFormat(r));
   // console.log("done");
   // generate zod schema
   // await writeFile("src/zPullsStatus.ts", jsonToZod(await analyzePullsStatus({ limit: 1 }), "zPullsStatus", true));
+
+  // analyzePullsStatusPipeline
+
+  const base = await pMap(analyzePullsStatusPipeline().group({ _id: "$ownername" }).aggregate(), (e) => e);
 }
 
 export type PullStatus = z.infer<typeof zPullStatus>;
@@ -73,8 +78,21 @@ export function analyzePullsStatusPipeline() {
         url: "$html_url",
         author_email: "$base.user.email",
         ownername: "$base.user.login",
+        nickName: "$base.user.name",
         head: { $concat: ["$user.login", ":", "$type"] },
         comments: { $size: "$comments" },
+        comments_author: {
+          $trim: {
+            input: {
+              $reduce: {
+                input: "$comments.user.login",
+                initialValue: "",
+                in: { $concat: ["$$value", " ", "$$this"] },
+              },
+            },
+            chars: " ",
+          },
+        },
         lastwords: { $arrayElemAt: ["$comments", -1] },
         latest_comment_at: { $toDate: "$latest_comment_at" },
         actived_at: 1,
@@ -102,7 +120,9 @@ export function analyzePullsStatusPipeline() {
         lastwords: string;
         on_registry_at: Date;
         on_registry: boolean;
+        comments_author: string;
         ownername: string;
+        nickName: string;
         repository: string;
         state: "OPEN" | "MERGED" | "CLOSED";
         updated_at: Date;

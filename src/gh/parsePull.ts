@@ -2,7 +2,7 @@ import type { GithubPull } from "./GithubPull";
 
 export function parsePull(e: GithubPull) {
   return {
-    ...(e as {}),
+    ...e,
     title: e.title,
     number: e.number,
     url: e.html_url,

@@ -26,13 +26,13 @@ export async function updateCNReposInfo() {
         .then(({ data }) => data)
         .then(TaskOK)
         .catch(TaskError);
-
       // Handle renamed repos
       const { info, url } = await match(_info)
         .with($OK, async (info) => {
           const url = info.data.html_url;
           if (url === repository) return { info, url: repository };
 
+          // console.log(info.data.use_squash_pr_title_as_default)
           console.log("[INFO] Migrating renamed repo: \nfrom: ", repository + "\n  to: " + url);
           // migrate data into new CNRepo
           await CNRepos.updateOne(
