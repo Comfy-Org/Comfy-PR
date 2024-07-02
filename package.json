@@ -34,7 +34,7 @@
     "@ctrl/mac-address": "^3.0.3",
     "@monaco-editor/react": "^4.6.0",
     "@slack/web-api": "^7.2.0",
-    "@snomiao/die": "^1.0.11",
+    "@snomiao/die": "^1.1.0",
     "@trpc/server": "^10.45.2",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",

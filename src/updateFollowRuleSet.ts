@@ -60,11 +60,11 @@ export async function updateFollowRuleSet({
   return await (async function () {
     if (enable === false) {
       await FollowRuleSets.updateOne({ name }, { $set: { enabled: false, yamlWhenEnabled: "" } });
-      DIE("ruleset is disabled, no need to run");
+      DIE`ruleset is disabled, no need to run`;
     }
 
     // must parse while run, because the date in code is dynamic generated
-    const rules = zFollowUpRules.parse(yaml.parse(code || DIE("yaml is empty")));
+    const rules = zFollowUpRules.parse(yaml.parse(code || DIE`yaml is empty`));
     // save if parse succ
     // await FollowRuleSets.updateOne({ name }, { $set: { yaml: code, rules } });
     const parseResult = await pMap(
