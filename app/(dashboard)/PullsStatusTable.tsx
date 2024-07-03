@@ -7,6 +7,7 @@ export function PullsStatusTable({ name, pullsStatus }: { name?: string; pullsSt
   const csv = csvFormat(pullsStatus);
   const rows = csvParse(csv);
   const header = Object.keys(rows[0]) as (keyof (typeof pullsStatus)[number])[];
+  const filename = `${new Date().toISOString().slice(0, 10)}-${name || "export"}.csv`;
   // cosnt data = yaml.pasre(yaml.stringify(r))
   // const body = r.
   return (
@@ -14,8 +15,11 @@ export function PullsStatusTable({ name, pullsStatus }: { name?: string; pullsSt
       <header className="flex justify-between w-full">
         <h4>{name}</h4>
         <div className="flex gap-4">
-          <SaveButton content={csv} filename={new Date().toISOString().slice(0, 10) + (name || "export") + ".csv"}>
-            💾CSV
+          <SaveButton
+            content={csv}
+            filename={filename}
+          >
+            💾{filename}
           </SaveButton>
         </div>
       </header>
@@ -60,4 +64,3 @@ export function PullsStatusTable({ name, pullsStatus }: { name?: string; pullsSt
     </div>
   );
 }
-

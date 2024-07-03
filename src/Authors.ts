@@ -34,6 +34,8 @@ export type Author = {
 };
 
 export const Authors = db.collection<Author>("Authors");
+await Authors.createIndex('githubId')
+await Authors.createIndex('email')
 export const GithubUsers = db.collection<
   { username: string } & Task<AwaitedReturnType<typeof gh.users.getByUsername>["data"]>
 >("GithubUsers");

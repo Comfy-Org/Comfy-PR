@@ -14,7 +14,7 @@ export function SaveButton({
   return (
     <button
       onClick={async () => {
-        await saveAs(content, filename);
+        await saveAs(new Blob([content]), filename);
       }}
     >
       {children}
