@@ -35,6 +35,7 @@
     "@monaco-editor/react": "^4.6.0",
     "@slack/web-api": "^7.2.0",
     "@snomiao/die": "^1.1.0",
+    "@storybook/builder-vite": "^8.1.11",
     "@trpc/server": "^10.45.2",
     "@types/d3": "^7.4.3",
     "@types/file-saver": "^2.0.7",
@@ -65,6 +66,7 @@
     "react-hook-form": "^7.52.0",
     "react-markdown": "^9.0.1",
     "snoflow": "^1.6.0",
+    "storybook": "^8.1.11",
     "toml": "^3.0.0",
     "trpc-openapi": "^1.2.0",
     "ts-pattern": "^5.2.0",
@@ -74,6 +76,7 @@
     "zx": "^8.1.3"
   },
   "devDependencies": {
+    "@storybook/cli": "^8.1.11",
     "@types/bun": "^1.1.5",
     "@types/js-yaml": "^4.0.9",
     "@types/json-stable-stringify": "^1.0.36",

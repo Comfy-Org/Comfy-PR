@@ -21,8 +21,7 @@ if (import.meta.main) {
   // console.log("done");
   // generate zod schema
   // await writeFile("src/zPullsStatus.ts", jsonToZod(await analyzePullsStatus({ limit: 1 }), "zPullsStatus", true));
-
-  // analyzePullsStatusPipeline 
+  // analyzePullsStatusPipeline
 
   await snoflow(analyzePullsStatusPipeline().aggregate())
     // .filter(e=>e.email)
@@ -94,7 +93,22 @@ export function analyzePullsStatusPipeline() {
       .set({ updated_at: { $toDate: "$updated_at" } })
       .set({ latest_comment_at: { $toDate: "$latest_comment_at" } })
       .set({ updated_at: { $max: ["$latest_comment_at", "$updated_at"] } })
-
+      
+      // concat comment authors with space, to confirm whos reacting in this pr
+      .set({
+        comments_author: {
+          $trim: {
+            input: {
+              $reduce: {
+                input: "$comments.user.login",
+                initialValue: "",
+                in: { $concat: ["$$value", " ", "$$this"] },
+              },
+            },
+            chars: " ",
+          },
+        },
+      })
       // projecting
       .project({
         created_at: 1,
@@ -112,21 +126,10 @@ export function analyzePullsStatusPipeline() {
         nickName: "$base.user.name",
         head: { $concat: ["$user.login", ":", "$type"] },
         comments: { $size: "$comments" },
-        comments_author: {
-          $trim: {
-            input: {
-              $reduce: {
-                input: "$comments.user.login",
-                initialValue: "",
-                in: { $concat: ["$$value", " ", "$$this"] },
-              },
-            },
-            chars: " ",
-          },
-        },
+        comments_author: 1,
         lastwords: 1,
         actived_at: 1,
-        email: {$ifNull: ["$author.email", '']},
+        email: { $ifNull: ["$author.email", ""] },
       })
       // .project({ latest_comment_at: {$toDate: '$latest_comment_at'} })
       .project({ latest_comment_at: 0 })
@@ -140,16 +143,16 @@ export function analyzePullsStatusPipeline() {
       .unset(["CLOSED", "MERGED", "OPEN"])
       .as<{
         actived_at: Date;
-        email: string | '';
+        comments_author: string;
         comments: number;
         created_at: Date;
+        email: string | "";
         head: string;
         lastwords: string;
+        nickName: string;
         on_registry_at: Date;
         on_registry: boolean;
-        comments_author: string;
         ownername: string;
-        nickName: string;
         repository: string;
         state: "OPEN" | "MERGED" | "CLOSED";
         updated_at: Date;
@@ -157,3 +160,4 @@ export function analyzePullsStatusPipeline() {
       }>()
   );
 }
+z
