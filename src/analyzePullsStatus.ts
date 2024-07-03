@@ -22,7 +22,7 @@ if (import.meta.main) {
   // generate zod schema
   // await writeFile("src/zPullsStatus.ts", jsonToZod(await analyzePullsStatus({ limit: 1 }), "zPullsStatus", true));
 
-  // analyzePullsStatusPipeline
+  // analyzePullsStatusPipeline 
 
   await snoflow(analyzePullsStatusPipeline().aggregate())
     // .filter(e=>e.email)
@@ -105,7 +105,6 @@ export function analyzePullsStatusPipeline() {
         state: { $toUpper: `$prState` },
         url: "$html_url",
         // email: "$base.user.email",
-        email: "$author.email",
         instagramId: "$author.instagramId",
         discordId: "$author.discordId",
         twitterId: "$author.twitterId",
@@ -127,6 +126,7 @@ export function analyzePullsStatusPipeline() {
         },
         lastwords: 1,
         actived_at: 1,
+        email: {$ifNull: ["$author.email", '']},
       })
       // .project({ latest_comment_at: {$toDate: '$latest_comment_at'} })
       .project({ latest_comment_at: 0 })
@@ -140,7 +140,7 @@ export function analyzePullsStatusPipeline() {
       .unset(["CLOSED", "MERGED", "OPEN"])
       .as<{
         actived_at: Date;
-        email: string;
+        email: string | '';
         comments: number;
         created_at: Date;
         head: string;
