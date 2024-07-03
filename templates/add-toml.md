@@ -1,10 +1,8 @@
 # Add pyproject.toml for Custom Node Registry
 
-We are working with dr.lt.data and comfyanon to build a global registry for custom nodes (similar to PyPI). Eventually, the registry will be used as a backend for the UI-manager. All nodes go through a verification process before being published to users.
+Hey! My name is HaoHao and I'm from [comfy-org](https://comfy.org/)! We would love to have you join the Comfy Registry, a public collection of custom nodes which lets authors publish nodes by version and automate testing against existing workflows. 
 
-The main benefits are that authors can
-- publish nodes by version and users can safely update nodes knowing ahead of time if their workflows will break or not
-- automate testing against new commits in the comfy repo and existing workflows through our CI/CD dashboard
+Eventually, the registry will be integrated as a backend for the UI-manager where all nodes will go through a security scan. Nodes that pass these checks will have a verification flag (✅) beside their name on the UI-manager. Feel free to read up more on the registry [here](https://docs.comfy.org/registry/overview#introduction)
 
 Action Required:
 
@@ -14,4 +12,4 @@ Action Required:
 
 If you want to publish the node manually, [install the cli](https://docs.comfy.org/comfy-cli/getting-started#install-cli) by running `pip install comfy-cli`, then run `comfy node publish`
 
-Check out our [docs](https://docs.comfy.org/registry/overview#introduction) if you want to know more about the registry. Otherwise, feel free to message me on discord at haohao_81202 or join our [server](https://discord.com/invite/comfyorg) if you have any questions!
+Otherwise, if you have any questions, please message me on discord at haohao_81202 or join our [server](https://discord.com/invite/comfyorg)!
