@@ -17,7 +17,7 @@ if (import.meta.main) {
 /**
  * @warning this function is heavy
  */
-export async function analyzeTotals() {
+export async function analyzeTotals() { 
   "use server";
   const totals = await promiseAllProperties({
     // Now: new Date().toISOString(),
@@ -70,7 +70,7 @@ export async function analyzeTotals() {
       .next(),
     "Total Open": $pipeline(CNRepos)
       .unwind("$crPulls.data")
-      .match({ "crPulls.data.pull.prState": "open" })
+      .match({ "crPulls.data.pull.prState": "open", "crPulls.data.type": "pyproject" })
       .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
       .sort({ _id: 1 })
       .set({ id_total: [["$_id", "$total"]] })
@@ -80,7 +80,7 @@ export async function analyzeTotals() {
       .next(),
     "Total Merged (on Registry)": $pipeline(CNRepos)
       .unwind("$crPulls.data")
-      .match({ cr: { $exists: true }, "crPulls.data.pull.prState": "merged" })
+      .match({ cr: { $exists: true }, "crPulls.data.pull.prState": "merged", "crPulls.data.type": "pyproject" })
       .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
       .sort({ _id: 1 })
       .set({ id_total: [["$_id", "$total"]] })
@@ -90,7 +90,7 @@ export async function analyzeTotals() {
       .next(),
     "Total Merged (not on Registry)": $pipeline(CNRepos)
       .unwind("$crPulls.data")
-      .match({ cr: { $exists: false }, "crPulls.data.pull.prState": "merged" })
+      .match({ cr: { $exists: false }, "crPulls.data.pull.prState": "merged", "crPulls.data.type": "pyproject" })
       .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
       .sort({ _id: 1 })
       .set({ id_total: [["$_id", "$total"]] })
@@ -100,7 +100,7 @@ export async function analyzeTotals() {
       .next(),
     "Total Closed": $pipeline(CNRepos)
       .unwind("$crPulls.data")
-      .match({ "crPulls.data.pull.prState": "closed" })
+      .match({ "crPulls.data.pull.prState": "closed", "crPulls.data.type": "pyproject" })
       .group({ _id: "$crPulls.data.type", total: { $sum: 1 } })
       .sort({ _id: 1 })
       .set({ id_total: [["$_id", "$total"]] })
