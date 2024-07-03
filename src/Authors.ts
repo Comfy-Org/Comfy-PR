@@ -4,7 +4,7 @@ import { db } from "./db";
 import { gh } from "./gh";
 import type { AwaitedReturnType } from "./types/AwaitedReturnType";
 import { updateAuthors } from "./updateAuthors";
-type Author = {
+export type Author = {
   email?: string;
   // cold down
   githubMtime?: Date;

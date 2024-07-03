@@ -1,4 +1,3 @@
-#!/usr/bin/env bun
 import "dotenv/config";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { initializeFollowRules } from "./initializeFollowRules";
