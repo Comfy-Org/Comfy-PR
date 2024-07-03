@@ -1,7 +1,7 @@
-#!/usr/bin/env bun
 import "dotenv/config";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { initializeFollowRules } from "./initializeFollowRules";
+import { updateAuthors } from "./updateAuthors";
 import { updateCNRepos } from "./updateCNRepos";
 import { runFollowRuleSet } from "./updateFollowRuleSet";
 import { updateSlackMessages } from "./updateSlackMessages";
@@ -13,6 +13,7 @@ if (import.meta.main) {
     updateSlackMessages(),
     checkComfyActivated(), // needed if make pr
     updateCNRepos(),
+    updateAuthors(),
   ]);
   await initializeFollowRules();
   await tLog("runFollowRuleSet", runFollowRuleSet);

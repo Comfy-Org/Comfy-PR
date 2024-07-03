@@ -35,7 +35,7 @@ const zFollowUpRule = z.object({
   $match: z
     .object({
       actived_at: mDate,
-      author_email: mString,
+      email: mString,
       comments: mNumber,
       created_at: mDate,
       comments_author: mString,
@@ -69,8 +69,8 @@ const zFollowUpRule = z.object({
         .strict(),
       // close: z.any(),
     })
-    .partial()
-    .strict(),
+    .strict()
+    .partial(),
 });
 // zPullsStatus
 export const zFollowUpRules = zFollowUpRule.array();

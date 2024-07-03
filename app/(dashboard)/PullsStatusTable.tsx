@@ -1,14 +1,28 @@
 import type { PullsStatus } from "@/src/analyzePullsStatus";
 import { csvFormat, csvParse } from "d3";
 import Link from "next/link";
+import { SaveButton } from "./SaveButton";
 
-export function PullsStatusTable({ pullsStatus }: { pullsStatus: PullsStatus }) {
-  const rows = csvParse(csvFormat(pullsStatus));
+export function PullsStatusTable({ name, pullsStatus }: { name?: string; pullsStatus: PullsStatus }) {
+  const csv = csvFormat(pullsStatus);
+  const rows = csvParse(csv);
   const header = Object.keys(rows[0]) as (keyof (typeof pullsStatus)[number])[];
+  const filename = `${new Date().toISOString().slice(0, 10)}-${name || "export"}.csv`;
   // cosnt data = yaml.pasre(yaml.stringify(r))
   // const body = r.
   return (
     <div className="max-w-full overflow-auto h-80vh">
+      <header className="flex justify-between w-full">
+        <h4>{name}</h4>
+        <div className="flex gap-4">
+          <SaveButton
+            content={csv}
+            filename={filename}
+          >
+            💾{filename}
+          </SaveButton>
+        </div>
+      </header>
       <table className="shadow-md w-[-webkit-fill-available]">
         <thead className="sticky top-0">
           <tr className="capitalize text-start bg-blue-800">
@@ -26,7 +40,7 @@ export function PullsStatusTable({ pullsStatus }: { pullsStatus: PullsStatus }) 
               <td className="p-2">{pullsStatus.indexOf(item) + 1}</td>
               {header.map((key) => (
                 <td key={key} className="p-2">
-                  <div className="max-w-20em">
+                  <div className="max-w-10em">
                     {(() => {
                       const value = item[key];
                       if (typeof value === "boolean") return value ? "✅" : "❌";

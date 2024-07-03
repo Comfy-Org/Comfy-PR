@@ -94,7 +94,7 @@ export default function RuleSetWhirler({
                               if (!pullsStatus.length) return <>NOTHING MATCHED</>;
                               return (
                                 <div className="card">
-                                  <PullsStatusTable {...{ pullsStatus }} />
+                                  <PullsStatusTable name={name} {...{ pullsStatus }} />
                                 </div>
                               );
                             })

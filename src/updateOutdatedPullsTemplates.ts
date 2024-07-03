@@ -25,6 +25,7 @@ export async function updateOutdatedPullsTemplates() {
   const outdated_publishcr_v2 = await readTemplate("outdated/add-action-v2.md");
   const outdated_pyproject_v3 = await readTemplate("outdated/add-toml-v3.md");
   const outdated_publishcr_v3 = await readTemplate("outdated/add-action-v3.md");
+  const outdated_pyproject_v4 = await readTemplate("outdated/add-toml-v4.md");
   const outdateTitles = [
     outdated_pyproject.title,
     outdated_publishcr.title,
@@ -32,6 +33,7 @@ export async function updateOutdatedPullsTemplates() {
     outdated_publishcr_v2.title,
     outdated_pyproject_v3.title,
     outdated_publishcr_v3.title,
+    outdated_pyproject_v4.title,
   ];
   const outdateBodies = [
     outdated_pyproject.body,
@@ -40,6 +42,7 @@ export async function updateOutdatedPullsTemplates() {
     outdated_publishcr_v2.body,
     outdated_pyproject_v3.body,
     outdated_publishcr_v3.body,
+    outdated_pyproject_v4.body,
   ];
 
   // const templateOutdate = new Date("2024-06-13T09:02:56.630Z");
@@ -109,6 +112,7 @@ export async function updateOutdatedPullsTemplates() {
             .with(outdated_pyproject, () => pyproject)
             .with(outdated_pyproject_v2, () => pyproject)
             .with(outdated_pyproject_v3, () => pyproject)
+            .with(outdated_pyproject_v4, () => pyproject)
             .with(outdated_publishcr, () => publishcr)
             .with(outdated_publishcr_v2, () => publishcr)
             .with(outdated_publishcr_v3, () => publishcr)
