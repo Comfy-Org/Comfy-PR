@@ -41,6 +41,13 @@ export async function runFollowRuleSet({ name = "default" } = {}) {
     }),
   );
 }
+export async function showFollowRuleSet({ name = "default" } = {}) {
+  const ruleset = (await FollowRuleSets.findOne({ name })) ?? DIE("default ruleset not found");
+  return await updateFollowRuleSet({
+    name: ruleset.name,
+    yaml: ruleset.yamlWhenEnabled ?? DIE("Rule not enabled"),
+  });
+}
 export type updateFollowRuleSet = typeof updateFollowRuleSet;
 export async function updateFollowRuleSet({
   name,
@@ -48,12 +55,13 @@ export async function updateFollowRuleSet({
   enable,
   runAction = false,
 }: {
+  /** 'default' */
   name: string;
-  /** update yaml if provided */
+  /** update yaml if provided, unchange if undefined */
   yaml?: string;
-  /** update enable if provided */
+  /** update enable if provided, unchange if undefined */
   enable?: boolean | undefined;
-  /** run action if set to true */
+  /** run action if true */
   runAction?: boolean;
 }) {
   "use server";
@@ -170,7 +178,8 @@ export async function updateFollowRuleSet({
       },
       { concurrency: 1 },
     );
-    if (enable) {
+
+    if (enable === true) {
       await FollowRuleSets.updateOne({ name }, { $set: { enabled: true, yamlWhenEnabled: code, yaml: code } });
     } else {
       await FollowRuleSets.updateOne({ name }, { $set: { yaml: code } });

@@ -1,11 +1,13 @@
 "use server";
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import { TaskDataOrNull } from "@/packages/mongodb-pipeline-ts/Task";
 import promiseAllProperties from "promise-all-properties";
 import YAML from "yaml";
 import { CMNodes } from "./CMNodes";
 import { CNRepos } from "./CNRepos";
 import { CRNodes } from "./CRNodes";
 import { $filaten } from "./db";
+import { showFollowRuleSet } from "./updateFollowRuleSet";
 import { tLog } from "./utils/tLog";
 
 if (import.meta.main) {
@@ -15,7 +17,7 @@ if (import.meta.main) {
   });
 }
 /**
- * @warning this function is heavy
+ * @warning this function is heavy, TODO: split into small chunk
  */
 export async function analyzeTotals() {
   "use server";
@@ -110,11 +112,9 @@ export async function analyzeTotals() {
       .next(),
 
     // // Follow Rules
-    // "Follow Up Rules": (async function () {
-    //   await pMap($pipeline(FollowRuleSets).aggregate(), async (ruleset) => {
-
-    //   });
-    // })(),
+    "Follow Up Rules": (async function () {
+      return TaskDataOrNull(await showFollowRuleSet({ name: "default" }));
+    })(),
   });
   return totals;
 }
