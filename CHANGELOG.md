@@ -2,15 +2,28 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-### [0.2.20](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.19...v0.2.20) (2024-07-02)
+### [0.2.21](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.20...v0.2.21) (2024-07-04)
 
+### Features
+
+- **emails:** display in details-table and export ([4d6b002](https://github.com/drip-art/Comfy-Registry-PR/commit/4d6b0023871b3469d702cd45f5702627798a1408))
+- **github-email:** fetcher ([f76889f](https://github.com/drip-art/Comfy-Registry-PR/commit/f76889f62af44546a8433d13fac56b3dec3be133))
 
 ### Bug Fixes
 
-* **comment-authors:** add ([847b14d](https://github.com/drip-art/Comfy-Registry-PR/commit/847b14d19b1c6bde1bb967c7ff8e7f44d93ac4eb))
-* **comment-authors:** add ([d5ec4f1](https://github.com/drip-art/Comfy-Registry-PR/commit/d5ec4f1199d57b494e77c9613cc3789112be09e9))
-* **misc:** 2024-06-28 meeting changes [@haohao](https://github.com/haohao) ([fe8aac6](https://github.com/drip-art/Comfy-Registry-PR/commit/fe8aac61d587c366a85f74d53b1572f0c74c0791))
-* **misc:** 2024-06-28 meeting changes [@haohao](https://github.com/haohao) ([1cc72d5](https://github.com/drip-art/Comfy-Registry-PR/commit/1cc72d5127de0e7b0d3412706e4a6f0102a558e1))
+- **authors:** enable updating ([737eee5](https://github.com/drip-art/Comfy-Registry-PR/commit/737eee5cddb109fcfaaaaa10b133eea12562bad8))
+- **authors:** index with email and githubId ([369a5ad](https://github.com/drip-art/Comfy-Registry-PR/commit/369a5ad254811dc09738ad7308b1a396c5490ffd))
+- **main:** ignore lock ([787e60e](https://github.com/drip-art/Comfy-Registry-PR/commit/787e60ec93f760b18713a50e664b6fb984a24038))
+- **pullStatus:** fill email as empty string if null ([9ad257e](https://github.com/drip-art/Comfy-Registry-PR/commit/9ad257e30d3d493c07309c7b02141cb1da7f3ce3))
+
+### [0.2.20](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.19...v0.2.20) (2024-07-02)
+
+### Bug Fixes
+
+- **comment-authors:** add ([847b14d](https://github.com/drip-art/Comfy-Registry-PR/commit/847b14d19b1c6bde1bb967c7ff8e7f44d93ac4eb))
+- **comment-authors:** add ([d5ec4f1](https://github.com/drip-art/Comfy-Registry-PR/commit/d5ec4f1199d57b494e77c9613cc3789112be09e9))
+- **misc:** 2024-06-28 meeting changes [@haohao](https://github.com/haohao) ([fe8aac6](https://github.com/drip-art/Comfy-Registry-PR/commit/fe8aac61d587c366a85f74d53b1572f0c74c0791))
+- **misc:** 2024-06-28 meeting changes [@haohao](https://github.com/haohao) ([1cc72d5](https://github.com/drip-art/Comfy-Registry-PR/commit/1cc72d5127de0e7b0d3412706e4a6f0102a558e1))
 
 ### [0.2.19](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.18...v0.2.19) (2024-06-28)
 

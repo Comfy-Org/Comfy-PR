@@ -6,7 +6,9 @@ import { SaveButton } from "./SaveButton";
 export function PullsStatusTable({ name, pullsStatus }: { name?: string; pullsStatus: PullsStatus }) {
   const csv = csvFormat(pullsStatus);
   const rows = csvParse(csv);
-  const header = Object.keys(rows[0]) as (keyof (typeof pullsStatus)[number])[];
+  const first = rows[0]
+  if(!first ) return <>NO DATA</>;
+  const header = Object.keys(first) as (keyof (typeof pullsStatus)[number])[];
   const filename = `${new Date().toISOString().slice(0, 10)}-${name || "export"}.csv`;
   // cosnt data = yaml.pasre(yaml.stringify(r))
   // const body = r.
