@@ -1,24 +1,19 @@
 "use server";
-import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
-import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import { TaskDataOrNull } from "@/packages/mongodb-pipeline-ts/Task";
 import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { peekYaml } from "peek-log";
-import { TaskError, TaskOK, type Task } from "../packages/mongodb-pipeline-ts/Task";
-import { CNRepos, type CRPull } from "./CNRepos";
+import { TaskError, TaskOK } from "../packages/mongodb-pipeline-ts/Task";
+import { CNRepos } from "./CNRepos";
 import { FollowRuleSets } from "./FollowRules";
-import type { GithubIssueComment } from "./GithubIssueComments";
+import { addCommentAction } from "./addCommentAction";
 import { analyzePullsStatus, analyzePullsStatusPipeline } from "./analyzePullsStatus";
-import { createIssueComment } from "./createIssueComment";
 import { $filaten } from "./db";
 import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
 import { fetchIssueComments } from "./gh/fetchIssueComments";
-import { ghUser } from "./ghUser";
 import { initializeFollowRules } from "./initializeFollowRules";
 import { stringifyGithubRepoUrl } from "./parseOwnerRepo";
 import { parsePullUrl } from "./parsePullUrl";
-import { notifySlackLinks } from "./slack/notifySlackLinks";
 import { yaml } from "./utils/yaml";
 
 if (import.meta.main) {
@@ -40,13 +35,6 @@ export async function runFollowRuleSet({ name = "default" } = {}) {
       runAction: true,
     }),
   );
-}
-export async function showFollowRuleSet({ name = "default" } = {}) {
-  const ruleset = (await FollowRuleSets.findOne({ name })) ?? DIE("default ruleset not found");
-  return await updateFollowRuleSet({
-    name: ruleset.name,
-    yaml: ruleset.yamlWhenEnabled ?? DIE("Rule not enabled"),
-  });
 }
 export type updateFollowRuleSet = typeof updateFollowRuleSet;
 export async function updateFollowRuleSet({
@@ -112,60 +100,7 @@ export async function updateFollowRuleSet({
             async ([name, _action]) => {
               if (name === "add-comment") {
                 const action = zAddCommentAction.parse(_action);
-                const matchedData = TaskDataOrNull(matched) ?? DIE("NO-PAYLOAD-AVAILABLE");
-                return await pMap(
-                  matchedData,
-                  async (payload) => {
-                    const loadedAction = {
-                      action: "add-comment",
-                      url: payload.url,
-                      by: action.by,
-                      body: action.body.replace(
-                        /{{\$(\w+)}}/,
-                        (_, key: string) =>
-                          (payload as any)[key] ||
-                          DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
-                      ),
-                    };
-
-                    if (runAction && loadedAction.by === ghUser.login) {
-                      const existedCommentsTask =
-                        (await $pipeline(CNRepos)
-                          .unwind("$crPulls.data")
-                          .match({ "crPulls.data.pull.html_url": loadedAction.url })
-                          .with<{ "crPulls.data": CRPull }>()
-                          .replaceRoot({ newRoot: "$crPulls.data.comments" })
-                          .as<Task<GithubIssueComment[]>>()
-                          .aggregate()
-                          .next()) ??
-                        DIE("comments is not fetched before, plz check " + loadedAction.url + " in CNRepos");
-
-                      const existedComments =
-                        TaskDataOrNull(existedCommentsTask) ??
-                        DIE("NO-COMMENTS-FOUND should never happen here, bcz pipeline filtered at first");
-                      const existedComment = existedComments.find((e) => e.body === loadedAction.body);
-
-                      if (!existedComment) {
-                        const { comments, comment } = await createIssueComment(
-                          loadedAction.url,
-                          loadedAction.body,
-                          loadedAction.by,
-                        );
-                        const updateResult = await CNRepos.updateOne(
-                          $filaten({ crPulls: { data: $elemMatch({ pull: { html_url: loadedAction.url } }) } }),
-                          { $set: { "crPulls.data.$.comments": comments } },
-                        );
-                        if (!updateResult.matchedCount) DIE("created issue not matched");
-                        await notifySlackLinks("A New issue comment are created from rule " + rule.name, [
-                          comment.html_url,
-                        ]);
-                      }
-                    }
-
-                    return loadedAction;
-                  },
-                  { concurrency: 1 },
-                );
+                return await addCommentAction({ matched, action, runAction, rule });
               }
             },
             { concurrency: 1 },
@@ -189,3 +124,4 @@ export async function updateFollowRuleSet({
     .then(TaskOK)
     .catch(TaskError);
 }
+

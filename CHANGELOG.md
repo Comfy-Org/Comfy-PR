@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.23](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.20...v0.2.23) (2024-07-04)
+
+### Features
+
+- **emails:** display in details-table and export ([4d6b002](https://github.com/drip-art/Comfy-Registry-PR/commit/4d6b0023871b3469d702cd45f5702627798a1408))
+- **github-email:** fetcher ([f76889f](https://github.com/drip-art/Comfy-Registry-PR/commit/f76889f62af44546a8433d13fac56b3dec3be133))
+
+### Bug Fixes
+
+- **authors:** enable updating ([737eee5](https://github.com/drip-art/Comfy-Registry-PR/commit/737eee5cddb109fcfaaaaa10b133eea12562bad8))
+- **authors:** index with email and githubId ([369a5ad](https://github.com/drip-art/Comfy-Registry-PR/commit/369a5ad254811dc09738ad7308b1a396c5490ffd))
+- **main:** ignore lock ([787e60e](https://github.com/drip-art/Comfy-Registry-PR/commit/787e60ec93f760b18713a50e664b6fb984a24038))
+- pull-status handle missing data ([81f8d6a](https://github.com/drip-art/Comfy-Registry-PR/commit/81f8d6ae3d9cdb5ea6b16703506508ee36d7b027))
+- **pullStatus:** fill email as empty string if null ([9ad257e](https://github.com/drip-art/Comfy-Registry-PR/commit/9ad257e30d3d493c07309c7b02141cb1da7f3ce3))
+
+### [0.2.22](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.20...v0.2.22) (2024-07-04)
+
+### Features
+
+- **emails:** display in details-table and export ([4d6b002](https://github.com/drip-art/Comfy-Registry-PR/commit/4d6b0023871b3469d702cd45f5702627798a1408))
+- **github-email:** fetcher ([f76889f](https://github.com/drip-art/Comfy-Registry-PR/commit/f76889f62af44546a8433d13fac56b3dec3be133))
+
+### Bug Fixes
+
+- **authors:** enable updating ([737eee5](https://github.com/drip-art/Comfy-Registry-PR/commit/737eee5cddb109fcfaaaaa10b133eea12562bad8))
+- **authors:** index with email and githubId ([369a5ad](https://github.com/drip-art/Comfy-Registry-PR/commit/369a5ad254811dc09738ad7308b1a396c5490ffd))
+- **main:** ignore lock ([787e60e](https://github.com/drip-art/Comfy-Registry-PR/commit/787e60ec93f760b18713a50e664b6fb984a24038))
+- pull-status handle missing data ([81f8d6a](https://github.com/drip-art/Comfy-Registry-PR/commit/81f8d6ae3d9cdb5ea6b16703506508ee36d7b027))
+- **pullStatus:** fill email as empty string if null ([9ad257e](https://github.com/drip-art/Comfy-Registry-PR/commit/9ad257e30d3d493c07309c7b02141cb1da7f3ce3))
+
 ### [0.2.21](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.20...v0.2.21) (2024-07-04)
 
 ### Features
