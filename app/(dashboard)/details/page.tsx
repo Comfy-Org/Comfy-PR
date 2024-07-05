@@ -1,6 +1,7 @@
 import UseSWRComponent from "use-swr-component";
 import DetailsTable from "../DetailsTable";
 
+export const dynamic = "force-dynamic";
 /**
  *
  * @author: snomiao <snomiao@gmail.com>

@@ -7,6 +7,9 @@ import { Authors, GithubUsers } from "./Authors";
 import { $stale } from "./db";
 import { gh } from "./gh";
 
+if (import.meta.main) {
+  await updateAuthorsForGithub()
+}
 export async function updateAuthorsForGithub() {
   await snoflow(Authors.find({ githubMtime: $stale("7d") }))
     .map((e) => e.githubId)
