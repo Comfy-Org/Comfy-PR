@@ -67,6 +67,7 @@
     "react-hook-form": "^7.52.0",
     "react-markdown": "^9.0.1",
     "snoflow": "^1.6.0",
+    "sparse-bitfield": "^3.0.3",
     "toml": "^3.0.0",
     "trpc-openapi": "^1.2.0",
     "ts-pattern": "^5.2.0",
