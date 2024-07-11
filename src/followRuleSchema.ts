@@ -30,6 +30,16 @@ export const zAddCommentAction = z
     body: z.string(),
   })
   .strict();
+export const zSendEmailAction = z
+  .object({
+    provider: z.enum(["google"]),
+    name: z.string(),
+    from: z.string(),
+    to: z.string(),
+    subject: z.string(),
+    body: z.string(),
+  })
+  .strict();
 const zFollowUpRule = z.object({
   name: z.string(),
   $match: z
@@ -53,15 +63,7 @@ const zFollowUpRule = z.object({
   action: z
     .object({
       "add-comment": zAddCommentAction,
-      "send-email": z
-        .object({
-          provider: z.string(),
-          from: z.string(),
-          to: z.string(),
-          subject: z.string(),
-          body: z.string(),
-        })
-        .strict(), // WARN: not implementd
+      "send-email": zSendEmailAction, // WARN: not implementd
       "update-issue": z
         .object({
           tags: mAny,

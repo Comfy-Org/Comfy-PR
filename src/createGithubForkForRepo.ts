@@ -32,6 +32,6 @@ export async function createGithubForkForRepo(upstreamRepoUrl: string) {
   const forkDst = `${FORK_OWNER}/${forkRepoName}`;
   const forkUrl = `https://github.com/${forkDst}`;
   const forked = await createGithubFork(upstreamRepoUrl, forkUrl);
-  if (forked.html_url !== forkUrl) DIE("forked url not expected");
+  if (forked.html_url !== forkUrl) DIE("forked url not expected, it's likely you already forked this repo in your account before, and now trying to fork it again with different salt. To recovery you could delete that repo forked before by manual. (the repo forked before is listed in FORK OK: .....)");
   return forked;
 }

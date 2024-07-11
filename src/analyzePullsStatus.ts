@@ -81,18 +81,19 @@ export function baseCRPullStatusPipeline(){
 export function analyzePullsStatusPipeline() {
   return (
     baseCRPullStatusPipeline()
-      // fetch author email from Authors collection
+    // fetch author email from Authors collection
+    .set({         ownername: "$base.user.login",    })
       .lookup({
         from: "Authors",
-        as: "authors",
         // let: { <var_1>: <expression>, …, <var_n>: <expression> },
-        localField: "base.user.login",
+        localField: "ownername",
         foreignField: "githubId",
+        as: "authors",
         pipeline: [{ $project: { email: 1 } }],
       })
       .with<{ authors: Author[] }>()
       // .unwind("$author")
-      .set({ email: '$authors.0.email'})
+      .set({ email: {$ifNull: ['$authors.0.email','']}})
       .project({ authros: 0})
       
       .set({ lastwords: { $arrayElemAt: ["$comments", -1] } })

@@ -124,4 +124,3 @@ export async function updateFollowRuleSet({
     .then(TaskOK)
     .catch(TaskError);
 }
-

@@ -11,6 +11,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...(process.env.AUTH_EMAIL_SERVER
       ? [
           Nodemailer({
+            name: "Email Magic Link",
             server: process.env.AUTH_EMAIL_SERVER,
             from: process.env.AUTH_EMAIL_FROM,
           }),
