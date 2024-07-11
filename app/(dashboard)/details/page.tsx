@@ -11,8 +11,8 @@ export default function DetailsPage({ searchParams: { skip = 0, limit = 0 } }) {
   return (
     <div className="card overflow-hidden">
       <Markdown>{`
-1. [Admin: Check Follow-up rules](/rules/default)
-1. [Admin: Check Default rule](/rules/default)
+1. [Admin: Check Follow-up rules](/rules)
+1. [Admin: Check Default Follow-up rule](/rules/default)
 `}</Markdown>
 
       <UseSWRComponent props={{ skip, limit }} Component={DetailsTable} refreshInterval={60e3}>
