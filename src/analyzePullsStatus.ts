@@ -1,4 +1,5 @@
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import type { ObjectId } from "mongodb";
 import prettyMs from "pretty-ms";
 import { snoflow } from "snoflow";
 import type { z } from "zod";
@@ -68,6 +69,7 @@ export function baseCRPullStatusPipeline() {
       .set({ "crPulls.data.pull.type": "$crPulls.data.type" })
       .set({ "crPulls.data.pull": "$crPulls.data.pull" })
       .set({ "crPulls.data.pull.comments": "$crPulls.data.comments.data" })
+      .set({ "crPulls.data.pull.emailTask_id": "$crPulls.data.emailTask_id" })
       // replace root as pull
       .replaceRoot({ newRoot: "$crPulls.data.pull" })
       .as<
@@ -76,6 +78,7 @@ export function baseCRPullStatusPipeline() {
           on_registry: Task<boolean>;
           type: string;
           comments: GithubIssueComment[];
+          emailTask_id?: ObjectId;
         }
       >()
   );
@@ -84,12 +87,13 @@ export function analyzePullsStatusPipeline() {
   return (
     baseCRPullStatusPipeline()
       // fetch author email from Authors collection
+      .set({ ownername: "$base.user.login" })
       .lookup({
         from: "Authors",
-        as: "authors",
         // let: { <var_1>: <expression>, …, <var_n>: <expression> },
-        localField: "base.user.login",
+        localField: "ownername",
         foreignField: "githubId",
+        as: "authors",
         pipeline: [{ $project: { email: 1 } }],
       })
       .with<{ authors: Author[] }>()

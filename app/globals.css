@@ -18,11 +18,16 @@ h5 {
   @apply text-base font-bold;
 }
 
-td,th {
+td,
+th {
   min-width: 4em;
   overflow-wrap: anywhere;
   overflow: auto;
 }
-td>*{
+td > * {
   max-height: 10em;
+}
+a {
+  text-decoration: underline;
+  color: cadetblue;
 }

@@ -1,20 +1,13 @@
 import type { ReactNode } from "react";
-
-// const Users = db.collection<{
-//   email: string;
-//   admin: boolean;
-// }>("Users");
-// await pMap(process.env.AUTH_ADMINS?.split(",") ?? [], async (email) => {
-//   await Users.updateOne({ email }, { $set: { email, admin: true } }, { upsert: true });
-// });
+import { getAuthUser } from "./getAuthUser";
 
 export default async function RulesLayout({ children }: { children: ReactNode }) {
-  // const session = await auth();
-  // const email = session?.user?.email ?? (await signIn());
-  // const user = (await Users.findOne({ admin: true, email })) ?? (await signIn());
-  // if (!user.admin) {
-  //   return <div>Unauthorized</div>;
-  // }
+  const user = await getAuthUser();
+  // check authorization (permission)
+  const { admin } = user;
+  const isAdmin = admin || user.email.endsWith("@drip.art");
+  if (!isAdmin) return <div>Unauthorized</div>;
+
   return (
     <div className="flex flex-wrap">
       <div className="grow">{children}</div>

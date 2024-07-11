@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { checkComfyActivated } from "./checkComfyActivated";
+import { updateEmailTasks } from "./EmailTasks";
 import { initializeFollowRules } from "./initializeFollowRules";
 import { updateAuthors } from "./updateAuthors";
 import { updateCNRepos } from "./updateCNRepos";
@@ -14,6 +15,7 @@ if (import.meta.main) {
     checkComfyActivated(), // needed if make pr
     updateCNRepos(),
     updateAuthors(),
+    updateEmailTasks(),
   ]);
   await initializeFollowRules();
   await tLog("runFollowRuleSet", runFollowRuleSet);
