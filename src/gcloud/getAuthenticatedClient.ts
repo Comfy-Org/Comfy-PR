@@ -34,18 +34,7 @@ export async function getAuthenticatedClient({
     new OAuth2Client(
       process.env.AUTH_GOOGLE_ID || DIE`MISSING env.AUTH_GOOGLE_ID`,
       process.env.AUTH_GOOGLE_SECRET || DIE`MISSING env.AUTH_GOOGLE_SECRET`,
-      `${
-        new URL(
-          process.env.AUTH_GCLOUD_URL ??
-            process.env.AUTH_URL ??
-            DIE`\
-  Missding env.API_AUTH_URL, \
-  Please choose one from web.keys.redirect_uris \
-  And fill API_AUTH_URL into .env.local.
-  Make sure path has "/api/oauth/gcloud"
-  `,
-        ).origin
-      }/api/oauth/gcloud`,
+      getGCloudOAuth2RedirectUri(),
     );
   // Generate the url that will be used for the consent dialog.
   const authorizeUrl = getOAuth2Client().generateAuthUrl({
@@ -83,6 +72,7 @@ export function getGCloudOAuth2RedirectUri(): string {
     new URL(
       process.env.AUTH_GCLOUD_URL ??
         process.env.AUTH_URL ??
+        process.env.VERCEL_URL ??
         DIE`\
 Missding env.API_AUTH_URL, \
 Please choose one from web.keys.redirect_uris \
