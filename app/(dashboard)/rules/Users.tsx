@@ -7,6 +7,6 @@ export const Users = db.collection<{
 }>("Users");
 
 // setup admins
-await snoflow(process.env.AUTH_ADMINS?.split(",") ?? [])
+await snoflow(process.env.AUTH_ADMINS?.split(",").map((e) => e.toLowerCase()) ?? [])
   .pMap((email) => Users.updateOne({ email }, { $set: { email, admin: true } }, { upsert: true }))
   .toCount();
