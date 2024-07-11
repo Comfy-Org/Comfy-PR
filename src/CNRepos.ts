@@ -41,7 +41,8 @@ export type CustomNodeRepo = {
   repository: string;
   info?: Task<Pick<GithubRepo, "html_url" | "archived" | "default_branch" | "private">>;
 
-  author?: Author;
+  // author?: Author;
+
   /** @deprecated use cr_ids or on_registry */
   cr?: Pick<WithId<CRNode>, "_id" | "id" | "name">;
 

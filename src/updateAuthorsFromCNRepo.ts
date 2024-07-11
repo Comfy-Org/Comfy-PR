@@ -21,10 +21,10 @@ export async function updateAuthorsFromCNRepo() {
         // }
         All: { $sum: 1 },
       })
-      .set({ login: "$_id" })
+      .set({ githubId: "$_id" })
       .project({ _id: 0 })
-      .aggregate()
+      .aggregate(),
   )
-    .peek(({ login, ...$set }) => Authors.updateOne({ login }, { $set }, { upsert: true }))
+    .map(({ githubId, ...$set }) => Authors.updateOne({ githubId }, { $set }, { upsert: true }))
     .done();
 }

@@ -94,9 +94,8 @@ export function analyzePullsStatusPipeline() {
         pipeline: [{ $project: { email: 1 } }],
       })
       .with<{ authors: Author[] }>()
-      // .unwind("$author")
-      .set({ email: { $ifNull: ["$authors.0.email", ""] } })
-      .project({ authros: 0 })
+      .set({ author: { $arrayElemAt: ["$authors", 0] } })
+      .project({ authors: 0 })
 
       .set({ lastwords: { $arrayElemAt: ["$comments", -1] } })
       .set({ lastwords: { $ifNull: [{ $concat: ["$lastwords.user.login", ": ", "$lastwords.body"] }, ""] } })
@@ -117,9 +116,6 @@ export function analyzePullsStatusPipeline() {
         on_registry_at: "$on_registry.mtime",
         state: { $toUpper: `$prState` },
         url: "$html_url",
-        instagramId: "$author.instagramId",
-        discordId: "$author.discordId",
-        twitterId: "$author.twitterId",
         ownername: "$base.user.login",
         nickName: "$base.user.name",
         head: { $concat: ["$user.login", ":", "$type"] },
@@ -138,8 +134,11 @@ export function analyzePullsStatusPipeline() {
         },
         lastwords: 1,
         actived_at: 1,
-        // email: "$base.user.email",
-        // email: {$ifNull: ["$author.email", '']},
+
+        instagramId: "$author.instagramId",
+        discordId: "$author.discordId",
+        twitterId: "$author.twitterId",
+        email: { $ifNull: ["$author.email", ""] },
       })
       // .project({ latest_comment_at: {$toDate: '$latest_comment_at'} })
       .project({ latest_comment_at: 0 })

@@ -1,6 +1,6 @@
 {
   "name": "comfy-pr",
-  "version": "0.2.23",
+  "version": "0.2.24",
   "description": "Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry]( https://www.comfyregistry.org/ ).",
   "keywords": [],
   "license": "ISC",
@@ -80,6 +80,7 @@
     "ts-pattern": "^5.2.0",
     "unwind-array": "^1.1.4",
     "use-swr-component": "^0.0.5",
+    "vercel": "^34.3.0",
     "yaml": "^2.4.5",
     "zod": "^3.23.8",
     "zx": "^8.1.3"
