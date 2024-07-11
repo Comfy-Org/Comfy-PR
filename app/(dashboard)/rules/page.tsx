@@ -1,6 +1,7 @@
 import { TaskDataOrNull } from "@/packages/mongodb-pipeline-ts/Task";
 import { FollowRuleSets } from "@/src/FollowRules";
 import Link from "next/link";
+import Markdown from "react-markdown";
 
 /**
  * @author: snomiao <snomiao@gmail.com>
@@ -27,6 +28,10 @@ export default async function RulesList() {
               );
             })}
           </ul>
+          <Markdown>{`
+1. [Grant Gmail sender permissions](/followup/actions/send-gmail)
+1. [Default rule](/rules/default)
+`}</Markdown>
         </div>
       </div>
     </div>
