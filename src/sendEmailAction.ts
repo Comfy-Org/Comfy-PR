@@ -1,17 +1,16 @@
 "use server";
+import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
 import { TaskDataOrNull, type Task } from "@/packages/mongodb-pipeline-ts/Task";
 import DIE from "@snomiao/die";
 import pMap from "p-map";
 import { snoflow } from "snoflow";
 import type { z } from "zod";
 import type { PullStatusShown } from "./analyzePullsStatus";
-import { EmailTasks, enqueueEmailTask } from "./EmailTasks";
-import { zSendEmailAction } from "./followRuleSchema";
-import { yaml } from "./utils/yaml";
-import { getGCloudOAuth2Client } from "./gcloud/GCloudOAuth2Credentials";
 import { CNRepos } from "./CNRepos";
 import { $filaten } from "./db";
-import { $elemMatch } from "@/packages/mongodb-pipeline-ts/$elemMatch";
+import { enqueueEmailTask } from "./EmailTasks";
+import { zSendEmailAction } from "./followRuleSchema";
+import { yaml } from "./utils/yaml";
 
 export async function runSendEmailAction({
   matched,
@@ -44,11 +43,10 @@ export async function runSendEmailAction({
         .toLast();
 
       if (runAction) {
-        const task = await enqueueEmailTask(loadedAction)
-        await CNRepos.updateOne(
-          $filaten({ crPulls: { data: $elemMatch({ pull: { html_url: payload.url } }) } }),
-          { $set: { "crPulls.data.$.emailTask_id": task._id } },
-        )
+        const task = await enqueueEmailTask(loadedAction);
+        await CNRepos.updateOne($filaten({ crPulls: { data: $elemMatch({ pull: { html_url: payload.url } }) } }), {
+          $set: { "crPulls.data.$.emailTask_id": task._id },
+        });
       }
       return loadedAction;
     },

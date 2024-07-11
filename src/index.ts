@@ -1,12 +1,12 @@
 import "dotenv/config";
 import { checkComfyActivated } from "./checkComfyActivated";
+import { updateEmailTasks } from "./EmailTasks";
 import { initializeFollowRules } from "./initializeFollowRules";
 import { updateAuthors } from "./updateAuthors";
 import { updateCNRepos } from "./updateCNRepos";
 import { runFollowRuleSet } from "./updateFollowRuleSet";
 import { updateSlackMessages } from "./updateSlackMessages";
 import { tLog } from "./utils/tLog";
-import { updateEmailTasks } from "./EmailTasks";
 
 if (import.meta.main) {
   await Promise.all([
@@ -15,7 +15,7 @@ if (import.meta.main) {
     checkComfyActivated(), // needed if make pr
     updateCNRepos(),
     updateAuthors(),
-    updateEmailTasks()
+    updateEmailTasks(),
   ]);
   await initializeFollowRules();
   await tLog("runFollowRuleSet", runFollowRuleSet);

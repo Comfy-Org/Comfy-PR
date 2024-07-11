@@ -50,7 +50,7 @@ export async function getAuthenticatedClient({
   // Generate the url that will be used for the consent dialog.
   const authorizeUrl = getOAuth2Client().generateAuthUrl({
     access_type: "offline",
-    prompt: 'consent', // for refresh_token
+    prompt: "consent", // for refresh_token
     scope,
   });
   // console.log(authorizeUrl);

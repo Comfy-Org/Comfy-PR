@@ -52,11 +52,13 @@ Thank you for receiving this email!!!!
  */
 export async function enqueueEmailTask(task: z.infer<typeof zSendEmailAction>) {
   const { name, from, to, subject, body, provider } = task;
-  return (await EmailTasks.findOneAndUpdate(
-    { from, to, subject },
-    { $set: task, $setOnInsert: { mtime: new Date(), state: "waiting" } },
-    { upsert: true, returnDocument: "after" },
-  )) ??DIE(new Error('fail to enqueue email task'));
+  return (
+    (await EmailTasks.findOneAndUpdate(
+      { from, to, subject },
+      { $set: task, $setOnInsert: { mtime: new Date(), state: "waiting" } },
+      { upsert: true, returnDocument: "after" },
+    )) ?? DIE(new Error("fail to enqueue email task"))
+  );
 }
 export async function updateEmailTasks() {
   const count = await sf(EmailTasks.find({ state: "waiting" }))
