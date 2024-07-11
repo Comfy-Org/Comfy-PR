@@ -72,7 +72,7 @@ export function getGCloudOAuth2RedirectUri(): string {
     new URL(
       process.env.AUTH_GCLOUD_URL ??
         process.env.AUTH_URL ??
-        process.env.VERCEL_URL?.replace(/^/,'https://') ??
+        process.env.VERCEL_URL?.replace(/^/, "https://") ??
         DIE`\
 Missding env.API_AUTH_URL, \
 Please choose one from web.keys.redirect_uris \
