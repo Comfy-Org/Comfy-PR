@@ -26,7 +26,7 @@ export async function runSendEmailAction({
   return await pMap(
     TaskDataOrNull(matched) ?? DIE("NO-PAYLOAD-AVAILABLE"),
     async (payload) => {
-      action.provider === "google" || DIE("Currently we only support gmail sender");
+      if (action.provider !== "google") DIE("Currently we only support gmail sender");
       const loadedAction = await snoflow([action])
         .map((e) => yaml.stringify(e))
         .map((e) =>
@@ -44,6 +44,7 @@ export async function runSendEmailAction({
 
       if (runAction) {
         const task = await enqueueEmailTask(loadedAction);
+        console.log(rule.name + " email enqueued :" + yaml.stringify(loadedAction));
         await CNRepos.updateOne($filaten({ crPulls: { data: $elemMatch({ pull: { html_url: payload.url } }) } }), {
           $set: { "crPulls.data.$.emailTask_id": task._id },
         });
