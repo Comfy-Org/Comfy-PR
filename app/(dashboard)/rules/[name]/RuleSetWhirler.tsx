@@ -7,6 +7,7 @@ import { yaml } from "@/src/utils/yaml";
 import { revalidatePath } from "next/cache";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { Toaster, toast } from "react-hot-toast";
 import Markdown from "react-markdown";
 import { PullsStatusTable } from "../../PullsStatusTable";
 import { SaveButton } from "../../SaveButton";
@@ -39,15 +40,18 @@ export default function RuleSetWhirler({
     async (code: string | undefined): Promise<void> => {
       if (code === undefined) return;
       setCode(code);
+      const id = toast.loading("updating");
       const result = await updateFollowRuleSet({ yaml: code, name });
       // const result = await debounce(updateFollowRuleSet, 200)(code);
       tsmatch(result)
         .with($OK, ({ data }) => {
+          toast.success("updating OK!", { id });
           setError(null);
           setMatchResults(data);
         })
         .with($ERROR, ({ error }) => {
           setError(yaml.stringify(error));
+          toast.error("updating Error!", { id });
         });
     },
     [updateFollowRuleSet, name],
@@ -187,6 +191,7 @@ export default function RuleSetWhirler({
           </>
         )}
       </div>
+      <Toaster />
     </div>
   );
 }
