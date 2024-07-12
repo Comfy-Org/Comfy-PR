@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.25](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.20...v0.2.25) (2024-07-12)
+
+
+### Features
+
+* **emails:** display in details-table and export ([4d6b002](https://github.com/drip-art/Comfy-Registry-PR/commit/4d6b0023871b3469d702cd45f5702627798a1408))
+* **github-email:** fetcher ([f76889f](https://github.com/drip-art/Comfy-Registry-PR/commit/f76889f62af44546a8433d13fac56b3dec3be133))
+* **gmail:** init ([2675337](https://github.com/drip-art/Comfy-Registry-PR/commit/2675337804c48d149c9fc83745e143fea24b4ed5))
+* **gmail:** init ([ad7f6d0](https://github.com/drip-art/Comfy-Registry-PR/commit/ad7f6d0580a4647b864f22b7559f8b99cf45a0f7))
+* totals chart wip ([f22cbb7](https://github.com/drip-art/Comfy-Registry-PR/commit/f22cbb70c871930abafd7ce15b458412253c9387))
+
+
+### Bug Fixes
+
+* **authors-worker:** github-id ([2cf5425](https://github.com/drip-art/Comfy-Registry-PR/commit/2cf542595adb7e44f01dcf1038cb0b6e853fd2bc))
+* **authors:** enable updating ([737eee5](https://github.com/drip-art/Comfy-Registry-PR/commit/737eee5cddb109fcfaaaaa10b133eea12562bad8))
+* **authors:** index with email and githubId ([369a5ad](https://github.com/drip-art/Comfy-Registry-PR/commit/369a5ad254811dc09738ad7308b1a396c5490ffd))
+* **email:** taskid optional ([aa1f934](https://github.com/drip-art/Comfy-Registry-PR/commit/aa1f934d4981944e4c30801006105a5e4d146b6e))
+* follow-rule show follow rule set ([3b260cb](https://github.com/drip-art/Comfy-Registry-PR/commit/3b260cb04903f89f775916b237fbe4d21d3388a6))
+* **follow-up:** grant ([5e757e3](https://github.com/drip-art/Comfy-Registry-PR/commit/5e757e3d035a7ae70a8737d0a9ac04f1015bdc99))
+* **follow-up:** grant ([eec1422](https://github.com/drip-art/Comfy-Registry-PR/commit/eec1422eacff1556a8fdc47424ea51ad9c11ff34))
+* **main:** add ruleset ([45cfd57](https://github.com/drip-art/Comfy-Registry-PR/commit/45cfd576247a14949b0d35e3d201bafbd1ad574b))
+* **main:** add toast ([669d18c](https://github.com/drip-art/Comfy-Registry-PR/commit/669d18cec76ed6f0733becb7722637c06e30e6bd))
+* **main:** ignore lock ([787e60e](https://github.com/drip-art/Comfy-Registry-PR/commit/787e60ec93f760b18713a50e664b6fb984a24038))
+* **main:** update docs ([a315d3b](https://github.com/drip-art/Comfy-Registry-PR/commit/a315d3b641d2423535921bd9badcd9bc0cdf1159))
+* **oauth-url:** fallback to vercel url ([47eef75](https://github.com/drip-art/Comfy-Registry-PR/commit/47eef756877f4ff1187d3dfd7a2518a3ffd25621))
+* **oauth-url:** fallback VERCEL_PROJECT_PRODUCTION_ ([4a3d40d](https://github.com/drip-art/Comfy-Registry-PR/commit/4a3d40d5b6acbbe617d850452f6f33cfee6b3f9e))
+* pull-status handle missing data ([81f8d6a](https://github.com/drip-art/Comfy-Registry-PR/commit/81f8d6ae3d9cdb5ea6b16703506508ee36d7b027))
+* **pullStatus:** fill email as empty string if null ([9ad257e](https://github.com/drip-art/Comfy-Registry-PR/commit/9ad257e30d3d493c07309c7b02141cb1da7f3ce3))
+* **readme:** typo ([3447feb](https://github.com/drip-art/Comfy-Registry-PR/commit/3447febae61c075dcae78e8e0186ad0ebd3df124))
+* **rules-auth:** update admin logic ([0cf988c](https://github.com/drip-art/Comfy-Registry-PR/commit/0cf988c80e79721b59237b55a922fae2fec353ea))
+* **rules:** add backup btn ([e6a6010](https://github.com/drip-art/Comfy-Registry-PR/commit/e6a6010baa168df82ec5a145b6bd7cbc554a8329))
+* **send-email-action:** update var replacer ([19f3302](https://github.com/drip-art/Comfy-Registry-PR/commit/19f3302a808228ddbc5a526e2fb8c99e1e38e126))
+* **src:** check provider using if ([935931e](https://github.com/drip-art/Comfy-Registry-PR/commit/935931ef620d0907701367a741f6253e625f6b5a))
+* **vercel-url:** prefix with https ([e43634e](https://github.com/drip-art/Comfy-Registry-PR/commit/e43634ea969f766cb565d564e6fb44b83621fed0))
+* **vercel-url:** prefix with https ([2877ebb](https://github.com/drip-art/Comfy-Registry-PR/commit/2877ebba3e6dbcbbd26d1b7cb2e6d81734d9fc67))
+
 ### 0.2.24 (2024-07-05)
 
 ### Features
