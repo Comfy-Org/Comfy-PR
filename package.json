@@ -34,6 +34,7 @@
   "dependencies": {
     "@auth/mongodb-adapter": "^3.2.0",
     "@ctrl/mac-address": "^3.0.3",
+    "@kbox-labs/react-echarts": "^1.2.0",
     "@monaco-editor/react": "^4.6.0",
     "@slack/web-api": "^7.2.0",
     "@snomiao/die": "^1.1.0",
@@ -47,6 +48,7 @@
     "dotenv": "^16.4.5",
     "enhanced-ms": "^3.0.0",
     "file-saver": "^2.0.5",
+    "flat": "^6.0.1",
     "globby": "^14.0.1",
     "google-auth-library": "^9.11.0",
     "googleapis": "^140.0.1",

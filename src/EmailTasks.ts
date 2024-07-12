@@ -8,7 +8,7 @@ import type { zSendEmailAction } from "./followRuleSchema";
 import { getGCloudOAuth2Client } from "./gcloud/GCloudOAuth2Credentials";
 import { sendGmail } from "./sendGmail";
 
-type EmailTask = {
+export type EmailTask = {
   mtime: Date;
   state: "waiting" | "sending" | "sent" | "error";
   error?: string;
