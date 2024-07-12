@@ -32,7 +32,7 @@ export async function sendEmailAction({
         .map((e) =>
           // replace {{var}} s
           e.replace(
-            /{{\$([_A-Za-z0-9]+)}}/,
+            /{{\$([_A-Za-z0-9]+)}}/g,
             (_, key: string) =>
               (payload as any)[key] || DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
           ),

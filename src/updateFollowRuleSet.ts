@@ -18,10 +18,9 @@ import { sendEmailAction } from "./sendEmailAction";
 import { yaml } from "./utils/yaml";
 
 if (import.meta.main) {
-  const defaultRuleSet = await initializeFollowRules();
-
-  await updateFollowRuleSet({ name: "default", enable: true, yaml: defaultRuleSet.yaml });
-  await runFollowRuleSet();
+  // const defaultRuleSet = await initializeFollowRules();
+  // await updateFollowRuleSet({ name: "default", enable: true, yaml: defaultRuleSet.yaml });
+  // await runFollowRuleSet();
 }
 
 export async function runFollowRuleSet({ name = "default" } = {}) {
