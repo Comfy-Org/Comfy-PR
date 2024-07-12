@@ -10,10 +10,10 @@ import {
 import type { Update as UpdateAt } from "ts-toolbelt/out/Object/P/Update";
 import type { Split } from "ts-toolbelt/out/String/Split";
 import type { AllPath } from "./AllPath";
-type  FieldPath<T extends any> = string
-type FieldArrayPath<T extends any> = string
-type  FieldArrayPathValue<T extends any, P extends string> = any
-type  FieldPathValue <T extends any, P extends string> = any
+type FieldPath<T extends any> = string;
+type FieldArrayPath<T extends any> = string;
+type FieldArrayPathValue<T extends any, P extends string> = any;
+type FieldPathValue<T extends any, P extends string> = any;
 type $Path<S extends Document, P extends string = string> = `$${AllPath<S>}`;
 type PathOf$Path<P extends string> = P extends `$${infer Path}` ? Path : never;
 // type DeepRecord<Path extends string, Value> = Path extends `${infer Head}.${infer Tail}`
@@ -25,7 +25,7 @@ type $Set<S extends Document> = {
   [P in keyof S]?: Expression<S>;
 } & Record<string, Expression<S>>;
 type $SetResult<S extends Document, Set extends $Set<S>> = S & {
-  [P in keyof Set]?: any //Set[P] extends `$${infer P extends FieldPath<S>}` ? FieldPathValue<S, P> : Set[P]; // WARN: very slow
+  [P in keyof Set]?: any; //Set[P] extends `$${infer P extends FieldPath<S>}` ? FieldPathValue<S, P> : Set[P]; // WARN: very slow
 };
 type $Unset<S extends Document> = {
   [P in keyof S]?: 1 | 0;
@@ -192,9 +192,13 @@ type Stages<S extends Document> = {
    * $unset is an alias for $project stage that removes fields. */
   unset<I extends string | string[]>(i: I): Pipeline<Omit<S, I extends any[] ? I[number] : I>>;
   /** Deconstructs an array field from the input documents to output a document for each element. Each output document replaces the array with an element value. For each input document, outputs n documents where n is the number of array elements and can be zero for an empty array. */
-  unwind: <P extends FieldArrayPath<S>>(
-    i: `$${P}`,
-  ) => Pipeline<UpdateAt<S, Split<P, ".">, FieldArrayPathValue<S, P>[number]>>;
+  unwind<P extends FieldArrayPath<S>>(
+    i: `$${P}` | {
+      path: `$${P}`;
+      preserveNullAndEmptyArrays?: boolean;
+    },
+  ): Pipeline<UpdateAt<S, Split<P, ".">, FieldArrayPathValue<S, P>[number]>>;
+  
   /** Performs an ANN search on a vector in the specified field of an Atlas collection.
    * New in version 7.0.2. */
   vectorSearch<I extends Document>(i: I): Pipeline<S>;

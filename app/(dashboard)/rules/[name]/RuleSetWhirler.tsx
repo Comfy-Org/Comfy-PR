@@ -7,8 +7,10 @@ import { yaml } from "@/src/utils/yaml";
 import { revalidatePath } from "next/cache";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { Toaster, toast } from "react-hot-toast";
 import Markdown from "react-markdown";
 import { PullsStatusTable } from "../../PullsStatusTable";
+import { SaveButton } from "../../SaveButton";
 // import { useFormState } from "react-dom";
 
 type MatchAllResults = { name: string; matched: Task<PullStatus[]>; actions: Task<any[]> }[];
@@ -38,15 +40,18 @@ export default function RuleSetWhirler({
     async (code: string | undefined): Promise<void> => {
       if (code === undefined) return;
       setCode(code);
+      const id = toast.loading("updating");
       const result = await updateFollowRuleSet({ yaml: code, name });
       // const result = await debounce(updateFollowRuleSet, 200)(code);
       tsmatch(result)
         .with($OK, ({ data }) => {
+          toast.success("updating OK!", { id });
           setError(null);
           setMatchResults(data);
         })
         .with($ERROR, ({ error }) => {
           setError(yaml.stringify(error));
+          toast.error("updating Error!", { id });
         });
     },
     [updateFollowRuleSet, name],
@@ -136,7 +141,7 @@ export default function RuleSetWhirler({
           </div>
         </div>
       </div>
-      <div className="card card-body">
+      <div className="flex gap-4 py-4">
         {enabled ? (
           <button
             onClick={async () => {
@@ -153,30 +158,40 @@ export default function RuleSetWhirler({
             Disable Ruleset
           </button>
         ) : (
-          <button
-            onClick={async () => {
-              const result = await updateFollowRuleSet({ yaml: code, name, enable: true });
-              tsmatch(result)
-                .with($OK, ({ data }) => {
-                  setError(null);
-                  setMatchResults(data);
+          <>
+            <SaveButton
+              filename={new Date().toISOString().slice(0, 10) + "-Follow-up-ruleset-default.yaml"}
+              content={code}
+              className="btn"
+            >
+              Save Current Follow-up-ruleset-default.yaml
+            </SaveButton>
+            <button
+              onClick={async () => {
+                const result = await updateFollowRuleSet({ yaml: code, name, enable: true });
+                tsmatch(result)
+                  .with($OK, ({ data }) => {
+                    setError(null);
+                    setMatchResults(data);
 
-                  if (typeof window !== "undefined") {
-                    document.location.href = document.location.href;
-                  }
-                  router.refresh();
-                  revalidatePath("/rules/" + name);
-                  revalidatePath("/rules");
-                })
-                .with($ERROR, ({ error }) => {
-                  setError(yaml.stringify(error));
-                });
-            }}
-            className="btn btn-info"
-            disabled={!!error || !matchResults}
-          >{`I've confirmed all rules is matching correct contents and plz ENABLE this rule set NOW`}</button>
+                    if (typeof window !== "undefined") {
+                      document.location.href = document.location.href;
+                    }
+                    router.refresh();
+                    revalidatePath("/rules/" + name);
+                    revalidatePath("/rules");
+                  })
+                  .with($ERROR, ({ error }) => {
+                    setError(yaml.stringify(error));
+                  });
+              }}
+              className="btn btn-info"
+              disabled={!!error || !matchResults}
+            >{`I've confirmed all rules is matching correct contents and plz ENABLE this rule set NOW`}</button>
+          </>
         )}
       </div>
+      <Toaster />
     </div>
   );
 }

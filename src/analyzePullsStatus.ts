@@ -1,12 +1,15 @@
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import type { ObjectId } from "mongodb";
 import prettyMs from "pretty-ms";
 import { snoflow } from "snoflow";
 import type { z } from "zod";
 import type { Task } from "../packages/mongodb-pipeline-ts/Task";
 import type { Author } from "./Authors";
 import { CNRepos, type CRPull } from "./CNRepos";
+import type { EmailTask } from "./EmailTasks";
 import type { GithubIssueComment } from "./GithubIssueComments";
 import { db } from "./db";
+import { yaml } from "./utils/yaml";
 import type { zPullStatus } from "./zod/zPullsStatus";
 // import { $pipeline } from "./db/$pipeline";
 // in case of dump production in local environment:
@@ -24,9 +27,13 @@ if (import.meta.main) {
 
   // analyzePullsStatusPipeline
   await snoflow(analyzePullsStatusPipeline().aggregate())
-    // .filter(e=>e.email)
-    .peek(console.log)
-    .done();
+    .filter((e) => e.email)
+    .limit(2)
+    .map((e) => yaml.stringify({ e }))
+    .log()
+    .chunk()
+    .map((e) => e.length)
+    .toLog();
 }
 
 export type PullStatus = z.infer<typeof zPullStatus>;
@@ -68,6 +75,7 @@ export function baseCRPullStatusPipeline() {
       .set({ "crPulls.data.pull.type": "$crPulls.data.type" })
       .set({ "crPulls.data.pull": "$crPulls.data.pull" })
       .set({ "crPulls.data.pull.comments": "$crPulls.data.comments.data" })
+      .set({ "crPulls.data.pull.emailTask_id": "$crPulls.data.emailTask_id" })
       // replace root as pull
       .replaceRoot({ newRoot: "$crPulls.data.pull" })
       .as<
@@ -76,6 +84,7 @@ export function baseCRPullStatusPipeline() {
           on_registry: Task<boolean>;
           type: string;
           comments: GithubIssueComment[];
+          emailTask_id?: ObjectId;
         }
       >()
   );
@@ -84,16 +93,29 @@ export function analyzePullsStatusPipeline() {
   return (
     baseCRPullStatusPipeline()
       // fetch author email from Authors collection
+      .set({ ownername: "$base.user.login" })
       .lookup({
         from: "Authors",
-        as: "authors",
         // let: { <var_1>: <expression>, …, <var_n>: <expression> },
-        localField: "base.user.login",
+        localField: "ownername",
         foreignField: "githubId",
+        as: "author",
         pipeline: [{ $project: { email: 1 } }],
       })
-      .with<{ authors: Author[] }>()
-      .set({ author: { $arrayElemAt: ["$authors", 0] } })
+      .unwind({ path: "$author", preserveNullAndEmptyArrays: true })
+      .with<{ author: Author }>()
+      .lookup({
+        from: "EmailTasks",
+        // let: { <var_1>: <expression>, …, <var_n>: <expression> },
+        localField: "emailTask_id",
+        foreignField: "_id",
+        as: "emailTask",
+      })
+      .unwind({ path: "$emailTask", preserveNullAndEmptyArrays: true })
+      .set({ emailState: "$emailTask.state" }) //could be undefined or "waiting" | "sending" | "sent" | "error";
+      .with<{ emailState: EmailTask["state"] }>()
+
+      // .set({ author: { $first: ["$author"] } })
       .project({ authors: 0 })
 
       .set({ lastwords: { $arrayElemAt: ["$comments", -1] } })
@@ -138,9 +160,9 @@ export function analyzePullsStatusPipeline() {
         discordId: "$author.discordId",
         twitterId: "$author.twitterId",
         email: { $ifNull: ["$author.email", ""] },
+        emailState: 1,
       })
-      // .project({ latest_comment_at: {$toDate: '$latest_comment_at'} })
-      .project({ latest_comment_at: 0 })
+      .unset("latest_comment_at")
       .set({
         CLOSED: { $eq: ["$state", "CLOSED"] },
         MERGED: { $eq: ["$state", "MERGED"] },
@@ -164,6 +186,7 @@ export function analyzePullsStatusPipeline() {
         repository: string;
         state: "OPEN" | "MERGED" | "CLOSED";
         updated_at: Date;
+        emailState: EmailTask["state"];
         url: string;
       }>()
   );

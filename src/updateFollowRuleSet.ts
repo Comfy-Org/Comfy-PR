@@ -9,29 +9,29 @@ import { FollowRuleSets } from "./FollowRules";
 import { addCommentAction } from "./addCommentAction";
 import { analyzePullsStatus, analyzePullsStatusPipeline } from "./analyzePullsStatus";
 import { $filaten } from "./db";
-import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
+import { zAddCommentAction, zFollowUpRules, zSendEmailAction } from "./followRuleSchema";
 import { fetchIssueComments } from "./gh/fetchIssueComments";
-import { initializeFollowRules } from "./initializeFollowRules";
 import { stringifyGithubRepoUrl } from "./parseOwnerRepo";
 import { parsePullUrl } from "./parsePullUrl";
+import { sendEmailAction } from "./sendEmailAction";
 import { yaml } from "./utils/yaml";
 
 if (import.meta.main) {
-  // updateFollowRuleSet({yaml: 'default'})
-  await FollowRuleSets.drop();
-  const defaultRuleSet = await initializeFollowRules();
-
-  await updateFollowRuleSet({ name: "default", enable: true, yaml: defaultRuleSet.yaml });
-  await runFollowRuleSet();
+  // const defaultRuleSet = await initializeFollowRules();
+  // await updateFollowRuleSet({ name: "default", enable: true, yaml: defaultRuleSet.yaml });
+  // await runFollowRuleSet();
 }
 
 export async function runFollowRuleSet({ name = "default" } = {}) {
   const ruleset = (await FollowRuleSets.findOne({ name })) ?? DIE("default ruleset not found");
+
+  console.log("RUNNING ruleset:");
+  console.log(ruleset.yamlWhenEnabled);
   return peekYaml(
     await updateFollowRuleSet({
       name: ruleset.name,
-      enable: ruleset.enabled ?? DIE("Ruleset is not enabled"),
-      yaml: ruleset.yamlWhenEnabled ?? DIE("Enabled yaml is not found"),
+      enable: ruleset.enabled || DIE(new Error("Ruleset is not enabled")),
+      yaml: ruleset.yamlWhenEnabled || DIE("Enabled yaml is not found"),
       runAction: true,
     }),
   );
@@ -102,6 +102,10 @@ export async function updateFollowRuleSet({
                 const action = zAddCommentAction.parse(_action);
                 return await addCommentAction({ matched, action, runAction, rule });
               }
+              if (name === "send-email") {
+                const action = zSendEmailAction.parse(_action);
+                return await sendEmailAction({ matched, action, runAction, rule });
+              }
             },
             { concurrency: 1 },
           );
@@ -115,7 +119,13 @@ export async function updateFollowRuleSet({
     );
 
     if (enable === true) {
-      await FollowRuleSets.updateOne({ name }, { $set: { enabled: true, yamlWhenEnabled: code, yaml: code } });
+      await FollowRuleSets.updateOne(
+        { name },
+        {
+          $set: { enabled: true, yamlWhenEnabled: code, yaml: code },
+          $push: { enableHistory: { mtime: new Date(), yaml: code } },
+        },
+      );
     } else {
       await FollowRuleSets.updateOne({ name }, { $set: { yaml: code } });
     }
@@ -124,4 +134,3 @@ export async function updateFollowRuleSet({
     .then(TaskOK)
     .catch(TaskError);
 }
-
