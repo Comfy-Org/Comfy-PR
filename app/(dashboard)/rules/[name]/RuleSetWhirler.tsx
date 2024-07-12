@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import Markdown from "react-markdown";
 import { PullsStatusTable } from "../../PullsStatusTable";
+import { SaveButton } from "../../SaveButton";
 // import { useFormState } from "react-dom";
 
 type MatchAllResults = { name: string; matched: Task<PullStatus[]>; actions: Task<any[]> }[];
@@ -153,28 +154,37 @@ export default function RuleSetWhirler({
             Disable Ruleset
           </button>
         ) : (
-          <button
-            onClick={async () => {
-              const result = await updateFollowRuleSet({ yaml: code, name, enable: true });
-              tsmatch(result)
-                .with($OK, ({ data }) => {
-                  setError(null);
-                  setMatchResults(data);
+          <div>
+            <SaveButton
+              filename={new Date().toISOString().slice(0, 10) + "-Follow-up-ruleset-default.yaml"}
+              content={code}
+              className="btn"
+            >
+              Save Current Follow-up-ruleset-default.yaml
+            </SaveButton>
+            <button
+              onClick={async () => {
+                const result = await updateFollowRuleSet({ yaml: code, name, enable: true });
+                tsmatch(result)
+                  .with($OK, ({ data }) => {
+                    setError(null);
+                    setMatchResults(data);
 
-                  if (typeof window !== "undefined") {
-                    document.location.href = document.location.href;
-                  }
-                  router.refresh();
-                  revalidatePath("/rules/" + name);
-                  revalidatePath("/rules");
-                })
-                .with($ERROR, ({ error }) => {
-                  setError(yaml.stringify(error));
-                });
-            }}
-            className="btn btn-info"
-            disabled={!!error || !matchResults}
-          >{`I've confirmed all rules is matching correct contents and plz ENABLE this rule set NOW`}</button>
+                    if (typeof window !== "undefined") {
+                      document.location.href = document.location.href;
+                    }
+                    router.refresh();
+                    revalidatePath("/rules/" + name);
+                    revalidatePath("/rules");
+                  })
+                  .with($ERROR, ({ error }) => {
+                    setError(yaml.stringify(error));
+                  });
+              }}
+              className="btn btn-info"
+              disabled={!!error || !matchResults}
+            >{`I've confirmed all rules is matching correct contents and plz ENABLE this rule set NOW`}</button>
+          </div>
         )}
       </div>
     </div>
