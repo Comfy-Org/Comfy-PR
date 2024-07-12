@@ -131,8 +131,8 @@ export function analyzePullsStatusPipeline() {
             chars: " ",
           },
         },
-        lastwords: 1,
         actived_at: 1,
+        lastwords: 1,
 
         instagramId: "$author.instagramId",
         discordId: "$author.discordId",
