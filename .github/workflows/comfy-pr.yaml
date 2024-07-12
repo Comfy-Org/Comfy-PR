@@ -45,3 +45,4 @@ jobs:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
           AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
+          AUTH_GCLOUD_URL: https://comfy-pr.vercel.app
