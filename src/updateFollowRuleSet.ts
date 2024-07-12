@@ -11,7 +11,6 @@ import { analyzePullsStatus, analyzePullsStatusPipeline } from "./analyzePullsSt
 import { $filaten } from "./db";
 import { zAddCommentAction, zFollowUpRules, zSendEmailAction } from "./followRuleSchema";
 import { fetchIssueComments } from "./gh/fetchIssueComments";
-import { initializeFollowRules } from "./initializeFollowRules";
 import { stringifyGithubRepoUrl } from "./parseOwnerRepo";
 import { parsePullUrl } from "./parsePullUrl";
 import { sendEmailAction } from "./sendEmailAction";
