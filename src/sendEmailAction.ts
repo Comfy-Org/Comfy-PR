@@ -12,7 +12,7 @@ import { enqueueEmailTask } from "./EmailTasks";
 import { zSendEmailAction } from "./followRuleSchema";
 import { yaml } from "./utils/yaml";
 
-export async function runSendEmailAction({
+export async function sendEmailAction({
   matched,
   action,
   runAction,
@@ -32,7 +32,7 @@ export async function runSendEmailAction({
         .map((e) =>
           // replace {{var}} s
           e.replace(
-            /{{\$(\w+)}}/,
+            /{{\$([_A-Za-z0-9]+)}}/,
             (_, key: string) =>
               (payload as any)[key] || DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
           ),

@@ -9,11 +9,12 @@ import { FollowRuleSets } from "./FollowRules";
 import { addCommentAction } from "./addCommentAction";
 import { analyzePullsStatus, analyzePullsStatusPipeline } from "./analyzePullsStatus";
 import { $filaten } from "./db";
-import { zAddCommentAction, zFollowUpRules } from "./followRuleSchema";
+import { zAddCommentAction, zFollowUpRules, zSendEmailAction } from "./followRuleSchema";
 import { fetchIssueComments } from "./gh/fetchIssueComments";
 import { initializeFollowRules } from "./initializeFollowRules";
 import { stringifyGithubRepoUrl } from "./parseOwnerRepo";
 import { parsePullUrl } from "./parsePullUrl";
+import { sendEmailAction } from "./sendEmailAction";
 import { yaml } from "./utils/yaml";
 
 if (import.meta.main) {
@@ -102,6 +103,10 @@ export async function updateFollowRuleSet({
               if (name === "add-comment") {
                 const action = zAddCommentAction.parse(_action);
                 return await addCommentAction({ matched, action, runAction, rule });
+              }
+              if (name === "send-email") {
+                const action = zSendEmailAction.parse(_action);
+                return await sendEmailAction({ matched, action, runAction, rule });
               }
             },
             { concurrency: 1 },

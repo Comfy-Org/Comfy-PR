@@ -137,7 +137,7 @@ export default function RuleSetWhirler({
           </div>
         </div>
       </div>
-      <div className="card card-body">
+      <div className="flex gap-4 py-4">
         {enabled ? (
           <button
             onClick={async () => {
@@ -154,7 +154,7 @@ export default function RuleSetWhirler({
             Disable Ruleset
           </button>
         ) : (
-          <div>
+          <>
             <SaveButton
               filename={new Date().toISOString().slice(0, 10) + "-Follow-up-ruleset-default.yaml"}
               content={code}
@@ -184,7 +184,7 @@ export default function RuleSetWhirler({
               className="btn btn-info"
               disabled={!!error || !matchResults}
             >{`I've confirmed all rules is matching correct contents and plz ENABLE this rule set NOW`}</button>
-          </div>
+          </>
         )}
       </div>
     </div>
