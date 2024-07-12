@@ -17,8 +17,6 @@ import { parsePullUrl } from "./parsePullUrl";
 import { yaml } from "./utils/yaml";
 
 if (import.meta.main) {
-  // updateFollowRuleSet({yaml: 'default'})
-  await FollowRuleSets.drop();
   const defaultRuleSet = await initializeFollowRules();
 
   await updateFollowRuleSet({ name: "default", enable: true, yaml: defaultRuleSet.yaml });
@@ -27,11 +25,14 @@ if (import.meta.main) {
 
 export async function runFollowRuleSet({ name = "default" } = {}) {
   const ruleset = (await FollowRuleSets.findOne({ name })) ?? DIE("default ruleset not found");
+
+  console.log("RUNNING ruleset:");
+  console.log(ruleset.yamlWhenEnabled);
   return peekYaml(
     await updateFollowRuleSet({
       name: ruleset.name,
-      enable: ruleset.enabled ?? DIE("Ruleset is not enabled"),
-      yaml: ruleset.yamlWhenEnabled ?? DIE("Enabled yaml is not found"),
+      enable: ruleset.enabled || DIE(new Error("Ruleset is not enabled")),
+      yaml: ruleset.yamlWhenEnabled || DIE("Enabled yaml is not found"),
       runAction: true,
     }),
   );
@@ -115,7 +116,13 @@ export async function updateFollowRuleSet({
     );
 
     if (enable === true) {
-      await FollowRuleSets.updateOne({ name }, { $set: { enabled: true, yamlWhenEnabled: code, yaml: code } });
+      await FollowRuleSets.updateOne(
+        { name },
+        {
+          $set: { enabled: true, yamlWhenEnabled: code, yaml: code },
+          $push: { enableHistory: { mtime: new Date(), yaml: code } },
+        },
+      );
     } else {
       await FollowRuleSets.updateOne({ name }, { $set: { yaml: code } });
     }
