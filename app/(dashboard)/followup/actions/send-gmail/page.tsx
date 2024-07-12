@@ -4,8 +4,10 @@ import { getAuthUser } from "@/app/(dashboard)/rules/getAuthUser";
 import { TaskDataOrNull, TaskError, TaskErrorOrNull, TaskOK } from "@/packages/mongodb-pipeline-ts/Task";
 import { GCloudOAuth2Credentials, getGCloudOAuth2Client } from "@/src/gcloud/GCloudOAuth2Credentials";
 import { sendGmail } from "@/src/sendGmail";
+import { yaml } from "@/src/utils/yaml";
 import DIE from "@snomiao/die";
 import markdownIt from "markdown-it";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Markdown from "react-markdown";
@@ -36,9 +38,8 @@ export default async function GmailPage() {
   console.log(error);
 
   const emails = await GCloudOAuth2Credentials.find({ credentials: { $exists: true } })
-    .map((e) => e.email)
+    .map(({email, scopes}) => ({email, scopes}))
     .toArray();
-
   return (
     <div className="card-body">
       <Markdown>
@@ -50,22 +51,39 @@ Hi ${user.email},
 This page grants gmail permission to ComfyPR Github Action Worker,
 And then the follow up [Rules](/rules/default) worker could send gmails in behalf of your.
 
-Your current status is ${auth ? "READY" : "NOT GRANTED"}
+Your current status is ${auth ? "READY" : "NOT GRANTED: " + error}
 
 ## Current authenticated users for gmail-sending: 
-${emails.map((email) => "- <" + email + ">").join("\n") || "- None"}
+
+${"```yaml"}
+${yaml.stringify(emails).trim() || "- None"}
+${"```"}
 
 `}
       </Markdown>
       <div className="flex gap-4">
+        {!!(await GCloudOAuth2Credentials.findOne({ email: user.email })) && (
+          <button
+            className="btn btn-secondary"
+            onClick={async () => {
+              "use server";
+              console.log("resetting");
+              await GCloudOAuth2Credentials.deleteMany({ email: user.email });
+              revalidatePath("/followup/actions/send-gmail");
+            }}
+          >
+            Reset my comfy-pr permission grant state
+          </button>
+        )}
+
         {!auth ? (
           authorizeUrl && (
-            <Link className="btn btn-primary" href={authorizeUrl}>
+            <Link className="btn btn-primary" href={authorizeUrl} target="_blank">
               Grant permission to compose gmail
             </Link>
           )
         ) : (
-          <div>
+          <>
             <button
               className="btn btn-secondary"
               onClick={async () => {
@@ -93,10 +111,11 @@ ${emails.map((email) => "- <" + email + ">").join("\n") || "- None"}
             >
               Send your self a Test e-mail
             </button>
+
             <Link target="_blank" href="https://myaccount.google.com/connections" className="btn btn-secondary">
               Revoke permission to compose gmail (go to google 3rd party conn manager)
             </Link>
-          </div>
+          </>
         )}
       </div>
     </div>

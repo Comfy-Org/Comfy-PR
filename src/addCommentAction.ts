@@ -33,7 +33,7 @@ export async function addCommentAction({
         url: payload.url,
         by: action.by,
         body: action.body.replace(
-          /{{\$(\w+)}}/,
+          /{{\$([_A-Za-z0-9]+)}}/,
           (_, key: string) =>
             (payload as any)[key] || DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
         ),

@@ -14,6 +14,7 @@ export const GCloudOAuth2Credentials = db.collection<{
 }>("GCloudOAuth2");
 export type RedirectFn = (url: string) => Awaitable<never>;
 if (import.meta.main) {
+  // await GCloudOAuth2Credentials.drop()
   await sf(
     GCloudOAuth2Credentials.find({
       scopes: {
