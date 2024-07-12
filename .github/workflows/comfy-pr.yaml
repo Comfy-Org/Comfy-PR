@@ -43,3 +43,5 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           SLACK_BOT_CHANNEL: ${{ secrets.SLACK_BOT_CHANNEL }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
+          AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
