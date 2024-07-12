@@ -38,7 +38,7 @@ export default async function GmailPage() {
   console.log(error);
 
   const emails = await GCloudOAuth2Credentials.find({ credentials: { $exists: true } })
-    .map(({email, scopes}) => ({email, scopes}))
+    .map(({ email, scopes }) => ({ email, scopes }))
     .toArray();
   return (
     <div className="card-body">

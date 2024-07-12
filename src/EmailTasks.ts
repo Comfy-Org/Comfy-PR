@@ -26,27 +26,27 @@ export const EmailTasks = db.collection<EmailTask>("EmailTasks");
 await EmailTasks.createIndex({ from: 1, to: 1, subject: 1 });
 
 if (import.meta.main) {
-  sf(EmailTasks.find()).toLog()
+  sf(EmailTasks.find()).toLog();
 
   // sf(EmailTasks.watch([], { fullDocument: "whenAvailable" }))
   //   // .filter((c) => c.operationType === "modify")
   //   .toLog()
   //   .then(() => console.log("all done"));
-//   const saved = await enqueueEmailTask({
-//     provider: "google",
-//     name: "Snowstar Miao",
-//     from: "snomiao@gmail.com",
-//     to: "snomiao@gmail.com",
-//     subject: "hello again from email queue 2",
-//     body: `
-// # hello from sno
-  
-// You've <b>just</b> received an *email* from snomiao.
+  //   const saved = await enqueueEmailTask({
+  //     provider: "google",
+  //     name: "Snowstar Miao",
+  //     from: "snomiao@gmail.com",
+  //     to: "snomiao@gmail.com",
+  //     subject: "hello again from email queue 2",
+  //     body: `
+  // # hello from sno
 
-// Thank you for receiving this email!!!!
-//   `,
-//   });
-//   console.log({ saved });
+  // You've <b>just</b> received an *email* from snomiao.
+
+  // Thank you for receiving this email!!!!
+  //   `,
+  //   });
+  //   console.log({ saved });
   // await updateEmailTasks();
 }
 /**
