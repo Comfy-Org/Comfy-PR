@@ -55,7 +55,7 @@ const zFollowUpRule = z.object({
       nickName: mString,
       ownername: mString,
       state: z.enum(["OPEN", "CLOSED", "MERGED"]),
-      emailState: z.enum(["" ,"waiting" ,"sending" ,"sent" ,"error"]),
+      emailState: z.enum(["", "waiting", "sending", "sent", "error"]),
       updated_at: mDate,
       url: mString,
     })
