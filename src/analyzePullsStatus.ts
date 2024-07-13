@@ -112,7 +112,7 @@ export function analyzePullsStatusPipeline() {
         as: "emailTask",
       })
       .unwind({ path: "$emailTask", preserveNullAndEmptyArrays: true })
-      .set({ emailState: "$emailTask.state" }) //could be undefined or "waiting" | "sending" | "sent" | "error";
+      .set({ emailState: { $ifNull: ["$emailTask.state", ""] } }) // output could be "" | "waiting" | "sending" | "sent" | "error";
       .with<{ emailState: EmailTask["state"] }>()
 
       // .set({ author: { $first: ["$author"] } })

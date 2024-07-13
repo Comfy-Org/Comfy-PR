@@ -13,7 +13,7 @@ if (import.meta.main) {
   // send test email
   const name = "snomiao";
   const from = "snomiao@gmail.com";
-  const to = "snomiao@gmail.com";
+  const to = ".snomiao@gmail.com";
   const subject = "Hello! snomiao";
   const markdown = `
 # hello from sno
