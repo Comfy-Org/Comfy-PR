@@ -186,7 +186,7 @@ export function analyzePullsStatusPipeline() {
         repository: string;
         state: "OPEN" | "MERGED" | "CLOSED";
         updated_at: Date;
-        emailState: EmailTask["state"] | '';
+        emailState: EmailTask["state"] | "";
         url: string;
       }>()
   );
