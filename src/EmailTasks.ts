@@ -25,7 +25,9 @@ export const EmailTasks = db.collection<EmailTask>("EmailTasks");
 await EmailTasks.createIndex({ from: 1, to: 1, subject: 1 });
 
 if (import.meta.main) {
-  sf(EmailTasks.find({})).map(e=>e.state).toLog()
+  sf(EmailTasks.find({}))
+    .map((e) => e.state)
+    .toLog();
   // sf(EmailTasks.watch([], { fullDocument: "whenAvailable" }))
   //   // .filter((c) => c.operationType === "modify")
   //   .toLog()
