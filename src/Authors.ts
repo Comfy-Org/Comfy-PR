@@ -1,8 +1,5 @@
-import { type Task } from "@/packages/mongodb-pipeline-ts/Task";
-import console from "console";
 import { db } from "./db";
-import { gh } from "./gh";
-import type { AwaitedReturnType } from "./types/AwaitedReturnType";
+import type { GHUser } from "./ghUser";
 import { updateAuthors } from "./updateAuthors";
 export type Author = {
   email?: string;
@@ -34,15 +31,12 @@ export type Author = {
 };
 
 export const Authors = db.collection<Author>("Authors");
-await Authors.createIndex('githubId')
-await Authors.createIndex('email')
-export const GithubUsers = db.collection<
-  { username: string } & Task<AwaitedReturnType<typeof gh.users.getByUsername>["data"]>
->("GithubUsers");
+await Authors.createIndex("githubId");
+await Authors.createIndex("email");
+export const GithubUsers = db.collection<{ username: string } & GHUser>("GithubUsers");
 
 if (import.meta.main) {
   // collect github id from cn repos
   await updateAuthors();
   console.log("done");
 }
-
