@@ -70,6 +70,9 @@ export async function pyprojectTomlUpdateLicenses(file: string, upstreamRepoUrl:
     // try load local license file first
     const licenses = await Array.fromAsync(new Bun.Glob(dirname(file) + "/LICENSE*").scan());
     if (licenses.length > 1) DIE("Multiple license found: " + JSON.stringify(licenses));
+
+    if(!licenses.length) DIE('NO License file was found') // may remove this line later
+
     const licenseFilename = licenses[0];
     if (!licenseFilename) return null;
     return `license = { file = "${basename(licenseFilename)}" }`;
