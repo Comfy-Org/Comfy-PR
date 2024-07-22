@@ -16,10 +16,10 @@ if (import.meta.main) {
   //   await _pullTemplate();
   //   const testUpstreamRepo = "https://github.com/haohaocreates/ComfyUI-HH-Image-Selector";
   const testUpstreamRepo = "https://github.com/snomiao/comfy-malicious-node-test";
-    const forkedRepo = await createGithubForkForRepo(testUpstreamRepo);
-    const forkUrl = forkedRepo.html_url;
-    console.log(forkUrl);
-    await makeUpdateTomlLicenseBranch(testUpstreamRepo, forkUrl);
+  const forkedRepo = await createGithubForkForRepo(testUpstreamRepo);
+  const forkUrl = forkedRepo.html_url;
+  console.log(forkUrl);
+  await makeUpdateTomlLicenseBranch(testUpstreamRepo, forkUrl);
 }
 
 export async function makeUpdateTomlLicenseBranch(upstreamUrl: string, forkUrl: string) {
