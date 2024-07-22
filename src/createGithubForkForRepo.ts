@@ -21,9 +21,6 @@ import { parseUrlRepoOwner } from "./parseOwnerRepo";
 export async function createGithubForkForRepo(upstreamRepoUrl: string) {
   // debug
   // console.log(`* Change env.SALT=${salt} will fork into a different repo`);
-  // console.log("PR_SRC: ", forkSSHUrl);
-  // console.log("PR_DST: ", upstreamUrl);
-  // console.log(forkSSHUrl);
   const upstream = parseUrlRepoOwner(upstreamRepoUrl);
   const argv = minimist(process.argv.slice(2));
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
@@ -31,6 +28,10 @@ export async function createGithubForkForRepo(upstreamRepoUrl: string) {
   const forkRepoName = (FORK_PREFIX && `${FORK_PREFIX}${upstream.repo}-${repo_hash}`) || upstream.repo;
   const forkDst = `${FORK_OWNER}/${forkRepoName}`;
   const forkUrl = `https://github.com/${forkDst}`;
+  console.debug(`
+Forking ${upstreamRepoUrl}
+   into ${forkUrl}
+`.trim());
   const forked = await createGithubFork(upstreamRepoUrl, forkUrl);
   if (forked.html_url !== forkUrl)
     DIE(

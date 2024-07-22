@@ -83,6 +83,7 @@
     "react-hook-form": "^7.52.0",
     "react-hot-toast": "^2.4.1",
     "react-markdown": "^9.0.1",
+    "sflow": "^1.11.2",
     "snoflow": "^1.9.1",
     "sparse-bitfield": "^3.0.3",
     "tailwind-merge": "^2.4.0",
