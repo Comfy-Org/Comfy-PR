@@ -5,6 +5,7 @@ import sflow from "sflow";
 import { GIT_USEREMAIL } from "./GIT_USEREMAIL";
 import { GIT_USERNAME } from "./GIT_USERNAME";
 import { $ } from "./cli/echoBunShell";
+import { createGithubForkForRepo } from "./createGithubForkForRepo";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
 import { gh } from "./gh";
 import { parseUrlRepoOwner, stringifyGithubOrigin } from "./parseOwnerRepo";
@@ -14,10 +15,12 @@ import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 if (import.meta.main) {
   //   await _pullTemplate();
   //   const testUpstreamRepo = "https://github.com/haohaocreates/ComfyUI-HH-Image-Selector";
-  //   const forkedRepo = await createGithubForkForRepo(testUpstreamRepo);
-  //   const forkUrl = forkedRepo.html_url;
-  //   console.log(forkUrl);
-  //   await makeLicenseUpdateBranch(testUpstreamRepo, forkUrl);
+  const testUpstreamRepo = "https://github.com/snomiao/comfy-malicious-node-test";
+    const forkedRepo = await createGithubForkForRepo(testUpstreamRepo);
+    const forkUrl = forkedRepo.html_url;
+    console.log(forkUrl);
+    await makeLicenseUpdateBranch(testUpstreamRepo, forkUrl);
+
 }
 
 export async function makeLicenseUpdateBranch(upstreamUrl: string, forkUrl: string) {
@@ -70,8 +73,6 @@ export async function pyprojectTomlUpdateLicenses(file: string, upstreamRepoUrl:
     // try load local license file first
     const licenses = await Array.fromAsync(new Bun.Glob(dirname(file) + "/LICENSE*").scan());
     if (licenses.length > 1) DIE("Multiple license found: " + JSON.stringify(licenses));
-
-    if(!licenses.length) DIE('NO License file was found') // may remove this line later
 
     const licenseFilename = licenses[0];
     if (!licenseFilename) return null;
