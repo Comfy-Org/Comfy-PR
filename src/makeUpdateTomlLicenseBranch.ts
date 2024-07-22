@@ -19,11 +19,10 @@ if (import.meta.main) {
     const forkedRepo = await createGithubForkForRepo(testUpstreamRepo);
     const forkUrl = forkedRepo.html_url;
     console.log(forkUrl);
-    await makeLicenseUpdateBranch(testUpstreamRepo, forkUrl);
-
+    await makeUpdateTomlLicenseBranch(testUpstreamRepo, forkUrl);
 }
 
-export async function makeLicenseUpdateBranch(upstreamUrl: string, forkUrl: string) {
+export async function makeUpdateTomlLicenseBranch(upstreamUrl: string, forkUrl: string) {
   const type = "licence-update" as const;
   const origin = await stringifyGithubOrigin(parseUrlRepoOwner(forkUrl));
   const branch = "licence-update";
