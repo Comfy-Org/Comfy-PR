@@ -1,11 +1,14 @@
 import DIE from "@snomiao/die";
 import { readFile } from "fs/promises";
+import pMap from "p-map";
 import { basename, dirname } from "path";
 import sflow from "sflow";
 import { GIT_USEREMAIL } from "./GIT_USEREMAIL";
 import { GIT_USERNAME } from "./GIT_USERNAME";
 import { $ } from "./cli/echoBunShell";
+import { clone_modify_push_Branches_for_updateTomlLicense } from "./createComfyRegistryPullRequests";
 import { createGithubForkForRepo } from "./createGithubForkForRepo";
+import { createGithubPullRequest } from "./createGithubPullRequest";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
 import { gh } from "./gh";
 import { parseUrlRepoOwner, stringifyGithubOrigin } from "./parseOwnerRepo";
@@ -20,6 +23,20 @@ if (import.meta.main) {
   const forkUrl = forkedRepo.html_url;
   console.log(forkUrl);
   await makeUpdateTomlLicenseBranch(testUpstreamRepo, forkUrl);
+  
+  // process.env.GH_TOKEN_COMFY_PR = process.env.GH_TOKEN // uncomment to set token for make pr
+  const upstreamRepoUrl = testUpstreamRepo
+  const PR_REQUESTS_updateTomlLicense = await clone_modify_push_Branches_for_updateTomlLicense(
+    upstreamRepoUrl,
+    forkedRepo.html_url,
+  );
+  const prs_updateTomlLicense = await pMap(
+    PR_REQUESTS_updateTomlLicense,
+    async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }),
+  );
+
+  console.log("prs_updateTomlLicense PRs DONE");
+
 }
 
 export async function makeUpdateTomlLicenseBranch(upstreamUrl: string, forkUrl: string) {
@@ -62,23 +79,24 @@ git push "${origin}" ${branch}:${branch}
   return { type, title, body, branch };
 }
 
-export async function pyprojectTomlUpdateLicenses(file: string, upstreamRepoUrl: string) {
-  const raw = await Bun.file(file).text();
+export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepoUrl: string) {
+  const raw = await Bun.file(tomlFile).text();
   const outdated = `license = "LICENSE"`;
   if (!raw.match(outdated)) return { changed: false }; // not outdated
 
   let updated: string | null = "";
+  // try load local license file first
   updated ||= await (async function () {
-    // try load local license file first
-    const licenses = await Array.fromAsync(new Bun.Glob(dirname(file) + "/LICENSE*").scan());
+    const licenses = await Array.fromAsync(new Bun.Glob(dirname(tomlFile) + "/LICENSE*").scan());
     if (licenses.length > 1) DIE("Multiple license found: " + JSON.stringify(licenses));
 
     const licenseFilename = licenses[0];
     if (!licenseFilename) return null;
     return `license = { file = "${basename(licenseFilename)}" }`;
   })();
+
+  // - [Writing your pyproject.toml - Python Packaging User Guide]( https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license )
   updated ||= await (async function () {
-    // - [Writing your pyproject.toml - Python Packaging User Guide]( https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license )
     const resp = await gh.repos.get({ ...parseUrlRepoOwner(upstreamRepoUrl) });
     const license = resp.data.license;
     if (!license) return null;
@@ -87,7 +105,7 @@ export async function pyprojectTomlUpdateLicenses(file: string, upstreamRepoUrl:
   if (!updated) DIE("Fail to get license from " + upstreamRepoUrl);
 
   const replaced = raw.replace(outdated, () => updated);
-  await Bun.write(file, replaced);
+  await Bun.write(tomlFile, replaced);
   return { changed: true };
 }
 
