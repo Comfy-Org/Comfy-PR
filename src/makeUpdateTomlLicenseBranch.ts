@@ -23,9 +23,9 @@ if (import.meta.main) {
   const forkUrl = forkedRepo.html_url;
   console.log(forkUrl);
   await makeUpdateTomlLicenseBranch(testUpstreamRepo, forkUrl);
-  
+
   // process.env.GH_TOKEN_COMFY_PR = process.env.GH_TOKEN // uncomment to set token for make pr
-  const upstreamRepoUrl = testUpstreamRepo
+  const upstreamRepoUrl = testUpstreamRepo;
   const PR_REQUESTS_updateTomlLicense = await clone_modify_push_Branches_for_updateTomlLicense(
     upstreamRepoUrl,
     forkedRepo.html_url,
@@ -36,7 +36,6 @@ if (import.meta.main) {
   );
 
   console.log("prs_updateTomlLicense PRs DONE");
-
 }
 
 export async function makeUpdateTomlLicenseBranch(upstreamUrl: string, forkUrl: string) {
