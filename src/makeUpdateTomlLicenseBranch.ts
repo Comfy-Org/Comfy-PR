@@ -38,6 +38,9 @@ if (import.meta.main) {
   //   const testUpstreamRepo = "https://github.com/haohaocreates/ComfyUI-HH-Image-Selector";
   // await _testMakeUpdateTomlLicenseBranch();
   // await _listReposWithNoLicense();
+
+  const licenseAlreadyUpdatedRepo = "https://github.com/MuziekMagie/ComfyUI-Matchering";
+
   await updateTomlLicenseTasks();
   console.log("ALL DONE");
 }
@@ -73,20 +76,23 @@ export async function updateTomlLicenseTasks() {
   // update tasks
   await sflow(
     $pipeline(LicenseTasks)
-      .match({ tomlLicenseUpdated: { $ne: true }, updatedAt: $stale("5m") })
+      .match({ tomlUpdated: { $ne: true }, updatedAt: $stale("5m") })
       .as<WithId<LicenseUpdateTask>>()
       .aggregate(),
   )
     .filter(({ repository }) => !isRepoBypassed(repository))
-    .map(async ({ _id, repository }) => {
-      const prTask = await createTomlLicensePR(repository).then(TaskOK).catch(TaskError);
-      const tomlUpdated = !!TaskErrorOrNull(prTask)?.match("not matched outdated case");
-      return await LicenseTasks.findOneAndUpdate(
-        { _id },
-        { $set: { tomlUpdated, prTask, updatedAt: new Date() } },
-        { returnDocument: "after" },
-      );
-    })
+    .pMap(
+      async ({ _id, repository }) => {
+        const prTask = await createTomlLicensePR(repository).then(TaskOK).catch(TaskError);
+        const tomlUpdated = !!TaskErrorOrNull(prTask)?.match("not matched outdated case");
+        return await LicenseTasks.findOneAndUpdate(
+          { _id },
+          { $set: { tomlUpdated, prTask, updatedAt: new Date() } },
+          { returnDocument: "after" },
+        );
+      },
+      { concurrency: 3 },
+    )
     .forEach(() => sleep(2e3))
     .toLog();
 }
