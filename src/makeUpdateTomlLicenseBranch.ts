@@ -43,7 +43,11 @@ if (import.meta.main) {
     [`license = "LICENSE.txt"`]: `license = { file = "LICENSE.txt" }`,
   };
 
-  const licenseAlreadyUpdatedRepo = "https://github.com/MuziekMagie/ComfyUI-Matchering";
+  const repoExamples ={
+    "https://github.com/MuziekMagie/ComfyUI-Matchering": 'license already updated',
+    // - [ComfyUI_FizzNodes/LICENCE.txt at main · FizzleDorf/ComfyUI_FizzNodes]( https://github.com/FizzleDorf/ComfyUI_FizzNodes/blob/main/LICENCE.txt )
+    "https://github.com/FizzleDorf/ComfyUI_FizzNodes": 'licenCe'
+  }; 
 
   await updateTomlLicenseTasks();
   console.log("ALL DONE");
