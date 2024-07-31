@@ -1,6 +1,7 @@
 import DIE, { catchArgs } from "@snomiao/die";
 import { Octokit } from "octokit";
 import { pickAll } from "rambda";
+import { isRepoBypassed } from "./bypassRepos";
 import { gh } from "./gh";
 import type { GithubPull } from "./gh/GithubPull";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
@@ -20,6 +21,8 @@ export async function createGithubPullRequest({
   dstUrl: string; // upstream
   updateIfNotMatched?: boolean;
 }) {
+  if(isRepoBypassed(dstUrl)) DIE('dst repo is requested to be bypassed')
+    
   const dst = parseUrlRepoOwner(dstUrl);
   const src = parseUrlRepoOwner(srcUrl);
   const repo = (await gh.repos.get({ ...dst })).data;
