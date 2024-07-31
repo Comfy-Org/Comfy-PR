@@ -7,6 +7,10 @@ import { createGithubFork } from "./gh/createGithubFork";
 import { ghUser } from "./ghUser";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
 
+if (import.meta.main) {
+  console.log(await createGithubForkForRepo("https://github.com/comfyanonymous/ComfyUI_TensorRT"));
+}
+
 /**
  * this function creates a fork of the upstream repo,
  * fork to the FORK_OWNER, and add a prefix to the repo name
@@ -18,8 +22,26 @@ import { parseUrlRepoOwner } from "./parseOwnerRepo";
  * @param upstreamRepoUrl
  * @returns forked repo info
  */
-export async function createGithubForkForRepo(upstreamRepoUrl: string) {
-  // debug
+export async function createGithubForkForRepo(
+  upstreamRepoUrl: string,
+  { forkUrl = createGithubForkUrlForRepo(upstreamRepoUrl) } = {},
+) {
+  console.debug(
+    `
+Forking ${upstreamRepoUrl}
+   into ${forkUrl}
+`.trim(),
+  );
+  const forked = await createGithubFork(upstreamRepoUrl, forkUrl);
+  if (forked.html_url !== forkUrl)
+    DIE(
+      new Error(
+        "forked url not expected, it's likely you already forked this repo in your account before, and now trying to fork it again with different salt. To recovery you could delete that repo forked before by manual. (the repo forked before is listed in FORK OK: .....)",
+      ),
+    );
+  return forked;
+}
+export function createGithubForkUrlForRepo(upstreamRepoUrl: string) {
   // console.log(`* Change env.SALT=${salt} will fork into a different repo`);
   const upstream = parseUrlRepoOwner(upstreamRepoUrl);
   const argv = minimist(process.argv.slice(2));
@@ -28,14 +50,5 @@ export async function createGithubForkForRepo(upstreamRepoUrl: string) {
   const forkRepoName = (FORK_PREFIX && `${FORK_PREFIX}${upstream.repo}-${repo_hash}`) || upstream.repo;
   const forkDst = `${FORK_OWNER}/${forkRepoName}`;
   const forkUrl = `https://github.com/${forkDst}`;
-  console.debug(`
-Forking ${upstreamRepoUrl}
-   into ${forkUrl}
-`.trim());
-  const forked = await createGithubFork(upstreamRepoUrl, forkUrl);
-  if (forked.html_url !== forkUrl)
-    DIE(
-      "forked url not expected, it's likely you already forked this repo in your account before, and now trying to fork it again with different salt. To recovery you could delete that repo forked before by manual. (the repo forked before is listed in FORK OK: .....)",
-    );
-  return forked;
+  return forkUrl;
 }

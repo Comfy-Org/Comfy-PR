@@ -1,93 +1,194 @@
+import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import { TaskError, TaskErrorOrNull, TaskOK, type Task } from "@/packages/mongodb-pipeline-ts/Task";
 import DIE from "@snomiao/die";
+import { sleep } from "bun";
 import { readFile } from "fs/promises";
-import pMap from "p-map";
+import type { WithId } from "mongodb";
 import { basename, dirname } from "path";
-import sflow from "sflow";
+import sflow, { nil } from "sflow";
+import { CNRepos } from "./CNRepos";
 import { GIT_USEREMAIL } from "./GIT_USEREMAIL";
 import { GIT_USERNAME } from "./GIT_USERNAME";
+import { isRepoBypassed } from "./bypassRepos";
 import { $ } from "./cli/echoBunShell";
-import { clone_modify_push_Branches_for_updateTomlLicense } from "./createComfyRegistryPullRequests";
 import { createGithubForkForRepo } from "./createGithubForkForRepo";
 import { createGithubPullRequest } from "./createGithubPullRequest";
+import { $filaten, $stale, db } from "./db";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
 import { gh } from "./gh";
+import type { GithubPull } from "./gh/GithubPull";
 import { parseUrlRepoOwner, stringifyGithubOrigin } from "./parseOwnerRepo";
 import { parsePullUrl } from "./parsePullUrl";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 
+type LicenseUpdateTask = {
+  repository: string;
+  tomlUpdated?: boolean;
+  prTask: Task<any>;
+  updatedAt?: Date;
+};
+
+const LicenseTasks = db.collection<LicenseUpdateTask>("LicenseTasks");
+await LicenseTasks.createIndex({ repository: 1 }, { unique: true });
+
 if (import.meta.main) {
+  // - [Add pyproject.toml for Custom Node Registry by haohaocreates · Pull Request #1 · loopyd/ComfyUI-FD-Tagger]( https://github.com/loopyd/ComfyUI-FD-Tagger/pull/1 )
+  // await LicenseTasks.deleteMany({});
   //   await _pullTemplate();
   //   const testUpstreamRepo = "https://github.com/haohaocreates/ComfyUI-HH-Image-Selector";
+  // await _testMakeUpdateTomlLicenseBranch();
+  // await _listReposWithNoLicense();
+  await updateTomlLicenseTasks();
+  console.log("ALL DONE");
+}
+
+async function _listReposWithNoLicense() {
+  console.log(
+    await $pipeline(CNRepos)
+      .match({ cr: { $exists: true }, "info.data": { $exists: true }, "info.data.license": null })
+      .project({ _id: 0, repository: 1, gh_license: "$info.data.license" })
+      .aggregate()
+      .next(),
+  );
+}
+
+export async function updateTomlLicenseTasks() {
+  // collect tasks
+  await $pipeline(CNRepos)
+    .match({ cr: { $exists: true } })
+    .project({ _id: 0, repository: 1 })
+    .merge({ into: LicenseTasks.collectionName, on: "repository" })
+    .aggregate()
+    .next();
+
+  // reset retry-able errors with a cd interval
+  await LicenseTasks.updateMany($filaten({ prTask: { error: /was submitted too quickly/, mtime: $stale("5m") } }), {
+    $unset: { prTask: 1 },
+  });
+  await LicenseTasks.updateMany($filaten({ prTask: { error: /Missing env.GH_TOKEN_COMFY_PR/, mtime: $stale("1h") } }), {
+    $unset: { prTask: 1 },
+  });
+  console.log((await LicenseTasks.estimatedDocumentCount()) + " license tasks");
+
+  // update tasks
+  await sflow(
+    $pipeline(LicenseTasks)
+      .match({ tomlLicenseUpdated: { $ne: true }, updatedAt: $stale("5m") })
+      .as<WithId<LicenseUpdateTask>>()
+      .aggregate(),
+  )
+    .filter(({ repository }) => !isRepoBypassed(repository))
+    .map(async ({ _id, repository }) => {
+      const prTask = await createTomlLicensePR(repository).then(TaskOK).catch(TaskError);
+      const tomlUpdated = !!TaskErrorOrNull(prTask)?.match("not matched outdated case");
+      return await LicenseTasks.findOneAndUpdate(
+        { _id },
+        { $set: { tomlUpdated, prTask, updatedAt: new Date() } },
+        { returnDocument: "after" },
+      );
+    })
+    .forEach(() => sleep(2e3))
+    .toLog();
+}
+
+async function _testMakeUpdateTomlLicenseBranch() {
   const testUpstreamRepo = "https://github.com/snomiao/comfy-malicious-node-test";
-  const forkedRepo = await createGithubForkForRepo(testUpstreamRepo);
-  const forkUrl = forkedRepo.html_url;
-  console.log(forkUrl);
-  await makeUpdateTomlLicenseBranch(testUpstreamRepo, forkUrl);
 
-  // process.env.GH_TOKEN_COMFY_PR = process.env.GH_TOKEN // uncomment to set token for make pr
-  const upstreamRepoUrl = testUpstreamRepo;
-  const PR_REQUESTS_updateTomlLicense = await clone_modify_push_Branches_for_updateTomlLicense(
-    upstreamRepoUrl,
-    forkedRepo.html_url,
-  );
-  const prs_updateTomlLicense = await pMap(
-    PR_REQUESTS_updateTomlLicense,
-    async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }),
-  );
-
+  const prTask = await createTomlLicensePR(testUpstreamRepo).then(TaskOK).catch(TaskError);
+  if (TaskErrorOrNull(prTask)?.match("Not matched outdated case")) console.log("not matched outdated case");
+  console.log(prTask);
   console.log("prs_updateTomlLicense PRs DONE");
+}
+
+async function createTomlLicensePR(upstreamUrl: string): Promise<GithubPull> {
+  const { html_url: forkUrl } = await createGithubForkForRepo(upstreamUrl);
+  const branchInfo = await makeUpdateTomlLicenseBranch(upstreamUrl, forkUrl);
+  // console.log(forkUrl); // note: this forkUrl may not be final forked url
+  console.log({ branchInfo });
+  return await sflow([branchInfo])
+    .map(({ upstreamUrl, forkUrl, ...e }) => ({
+      ...e,
+      srcUrl: forkUrl,
+      dstUrl: upstreamUrl,
+    }))
+    .map(async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }))
+    .forEach((e) => e || DIE(new Error("missing pr result")))
+    .toOne();
 }
 
 export async function makeUpdateTomlLicenseBranch(upstreamUrl: string, forkUrl: string) {
   const type = "licence-update" as const;
-  const origin = await stringifyGithubOrigin(parseUrlRepoOwner(forkUrl));
   const branch = "licence-update";
-  const tmpl = await readFile("./templates/add-toml.md", "utf8");
+  const tmpl = await readFile("./templates/update-toml-license.md", "utf8");
   const { title, body } = parseTitleBodyOfMarkdown(tmpl);
+
+  // check forked repo if target branch existed
+  const origin = await stringifyGithubOrigin(parseUrlRepoOwner(forkUrl));
   const repo = parseUrlRepoOwner(forkUrl);
+  const existedBranch = await gh.repos.getBranch({ ...repo, branch }).catch(() => null);
 
-  // info.license?.url
-  if (await gh.repos.getBranch({ ...repo, branch }).catch(() => null)) {
-    console.log("Skip changes as forked branch existed: " + branch);
-    return { type, title, body, branch };
-  }
   const cwd = await getBranchWorkingDir(upstreamUrl, forkUrl, branch);
-
   // commit changes
   await $`
+rm -rf ${cwd}
 git clone ${upstreamUrl} ${cwd}
-
-cd ${cwd}
 `;
 
-  const pyprojectToml = cwd + "/pyproject.toml";
-  const { changed } = await pyprojectTomlUpdateLicenses(pyprojectToml, upstreamUrl);
-  if (!changed) return; // not changed
+  //   // also pull from existed forked branch
+  //   if (existedBranch)
+  //     await $`
+  // cd ${cwd}
+  // git pull ${forkUrl} ${branch}
+  // `;
 
+  const pyprojectToml = cwd + "/pyproject.toml";
+  const { updated, license } = await pyprojectTomlUpdateLicenses(pyprojectToml, upstreamUrl);
+  if (!updated) throw new Error("License field not matched outdated case, skip pr");
+
+  if (existedBranch) {
+    console.log("[debug] skip update already forked branch " + branch);
+    return { type, title, body, branch, upstreamUrl, forkUrl, license };
+  }
+
+  // prepare local branch
   await $`
 cd ${cwd}
 git config user.name ${GIT_USERNAME} && \
 git config user.email ${GIT_USEREMAIL} && \
 git checkout -b ${branch} && \
 git add . && \
-git commit -am ${`chore(${branch}): ${title}`} && \
+git commit -am ${`chore(${branch}): ${title}`}
+`;
+
+  await $`
+cd ${cwd}
 git push "${origin}" ${branch}:${branch}
 `;
   const branchUrl = `https://github.com/${repo.owner}/${repo.repo}/tree/${branch}`;
   console.log(`Branch Push OK: ${branchUrl}`);
-  return { type, title, body, branch };
+
+  return { type, title, body, branch, upstreamUrl, forkUrl, license };
 }
 
 export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepoUrl: string) {
-  const raw = await Bun.file(tomlFile).text();
-  const outdated = `license = "LICENSE"`;
-  if (!raw.match(outdated)) return { changed: false }; // not outdated
+  const raw =
+    (await Bun.file(tomlFile).text().catch(nil)) || DIE(new Error("pyproject.toml file not existed or got empty file"));
+  const m = raw.match(/^license\s*=(.*)/im);
+
+  const licenseLine = m?.[0];
+  const license = m?.[1]?.trim();
+  const outdatedDesiredLicense = license?.match(/^"([^"\n\r]+)"$/i)?.[1];
+  const isOutdated = !!outdatedDesiredLicense;
+  // const isOutdated = !!raw.match(outdated);
+  license && (await LicenseTasks.updateOne({ repository: upstreamRepoUrl }, { $set: { license: license } }));
+  if (!licenseLine) throw new Error("no license line was found, please check toml file");
+  if (!isOutdated) return { updated: false }; // not outdated
 
   let updated: string | null = "";
   // try load local license file first
   updated ||= await (async function () {
     const licenses = await Array.fromAsync(new Bun.Glob(dirname(tomlFile) + "/LICENSE*").scan());
-    if (licenses.length > 1) DIE("Multiple license found: " + JSON.stringify(licenses));
+    if (licenses.length > 1) DIE(new Error("Multiple license found: " + JSON.stringify(licenses)));
 
     const licenseFilename = licenses[0];
     if (!licenseFilename) return null;
@@ -101,11 +202,16 @@ export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepo
     if (!license) return null;
     return `license = { text = "${license?.name}" }`;
   })();
-  if (!updated) DIE("Fail to get license from " + upstreamRepoUrl);
+  if (!updated)
+    DIE(
+      `Fail to get repo license from repo please contact author to create a license file\nMISSING_LICENSE_REPO: ${upstreamRepoUrl}`,
+    );
 
-  const replaced = raw.replace(outdated, () => updated);
+  const replaced = raw.replace(licenseLine, () => updated);
+  if (replaced === raw) DIE(new Error("licenseLine not matched", { cause: { raw, licenseLine, updated } }));
+  await LicenseTasks.updateOne({ repository: upstreamRepoUrl }, { $set: { updateLine: updated } });
   await Bun.write(tomlFile, replaced);
-  return { changed: true };
+  return { updated: true, license: replaced.match(/^license\s*=(.*)/i)?.[1]?.trim() };
 }
 
 /** use when template updated */

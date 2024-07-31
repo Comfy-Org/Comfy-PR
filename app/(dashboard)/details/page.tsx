@@ -15,7 +15,7 @@ export default function DetailsPage({ searchParams: { skip = 0, limit = 0 } }) {
 1. [Admin: Check Default Follow-up rule](/rules/default)
 `}</Markdown>
 
-      <UseSWRComponent props={{ skip, limit }} Component={DetailsTable} refreshInterval={60e3}>
+      <UseSWRComponent         props={{ skip, limit }} Component={DetailsTable} refreshInterval={60e3}>
         {<DetailsTable {...{ skip, limit }} />}
       </UseSWRComponent>
     </div>
