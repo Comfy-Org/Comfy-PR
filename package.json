@@ -76,7 +76,7 @@
     "p-map": "^7.0.2",
     "peek-log": "^0.0.8",
     "polyfill-text-decoder-stream": "^0.0.9",
-    "pretty-ms": "^9.0.0",
+    "pretty-ms": "^9.1.0",
     "promise-all-properties": "^4.0.0",
     "rambda": "^9.2.1",
     "react-api-doc": "^0.0.9",
