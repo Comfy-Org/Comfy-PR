@@ -38,6 +38,10 @@ if (import.meta.main) {
   //   const testUpstreamRepo = "https://github.com/haohaocreates/ComfyUI-HH-Image-Selector";
   // await _testMakeUpdateTomlLicenseBranch();
   // await _listReposWithNoLicense();
+  const testMapping = {
+    [`license = "MIT"`]: `license = { text = "MIT" }`,
+    [`license = "LICENSE.txt"`]: `license = { file = "LICENSE.txt" }`,
+  };
 
   const licenseAlreadyUpdatedRepo = "https://github.com/MuziekMagie/ComfyUI-Matchering";
 
@@ -191,9 +195,12 @@ export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepo
   if (!isOutdated) return { updated: false }; // not outdated
 
   let updated: string | null = "";
+
   // try load local license file first
   updated ||= await (async function () {
-    const licenses = await Array.fromAsync(new Bun.Glob(dirname(tomlFile) + "/LICENSE*").scan()); // note: LICENCE will be mismatch in this case
+    const desiredLicenseIsFile = !!outdatedDesiredLicense.match(/LICEN[SC]E/);
+    if (!desiredLicenseIsFile) return null;
+    const licenses = await Array.fromAsync(new Bun.Glob(dirname(tomlFile) + "/LICEN[CS]E*").scan()); // note: LICENCE will be mismatch in this case
     if (licenses.length > 1) DIE(new Error("Multiple license found: " + JSON.stringify(licenses)));
 
     const licenseFilename = licenses[0];
@@ -208,6 +215,7 @@ export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepo
     if (!license) return null;
     return `license = { text = "${license?.name}" }`;
   })();
+
   if (!updated)
     DIE(
       `Fail to get repo license from repo please contact author to create a license file\nMISSING_LICENSE_REPO: ${upstreamRepoUrl}`,
