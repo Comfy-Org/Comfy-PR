@@ -10,17 +10,6 @@ import { parsePulls } from "./parsePullsState";
 export async function createComfyRegistryPullRequests(upstreamRepoUrl: string) {
   const forkedRepo = await createGithubForkForRepo(upstreamRepoUrl);
 
-  // const PR_REQUESTS_updateTomlLicense = await clone_modify_push_Branches_for_updateTomlLicense(
-  //   upstreamRepoUrl,
-  //   forkedRepo.html_url,
-  // );
-  // const prs_updateTomlLicense = await pMap(
-  //   PR_REQUESTS_updateTomlLicense,
-  //   async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }),
-  // );
-
-  // console.log("prs_updateTomlLicense PRs DONE");
-
   const PR_REQUESTS = await clone_modify_push_Branches(upstreamRepoUrl, forkedRepo.html_url);
   const prs = await pMap(PR_REQUESTS, async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }));
 
