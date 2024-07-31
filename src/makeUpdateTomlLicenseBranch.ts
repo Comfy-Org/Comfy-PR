@@ -193,7 +193,7 @@ export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepo
   let updated: string | null = "";
   // try load local license file first
   updated ||= await (async function () {
-    const licenses = await Array.fromAsync(new Bun.Glob(dirname(tomlFile) + "/LICENSE*").scan());
+    const licenses = await Array.fromAsync(new Bun.Glob(dirname(tomlFile) + "/LICENSE*").scan()); // note: LICENCE will be mismatch in this case
     if (licenses.length > 1) DIE(new Error("Multiple license found: " + JSON.stringify(licenses)));
 
     const licenseFilename = licenses[0];
