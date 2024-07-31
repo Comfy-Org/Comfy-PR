@@ -1,7 +1,18 @@
 volumes:
   venv:
   test_db_data:
+
+# dev server
 services:
+  comfy-pr:
+    # image: oven/bun
+    # command: bun dev
+    # volumes: [ ./:/home/bun/app ]
+    image: node
+    command: npx -y bun dev
+    working_dir: /home/bun/app
+    volumes: [ ./:/home/bun/app ]
+    environment: [ PORT=80 ]
   # comfy-pr:
   #   restart: always
   #   image: snomiao/comfy-registry-pr

@@ -2,6 +2,7 @@ import "dotenv/config";
 import { checkComfyActivated } from "./checkComfyActivated";
 import { updateEmailTasks } from "./EmailTasks";
 import { initializeFollowRules } from "./initializeFollowRules";
+import { updateTomlLicenseTasks } from "./makeUpdateTomlLicenseBranch";
 import { updateAuthors } from "./updateAuthors";
 import { updateCNRepos } from "./updateCNRepos";
 import { runFollowRuleSet } from "./updateFollowRuleSet";
@@ -16,6 +17,7 @@ if (import.meta.main) {
     updateCNRepos(),
     updateAuthors(),
     updateEmailTasks(),
+    updateTomlLicenseTasks(),
   ]);
   await initializeFollowRules();
   await tLog("runFollowRuleSet", runFollowRuleSet);

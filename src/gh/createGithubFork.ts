@@ -13,11 +13,14 @@ if (import.meta.main) {
 }
 export async function createGithubFork(from: string, to: string) {
   const _to = parseUrlRepoOwner(to);
+  const _from = parseUrlRepoOwner(from);
   const forkResult = await gh.repos
     .createFork({
+      // from owner repo
+      ..._from,
+      // to owner repo
       ...(ghUser.name !== _to.owner && { organization: _to.owner }),
       name: _to.repo,
-      ...parseUrlRepoOwner(from),
     })
     .catch(async (e) => {
       if (e.message.match("Name already exists on this account")) return await gh.repos.get({ ..._to });
