@@ -19,6 +19,8 @@ if (import.meta.main) {
 export async function updateOutdatedPullsTemplates() {
   const pyproject = await readTemplate("add-toml.md");
   const publishcr = await readTemplate("add-action.md");
+  const toml = await readTemplate("outdated_toml")
+  const outdated_toml = await readTemplate("templates/outdated/update-toml-license.md");
   const outdated_pyproject = await readTemplate("outdated/add-toml.md");
   const outdated_publishcr = await readTemplate("outdated/add-action.md");
   const outdated_pyproject_v2 = await readTemplate("outdated/add-toml-v2.md");
@@ -27,6 +29,7 @@ export async function updateOutdatedPullsTemplates() {
   const outdated_publishcr_v3 = await readTemplate("outdated/add-action-v3.md");
   const outdated_pyproject_v4 = await readTemplate("outdated/add-toml-v4.md");
   const outdateTitles = [
+    outdated_toml.title, 
     outdated_pyproject.title,
     outdated_publishcr.title,
     outdated_pyproject_v2.title,
@@ -36,6 +39,7 @@ export async function updateOutdatedPullsTemplates() {
     outdated_pyproject_v4.title,
   ];
   const outdateBodies = [
+    outdated_toml.body,
     outdated_pyproject.body,
     outdated_publishcr.body,
     outdated_pyproject_v2.body,
@@ -109,6 +113,7 @@ export async function updateOutdatedPullsTemplates() {
           const replacement = match(pull)
             .with(pyproject, () => DIE("Is already latest, should never happen here"))
             .with(publishcr, () => DIE("Is already latest, should never happen here"))
+            .with(outdated_toml, () => toml)
             .with(outdated_pyproject, () => pyproject)
             .with(outdated_pyproject_v2, () => pyproject)
             .with(outdated_pyproject_v3, () => pyproject)
