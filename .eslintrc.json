@@ -2,6 +2,5 @@
   "extends": "next/core-web-vitals",
   "rules":{
     "@typescript-eslint/explicit-function-return-type": "warn"
-
   }
 }

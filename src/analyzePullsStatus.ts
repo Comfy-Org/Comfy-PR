@@ -53,7 +53,7 @@ export async function analyzePullsStatus({ skip = 0, limit = 0, pipeline = analy
         pull_updated,
         repo_updated,
         ...pull,
-        lastwords: pull.lastwords?.replace(/\s+/g, " ").replace(/\*\*\*.*/g, "..."),
+        lastcomment: pull.lastcomment?.replace(/\s+/g, " ").replace(/\*\*\*.*/g, "..."),
       };
     })
     .toArray();
@@ -118,8 +118,8 @@ export function analyzePullsStatusPipeline() {
       // .set({ author: { $first: ["$author"] } })
       .project({ authors: 0 })
 
-      .set({ lastwords: { $arrayElemAt: ["$comments", -1] } })
-      .set({ lastwords: { $ifNull: [{ $concat: ["$lastwords.user.login", ": ", "$lastwords.body"] }, ""] } })
+      .set({ lastcomment: { $arrayElemAt: ["$comments", -1] } })
+      .set({ lastcomment: { $ifNull: [{ $concat: ["$lastcomment.user.login", ": ", "$lastcomment.body"] }, ""] } })
 
       // calculate update_at max( )
       // date format convert
@@ -154,7 +154,7 @@ export function analyzePullsStatusPipeline() {
           },
         },
         actived_at: 1,
-        lastwords: 1,
+        lastcomment: 1,
 
         instagramId: "$author.instagramId",
         discordId: "$author.discordId",
@@ -177,7 +177,7 @@ export function analyzePullsStatusPipeline() {
         comments: number;
         created_at: Date;
         head: string;
-        lastwords: string;
+        lastcomment: string;
         on_registry_at: Date;
         on_registry: boolean;
         comments_author: string;

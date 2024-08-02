@@ -27,7 +27,7 @@
 #     state: OPEN
 #     updated_at:
 #       $before: 1w # anything 7 days and more
-#     lastwords: /haohaocreates/
+#     lastcomment: /haohaocreates/
 #     comments: 1 # I want to make sure it's just "1" comment AND that that comment belongs to me
 #     head: .*:pyproject
 #   action:
@@ -78,7 +78,7 @@
 #   comments
 #   created_at
 #   head
-#   lastwords
+#   lastcomment
 #   on_registry
 #   ownername
 #   state

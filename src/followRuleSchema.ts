@@ -50,7 +50,7 @@ const zFollowUpRule = z.object({
       created_at: mDate,
       comments_author: mString,
       head: mString,
-      lastwords: mString,
+      lastcomment: mString,
       on_registry: z.boolean(),
       nickName: mString,
       ownername: mString,

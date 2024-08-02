@@ -1,11 +1,41 @@
 import DIE, { catchArgs } from "@snomiao/die";
+import "git-diff";
 import { Octokit } from "octokit";
 import { pickAll } from "rambda";
+import sflow from "sflow";
 import { isRepoBypassed } from "./bypassRepos";
 import { gh } from "./gh";
 import type { GithubPull } from "./gh/GithubPull";
 import { parseUrlRepoOwner } from "./parseOwnerRepo";
-
+if (import.meta.main) {
+  const srcUrl = "https://github.com/ComfyNodePRs/PR-ComfyUI-DareMerge-7bcbf6a9"
+  const dstUrl = "https://github.com/54rt1n/ComfyUI-DareMerge"
+  const src = parseUrlRepoOwner(srcUrl);
+  const dst = parseUrlRepoOwner(dstUrl);
+  const branch = 'licence-update'
+  const repo = (await gh.repos.get({ ...dst })).data;
+  const head_repo = `${src.owner}/${src.repo}`;
+  // const head = `${src.owner}:${branch}`;
+  const head = `${src.owner}:licence-update`;
+  console.log('headrepo ' + head_repo)
+  console.log('head '+head)
+  await sflow((
+    await gh.pulls.list({
+      // source repo
+      state: "all",
+      // head_repo: head_repo,
+      
+      head: head,
+      // pr will merge into
+      owner: dst.owner,
+      repo: dst.repo,
+      base: repo.default_branch,
+    })
+  ).data)
+    // .filter(e => head === e.head.label )
+    .map(e => ({ url: e.html_url, hEAD: head.trim()===e.head.label.trim(),heaD: head, head: e.head.label, head_repo: e.head.repo.full_name })).toLog()
+  console.log('all done')
+}
 export async function createGithubPullRequest({
   title,
   body,
@@ -21,8 +51,8 @@ export async function createGithubPullRequest({
   dstUrl: string; // upstream
   updateIfNotMatched?: boolean;
 }) {
-  if(isRepoBypassed(dstUrl)) DIE('dst repo is requested to be bypassed')
-    
+  if (isRepoBypassed(dstUrl)) DIE('dst repo is requested to be bypassed')
+
   const dst = parseUrlRepoOwner(dstUrl);
   const src = parseUrlRepoOwner(srcUrl);
   const repo = (await gh.repos.get({ ...dst })).data;
@@ -32,8 +62,8 @@ export async function createGithubPullRequest({
     await gh.pulls.list({
       // source repo
       state: "all",
-      head_repo: src.owner + "/" + src.repo,
-      head: src.owner + ":" + branch,
+      head_repo: `${src.owner}/${src.repo}`,
+      head: `${src.owner}:${branch}`,
       // pr will merge into
       owner: dst.owner,
       repo: dst.repo,
@@ -69,20 +99,20 @@ export async function createGithubPullRequest({
       // handle existed error
       .catch(async (e) => {
         if (!e.message.match("A pull request already exists for")) throw e;
-        console.log("PR Existed ", e);
+        console.error("PR Existed\n", e);
         // WARN: will search all prs
         const existedList = (
           await gh.pulls.list({
             // source repo
             state: "open",
-            head_repo: src.owner + "/" + src.repo,
-            // head: src.owner + ":" + branch,
+            head_repo: `${src.owner}/${src.repo}`,
+            head: `${src.owner}:${branch}`,
             // pr will merge into
             owner: dst.owner,
             repo: dst.repo,
             base: repo.default_branch,
           })
-        ).data;
+        ).data // .filter(existed => existed.title === title);
 
         if (existedList.length !== 1)
           DIE(
