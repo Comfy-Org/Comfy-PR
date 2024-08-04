@@ -20,7 +20,7 @@ export async function updateOutdatedPullsTemplates() {
   const pyproject = await readTemplate("add-toml.md");
   const publishcr = await readTemplate("add-action.md");
   const toml = await readTemplate("outdated-toml-license.md")
-  const outdated_toml = await readTemplate("templates/outdated/update-toml-license.md");
+  const outdated_toml = await readTemplate("outdated/update-toml-license.md");
   const outdated_pyproject = await readTemplate("outdated/add-toml.md");
   const outdated_publishcr = await readTemplate("outdated/add-action.md");
   const outdated_pyproject_v2 = await readTemplate("outdated/add-toml-v2.md");
