@@ -1,5 +1,5 @@
-import pMap from "p-map";
 import { dissoc } from "rambda";
+import sflow from "sflow";
 import { match } from "ts-pattern";
 import { $OK, TaskError, TaskOK } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos } from "./CNRepos";
@@ -16,8 +16,9 @@ if (import.meta.main) {
 
 export async function updateCNReposInfo() {
   await CNRepos.createIndex($filaten({ info: { mtime: 1 } }));
-  return await pMap(
-    CNRepos.find($filaten({ info: { mtime: $stale("1d") } })),
+  return await sflow(
+    CNRepos.find($filaten({ info: { mtime: $stale("1d") } }))
+  ).pMap(
     async (repo) => {
       const { repository } = repo;
       console.log("[INFO] Fetching meta info from " + repository);
@@ -53,5 +54,5 @@ export async function updateCNReposInfo() {
       return await CNRepos.updateOne({ repository: url }, { $set: { info } }, { upsert: true });
     },
     { concurrency: 2 },
-  );
+  ).toArray();
 }

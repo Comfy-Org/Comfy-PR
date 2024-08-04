@@ -10,7 +10,8 @@ export async function tLog<T, F extends () => Awaitable<T[]>>(arg1: string | F, 
   const s = +Date.now();
   const r = await _fn!();
   const e = +Date.now();
-  console.log(`[${prettyMs(e - s)}] ${msg} done (count: ${r.length ?? "N/A"})`);
+  const strCount =r && `(count: ${r.length ?? "N/A"})` || ''
+  console.log(`[${prettyMs(e - s)}] ${msg} done ${strCount}`.trim());
   return r;
 }
 export { prettyMs };

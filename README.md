@@ -1,6 +1,6 @@
 # Comfy-PR
 
-Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.comfyregistry.org/).
+Make PRs that helps comfy community grow with [Comfy.org](https://comfy.org/).
 
 ## Project Goals: (aka roadmap)
 
@@ -13,9 +13,9 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 - [x] create PR to original repository with template PR description.
 - [x] Submit PR
 - [x] Clean local debris before clone
-- [/] DOING: Export PR status into csv for @haohao
+- [x] DOING: Export PR status into csv for @haohao
 
-### Github Actions Worker
+### Github Actions Workerds
 
 - [x] Fetch repos from CM & CR list
 - [x] Make diff
@@ -26,6 +26,8 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 - [x] Automaticaly find candidates, and do the cli does
 - [x] Mention related prs in dashboard https://github.com/drip-art/Comfy-Registry-PR/issues/1
 - [x] Analyze Totals
+- [x] license schema updator
+- [x] bypass repo
 - [ ] Follow-up prs by state
   - [ ] Issues Comment
   - [ ] Slack
@@ -35,7 +37,7 @@ Make PRs that publishes ComfyUI Custom Nodes to [ComfyUI Registry](https://www.c
 ### Web Site https://comfy-pr.vercel.app
 
 - [x] A dashboard csv/yaml exporter site for @haohao
-- [ ]
+- [x] pr dashboard
 
 ## Usages
 

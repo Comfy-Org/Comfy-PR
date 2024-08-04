@@ -9,7 +9,7 @@ export const zPullStatus = z.object({
   url: z.string(),
   head: z.string(),
   comments: z.number(),
-  lastwords: z.string(),
+  lastcomment: z.string(),
   ownername: z.string().optional(),
   repository: z.string().optional(),
   author_email: z.string().optional(),

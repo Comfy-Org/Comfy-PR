@@ -7,6 +7,6 @@ export const zPullStatusFollow = z.array(
     url: z.string(),
     head: z.string(),
     comments: z.number(),
-    lastwords: z.string(),
+    lastcomment: z.string(),
   }),
 );
