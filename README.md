@@ -39,6 +39,14 @@ Make PRs that helps comfy community grow with [Comfy.org](https://comfy.org/).
 - [x] A dashboard csv/yaml exporter site for @haohao
 - [x] pr dashboard
 
+## Admin
+
+### Changing PR Owner
+
+If you wish to change which Github account the Pull Requests come from, then you need to place a Github token into the **[Actions Secrets](https://github.com/drip-art/Comfy-Registry-PR/settings/secrets/actions )** 
+
+`GH_TOKEN_COMFY_PR = ************`
+
 ## Usages
 
 ### CLI Usage: Get Started by
