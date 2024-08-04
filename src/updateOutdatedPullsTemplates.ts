@@ -19,7 +19,7 @@ if (import.meta.main) {
 export async function updateOutdatedPullsTemplates() {
   const pyproject = await readTemplate("add-toml.md");
   const publishcr = await readTemplate("add-action.md");
-  const toml = await readTemplate("outdated-toml-license.md")
+  const toml = await readTemplate("outdated-toml-license.md");
   const outdated_toml = await readTemplate("outdated/update-toml-license.md");
   const outdated_pyproject = await readTemplate("outdated/add-toml.md");
   const outdated_publishcr = await readTemplate("outdated/add-action.md");
@@ -29,7 +29,7 @@ export async function updateOutdatedPullsTemplates() {
   const outdated_publishcr_v3 = await readTemplate("outdated/add-action-v3.md");
   const outdated_pyproject_v4 = await readTemplate("outdated/add-toml-v4.md");
   const outdateTitles = [
-    outdated_toml.title, 
+    outdated_toml.title,
     outdated_pyproject.title,
     outdated_publishcr.title,
     outdated_pyproject_v2.title,
