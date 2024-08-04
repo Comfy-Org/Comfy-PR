@@ -4,6 +4,7 @@ bun index.ts
 */
 import type { ObjectId, WithId } from "mongodb";
 import "react-hook-form";
+import { nil } from "sflow";
 import { type Task } from "../packages/mongodb-pipeline-ts/Task";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
@@ -25,6 +26,7 @@ type Sent = {
   emails?: Email[];
 };
 
+// TODO: refactor into interface to improve performance
 type GithubIssueComment = Awaited<ReturnType<typeof gh.issues.getComment>>["data"];
 type GithubIssue = Awaited<ReturnType<typeof gh.issues.get>>["data"];
 type GithubRepo = Awaited<ReturnType<typeof gh.repos.get>>["data"];
@@ -35,7 +37,7 @@ export type CRPull = RelatedPull & {
   issue?: Task<Pick<GithubIssue, "number" | "html_url" | "body" | "updated_at">>;
   emailTask_id?: ObjectId;
 };
-
+// TODO: refactor into interface to improve performance
 export type CustomNodeRepo = {
   repository: string;
   info?: Task<Pick<GithubRepo, "html_url" | "archived" | "default_branch" | "private">>;
@@ -69,7 +71,8 @@ export type CustomNodeRepo = {
 };
 export type CNRepo = CustomNodeRepo;
 export const CNRepos = db.collection<CNRepo>("CNRepos");
-await CNRepos.createIndex({ repository: 1 }, { unique: true });
+
+CNRepos.createIndex({ repository: 1 }, { unique: true }).catch(nil);
 
 // fix cr null, it should be not exists
-await CNRepos.updateMany({ cr: null as unknown as WithId<CRNode> }, { $unset: { cr: 1 } });
+// await CNRepos.updateMany({ cr: null as unknown as WithId<CRNode> }, { $unset: { cr: 1 } });

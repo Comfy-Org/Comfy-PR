@@ -1,4 +1,4 @@
-import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
+import { $pipeline, type Pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import type { ObjectId } from "mongodb";
 import prettyMs from "pretty-ms";
 import { snoflow } from "snoflow";
@@ -39,6 +39,7 @@ if (import.meta.main) {
 export type PullStatus = z.infer<typeof zPullStatus>;
 export type PullsStatus = PullStatus[];
 export type PullStatusShown = Awaited<ReturnType<typeof analyzePullsStatus>>[number];
+
 export async function analyzePullsStatus({ skip = 0, limit = 0, pipeline = analyzePullsStatusPipeline() } = {}) {
   "use server";
   return await pipeline
@@ -58,7 +59,15 @@ export async function analyzePullsStatus({ skip = 0, limit = 0, pipeline = analy
     })
     .toArray();
 }
-export function baseCRPullStatusPipeline() {
+export function baseCRPullStatusPipeline(): Pipeline<
+  CRPull & {
+    repo: string;
+    on_registry: Task<boolean>;
+    type: string;
+    comments: GithubIssueComment[];
+    emailTask_id?: ObjectId;
+  }
+> {
   return (
     $pipeline(CNRepos)
       // get latest pr comments time
@@ -89,7 +98,24 @@ export function baseCRPullStatusPipeline() {
       >()
   );
 }
-export function analyzePullsStatusPipeline() {
+export function analyzePullsStatusPipeline(): Pipeline<{
+  actived_at: Date;
+  email: string | "";
+  comments: number;
+  created_at: Date;
+  head: string;
+  lastwords: string;
+  on_registry_at: Date;
+  on_registry: boolean;
+  comments_author: string;
+  ownername: string;
+  nickName: string;
+  repository: string;
+  state: "OPEN" | "MERGED" | "CLOSED";
+  updated_at: Date;
+  emailState: EmailTask["state"] | "";
+  url: string;
+}> {
   return (
     baseCRPullStatusPipeline()
       // fetch author email from Authors collection

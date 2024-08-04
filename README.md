@@ -225,3 +225,15 @@ bun src/THAT_FILE_YOU_WANT_TO_RUN.ts
 # To check if you didn't break anything?
 bun test --watch
 ```
+
+
+## DB Inspecting
+
+Make .env.development.local as 
+
+```sh
+MONGODB_URI_INSPECT_HAOHAO={{that readonly db link sno gave you}}
+MONGODB_URI=$MONGODB_URI_INSPECT_HAOHAO
+```
+
+And inspect db with script, e.g. `src/checkPRsFailures.ts`
