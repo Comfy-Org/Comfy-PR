@@ -4,8 +4,13 @@ import { ghUser } from "./ghUser";
 import { parseIssueUrl } from "./parseIssueUrl";
 
 if (import.meta.main) {
-  const url = "https://github.com/snomiao/ComfyNode-Registry-test/pull/1";
-  const body = "Hello World @snomiao";
+  // const url = "https://github.com/snomiao/ComfyNode-Registry-test/pull/1";
+  // const body = "Hello World @snomiao";
+  // const result = await createIssueComment(url, body, ghUser.login);
+  // console.log(result.comment.html_url);
+  // console.log(result.comments.map((e) => e.html_url));
+  const url = "https://github.com/snomiao/ComfyNode-Registry-test/pull/29";
+  const body = "Hello World @robinjhuang";
   const result = await createIssueComment(url, body, ghUser.login);
   console.log(result.comment.html_url);
   console.log(result.comments.map((e) => e.html_url));
