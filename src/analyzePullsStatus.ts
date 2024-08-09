@@ -104,7 +104,7 @@ export function analyzePullsStatusPipeline(): Pipeline<{
   comments: number;
   created_at: Date;
   head: string;
-  lastwords: string;
+  lastcomment: string;
   on_registry_at: Date;
   on_registry: boolean;
   comments_author: string;
