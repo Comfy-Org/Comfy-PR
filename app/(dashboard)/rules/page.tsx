@@ -2,7 +2,6 @@ import { TaskDataOrNull } from "@/packages/mongodb-pipeline-ts/Task";
 import { FollowRuleSets } from "@/src/FollowRules";
 import Link from "next/link";
 import Markdown from "react-markdown";
-
 /**
  * @author: snomiao <snomiao@gmail.com>
  */
@@ -33,6 +32,7 @@ export default async function RulesList() {
 1. [Default rule](/rules/default)
 `}</Markdown>
         </div>
+        <a href="https://github.com/drip-art/Comfy-Registry-PR/blob/main/app/(dashboard)/rules/page.tsx">Edit this page</a>
       </div>
     </div>
   );
