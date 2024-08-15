@@ -1,11 +1,11 @@
 import DIE from "@snomiao/die";
-import type { Credentials, OAuth2Client } from "google-auth-library";
+import type { Credentials } from "google-auth-library";
+import type { OAuth2Client } from "googleapis-common";
 import { uniq } from "rambda";
 import { sf } from "snoflow";
 import { db } from "../db";
 import type { Awaitable } from "../types/Awaitable";
 import { getAuthenticatedClient } from "./getAuthenticatedClient";
-import { getOAuthTokenInfo } from "./getOAuthTokenInfo";
 export const GCloudOAuth2Credentials = db.collection<{
   email: string;
   scopes: string[];
@@ -46,7 +46,7 @@ export async function getGCloudOAuth2Client({
   scope?: string | string[];
   authorize: (authorizeUrl: string) => Awaitable<never | string | Credentials>;
   fromUrl?: string;
-}): Promise<OAuth2Client> {
+}) {
   const scopes = uniq([...[scope].flat(), "https://www.googleapis.com/auth/userinfo.email"]);
   const auth = await getAuthenticatedClient({
     scope: scopes,
@@ -88,4 +88,19 @@ export async function handleGCloudOAuth2Callback(req: Request, redirect?: Redire
   );
   cred?.fromUrl && (await redirect?.(cred.fromUrl)); // redirect user back if possible
   return new Response(`Authentication for ${email} was successful!`);
+}
+
+export async function getOAuthTokenInfo(auth: OAuth2Client) {
+  const userInfo =
+    (
+      await auth.verifyIdToken({
+        idToken: auth.credentials.id_token!,
+        audience: auth._clientId,
+      })
+    ).getPayload() ?? DIE("MISSING OAUTH JWT");
+
+  // After acquiring an access_token, you may want to check on the audience, expiration,
+  // or original scopes requested.  You can do that with the `getTokenInfo` method.
+  const tokenInfo = await auth.getTokenInfo(auth.credentials.access_token!);
+  return { ...tokenInfo, ...userInfo };
 }

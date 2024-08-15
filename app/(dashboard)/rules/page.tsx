@@ -32,7 +32,9 @@ export default async function RulesList() {
 1. [Default rule](/rules/default)
 `}</Markdown>
         </div>
-        <a href="https://github.com/drip-art/Comfy-Registry-PR/blob/main/app/(dashboard)/rules/page.tsx">Edit this page</a>
+        <a href="https://github.com/drip-art/Comfy-Registry-PR/blob/main/app/(dashboard)/rules/page.tsx">
+          Edit this page
+        </a>
       </div>
     </div>
   );

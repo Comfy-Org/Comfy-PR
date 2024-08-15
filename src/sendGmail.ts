@@ -1,6 +1,8 @@
 import DIE from "@snomiao/die";
-import type { Credentials, OAuth2Client } from "google-auth-library";
+// import type { Credentials } from "google-auth-library";
+import type { Credentials } from "google-auth-library";
 import { GoogleApis } from "googleapis";
+import type { OAuth2Client } from "googleapis-common";
 import { createMimeMessage } from "mail-mime-builder";
 import markdownIt from "markdown-it";
 import {
@@ -8,7 +10,6 @@ import {
   getGCloudOAuth2Client,
   handleGCloudOAuth2Callback,
 } from "./gcloud/GCloudOAuth2Credentials";
-
 if (import.meta.main) {
   // send test email
   const name = "snomiao";

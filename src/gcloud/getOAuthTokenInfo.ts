@@ -1,5 +1,5 @@
 import DIE from "@snomiao/die";
-import { OAuth2Client } from "google-auth-library";
+import type { OAuth2Client } from "google-auth-library";
 
 export async function getOAuthTokenInfo(auth: OAuth2Client) {
   const userInfo =

@@ -1,5 +1,6 @@
 import DIE from "@snomiao/die";
-import { OAuth2Client, type Credentials } from "google-auth-library";
+import { type Credentials } from "google-auth-library";
+import { google } from "googleapis";
 import type { Awaitable } from "../types/Awaitable";
 
 /**
@@ -31,7 +32,7 @@ export async function getAuthenticatedClient({
   // create an oAuth client to authorize the API call.  Secrets are kept in a `keys.json` file,
   // which should be downloaded from the Google Developers Console.
   const getOAuth2Client = () =>
-    new OAuth2Client(
+    new google.auth.OAuth2(
       process.env.AUTH_GOOGLE_ID || DIE`MISSING env.AUTH_GOOGLE_ID`,
       process.env.AUTH_GOOGLE_SECRET || DIE`MISSING env.AUTH_GOOGLE_SECRET`,
       getGCloudOAuth2RedirectUri(),

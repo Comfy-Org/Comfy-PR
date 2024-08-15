@@ -126,8 +126,8 @@ async function createTomlLicensePR(upstreamUrl: string): Promise<GithubPull> {
       dstUrl: upstreamUrl,
     }))
     .map(async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }))
-    .forEach((e) => e || DIE(new Error("missing pr result")))
-    .toOne();
+    .forEach((e) => e || DIE(("missing pr result")))
+    .toOne() ?? DIE('never');
 }
 
 export async function makeUpdateTomlLicenseBranch(upstreamUrl: string, forkUrl: string) {
