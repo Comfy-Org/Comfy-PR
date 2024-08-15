@@ -1,7 +1,6 @@
 // // bun dev before running this test
 import pkg from "@/package.json";
 import { expect, it } from "bun:test";
-import { isTestApiUp } from "./isTestApiUp";
 import { testApiBase } from "./testApiBase";
 
 // // it.skipIf(!isTestApiUp);
