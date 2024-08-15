@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.26](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.25...v0.2.26) (2024-08-15)
+
+
+### Features
+
+* **license-updator:** ready ([9f367ee](https://github.com/drip-art/Comfy-Registry-PR/commit/9f367ee0d17d7bc3ffa93359a2ddee2d36ff5c7b))
+* **makeLicenseUpdateBranch:** stage ([5e1d978](https://github.com/drip-art/Comfy-Registry-PR/commit/5e1d978b73019e1c9361516b914571d51ac25c71))
+
+
+### Bug Fixes
+
+* **add:** AUTH_GCLOUD_URL ([9361b80](https://github.com/drip-art/Comfy-Registry-PR/commit/9361b801890dfb3ef67bc2924500dd6f15e93036))
+* **add:** licenCe note ([46ac9df](https://github.com/drip-art/Comfy-Registry-PR/commit/46ac9df87f88c7695110ef6e963ec34757adc97a))
+* **add:** licenCe note ([1e266a5](https://github.com/drip-art/Comfy-Registry-PR/commit/1e266a5c3bd4d68bfdc5b4479ea03d8907d44b88))
+* **clone_modify_push_Branches_for_updateTomlLicense:** tests ([3f37104](https://github.com/drip-art/Comfy-Registry-PR/commit/3f371040adf52062e6cd1a28e079518e0b81fd9d))
+* **clone_modify_push_Branches_for_updateTomlLicense:** tests ([d10184a](https://github.com/drip-art/Comfy-Registry-PR/commit/d10184ade993017fa92b3303bc90f43a0d2bde98))
+* **create-comfy-pr:** remove comments ([1850f08](https://github.com/drip-art/Comfy-Registry-PR/commit/1850f08cb2657a85a39f3c22d35a31633c303294))
+* **create-pr:** respect bypass rule ([d6a659e](https://github.com/drip-art/Comfy-Registry-PR/commit/d6a659e1dd97cf47463b5fe6ae4adf7f190c3f67))
+* **createComfyRegistryPullRequests:** reorder ([fcef6df](https://github.com/drip-art/Comfy-Registry-PR/commit/fcef6df202a0730e2df3d1314b8b3442d13a293d))
+* **createComfyRegistryPullRequests:** reorder ([d08f129](https://github.com/drip-art/Comfy-Registry-PR/commit/d08f129d7abe4670f915e293bc288ff0ef25861f))
+* **die:** for empty license ([c6d5cf8](https://github.com/drip-art/Comfy-Registry-PR/commit/c6d5cf84c1e5acf94b52ba6ad42ed594af7bcd26))
+* **license-updator:** add repoExamples ([f3ff7fc](https://github.com/drip-art/Comfy-Registry-PR/commit/f3ff7fcfbdd98af13d70260e06dc7cc0b76ee337))
+* **license-updator:** handle desiredLicenseIsFile ([203c07d](https://github.com/drip-art/Comfy-Registry-PR/commit/203c07d7630ac1704e119be5bffb44999842f7e3))
+* **main:** add emailstate matcher ([ccccdff](https://github.com/drip-art/Comfy-Registry-PR/commit/ccccdff19ae16d273ac2f41bb82433e3a7993a2a))
+* **main:** add emailstate matcher ([7b6afa4](https://github.com/drip-art/Comfy-Registry-PR/commit/7b6afa46aec05945a148ecbed7337417062e6b07))
+* **main:** add prod envs ([895d1b2](https://github.com/drip-art/Comfy-Registry-PR/commit/895d1b2d592a0186dd8e7fa1313214ed32d0fe44))
+* **main:** authgoogleid env ([aab32d2](https://github.com/drip-art/Comfy-Registry-PR/commit/aab32d28c9f97e4c3684f9d40f0d1161fd926150))
+* **main:** format lefthook ([b41cf7f](https://github.com/drip-art/Comfy-Registry-PR/commit/b41cf7f3bf7ffb77cec6e0e69b46326cd303b8f8))
+* **main:** mv gh ([452d546](https://github.com/drip-art/Comfy-Registry-PR/commit/452d5461496a1d07b585cd9db84d084f60651690))
+* **main:** rename lastcomment ([318e154](https://github.com/drip-art/Comfy-Registry-PR/commit/318e15451f2319a8f81231959f73abdad95f8f01))
+* **main:** rename lastcomment ([6ff27ce](https://github.com/drip-art/Comfy-Registry-PR/commit/6ff27ce041dc78857e015a18e75c81928f7cb25f))
+* **main:** restore daisyui ([b1b78ac](https://github.com/drip-art/Comfy-Registry-PR/commit/b1b78ac20b0a0e56cdaddb80373dc73a2ff4e91d))
+* **pkg:** bundle ([53664b1](https://github.com/drip-art/Comfy-Registry-PR/commit/53664b19d709a1cef11354044f32563acf91c894))
+* **pkg:** bundle ([70b8dc5](https://github.com/drip-art/Comfy-Registry-PR/commit/70b8dc5ed253152ecede8f3c4b9aa6b54886dd8c))
+* **rename:** lastcomment ([17a79b7](https://github.com/drip-art/Comfy-Registry-PR/commit/17a79b7dd3ed7a865cde9c3fbb78426854c819f4))
+* **sno-checking-prs-failures:** done ([0d0e7f2](https://github.com/drip-art/Comfy-Registry-PR/commit/0d0e7f28f74f2f93238a11e956a7a42a829023bf))
+* **src:** ensure has the field of emailState ([65e84fd](https://github.com/drip-art/Comfy-Registry-PR/commit/65e84fd81bd1655889fa4f177f1e30adc20c2812))
+* **src:** re order lastwords ([401d5b6](https://github.com/drip-art/Comfy-Registry-PR/commit/401d5b683ba297f1e0b93926ca53fd1d1a5077e1))
+* **src:** replace body regex flag glob ([a70ed21](https://github.com/drip-art/Comfy-Registry-PR/commit/a70ed211f1bd73656f30ee533594321777056a6b))
+* **src:** replace body regex flag glob ([a649dcf](https://github.com/drip-art/Comfy-Registry-PR/commit/a649dcfd664fae7e265728564133670b15c187a9))
+* **src:** split prs updating logic ([541ed1c](https://github.com/drip-art/Comfy-Registry-PR/commit/541ed1cab31b2f2184dd626768af4ce76e785b54))
+* **src:** split prs updating logic ([ae8920c](https://github.com/drip-art/Comfy-Registry-PR/commit/ae8920c5c07663a3ccf15913ddb4b76a3b2a9004))
+* **src:** update logic to handle license ([0063067](https://github.com/drip-art/Comfy-Registry-PR/commit/0063067bb0b97eb8e6c8c3a7aec82204c7c85a34))
+* **test-robin-pr:** issuet est ([7576966](https://github.com/drip-art/Comfy-Registry-PR/commit/7576966ae441c01f6b1edb9f7a17bc94b31d6d06))
+* **test-robin-pr:** tested ([e0e582d](https://github.com/drip-art/Comfy-Registry-PR/commit/e0e582d14815acbc8430efcbd5af6025304e4dac))
+* **updateOutdatedPullsTemplates:** path typo ([1c10b48](https://github.com/drip-art/Comfy-Registry-PR/commit/1c10b48395542d29bd98915e64497d1325b0db0b))
+* **updateOutdatedPullsTemplates:** path typo ([c4f5dbc](https://github.com/drip-art/Comfy-Registry-PR/commit/c4f5dbc2b3adb6cdaced527379b5bf19564866c7))
+* **updateOutdatedPullsTemplates:** path typo 2 ([054d35d](https://github.com/drip-art/Comfy-Registry-PR/commit/054d35d1eb0ce650ff97a222cb027cb74322a47c))
+
 ### [0.2.25](https://github.com/drip-art/Comfy-Registry-PR/compare/v0.2.20...v0.2.25) (2024-07-12)
 
 
