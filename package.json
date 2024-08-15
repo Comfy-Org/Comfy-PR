@@ -27,6 +27,7 @@
     "build:worker": "bun build . --define 'import.meta.main=false' --define 'import.meta.env.IS_BUNDLE=true' --target=bun > dist/index.js",
     "predev": "bun i",
     "dev": "next dev",
+    "dev:tsc": "tsc -w",
     "lint": "next lint",
     "prerelease": "bun run build && bun run test && vercel --prod",
     "release": "bunx standard-version && npm publish",

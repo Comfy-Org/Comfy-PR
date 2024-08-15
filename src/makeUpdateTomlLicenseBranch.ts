@@ -43,11 +43,11 @@ if (import.meta.main) {
     [`license = "LICENSE.txt"`]: `license = { file = "LICENSE.txt" }`,
   };
 
-  const repoExamples ={
-    "https://github.com/MuziekMagie/ComfyUI-Matchering": 'license already updated',
+  const repoExamples = {
+    "https://github.com/MuziekMagie/ComfyUI-Matchering": "license already updated",
     // - [ComfyUI_FizzNodes/LICENCE.txt at main · FizzleDorf/ComfyUI_FizzNodes]( https://github.com/FizzleDorf/ComfyUI_FizzNodes/blob/main/LICENCE.txt )
-    "https://github.com/FizzleDorf/ComfyUI_FizzNodes": 'licenCe'
-  }; 
+    "https://github.com/FizzleDorf/ComfyUI_FizzNodes": "licenCe",
+  };
 
   await updateTomlLicenseTasks();
   console.log("ALL DONE");
@@ -119,15 +119,17 @@ async function createTomlLicensePR(upstreamUrl: string): Promise<GithubPull> {
   const branchInfo = await makeUpdateTomlLicenseBranch(upstreamUrl, forkUrl);
   // console.log(forkUrl); // note: this forkUrl may not be final forked url
   console.log({ branchInfo });
-  return await sflow([branchInfo])
-    .map(({ upstreamUrl, forkUrl, ...e }) => ({
-      ...e,
-      srcUrl: forkUrl,
-      dstUrl: upstreamUrl,
-    }))
-    .map(async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }))
-    .forEach((e) => e || DIE(("missing pr result")))
-    .toOne() ?? DIE('never');
+  return (
+    (await sflow([branchInfo])
+      .map(({ upstreamUrl, forkUrl, ...e }) => ({
+        ...e,
+        srcUrl: forkUrl,
+        dstUrl: upstreamUrl,
+      }))
+      .map(async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }))
+      .forEach((e) => e || DIE("missing pr result"))
+      .toOne()) ?? DIE("never")
+  );
 }
 
 export async function makeUpdateTomlLicenseBranch(upstreamUrl: string, forkUrl: string) {
