@@ -14,4 +14,4 @@ Action Required:
 
 If you want to publish the node manually, [install the cli](https://docs.comfy.org/comfy-cli/getting-started#install-cli) by running `pip install comfy-cli`, then run `comfy node publish`
 
-Check out our [docs](https://docs.comfy.org/registry/overview#introduction) if you want to know more about the registry. Otherwise, feel free to message me on discord at haohao_81202 or join our [server](https://discord.com/invite/comfyorg) if you have any questions!
+Check out our [docs](https://docs.comfy.org/registry/overview#introduction) if you want to know more about the registry. Otherwise, feel free to message me on discord at robinken or join our [server](https://discord.com/invite/comfyorg) if you have any questions!

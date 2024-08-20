@@ -8,4 +8,4 @@ Action Required:
 - [ ] Create an api key on the Registry for publishing from Github. [Instructions](https://docs.comfy.org/registry/overview#create-an-api-key-for-publishing).
 - [ ] Add it to your Github Repository Secrets as `REGISTRY_ACCESS_TOKEN`.
 
-Please message me on Discord at haohao_81202 or join our [server](https://discord.com/invite/comfyorg) server if you have any questions!
+Please message me on Discord at robinken or join our [server](https://discord.com/invite/comfyorg) server if you have any questions!

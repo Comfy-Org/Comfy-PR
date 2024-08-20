@@ -13,7 +13,7 @@ Make PRs that helps comfy community grow with [Comfy.org](https://comfy.org/).
 - [x] create PR to original repository with template PR description.
 - [x] Submit PR
 - [x] Clean local debris before clone
-- [x] DOING: Export PR status into csv for @haohao
+- [x] DOING: Export PR status into csv for @robin
 
 ### Github Actions Workerds
 
@@ -36,7 +36,7 @@ Make PRs that helps comfy community grow with [Comfy.org](https://comfy.org/).
 
 ### Web Site https://comfy-pr.vercel.app
 
-- [x] A dashboard csv/yaml exporter site for @haohao
+- [x] A dashboard csv/yaml exporter site for @robin
 - [x] pr dashboard
 
 ## Admin
