@@ -18,7 +18,6 @@ import { getBranchWorkingDir } from "./getBranchWorkingDir";
 import { gh } from "./gh";
 import type { GithubPull } from "./gh/GithubPull";
 import { parseUrlRepoOwner, stringifyGithubOrigin } from "./parseOwnerRepo";
-import { parsePullUrl } from "./parsePullUrl";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 
 type LicenseUpdateTask = {
@@ -32,12 +31,6 @@ const LicenseTasks = db.collection<LicenseUpdateTask>("LicenseTasks");
 await LicenseTasks.createIndex({ repository: 1 }, { unique: true });
 
 if (import.meta.main) {
-  // - [Add pyproject.toml for Custom Node Registry by haohaocreates · Pull Request #1 · loopyd/ComfyUI-FD-Tagger]( https://github.com/loopyd/ComfyUI-FD-Tagger/pull/1 )
-  // await LicenseTasks.deleteMany({});
-  //   await _pullTemplate();
-  //   const testUpstreamRepo = "https://github.com/haohaocreates/ComfyUI-HH-Image-Selector";
-  // await _testMakeUpdateTomlLicenseBranch();
-  // await _listReposWithNoLicense();
   const testMapping = {
     [`license = "MIT"`]: `license = { text = "MIT" }`,
     [`license = "LICENSE.txt"`]: `license = { file = "LICENSE.txt" }`,
@@ -232,14 +225,4 @@ export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepo
   await LicenseTasks.updateOne({ repository: upstreamRepoUrl }, { $set: { updateLine: updated } });
   await Bun.write(tomlFile, replaced);
   return { updated: true, license: replaced.match(/^license\s*=(.*)/i)?.[1]?.trim() };
-}
-
-/** use when template updated */
-async function _pullTemplate() {
-  const referenceTemplate = "https://github.com/haohaocreates/ComfyUI-HH-Image-Selector/pull/3";
-  const template = await sflow(gh.pulls.get(parsePullUrl(referenceTemplate)))
-    .map((e) => e.data.body!)
-    .text();
-  await Bun.write("./templates/update-toml-license.md", template);
-  console.log(template);
 }

@@ -240,8 +240,8 @@ bun test --watch
 Make .env.development.local as 
 
 ```sh
-MONGODB_URI_INSPECT_HAOHAO={{that readonly db link sno gave you}}
-MONGODB_URI=$MONGODB_URI_INSPECT_HAOHAO
+MONGODB_URI_INSPECT={{that readonly db link sno gave you}}
+MONGODB_URI=$MONGODB_URI_INSPECT
 ```
 
 And inspect db with script, e.g. `src/checkPRsFailures.ts`

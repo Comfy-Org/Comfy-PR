@@ -38,7 +38,7 @@ export async function createComfyRegistryPRsFromCandidates() {
           href: e.html_url,
           name: stringifyOwnerRepo(parseUrlRepoOwner(e.html_url.replace(/\/pull\/.*$/, ""))) + " #" + e.title,
         }));
-        await notifySlackLinks("PR just Created, @HaoHao check plz", links);
+        await notifySlackLinks("PR Created", links);
         await pMap(data, async (pull) => {
           const { html_url } = pull;
           // also update to crPulls
