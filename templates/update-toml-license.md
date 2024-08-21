@@ -1,6 +1,6 @@
 # Update PyProject Toml - License
 
-Hey! HaoHao from [comfy.org](https://comfy.org/) again 😊.
+Hey! Robin from [comfy.org](https://comfy.org/) again 😊.
 
 As a heads up, the `license` field is **optional** but in the case that it is filled out, the license file should be referenced either by the file path or by the name of the license.
 - `license = { file = "LICENSE" }` ✅
