@@ -1,8 +1,28 @@
 # Comfy-PR
 
-Make PRs that helps comfy community grow with [Comfy.org](https://comfy.org/).
+Let's grow with [Comfy.org](https://comfy.org)! We help Comfy Custom Node authors publish their custom nodes in [the Comfy Registry](https://registry.comfy.org/). We regularly clone Comfy Custom Node GitHub repositories, perform automated updates to `pyproject.toml` and GitHub Actions initialization, and then create pull requests (PRs) to the original repositories. We continue to provide follow-up PRs to solve authors' problems with custom node uploading and publishing.
 
-## Project Goals: (aka roadmap)
+## Comfy-PR Project Goals
+
+The Comfy-PR project aims to support and streamline the process for Custom Node Authors to publish their work in the Comfy Registry. Here's why this initiative is essential:
+
+1. **Simplify Node Publishing**: Provide tools and assistance to make publishing Custom Nodes straightforward, allowing authors to concentrate on development rather than the complexities of the publishing process.
+
+2. **Expand Node Availability**: Streamlined publishing will increase the number of Custom Nodes in the Comfy Registry, enriching the ecosystem and offering more options to users.
+
+3. **Encourage Collaboration**: Scanning GitHub repositories and providing follow-up support fosters collaboration, knowledge-sharing, and a stronger sense of community among Custom Node Authors and users.
+
+4. **Ensure Quality and Compliance**: Automate checks and provide guidance to maintain high-quality standards and compliance within the Comfy Registry.
+
+5. **Resolve Publishing Issues Promptly**: Address Custom Node Authors' issues during the publishing process quickly, reducing frustration and improving the overall user experience.
+
+6. **Strengthen the Comfy Community**: Help solve users' problems with Custom Node uploading and publishing, contributing to a more vibrant, supportive, and engaged community.
+
+7. **Promote Innovation**: Lower barriers to publishing Custom Nodes to encourage innovation and creativity within the community, leading to the development of novel and exciting nodes.
+
+Through these efforts, Comfy-PR seeks to create an environment where Custom Node Authors can thrive and users can access a diverse and high-quality array of Custom Nodes.
+
+## Developer Document
 
 ### Cli usage:
 
@@ -43,7 +63,7 @@ Make PRs that helps comfy community grow with [Comfy.org](https://comfy.org/).
 
 ### Changing PR Owner
 
-If you wish to change which Github account the Pull Requests come from, then you need to place a Github token into the **[Actions Secrets](https://github.com/drip-art/Comfy-Registry-PR/settings/secrets/actions )** 
+If you wish to change which Github account the Pull Requests come from, then you need to place a Github token into the **[Actions Secrets](https://github.com/drip-art/Comfy-Registry-PR/settings/secrets/actions)**
 
 `GH_TOKEN_COMFY_PR = ************`
 
@@ -234,13 +254,12 @@ bun src/THAT_FILE_YOU_WANT_TO_RUN.ts
 bun test --watch
 ```
 
-
 ## DB Inspecting
 
-Make .env.development.local as 
+Make .env.development.local as
 
 ```sh
-MONGODB_URI_INSPECT={{that readonly db link sno gave you}}
+MONGODB_URI_INSPECT={{production db, readonly-permission uri}}
 MONGODB_URI=$MONGODB_URI_INSPECT
 ```
 
