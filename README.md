@@ -48,13 +48,13 @@ Through these efforts, Comfy-PR seeks to create an environment where Custom Node
 - [x] Analyze Totals
 - [x] license schema updator
 - [x] bypass repo
-- [ ] Follow-up prs by state
-  - [ ] Issues Comment
+- [x] Follow-up prs by state
+  - [x] Issues Comment
   - [ ] Slack
   - [ ] Email
 - [ ] Delete the forked repo which is Merged
 
-### Web Site https://comfy-pr.vercel.app
+### Dashboard Web Site https://comfy-pr.vercel.app
 
 - [x] A dashboard csv/yaml exporter site for @robin
 - [x] pr dashboard
