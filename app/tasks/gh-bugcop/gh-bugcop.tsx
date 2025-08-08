@@ -29,7 +29,7 @@ export const REPOLIST = [
   "https://github.com/Comfy-Org/desktop",
 ];
 export const ASKING_LABEL = "bug-cop:ask-for-info";
-// export const ANSWERED_LABEL = "bug-cop:answered"; // never managed by bot
+// export const ANSWERED_LABEL = "bug-cop:answered"; // 2025-08-09 “answered” is never managed by bot
 export const RESPONSE_RECEIVED_LABEL = "bug-cop:response-received";
 export const GithubBugcopTaskDefaultMeta = {
   repoUrls: REPOLIST,
