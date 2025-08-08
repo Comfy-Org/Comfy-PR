@@ -1,4 +1,8 @@
-// 1. bot matches label "bug-cop:ask-for-info", and if user have added context, remove "bug-cop:ask-for-info" and add "bug-cop:answered"
+/**
+ * Github Bugcop Bot
+ */
+// 1. bot matches label "bug-cop:ask-for-info", and if user have added context, remove "bug-cop:ask-for-info" and add "bug-cop:response-received"
+
 // for repo
 import { db } from "@/src/db";
 import { TaskMetaCollection } from "@/src/db/TaskMeta";
@@ -24,7 +28,7 @@ export const REPOLIST = [
   "https://github.com/Comfy-Org/desktop",
 ];
 export const ASKING_LABEL = "bug-cop:ask-for-info";
-export const ANSWERED_LABEL = "bug-cop:answered";
+// export const ANSWERED_LABEL = "bug-cop:answered"; // never managed by bot
 export const RESPONSE_RECEIVED_LABEL = "bug-cop:response-received";
 export const GithubBugcopTaskDefaultMeta = {
   repoUrls: REPOLIST,
@@ -230,14 +234,17 @@ async function processIssue(issue: GH["issue"]) {
 
   const responseReceived = hasNewComment || isBodyAddedContent; // check if user responsed info by new comment or body update
   const status: "responseReceived" | "askForInfo" = responseReceived ? "responseReceived" : "askForInfo";
-  const workinglabels = [ASKING_LABEL, ANSWERED_LABEL, RESPONSE_RECEIVED_LABEL];
+  const workinglabels = [ASKING_LABEL, RESPONSE_RECEIVED_LABEL];
   const labelSet = {
     responseReceived: [RESPONSE_RECEIVED_LABEL],
-    askForInfo: [ANSWERED_LABEL, ASKING_LABEL],
+    askForInfo: [ASKING_LABEL],
     closed: [], // clear bug-cop labels
   }[status];
 
-  const currentLabels = issue.labels.filter(l => l != null).map((l) => (typeof l === "string" ? l : (l.name ?? ""))).filter(Boolean);
+  const currentLabels = issue.labels
+    .filter((l) => l != null)
+    .map((l) => (typeof l === "string" ? l : (l.name ?? "")))
+    .filter(Boolean);
   const addLabels = difference(labelSet, currentLabels);
   const removeLabels = difference(
     currentLabels.filter((label) => workinglabels.includes(label)),
