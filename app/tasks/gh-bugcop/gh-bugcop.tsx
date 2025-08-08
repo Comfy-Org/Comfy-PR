@@ -1,7 +1,8 @@
 /**
  * Github Bugcop Bot
+ * 1. bot matches issues for label "bug-cop:ask-for-info"
+ * 2. if user have added context, remove "bug-cop:ask-for-info" and add "bug-cop:response-received"
  */
-// 1. bot matches label "bug-cop:ask-for-info", and if user have added context, remove "bug-cop:ask-for-info" and add "bug-cop:response-received"
 
 // for repo
 import { db } from "@/src/db";
