@@ -15,6 +15,7 @@
     "esModuleInterop": true,
     "resolvePackageJsonImports": true,
     "resolvePackageJsonExports": true,
+    "noImplicitAny": true,
     // Best practices
     "strict": true,
     "strictNullChecks": true,
