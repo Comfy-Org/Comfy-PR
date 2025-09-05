@@ -21,14 +21,14 @@ export type WorkerInstance = {
 };
 
 const k = "COMFY_PR_WorkerInstanceKey";
-type g = typeof globalThis & { [k]: any };
+const g = globalThis as typeof globalThis & { [k]: string };
 function getWorkerInstanceId() {
   // ensure only one instance
-  if (!(global as any as g)[k])
+  if (!g[k])
     defer(async function () {
       await Promise.all([postWorkerHeartBeatLoop(), watchWorkerInstancesLoop()]);
     });
-  const instanceId = ((global as any as g)[k] ??= createInstanceId());
+  const instanceId = (g[k] ??= createInstanceId());
   return instanceId;
 }
 export const WorkerInstances = db.collection<WorkerInstance>("WorkerInstances");
