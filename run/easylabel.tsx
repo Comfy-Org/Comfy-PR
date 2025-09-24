@@ -157,6 +157,7 @@ async function runLabelOpInitializeScan() {
     )
     .confluenceByParallel()
     .map(async (issue) => {
+      // processIssueComment({issue});
       console.log(`+issue ${issue.html_url} with ${issue.comments} comments`);
       if (!issue.comments) return;
       await pageFlow(1, async (page, per_page = 100) => {

@@ -479,7 +479,7 @@ async function processIssue(issue: GH["issue"]) {
     .filter((e): e is NonNullable<typeof e> => e !== null)
     .toArray();
   tlog("Found " + labelEvents.length + " unlabeled/labeled/commented events");
-  await saveTask({ timeline: labelEvents as any });
+  await saveTask({ timeline: labelEvents });
 
   function lastLabeled(labelName: string) {
     return labelEvents
