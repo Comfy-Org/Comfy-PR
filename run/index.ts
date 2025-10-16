@@ -4,7 +4,6 @@ import type { WebhookEventMap } from "@octokit/webhooks-types";
 import DIE from "@snomiao/die";
 import * as crypto from "crypto";
 import Keyv from "keyv";
-import { tap } from "rambda";
 import sflow, { pageFlow } from "sflow";
 import { match, P } from "ts-pattern";
 import type { UnionToIntersection } from "type-fest";
@@ -268,25 +267,25 @@ class RepoEventMonitor {
         }
 
         // Create webhook
-        await gh.repos.createWebhook(
-          tap(console.log, {
-            owner,
-            repo,
-            config: {
-              url: WEBHOOK_URL,
-              content_type: "json",
-              secret: WEBHOOK_SECRET,
-            },
-            events: [
-              "issues",
-              "pull_request",
-              "issue_comment",
-              "pull_request_review",
-              "pull_request_review_comment",
-              "label",
-            ],
-          }),
-        );
+        const webhookConfig = {
+          owner,
+          repo,
+          config: {
+            url: WEBHOOK_URL,
+            content_type: "json",
+            secret: WEBHOOK_SECRET,
+          },
+          events: [
+            "issues",
+            "pull_request",
+            "issue_comment",
+            "pull_request_review",
+            "pull_request_review_comment",
+            "label",
+          ],
+        };
+        console.log("Creating webhook with config:", webhookConfig);
+        await gh.repos.createWebhook(webhookConfig);
 
         console.log(`[${this.formatTimestamp()}] ✅ Webhook created for ${owner}/${repo}`);
       } catch (error: any) {
