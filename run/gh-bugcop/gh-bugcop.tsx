@@ -467,7 +467,7 @@ async function processIssue(issue: GH["issue"]) {
     : await ghPageFlow(ghc.issues.listEventsForTimeline)(issueId).toArray();
 
   // list all label events
-  const labelEvents = await sflow([...timeline])
+  const labelEvents = (await sflow([...timeline])
     .map((_e) => {
       return _e.event === "labeled" || _e.event === "unlabeled" || _e.event === "commented"
         ? (_e as
@@ -477,7 +477,7 @@ async function processIssue(issue: GH["issue"]) {
         : null;
     })
     .filter((e): e is NonNullable<typeof e> => e !== null)
-    .toArray();
+    .toArray()) as (GH["labeled-issue-event"] | GH["timeline-comment-event"] | GH["unlabeled-issue-event"])[];
   tlog("Found " + labelEvents.length + " unlabeled/labeled/commented events");
   await saveTask({ timeline: labelEvents });
 

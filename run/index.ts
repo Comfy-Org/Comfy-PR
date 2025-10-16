@@ -401,16 +401,16 @@ class RepoEventMonitor {
                 const mockEvent = {
                   issue_comment: {
                     action: "created",
-                    issue: { ...issue } satisfies WebhookEventMap["issue_comment"]["issue"],
-                    comment: comment satisfies WebhookEventMap["issue_comment"]["comment"],
+                    issue: { ...issue } as WebhookEventMap["issue_comment"]["issue"],
+                    comment: comment as WebhookEventMap["issue_comment"]["comment"],
                     repository: {
                       owner: { login: owner },
                       name: repo,
                       full_name: `${owner}/${repo}`,
-                    } satisfies WebhookEventMap["issue_comment"]["repository"],
-                    sender: comment.user! satisfies WebhookEventMap["issue_comment"]["sender"],
+                    } as WebhookEventMap["issue_comment"]["repository"],
+                    sender: comment.user! as WebhookEventMap["issue_comment"]["sender"],
                   },
-                } satisfies WebhookEventMap;
+                } as WebhookEventMap;
                 console.log("mocked-webhook-event", mockEvent);
                 await this.handleWebhookEvent(mockEvent);
               } catch (error) {
@@ -433,21 +433,21 @@ class RepoEventMonitor {
                 const mockEvent = {
                   issue_comment: {
                     action: "edited",
-                    issue,
-                    comment,
+                    issue: issue as WebhookEventMap["issue_comment"]["issue"],
+                    comment: comment as WebhookEventMap["issue_comment"]["comment"],
                     repository: {
                       owner: { login: owner },
                       name: repo,
                       full_name: `${owner}/${repo}`,
-                    },
-                    sender: comment.user!,
+                    } as WebhookEventMap["issue_comment"]["repository"],
+                    sender: comment.user! as WebhookEventMap["issue_comment"]["sender"],
                     changes: {
                       body: {
                         from: "previous content", // We don't have the old content, but the webhook handler doesn't use it
                       },
                     },
                   },
-                } satisfies WebhookEventMap;
+                } as WebhookEventMap;
                 console.debug(mockEvent);
                 await this.handleWebhookEvent(mockEvent);
               } catch (error) {
