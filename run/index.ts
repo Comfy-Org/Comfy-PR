@@ -399,22 +399,21 @@ class RepoEventMonitor {
                 // Create mock webhook event for new comment
 
                 // Handle the mock event
-                await this.handleWebhookEvent(
-                  // @ts-ignore TODO fix type
-                  tap((e) => console.log("mocked-webhook-event", e), {
-                    issue_comment: {
-                      action: "created",
-                      issue: { ...issue } satisfies WebhookEventMap["issue_comment"]["issue"],
-                      comment: comment satisfies WebhookEventMap["issue_comment"]["comment"],
-                      repository: {
-                        owner: { login: owner },
-                        name: repo,
-                        full_name: `${owner}/${repo}`,
-                      } satisfies WebhookEventMap["issue_comment"]["repository"],
-                      sender: comment.user! satisfies WebhookEventMap["issue_comment"]["sender"],
-                    },
-                  } satisfies WebhookEventMap),
-                );
+                const mockEvent = {
+                  issue_comment: {
+                    action: "created",
+                    issue: { ...issue } satisfies WebhookEventMap["issue_comment"]["issue"],
+                    comment: comment satisfies WebhookEventMap["issue_comment"]["comment"],
+                    repository: {
+                      owner: { login: owner },
+                      name: repo,
+                      full_name: `${owner}/${repo}`,
+                    } satisfies WebhookEventMap["issue_comment"]["repository"],
+                    sender: comment.user! satisfies WebhookEventMap["issue_comment"]["sender"],
+                  },
+                } satisfies WebhookEventMap;
+                console.log("mocked-webhook-event", mockEvent);
+                await this.handleWebhookEvent(mockEvent);
               } catch (error) {
                 console.error(`[${this.formatTimestamp()}] Error fetching issue for comment:`, error);
               }
@@ -432,27 +431,26 @@ class RepoEventMonitor {
               try {
                 const { data: issue } = await gh.issues.get({ owner, repo, issue_number: issueNumber });
                 // Handle the mock event
-                // @ts-ignore TODO fix type
-                await this.handleWebhookEvent(
-                  tap(console.debug, {
-                    issue_comment: {
-                      action: "edited",
-                      issue,
-                      comment,
-                      repository: {
-                        owner: { login: owner },
-                        name: repo,
-                        full_name: `${owner}/${repo}`,
-                      },
-                      sender: comment.user!,
-                      changes: {
-                        body: {
-                          from: "previous content", // We don't have the old content, but the webhook handler doesn't use it
-                        },
+                const mockEvent = {
+                  issue_comment: {
+                    action: "edited",
+                    issue,
+                    comment,
+                    repository: {
+                      owner: { login: owner },
+                      name: repo,
+                      full_name: `${owner}/${repo}`,
+                    },
+                    sender: comment.user!,
+                    changes: {
+                      body: {
+                        from: "previous content", // We don't have the old content, but the webhook handler doesn't use it
                       },
                     },
-                  } satisfies WebhookEventMap),
-                );
+                  },
+                } satisfies WebhookEventMap;
+                console.debug(mockEvent);
+                await this.handleWebhookEvent(mockEvent);
               } catch (error) {
                 console.error(`[${this.formatTimestamp()}] Error fetching issue for comment:`, error);
               }
