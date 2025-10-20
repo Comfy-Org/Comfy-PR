@@ -2,6 +2,9 @@ import { CNRepos } from "@/src/CNRepos";
 import { Suspense } from "react";
 import yaml from "yaml";
 
+// Force dynamic rendering to avoid build-time database access
+export const dynamic = "force-dynamic";
+
 /**
  *
  * @author: snomiao <snomiao@gmail.com>
@@ -44,7 +47,7 @@ async function DataPage({ page = 0, size = 10000 }) {
   if (!data.length) return null;
   return (
     <>
-      {data.map((item) => (
+      {data.map((item: any) => (
         <div key={item.repository}>
           <a href={item.repository} target="_blank" rel="noreferrer" title={yaml.stringify(item)}>
             <noscript>{JSON.stringify(item)}</noscript>

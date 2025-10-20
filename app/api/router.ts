@@ -1,14 +1,8 @@
 import pkg from "@/package.json";
-import { CNRepos } from "@/src/CNRepos";
-import { getWorkerInstance } from "@/src/WorkerInstances";
-import { analyzePullsStatus } from "@/src/analyzePullsStatus";
 import DIE from "@snomiao/die";
 import { initTRPC } from "@trpc/server";
-import sflow from "sflow";
 import type { OpenApiMeta } from "trpc-to-openapi";
 import z from "zod/v3";
-import { GithubDesignTaskMeta } from "../tasks/gh-design/gh-design";
-import { GithubContributorAnalyzeTask } from "../tasks/github-contributor-analyze/GithubContributorAnalyzeTask";
 
 export const t = initTRPC.meta<OpenApiMeta>().create(); /* 👈 */
 export const router = t.router({
@@ -36,7 +30,10 @@ export const router = t.router({
     .meta({ openapi: { method: "GET", path: "/worker", description: "Get current worker" } })
     .input(z.object({}))
     .output(z.any())
-    .query(async () => await getWorkerInstance()),
+    .query(async () => {
+      const { getWorkerInstance } = await import("@/src/WorkerInstances");
+      return await getWorkerInstance();
+    }),
   analyzePullsStatus: t.procedure
     .meta({
       openapi: { method: "GET", path: "/analyze-pulls-status", description: "Get current worker" },
@@ -58,21 +55,22 @@ export const router = t.router({
         author_email: z.string().optional(),
       }),
     )
-    .query(
-      async ({ input: { limit = 0, skip = 0 } }) =>
-        (await analyzePullsStatus({ limit, skip })) as any,
-    ),
+    .query(async ({ input: { limit = 0, skip = 0 } }) => {
+      const { analyzePullsStatus } = await import("@/src/analyzePullsStatus");
+      return (await analyzePullsStatus({ limit, skip })) as any;
+    }),
   getRepoUrls: t.procedure
     .meta({ openapi: { method: "GET", path: "/repo-urls", description: "Get repo urls" } })
     .input(z.object({}))
     .output(z.array(z.string()))
-    .query(
-      async () =>
-        await sflow(CNRepos.find({}, { projection: { repository: 1 } }))
-          .map((e) => (e as unknown as { repository: string }).repository)
-          .filter((repo) => typeof repo === "string" && repo.length > 0)
-          .toArray(),
-    ),
+    .query(async () => {
+      const sflow = (await import("sflow")).default;
+      const { CNRepos } = await import("@/src/CNRepos");
+      return await sflow(CNRepos.find({}, { projection: { repository: 1 } }))
+        .map((e) => (e as unknown as { repository: string }).repository)
+        .filter((repo) => typeof repo === "string" && repo.length > 0)
+        .toArray();
+    }),
   GithubContributorAnalyzeTask: t.procedure
     .meta({
       openapi: {
@@ -101,7 +99,12 @@ export const router = t.router({
         }),
       ),
     )
-    .query(async () => await GithubContributorAnalyzeTask.find({}).toArray()),
+    .query(async () => {
+      const { GithubContributorAnalyzeTask } = await import(
+        "../tasks/github-contributor-analyze/GithubContributorAnalyzeTask"
+      );
+      return await GithubContributorAnalyzeTask.find({}).toArray();
+    }),
 
   githubContributorAnalyze: t.procedure
     .meta({
@@ -163,6 +166,7 @@ export const router = t.router({
     )
     .query(async () => {
       try {
+        const { GithubDesignTaskMeta } = await import("../tasks/gh-design/gh-design");
         const meta = await GithubDesignTaskMeta.findOne({ coll: "GithubDesignTask" });
         return { meta };
       } catch (error) {
@@ -239,6 +243,7 @@ export const router = t.router({
       );
       // TODO: add back later
       try {
+        const { GithubDesignTaskMeta } = await import("../tasks/gh-design/gh-design");
         const updateData: any = {};
         if (input.slackMessageTemplate !== undefined)
           updateData.slackMessageTemplate = input.slackMessageTemplate;

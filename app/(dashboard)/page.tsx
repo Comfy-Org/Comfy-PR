@@ -2,7 +2,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 import DetailsTable from "./DetailsTable";
 import TotalsPage from "./totals/page";
+
+// Force dynamic rendering to avoid build-time database access
+export const dynamic = "force-dynamic";
 export const revalidate = 60; // seconds
+
 export default async function DashboardPage() {
   return (
     <main className="flex flex-wrap">

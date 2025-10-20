@@ -32,7 +32,13 @@ function getWorkerInstanceId() {
   return instanceId;
 }
 export const WorkerInstances = db.collection<WorkerInstance>("WorkerInstances");
-export const _geoPromise = fetchCurrentGeoInfo(); // in background
+let _geoPromise: Promise<GeoInfo> | undefined;
+function getGeoPromise() {
+  if (!_geoPromise) {
+    _geoPromise = fetchCurrentGeoInfo();
+  }
+  return _geoPromise;
+}
 
 if (import.meta.main) {
   await WorkerInstances.createIndex({ id: 1 }, { unique: true });
@@ -89,7 +95,7 @@ export async function getWorkerInstance(task?: string) {
         id,
         active: new Date(),
         workerId: getWorkerId(),
-        geo: await _geoPromise,
+        geo: await getGeoPromise(),
         ...(task && { task }),
       },
       $addToSet: {

@@ -11,13 +11,35 @@ if (!process.env.MONGODB_URI)
   console.warn("MONGODB_URI is not set, using default value. This may cause issues in production.");
 const MONGODB_URI = process.env.MONGODB_URI ?? "mongodb://PLEASE_SET_MONGODB_URI:27017";
 
-export const mongo = await hotResource(async () => [
-  new MongoClient(MONGODB_URI),
-  (conn) => conn.close(),
-]);
-export const db = Object.assign(mongo.db(), {
-  close: async () => await mongo.close(),
-});
+// Skip actual DB connection during Next.js build
+const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
+export const mongo = isBuildPhase
+  ? (null as any as MongoClient)
+  : await hotResource(async () => [new MongoClient(MONGODB_URI), (conn) => conn.close()]);
+
+// Create a Proxy for db during build that returns dummy collection objects
+const buildTimeDb = new Proxy({} as any, {
+  get(target, prop) {
+    if (prop === "collection") {
+      return () =>
+        new Proxy({} as any, {
+          get(target, prop) {
+            if (prop === "createIndex") return () => Promise.resolve();
+            return () => {};
+          },
+        });
+    }
+    if (prop === "close") return async () => {};
+    return () => {};
+  },
+}) as ReturnType<MongoClient["db"]> & { close: () => Promise<void> };
+
+export const db = isBuildPhase
+  ? buildTimeDb
+  : Object.assign(mongo.db(), {
+      close: async () => await mongo.close(),
+    });
 
 // allow db conn for 45 mins in CI env to prevent long running CI jobs
 if (isCI) {

@@ -89,10 +89,19 @@ type GithubDesignTask = {
 const COLLECTION_NAME = "GithubDesignTask";
 export const GithubDesignTaskMeta = TaskMetaCollection(COLLECTION_NAME, githubDesignTaskMetaSchema);
 export const GithubDesignTask = db.collection<GithubDesignTask>(COLLECTION_NAME);
-await GithubDesignTask.createIndex({ url: 1 }, { unique: true }); // ensure url is unique
+
+// Lazy index creation to avoid build-time execution
+let _indexCreated = false;
+async function ensureIndexes() {
+  if (!_indexCreated) {
+    await GithubDesignTask.createIndex({ url: 1 }, { unique: true }); // ensure url is unique
+    _indexCreated = true;
+  }
+}
 
 // Helper function to save/update GithubDesignTask
 async function saveGithubDesignTask(url: string, $set: Partial<GithubDesignTask>) {
+  await ensureIndexes();
   return (
     (await GithubDesignTask.findOneAndUpdate(
       { url },
