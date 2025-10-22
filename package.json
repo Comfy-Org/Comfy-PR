@@ -182,6 +182,7 @@
     "eslint-config-next": "15.1.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
+    "msw": "^2.11.6",
     "next": "^15.4.1",
     "postcss": "^8.4.40",
     "prettier-plugin-organize-imports": "^3.2.4",
