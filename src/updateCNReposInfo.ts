@@ -17,6 +17,14 @@ if (import.meta.main) {
 export async function updateCNReposInfo() {
   await CNRepos.createIndex($flatten({ info: { mtime: 1 } }));
   return await sflow(CNRepos.find($flatten({ info: { mtime: $stale("1d") } })))
+    .filter((repo) => {
+      // Skip repos with invalid repository values
+      if (!repo.repository || typeof repo.repository !== "string") {
+        console.log("[WARN] Skipping repo with invalid repository field:", repo);
+        return false;
+      }
+      return true;
+    })
     .pMap(
       async (repo) => {
         const { repository } = repo;
