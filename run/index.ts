@@ -55,6 +55,36 @@ class RepoEventMonitor {
   private commentPollInterval = 5000; // 5 seconds for comment polling
   private webhookSetupComplete = false;
 
+  // Placeholder for unknown previous content in edited comments
+  private static readonly UNKNOWN_PREVIOUS_CONTENT = "[UNKNOWN_PREVIOUS_CONTENT]";
+
+  /**
+   * Creates a properly typed mock webhook event for issue comments
+   */
+  private createMockIssueCommentEvent(
+    action: "created" | "edited",
+    owner: string,
+    repo: string,
+    issue: GH["issue"],
+    comment: GH["issue-comment"],
+    changes?: { body: { from: string } },
+  ): WebhookEventMap {
+    return {
+      issue_comment: {
+        action,
+        issue: issue as WebhookEventMap["issue_comment"]["issue"],
+        comment: comment as WebhookEventMap["issue_comment"]["comment"],
+        repository: {
+          owner: { login: owner },
+          name: repo,
+          full_name: `${owner}/${repo}`,
+        } as WebhookEventMap["issue_comment"]["repository"],
+        sender: comment.user! as WebhookEventMap["issue_comment"]["sender"],
+        ...(changes && { changes }),
+      },
+    } as WebhookEventMap;
+  }
+
   constructor() {
     // Initialize SQLite cache
     const sqlite = new KeyvSqlite("gh-service/state.sqlite");
@@ -395,22 +425,8 @@ class RepoEventMonitor {
               try {
                 const { data: issue } = await gh.issues.get({ owner, repo, issue_number: issueNumber });
 
-                // Create mock webhook event for new comment
-
-                // Handle the mock event
-                const mockEvent = {
-                  issue_comment: {
-                    action: "created",
-                    issue: { ...issue } as WebhookEventMap["issue_comment"]["issue"],
-                    comment: comment as WebhookEventMap["issue_comment"]["comment"],
-                    repository: {
-                      owner: { login: owner },
-                      name: repo,
-                      full_name: `${owner}/${repo}`,
-                    } as WebhookEventMap["issue_comment"]["repository"],
-                    sender: comment.user! as WebhookEventMap["issue_comment"]["sender"],
-                  },
-                } as WebhookEventMap;
+                // Create and handle the mock webhook event
+                const mockEvent = this.createMockIssueCommentEvent("created", owner, repo, issue, comment);
                 console.log("mocked-webhook-event", mockEvent);
                 await this.handleWebhookEvent(mockEvent);
               } catch (error) {
@@ -429,25 +445,10 @@ class RepoEventMonitor {
             if (issueNumber) {
               try {
                 const { data: issue } = await gh.issues.get({ owner, repo, issue_number: issueNumber });
-                // Handle the mock event
-                const mockEvent = {
-                  issue_comment: {
-                    action: "edited",
-                    issue: issue as WebhookEventMap["issue_comment"]["issue"],
-                    comment: comment as WebhookEventMap["issue_comment"]["comment"],
-                    repository: {
-                      owner: { login: owner },
-                      name: repo,
-                      full_name: `${owner}/${repo}`,
-                    } as WebhookEventMap["issue_comment"]["repository"],
-                    sender: comment.user! as WebhookEventMap["issue_comment"]["sender"],
-                    changes: {
-                      body: {
-                        from: "previous content", // We don't have the old content, but the webhook handler doesn't use it
-                      },
-                    },
-                  },
-                } as WebhookEventMap;
+                // Create and handle the mock webhook event
+                const mockEvent = this.createMockIssueCommentEvent("edited", owner, repo, issue, comment, {
+                  body: { from: RepoEventMonitor.UNKNOWN_PREVIOUS_CONTENT },
+                });
                 console.debug(mockEvent);
                 await this.handleWebhookEvent(mockEvent);
               } catch (error) {
