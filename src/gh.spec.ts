@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it } from "bun:test";
 import { http, HttpResponse } from "msw";
 import { server } from "./test/msw-setup";
 
@@ -78,7 +77,7 @@ describe("GitHub API Client (gh)", () => {
       });
 
       expect(result.data).toBeDefined();
-      expect(result.data.commit.author.date).toBeDefined();
+      expect(result.data.commit.author!.date).toBeDefined();
       expect(result.data.commit.message).toBeDefined();
     });
 
@@ -230,7 +229,11 @@ describe("GitHub API Client (gh)", () => {
       });
 
       expect(result.data).toBeDefined();
-      expect(result.data.every((issue) => issue.labels.some((l) => l.name === "bug"))).toBe(true);
+      expect(
+        result.data.every((issue) =>
+          issue.labels.some((l) => (typeof l === "string" ? l === "bug" : l.name === "bug")),
+        ),
+      ).toBe(true);
     });
 
     it("should get a specific issue", async () => {
