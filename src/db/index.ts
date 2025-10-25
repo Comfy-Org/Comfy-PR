@@ -14,9 +14,9 @@ const MONGODB_URI = process.env.MONGODB_URI ?? "mongodb://PLEASE_SET_MONGODB_URI
 // Skip actual DB connection during Next.js build
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
-export const mongo = isBuildPhase
-  ? (null as any as MongoClient)
-  : await hotResource(async () => [new MongoClient(MONGODB_URI), (conn) => conn.close()]);
+export const mongo = await (isBuildPhase
+  ? Promise.resolve(null as any as MongoClient)
+  : hotResource(async () => [new MongoClient(MONGODB_URI), (conn) => conn.close()]));
 
 // Create a Proxy for db during build that returns dummy collection objects
 const buildTimeDb = new Proxy({} as any, {
