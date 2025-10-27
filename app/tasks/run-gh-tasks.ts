@@ -5,10 +5,11 @@ import isCI from "is-ci";
 // Import all the 5-minute tasks
 import runGithubBugcopTask from "../../run/gh-bugcop/gh-bugcop";
 import runGithubBountyTask from "./gh-bounty/gh-bounty";
+import runGithubCoreTagNotificationTask from "./gh-core-tag-notification/index";
 import { runGithubDesignTask } from "./gh-design/gh-design";
 import runGithubDesktopReleaseNotificationTask from "./gh-desktop-release-notification/index";
+import runGithubFrontendIssueTransferTask from "./gh-frontend-issue-transfer/index";
 import runGithubFrontendReleaseNotificationTask from "./gh-frontend-release-notification/index";
-import runGithubCoreTagNotificationTask from "./gh-core-tag-notification/index";
 
 const TASKS = [
   {
@@ -30,6 +31,10 @@ const TASKS = [
   {
     name: "GitHub Core Tag Notification Task",
     run: runGithubCoreTagNotificationTask,
+  },
+  {
+    name: "GitHub Frontend Issue Transfer Task",
+    run: runGithubFrontendIssueTransferTask,
   },
   {
     name: "GitHub Bugcop Task",
