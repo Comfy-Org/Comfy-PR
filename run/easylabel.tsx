@@ -31,7 +31,7 @@ const cfg = {
     // "https://github.com/Comfy-Org/desktop", // handled by webhook
   ],
   // allow all users to edit bugcop:*, area:*, Core-*, labels
-  allow: [/^(?:Core|Core-.*)$/, /^(?:bug-cop|area):.*$/],
+  allow: [/^(?:Core|Core-.*)$/i, /^(?:bug-cop|area):.*$/i, /frontend/i],
 };
 type GithubIssueLabelOps = {
   target_url: string; // can be comment or issue
@@ -53,8 +53,15 @@ const saveTask = async (task: Partial<GithubIssueLabelOps> & { target_url: strin
   )) || DIE("fail to save task");
 
 if (import.meta.main) {
+  // const issueCommentUrl = 'https://github.com/comfyanonymous/ComfyUI/issues/10522#issuecomment-3459764591'
+  // const issue = await ghc.issues.get({ ...parseIssueUrl(issueCommentUrl) });
+  // const comment = await ghc.issues.getComment({ ...parseIssueUrl(issueCommentUrl), comment_id: issueCommentUrl.match(/\d+$/).at(0) });
+  // await processIssueCommentForLableops({ issue: issue.data, comment: comment.data })
+  //   .then(tap(console.log))
+
   await runLabelOpInitializeScan();
   await runLabelOpPolling();
+  console.log("done");
 }
 async function runLabelOpPolling() {
   console.log(chalk.bgBlue("Start Label Ops Polling..."));
@@ -141,9 +148,7 @@ export async function processIssueCommentForLableops({
     issue_url: issue.html_url,
     type: comment ? "issue-comment" : "issue",
   });
-  if (task?.processed_at && +new Date(target.updated_at) <= +task.processed_at) return null; // skip if processed
   if (!target.body) return task;
-
   const issueLabels = issue.labels.map((e) => (typeof e === "string" ? e : e.name));
   const labelOps = [...target.body.matchAll(/([+-])label:\s*?(\S+)\b/gim)]
     .map(([_, op, name]) => ({ op, name }))
@@ -152,11 +157,18 @@ export async function processIssueCommentForLableops({
       if (op === "+" && issueLabels.includes(name)) return false;
       if (op === "-" && !issueLabels.includes(name)) return false;
       // skip not allowed labels
-      if (op === "+" && !cfg.allow.some((pattern) => name.match(pattern))) return false;
-      if (op === "-" && !cfg.allow.some((pattern) => name.match(pattern))) return false;
+      if (op === "+" && !cfg.allow.some((pattern) => name.match(pattern))) {
+        console.warn("WARNING: trying to edit not allowed label ", { op, name });
+        return false;
+      }
+      if (op === "-" && !cfg.allow.some((pattern) => name.match(pattern))) {
+        console.warn("WARNING: trying to edit not allowed label ", { op, name });
+        return false;
+      }
       return true;
     });
 
+  if (task?.processed_at && +new Date(target.updated_at) <= +task.processed_at) return null; // skip if processed
   if (!labelOps.length) return saveTask({ target_url: target.html_url, processed_at: new Date() });
 
   console.log("Found a matched Target URL:", target.html_url, labelOps.map((e) => e.op + e.name).join(", "));
