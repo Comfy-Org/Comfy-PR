@@ -75,6 +75,9 @@ async function runGithubFrontendIssueTransferTask() {
     `Found ${sourceIssues.data.length} open frontend issues in ${config.sourceRepo.owner}/${config.sourceRepo.repo}`,
   );
 
+  console.log(sourceIssues.data.map((issue) => `#${issue.html_url}: ${issue.title}`).join("\n"));
+  throw "check";
+
   await sflow(sourceIssues.data)
     .map(async (issue) => {
       // Skip pull requests (they come through the issues API too)
@@ -96,7 +99,6 @@ async function runGithubFrontendIssueTransferTask() {
         sourceIssueNumber: issue.number,
         sourceIssueUrl: issue.html_url,
       });
-
       try {
         // Create new issue in target repo
         const backlink = `\n\n---\n\n*Transferred from: ${issue.html_url}*`;
