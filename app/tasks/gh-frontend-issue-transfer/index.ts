@@ -83,7 +83,6 @@ async function runGithubFrontendIssueTransferTask() {
     };
   })
     .flat()
-    .limit(3)
     .map(async (issue) => {
       // Skip pull requests (they come through the issues API too)
       if (issue.pull_request) {
