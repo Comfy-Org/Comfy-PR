@@ -1,29 +1,27 @@
-#!/usr/bin/env bun --hot
+#!/usr/bin/env bun
 import { db } from "@/src/db";
 import { gh } from "@/src/gh";
+import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
+import { $ } from "bun";
 import isCI from "is-ci";
-import sflow from "sflow";
+import { pageFlow } from "sflow";
 
 /**
  * GitHub Frontend Issue Transfer Task
  *
  * Workflow:
  * 1. Fetch new/unseen issues from comfyanonymous/ComfyUI with label "frontend"
- * 2. Create corresponding issues in Comfy-Org/ComfyUI_frontend
- * 3. Comment on original issue that it's been transferred
- * 4. Track transferred issues to avoid duplicates
+ * 2. For each issue:
+ *    1. Create corresponding issues in Comfy-Org/ComfyUI_frontend, copying title, body (+meta and backlinks), labels, assignees
+ *    2. Comment on original issue that it's been transferred
+ *    3. Close original issue in comfyanonymous/ComfyUI
+ *    4. Track transferred issues to avoid duplicates
  */
 
 const config = {
-  sourceRepo: {
-    owner: "comfyanonymous",
-    repo: "ComfyUI",
-  },
-  targetRepo: {
-    owner: "Comfy-Org",
-    repo: "ComfyUI_frontend",
-  },
+  srcRepoUrl: "https://github.com/comfyanonymous/ComfyUI",
+  dstRepoUrl: "https://github.com/Comfy-Org/ComfyUI_frontend",
   frontendLabel: "frontend",
   transferComment: (newIssueUrl: string) =>
     `This issue has been transferred to the frontend repository: ${newIssueUrl}\n\nPlease continue the discussion there.`,
@@ -62,23 +60,30 @@ if (import.meta.main) {
 }
 
 async function runGithubFrontendIssueTransferTask() {
-  // Fetch all open issues with "frontend" label from source repo
-  const sourceIssues = await gh.issues.listForRepo({
-    owner: config.sourceRepo.owner,
-    repo: config.sourceRepo.repo,
-    labels: config.frontendLabel,
-    state: "open",
-    per_page: 100,
-  });
+  const sourceRepo = parseGithubRepoUrl(config.srcRepoUrl);
+  const targetRepo = parseGithubRepoUrl(config.dstRepoUrl);
 
-  console.log(
-    `Found ${sourceIssues.data.length} open frontend issues in ${config.sourceRepo.owner}/${config.sourceRepo.repo}`,
-  );
+  // Fetch all open issues with "frontend" label from source repo using pagination
+  await pageFlow(1, async (page) => {
+    const per_page = 100;
+    const sourceIssues = await gh.issues.listForRepo({
+      owner: sourceRepo.owner,
+      repo: sourceRepo.repo,
+      labels: config.frontendLabel,
+      state: "open",
+      page,
+      per_page,
+    });
 
-  console.log(sourceIssues.data.map((issue) => `#${issue.html_url}: ${issue.title}`).join("\n"));
-  throw "check";
+    console.log(`Found ${sourceIssues.data.length} open frontend issues (page ${page}) in ${config.srcRepoUrl}`);
 
-  await sflow(sourceIssues.data)
+    return {
+      data: sourceIssues.data,
+      next: sourceIssues.data.length >= per_page ? page + 1 : undefined,
+    };
+  })
+    .flat()
+    .limit(3)
     .map(async (issue) => {
       // Skip pull requests (they come through the issues API too)
       if (issue.pull_request) {
@@ -95,26 +100,57 @@ async function runGithubFrontendIssueTransferTask() {
         return existingTask;
       }
 
+      console.log(issue.html_url);
       let task = await save({
         sourceIssueNumber: issue.number,
         sourceIssueUrl: issue.html_url,
       });
+
       try {
+        const comments = await pageFlow(1, async (page) => {
+          const per_page = 100;
+          const comments = await gh.issues.listComments({
+            owner: sourceRepo.owner,
+            repo: sourceRepo.repo,
+            issue_number: issue.number,
+            page,
+            per_page,
+          });
+
+          return {
+            data: comments.data,
+            next: comments.data.length >= per_page ? page + 1 : undefined,
+          };
+        })
+          .flat()
+          .map((comment) => `@${comment.user?.login}: <pre>${comment.body}</pre>`)
+          .toArray();
         // Create new issue in target repo
-        const backlink = `\n\n---\n\n*Transferred from: ${issue.html_url}*`;
+        const body = `
+${issue.body || ""}        
+\n\n---
+
+*This issue is transferred from: ${issue.html_url}*
+
+Original issue was created ${issue.user?.login?.replace(/^/, "by @")} at ${new Date(issue.created_at).toISOString()}
+
+${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : ""}
+`;
+
         const newIssue = await gh.issues.create({
-          owner: config.targetRepo.owner,
-          repo: config.targetRepo.repo,
+          owner: targetRepo.owner,
+          repo: targetRepo.repo,
           title: issue.title,
-          body: (issue.body || "") + backlink,
+          body,
           labels: issue.labels
             .map((label) => (typeof label === "string" ? label : label.name))
-            .filter((name): name is string => !!name),
+            .filter((name): name is string => !!name)
+            .filter((name) => name.toLowerCase() !== "frontend"),
           assignees: issue.assignees?.map((assignee) => assignee.login).filter((login): login is string => !!login),
         });
 
-        console.log(`Created issue #${newIssue.data.number} in ${config.targetRepo.owner}/${config.targetRepo.repo}`);
-
+        console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
+        await $`open ${newIssue.data.html_url}`;
         task = await save({
           sourceIssueNumber: issue.number,
           targetIssueNumber: newIssue.data.number,
@@ -125,10 +161,17 @@ async function runGithubFrontendIssueTransferTask() {
         // Comment on original issue
         try {
           const comment = await gh.issues.createComment({
-            owner: config.sourceRepo.owner,
-            repo: config.sourceRepo.repo,
+            owner: sourceRepo.owner,
+            repo: sourceRepo.repo,
             issue_number: issue.number,
             body: config.transferComment(newIssue.data.html_url),
+          });
+          // close original issue
+          await gh.issues.update({
+            owner: sourceRepo.owner,
+            repo: sourceRepo.repo,
+            issue_number: issue.number,
+            state: "closed",
           });
 
           console.log(`Posted comment on original issue #${issue.number}`);

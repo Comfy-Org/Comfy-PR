@@ -1,6 +1,4 @@
 {
-    "recommendations": [
-        "formulahendry.code-runner",
-        "nicoespeon.abracadabra"
-    ]
+  "recommendations": ["formulahendry.code-runner", "nicoespeon.abracadabra"]
+  // claude-yes -- install recommendations extensions in .vscode
 }

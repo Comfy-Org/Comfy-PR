@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll } from "bun:test";
+import chalk from "chalk";
 import { setupServer } from "msw/node";
 import { githubHandlers } from "./github-handlers";
 
@@ -13,8 +14,9 @@ export const server = setupServer(...githubHandlers);
 // Start server before all tests
 beforeAll(() => {
   server.listen({
-    onUnhandledRequest: "warn",
+    onUnhandledRequest: "error",
   });
+  console.log(chalk.bgRedBright("[MSW READY] All External Services API will be mocked"));
 });
 
 // Reset handlers after each test
