@@ -150,7 +150,9 @@ ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : "
         });
 
         console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
-        await $`open ${newIssue.data.html_url}`;
+        if (!isCI && process.platform === "darwin") {
+          await $`open ${newIssue.data.html_url}`;
+        }
         task = await save({
           sourceIssueNumber: issue.number,
           targetIssueNumber: newIssue.data.number,
