@@ -16,7 +16,7 @@ jobs:
       # setup comfy-cli
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.12"
       - run: python -m pip install --upgrade pip
       - run: python -m venv .venv
       - run: source .venv/bin/activate
