@@ -15,7 +15,7 @@ import { pageFlow } from "sflow";
  * 2. For each issue:
  *    1. Create corresponding issues in Comfy-Org/desktop, copying title, body (+meta and backlinks), labels, assignees
  *    2. Comment on original issue that it's been transferred
- *    3. Close original issue in Comfy-Org/ComfyUI_frontend
+ *    3. Close original issue in the frontend repository
  *    4. Track transferred issues to avoid duplicates
  */
 
