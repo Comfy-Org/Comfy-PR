@@ -4,11 +4,17 @@ import { omit } from "rambda";
 import { z } from "zod";
 import { db } from ".";
 
+const _TaskMeta = db.collection<{ coll: string }>("TaskMeta");
+await _TaskMeta.createIndex({ coll: 1 }, { unique: true }); // Ensure unique collection names
+
+/**
+ * @deprecated Use MetaCollection for not repeating yourself on collection name
+ */
 export const TaskMetaCollection = <S extends z.ZodObject<any>, const COLLECTION_NAME extends string = string>(
   coll: COLLECTION_NAME,
   schema: S,
 ) => {
-  const c = db.collection<{ coll: COLLECTION_NAME } & z.infer<S>>("TaskMeta");
+  const c = db.collection<{ coll: COLLECTION_NAME } & z.infer<S>>(_TaskMeta.collectionName);
   return Object.assign(c, {
     $upsert: async (data: Partial<z.infer<S>>) => {
       // Validate data with schema
@@ -48,25 +54,41 @@ export const TaskMetaCollection = <S extends z.ZodObject<any>, const COLLECTION_
     },
   });
 };
-await TaskMetaCollection("TaskMeta", z.object({})).createIndex({ coll: 1 }, { unique: true }); // Ensure unique collection names
+
+type CollectionWithName<NAME extends string> = {
+  collectionName: NAME;
+};
+/**
+ * Generic MetaCollection creator
+ *
+ * @example
+ * const Meta = MetaCollection(GithubIssueLabelOps, z.object({ ... }));
+ * const meta = await Meta.save({ ... });
+ */
+export const MetaCollection = <S extends z.ZodObject<any>, const COLLECTION_NAME extends string = string>(
+  coll: CollectionWithName<COLLECTION_NAME>,
+  schema: S,
+) => TaskMetaCollection(coll.collectionName, schema);
 
 if (import.meta.main) {
   // Example usage with schema
-  const exampleSchema = z.object({
-    key: z.string(),
-    updatedAt: z.date(),
-    optional: z.string().optional(), // Optional field
-  });
+  const coll = db.collection("example");
+  const Meta = MetaCollection(
+    coll,
+    z.object({
+      key: z.string(),
+      updatedAt: z.date(),
+      optional: z.string().optional(), // Optional field
+    }),
+  );
 
-  const TaskMeta = TaskMetaCollection("example", exampleSchema);
-
-  const meta = await TaskMeta.$upsert({
+  const meta = await Meta.save({
     key: "value",
     updatedAt: new Date(),
     // asd: '123' // will throw validation error if uncommented
   });
   meta._id satisfies ObjectId; // Access the _id field
-  meta.coll satisfies "example"; // = 'example'
+  // meta.coll satisfies "example"; // = string
   // meta.key; // Access the key field
   meta.updatedAt satisfies Date; // Access the updatedAt field
   // meta.optional; // Access the optional field, will be undefined if not set

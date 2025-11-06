@@ -24,8 +24,6 @@ import { union } from "rambda";
 import sflow, { pageFlow } from "sflow";
 import z from "zod";
 import { createTimeLogger } from "../../app/tasks/gh-design/createTimeLogger";
-// import Lock from 'async-sema';
-// import deferClose from "defer-close";
 export const REPOLIST = [
   "https://github.com/Comfy-Org/Comfy-PR",
   "https://github.com/comfyanonymous/ComfyUI",
@@ -78,8 +76,8 @@ export type GithubBugcopTask = {
 export const zGithubBugcopTaskMeta = z.object({
   repoUrls: z.url().array(),
 });
-export const GithubBugcopTaskMeta = TaskMetaCollection("GithubBugcopTask", zGithubBugcopTaskMeta);
 export const GithubBugcopTask = db.collection<GithubBugcopTask>("GithubBugcopTask");
+export const GithubBugcopTaskMeta = TaskMetaCollection("GithubBugcopTask", zGithubBugcopTaskMeta);
 
 const tlog = createTimeLogger();
 const isDryRun = process.env.DRY_RUN === "true" || process.argv.slice(2).includes("--dry");
