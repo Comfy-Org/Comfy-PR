@@ -11,11 +11,11 @@ import { pageFlow } from "sflow";
  * GitHub Frontend to Desktop Issue Transfer Task
  *
  * Workflow:
- * 1. Fetch new/unseen issues from Comfy-Org/ComfyUI_frontend with label "desktop"
+ * 1. Fetch new/unseen issues from the frontend repository with label "desktop"
  * 2. For each issue:
- *    1. Create corresponding issues in Comfy-Org/desktop, copying title, body (+meta and backlinks), labels, assignees
+ *    1. Create corresponding issues in the desktop repository, copying title, body (+meta and backlinks), labels, assignees
  *    2. Comment on original issue that it's been transferred
- *    3. Close original issue in Comfy-Org/ComfyUI_frontend
+ *    3. Close original issue in the frontend repository
  *    4. Track transferred issues to avoid duplicates
  */
 
