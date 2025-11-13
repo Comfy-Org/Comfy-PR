@@ -14,6 +14,9 @@ import sflow, { pageFlow } from "sflow";
 import { P } from "ts-pattern";
 import z from "zod";
 import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
+
+// yeah, if the bot could ping when updates have been made to a previously-reviewed PR, would be extremely helpful
+
 /**
  * [Comfy- CorePing] The Core/Important PR Review Reminder Service
  * This service reminders @comfyanonymous for unreviewed Core/Core-Important PRs every 24 hours in the morning 8am of california
@@ -36,6 +39,7 @@ import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSla
  *    match theLabel('Core-Ready-For-Review'):
  *
  */
+
 export const coreReviewTrackerConfig = {
   REPOLIST: [
     "https://github.com/comfyanonymous/ComfyUI",
