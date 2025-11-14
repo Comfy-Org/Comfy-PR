@@ -6,6 +6,7 @@ import stableStringify from "json-stable-stringify";
 import Keyv from "keyv";
 import { Octokit } from "octokit";
 import path from "path";
+import type { ArraySlice } from "type-fest";
 
 const GH_TOKEN =
   process.env.GH_TOKEN_COMFY_PR ||
@@ -97,22 +98,13 @@ function createCachedProxy(target: any, basePath: string[] = []): any {
 
 type DeepAsyncWrapper<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => Promise<any>
-    ? T[K]
-    : T[K] extends (...args: any[]) => any
-      ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
-      : T[K] extends object
-        ? DeepAsyncWrapper<T[K]>
-        : T[K];
+  ? T[K]
+  : T[K] extends (...args: any[]) => any
+  ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
+  : T[K] extends object
+  ? DeepAsyncWrapper<T[K]>
+  : T[K];
 };
-
-type ListAll<T> = T extends (
-  pageable: infer A extends { per_page: number; page: number },
-  ...rest: infer R
-) => Promise<{
-  data: infer D;
-}>
-  ? T & { all: (params: Omit<A, "per_page" | "page">, ...rest: R) => Promise<D> }
-  : never;
 
 export async function clearGhCache(): Promise<void> {
   const keyvInstance = await getKeyv();
