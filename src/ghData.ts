@@ -1,5 +1,4 @@
 import type sflow from "sflow";
-import { pageFlow } from "sflow";
 
 /**
  * Helper to fetch GitHub data using a provided fetch endpoint.
