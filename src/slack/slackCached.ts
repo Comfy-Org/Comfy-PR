@@ -2,7 +2,6 @@ import KeyvSqlite from "@keyv/sqlite";
 import { WebClient } from "@slack/web-api";
 import crypto from "crypto";
 import fs from "fs/promises";
-import stableStringify from "json-stable-stringify";
 import Keyv from "keyv";
 import path from "path";
 import { getSlack, isSlackAvailable } from ".";
@@ -35,12 +34,12 @@ async function getKeyv() {
 
 type DeepAsyncWrapper<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => Promise<any>
-    ? T[K]
-    : T[K] extends (...args: any[]) => any
-      ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
-      : T[K] extends object
-        ? DeepAsyncWrapper<T[K]>
-        : T[K];
+  ? T[K]
+  : T[K] extends (...args: any[]) => any
+  ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
+  : T[K] extends object
+  ? DeepAsyncWrapper<T[K]>
+  : T[K];
 };
 function createCachedProxy<T extends object>(target: T, basePath: string[] = []): DeepAsyncWrapper<T> {
   return new Proxy<T>(target, {
@@ -86,7 +85,7 @@ function createCachedProxy<T extends object>(target: T, basePath: string[] = [])
     const fullPath = [...basePath, prop.toString()];
     const apiPath = fullPath.join(".");
 
-    const argsText = args.map((e) => stableStringify(e)).join(",");
+    const argsText = args.map((e) => JSON.stringify(e)).join(",");
     const maxLength = 120 - apiPath.length - "gh.".length - 8 - 3; // Maximum length for args display
 
     let displayArgs = argsText;
@@ -115,7 +114,7 @@ export function getSlackCached(): ReturnType<typeof createCachedProxy<WebClient>
 // For backwards compatibility with deprecation warning
 export const slackCached = new Proxy({} as ReturnType<typeof createCachedProxy<WebClient>>, {
   get(_target, prop) {
-    console.warn("Direct access to 'slackCached' is deprecated. Use getSlackCached() instead.");
+    // console.warn("Direct access to 'slackCached' is deprecated. Use getSlackCached() instead.");
     const cached = getSlackCached();
     return (cached as any)[prop];
   },

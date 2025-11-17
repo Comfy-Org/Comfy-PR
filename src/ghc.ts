@@ -2,7 +2,6 @@ import KeyvSqlite from "@keyv/sqlite";
 import type { components as ghComponents } from "@octokit/openapi-types";
 import crypto from "crypto";
 import fs from "fs/promises";
-import stableStringify from "json-stable-stringify";
 import Keyv from "keyv";
 import { Octokit } from "octokit";
 import path from "path";
@@ -45,7 +44,7 @@ function createCacheKey(basePath: string[], prop: string | symbol, args: any[]):
   const fullPath = [...basePath, prop.toString()];
   const apiPath = fullPath.join(".");
 
-  const argsText = args.map((e) => stableStringify(e)).join(",");
+  const argsText = args.map((e) => JSON.stringify(e)).join(",");
   const maxLength = 120 - apiPath.length - "gh.".length - 8 - 3; // Maximum length for args display
 
   let displayArgs = argsText;

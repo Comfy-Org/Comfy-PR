@@ -19,6 +19,8 @@ import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import { parsePullUrl } from "@/src/parsePullUrl";
 import { yaml } from "@/src/utils/yaml";
 import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
+import { getSlack, slack } from "@/src/slack";
+import { slackCached } from "@/src/slack/slackCached";
 
 // yeah, if the bot could ping when updates have been made to a previously-reviewed PR, would be extremely helpful
 
@@ -74,11 +76,11 @@ type ComfyCorePRs = {
 
 	// review status
 	status:
-		| Awaited<ReturnType<typeof determinePullRequestReviewStatus>>
-		| "UNRELATED";
+	| Awaited<ReturnType<typeof determinePullRequestReviewStatus>>
+	| "UNRELATED";
 	lastStatus?:
-		| Awaited<ReturnType<typeof determinePullRequestReviewStatus>>
-		| "UNRELATED"; // for diff status and then send ping message
+	| Awaited<ReturnType<typeof determinePullRequestReviewStatus>>
+	| "UNRELATED"; // for diff status and then send ping message
 
 	// send a ping when status changed to pingable status
 	isPingNeeded?: boolean;
@@ -194,7 +196,7 @@ async function determinePullRequestReviewStatus(
 	const pr =
 		typeof pull_request !== "string"
 			? pull_request
-			: await ghData(ghc.pulls.get)({ ...parsePullUrl(pull_request) });
+			: await ghc.pulls.get({ ...parsePullUrl(pull_request) }).then(e => e.data)
 	return await tsmatch(pr)
 		.with({ merged_at: P.string }, () => "MERGED" as const)
 		.with({ state: "closed" }, () => "CLOSED" as const)
@@ -283,16 +285,14 @@ async function runCorePingTaskFull() {
 				// state: "all",
 				sort: "created",
 				direction: "asc",
-				query: `label:${LABELS.map((e) => `"${e}"`).join(" OR label:")}`,
+				query: `label: ${LABELS.map((e) => `"${e}"`).join(" OR label:")}`,
 			}),
 		)
 		.confluenceByConcat()
-		.filter((e) =>
-			e.labels.some((e) => ["Core", "Core-Important"].includes(e.name)),
-		)
+		.filter((e) => e.labels.some((e) => ["Core", "Core-Important"].includes(e.name)),)
 		// filter Core/Core-Important labeled PRs
-		.map(processPullRequestCorePingTask)
-		.filter()
+		.map(async e => await processPullRequestCorePingTask(e))
+		.filter(e => Boolean(e))
 		.toArray();
 
 	console.log("processedTasks", processedTasks.length);
@@ -325,7 +325,7 @@ async function runCorePingTaskFull() {
 
 	// console.log("ready to send slack message to notify @comfy");
 	// console.log(processedTasks);
-	const tail = `Sent from <https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
+	const tail = `Sent from < https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
 	const notifyMessage = !pendingCorePRs.length
 		? `Congratulations! All Core/Important PRs are reviewed! 🎉🎉🎉 \n${tail}`
 		: `Hey <@comfy>, Here's x${pendingCorePRs.length} Core/Important PRs waiting your feedback!\n\n${pendingCorePRs.map((pr) => pr.statusMsg || `- <${pr.url}|${pr.title}> ${pr.labels}`).join("\n")}\n\n${tail}`;
@@ -355,7 +355,7 @@ async function runCorePingTaskFull() {
 	const canUpdateExistingMessage =
 		meta.lastSlackMessage?.sendAt &&
 		Date.now() - new Date(meta.lastSlackMessage.sendAt).getTime() <=
-			23.9 * 60 * 60 * 1000;
+		23.9 * 60 * 60 * 1000;
 
 	// if <24 h since last sent (not edit), update that msg
 	const msgUpdateUrl =
@@ -411,7 +411,7 @@ async function runCorePingTaskFull() {
 async function processPullRequestCorePingTask(
 	pr: GH["pull-request-simple"] | GH["pull-request"],
 	i?: number,
-) {
+): Promise<ComfyCorePRs> {
 	const html_url = pr.html_url;
 	let task = await saveTask({
 		url: pr.html_url,
@@ -484,4 +484,73 @@ async function processPullRequestCorePingTask(
 		isPingNeeded,
 		...(!isPingNeeded ? { lastPingMessage: null } : {}),
 	});
+}
+
+async function _cleanSpammyMessages20251117() {
+	// list 2025-11-16 2:11 to 3:49 (in HKT)
+	const st = new Date('2025-11-16T02:00:00+0800');
+	const et = new Date('2025-11-16T03:50:00+0800');
+	console.log(`fetch slack messages from ${st.toISOString()} to ${et.toISOString()}`);
+	// slack.history.list(getslackchannel)
+	const channel = await pageFlow(undefined as string | undefined, async (cursor, limit = 3) => {
+		const resp = (await slackCached.conversations.list({ cursor, limit, types: 'public_channel' }))
+		console.log(`+${resp.channels?.length} channels: ${resp.channels?.map(c => c.name).join(", ")}`);
+		return { next: resp.response_metadata?.next_cursor || undefined, data: resp.channels };
+	}).flat().find(e => e.name === 'develop').toAtLeastOne()
+
+	const channelId = channel.id || DIE(`no channel id was found in channel: ${yaml.stringify(channel)}`);
+	// console.log(channel);
+	// slackCached.conversations.join({channel: channel.id}) ;
+	// console.log( ) ; //(channels.id)
+	const comfyPrBot = await pageFlow(undefined as string | undefined, async (cursor, limit = 3) => {
+		const resp = await slackCached.users.list({ cursor, limit })
+		return { data: resp.members || [], next: resp.response_metadata?.next_cursor || undefined };
+	}
+	).flat().find(e => e.real_name === 'ComfyPR-Bot')
+		// .log(e => yaml.stringify({}))
+		.toAtLeastOne()
+
+	const myspammessages = await pageFlow(undefined as string | undefined, async (cursor, limit = 100) => {
+		const resp = await slackCached.conversations.history({
+			channel: channelId,
+			cursor,
+			limit,
+			inclusive: true,
+			oldest: String((+st) / 1000),
+			latest: String((+et) / 1000),
+		})
+		console.log(`+${resp.messages?.length} messages by ${await sflow(resp.messages || [])
+			?.mapMixin(async e => ({ info: await slackCached.users.info({ user: e.user || undefined }).then(u => u.user) }))
+			?.map(m => String(m.username || m.info?.real_name || m.user || ''))
+			.filter()
+			.join(", ")
+			.text()
+			}`);
+
+		return { next: resp.response_metadata?.next_cursor || undefined, data: resp.messages || [] };
+	})
+		.flat()
+		// .mapMixin(async e => ({ profile: (await slackCached.users.profile.get({ user: e.user || undefined }).then(e => e.profile)) }))
+		.mapMixin(async e => ({ username: e.username || (await slackCached.users.info({ user: e.user || undefined }).then(u => u.user?.real_name || u.user?.name || '')) }))
+		// .mapMixin(async e => ({ time: new Date(+(e.ts || DIE('Fatal: msg have no .ts ${e}')) * 1000) }))
+		// .mapMixin(e => ({ blocks: undefined }))
+		// .log(e => yaml.stringify(e.username))
+		// .until(e => +(e.ts || DIE('Fatal: msg have no .ts ${e}')) < (+st) / 1000)
+		// terminate stream when msg.ts < st
+		// .log(e => [new Date(+(e.ts || DIE()) * 1000), +(e.ts || DIE()), e.text])
+		// .filter(e => +(e.ts || DIE(`fatal: msg have no .ts ${e}`)) * 1000 <= (+et))
+		// .takeWhile(e => +(e.ts || DIE(`Fatal: msg have no.ts ${e}`)) * 1000 >= (+st))
+		// .filter(e => e.username)
+		.filter(e => e.user === comfyPrBot.id)
+		.forEach(async e => await slack.chat.delete({ channel: channelId, ts: e.ts || DIE() }))
+		// throw check
+		.toArray()
+
+	console.log(yaml.stringify({
+		count: myspammessages.length,
+		messages: myspammessages.map(
+			e => `${new Date(+(e.ts) * 1000).toISOString()} by ${e.username}: ${e.text?.replace(/\n/g, ' ').slice(0, 20)}...`
+		)
+	}))
+
 }

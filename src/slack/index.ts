@@ -19,7 +19,7 @@ export function isSlackAvailable(): boolean {
 
 export const slack = new Proxy({} as WebClient, {
   get(_target, prop) {
-    console.warn("Direct access to 'slack' is deprecated. Use getSlack() instead.");
+    // console.warn("Direct access to 'slack' is deprecated. Use getSlack() instead.");
     const client = getSlack();
     return (client as any)[prop];
   },
@@ -27,7 +27,7 @@ export const slack = new Proxy({} as WebClient, {
 
 if (import.meta.main) {
   if (isSlackAvailable()) {
-    await getSlack().api.test({}); // test token
+    await slack.api.test({}); // test token
     console.log("Slack API token is valid.");
   } else {
     console.log("Slack API token not configured.");
