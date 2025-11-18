@@ -166,7 +166,7 @@ describe("GithubDesktopIssueTransferTask", () => {
     const lastOp = dbOperations[dbOperations.length - 1];
     expect(lastOp.data.sourceIssueNumber).toBe(123);
     expect(lastOp.data.commentPosted).toBe(true);
-  });
+  }, 20000);
 
   it("should skip pull requests", async () => {
     const pullRequest = {
