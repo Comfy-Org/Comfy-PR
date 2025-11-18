@@ -328,7 +328,7 @@ async function runCorePingTaskFull() {
 
 	// console.log("ready to send slack message to notify @comfy");
 	// console.log(processedTasks);
-	const tail = `Sent from < https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
+	const tail = `Sent from <https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
 	const notifyMessage = !pendingCorePRs.length
 		? `Congratulations! All Core/Important PRs are reviewed! 🎉🎉🎉 \n${tail}`
 		: `Hey <@comfy>, Here's x${pendingCorePRs.length} Core/Important PRs waiting your feedback!\n\n${pendingCorePRs.map((pr) => pr.statusMsg || `- <${pr.url}|${pr.title}> ${pr.labels}`).join("\n")}\n\n${tail}`;
