@@ -5,8 +5,7 @@ import KeyvSqlite from "@keyv/sqlite";
 import DIE from "@snomiao/die";
 import chalk from "chalk";
 import Keyv from "keyv";
-import { slackMessageUrlStringify } from "../gh-design/slackMessageUrlParse";
-import { slackMessageUrlParse } from "../gh-design/slackMessageUrlParse";
+import { slackMessageUrlStringify, slackMessageUrlParse } from "../gh-design/slackMessageUrlParse";
 import { COMFY_PR_CACHE_DIR } from "./COMFY_PR_CACHE_DIR";
 
 const SlackChannelIdsCache = new Keyv<string>({
