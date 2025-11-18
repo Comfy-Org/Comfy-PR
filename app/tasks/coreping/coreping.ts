@@ -21,6 +21,8 @@ import { yaml } from "@/src/utils/yaml";
 import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
 import { getSlack, slack } from "@/src/slack";
 import { slackCached } from "@/src/slack/slackCached";
+import { slackMessageUrlParse } from "../gh-design/slackMessageUrlParse";
+import { confirm } from "@/lib/utils";
 
 // yeah, if the bot could ping when updates have been made to a previously-reviewed PR, would be extremely helpful
 
@@ -139,6 +141,7 @@ if (import.meta.main) {
 	// const url = "https://github.com/comfyanonymous/ComfyUI/pull/8351";
 	// await determinePullRequestReviewStatus(url);
 
+	// await _cleanSpammyMessages20251117()
 	await runCorePingTaskFull();
 	// await runCorePingTaskIncremental();
 	// reviewCommentsCheckpoint()
@@ -335,7 +338,13 @@ async function runCorePingTaskFull() {
 	// // send or update slack message
 	let meta = await Meta.$upsert({});
 
-	// can only post new message: tz: PST,  day: working day + sat, time: 10-12am
+	const lastMessageTsDate = meta.lastSlackMessage?.url
+		? new Date(+(slackMessageUrlParse(meta.lastSlackMessage.url).ts) * 1000,)
+		: null;
+
+	// can only post new message when:
+	// 1. tz: PST,  day: working day + sat, time: 10-12am
+	// 2. or last message sent time( Note: not edited time ) >23h ago (if have last msg)
 	const canPostNewMessage = (() => {
 		const now = new Date();
 		const pstTime = new Date(
@@ -350,7 +359,10 @@ async function runCorePingTaskFull() {
 		const isValidTime = hour >= 10 && hour < 12;
 
 		return isValidDay && isValidTime;
-	})();
+	})() && (
+			!lastMessageTsDate ||
+			Date.now() - lastMessageTsDate.getTime() >= 23 * 60 * 60 * 1000
+		);
 
 	const canUpdateExistingMessage =
 		meta.lastSlackMessage?.sendAt &&
@@ -487,9 +499,9 @@ async function processPullRequestCorePingTask(
 }
 
 async function _cleanSpammyMessages20251117() {
-	// list 2025-11-16 2:11 to 3:49 (in HKT)
-	const st = new Date('2025-11-16T02:00:00+0800');
-	const et = new Date('2025-11-16T03:50:00+0800');
+	// list 2025-11-16 2:11 to 3:55 (in HKT)
+	const st = new Date('2025-11-18T02:00:00+0800');
+	const et = new Date('2025-11-18T03:55:00+0800');
 	console.log(`fetch slack messages from ${st.toISOString()} to ${et.toISOString()}`);
 	// slack.history.list(getslackchannel)
 	const channel = await pageFlow(undefined as string | undefined, async (cursor, limit = 3) => {
@@ -510,6 +522,7 @@ async function _cleanSpammyMessages20251117() {
 		// .log(e => yaml.stringify({}))
 		.toAtLeastOne()
 
+	console.log('checking messages sent by ComfyPR-Bot:', comfyPrBot.id, comfyPrBot.name);
 	const myspammessages = await pageFlow(undefined as string | undefined, async (cursor, limit = 100) => {
 		const resp = await slackCached.conversations.history({
 			channel: channelId,
@@ -519,13 +532,14 @@ async function _cleanSpammyMessages20251117() {
 			oldest: String((+st) / 1000),
 			latest: String((+et) / 1000),
 		})
-		console.log(`+${resp.messages?.length} messages by ${await sflow(resp.messages || [])
-			?.mapMixin(async e => ({ info: await slackCached.users.info({ user: e.user || undefined }).then(u => u.user) }))
-			?.map(m => String(m.username || m.info?.real_name || m.user || ''))
-			.filter()
-			.join(", ")
-			.text()
-			}`);
+		console.log(resp.messages?.length)
+		// console.log(`+${resp.messages?.length} messages by ${await sflow(resp.messages || [])
+		// 	?.mapMixin(async e => ({ info: await slackCached.users.info({ user: e.user || undefined }).then(u => u.user) }))
+		// 	?.map(m => String(m.username || m.info?.real_name || m.user || ''))
+		// 	.filter()
+		// 	.join(", ")
+		// 	.text()
+		// 	}`);
 
 		return { next: resp.response_metadata?.next_cursor || undefined, data: resp.messages || [] };
 	})
@@ -542,7 +556,6 @@ async function _cleanSpammyMessages20251117() {
 		// .takeWhile(e => +(e.ts || DIE(`Fatal: msg have no.ts ${e}`)) * 1000 >= (+st))
 		// .filter(e => e.username)
 		.filter(e => e.user === comfyPrBot.id)
-		.forEach(async e => await slack.chat.delete({ channel: channelId, ts: e.ts || DIE() }))
 		// throw check
 		.toArray()
 
@@ -553,4 +566,10 @@ async function _cleanSpammyMessages20251117() {
 		)
 	}))
 
+	await confirm(`About to delete ${myspammessages.length} messages sent by ComfyPR-Bot in #${channel.name} between ${st.toISOString()} and ${et.toISOString()}. Proceed?`)
+
+	const deletedMessages = await sflow(myspammessages)
+		.forEach(async e => await slack.chat.delete({ channel: channelId, ts: e.ts || DIE() }))
+		.log(e => `Deleted message at ${new Date(+(e.ts || DIE()) * 1000).toISOString()}: ${e.text?.replace(/\n/g, ' ').slice(0, 30)}...`)
+		.run()
 }
