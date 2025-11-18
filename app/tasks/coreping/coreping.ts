@@ -499,7 +499,7 @@ async function processPullRequestCorePingTask(
 }
 
 async function _cleanSpammyMessages20251117() {
-	// list 2025-11-16 2:11 to 3:55 (in HKT)
+	// list 2025-11-18 2:00 to 3:55 (in HKT)
 	const st = new Date('2025-11-18T02:00:00+0800');
 	const et = new Date('2025-11-18T03:55:00+0800');
 	console.log(`fetch slack messages from ${st.toISOString()} to ${et.toISOString()}`);
