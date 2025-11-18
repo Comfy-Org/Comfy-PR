@@ -19,7 +19,7 @@ import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSla
 
 const config = {
   repo: "https://github.com/comfyanonymous/ComfyUI",
-  slackChannel: "desktop",
+  slackChannels: ["desktop", "live-ops"],
   slackMessage: "🏷️ ComfyUI <{url}|Tag {tagName}> created!",
   sendSince: new Date("2025-09-24T00:00:00Z").toISOString(),
   tagsPerPage: 10,
@@ -32,11 +32,11 @@ export type GithubCoreTagNotificationTask = {
   createdAt?: Date;
   taggerDate?: Date;
   message?: string;
-  slackMessage?: {
+  slackMessages?: {
     text: string;
     channel: string;
     url?: string;
-  };
+  }[];
 };
 
 export const GithubCoreTagNotificationTask = db.collection<GithubCoreTagNotificationTask>(
@@ -62,8 +62,13 @@ if (import.meta.main) {
 
 async function runGithubCoreTagNotificationTask() {
   const { owner, repo } = parseGithubRepoUrl(config.repo);
-  const pSlackChannelId = getSlackChannel(config.slackChannel).then(
-    (e) => e.id || DIE(`unable to get slack channel ${config.slackChannel}`),
+  const pSlackChannelIds = Promise.all(
+    config.slackChannels.map((channelName) =>
+      getSlackChannel(channelName).then((e) => ({
+        channelName,
+        channelId: e.id || DIE(`unable to get slack channel ${channelName}`),
+      })),
+    ),
   );
 
   const tags = await gh.repos.listTags({
@@ -75,7 +80,13 @@ async function runGithubCoreTagNotificationTask() {
   await sflow(tags.data)
     .map(async (tag) => {
       const existingTask = await GithubCoreTagNotificationTask.findOne({ tagName: tag.name });
-      if (existingTask?.slackMessage?.url) {
+      const slackChannelIds = await pSlackChannelIds;
+
+      // Check if all channels have been notified
+      const allChannelsNotified = slackChannelIds.every((ch) =>
+        existingTask?.slackMessages?.some((msg) => msg.channel === ch.channelId && msg.url),
+      );
+      if (allChannelsNotified) {
         return existingTask;
       }
 
@@ -128,22 +139,32 @@ async function runGithubCoreTagNotificationTask() {
         }
       }
 
-      const slackChannelId = await pSlackChannelId;
       const slackMessageText = config.slackMessage
         .replace("{url}", task.url)
         .replace("{tagName}", task.tagName)
         .replace(/$/, task.message ? `\n> ${task.message}` : "");
 
-      if (!task.slackMessage || task.slackMessage.text !== slackMessageText) {
-        task = await save({
-          tagName: task.tagName,
-          slackMessage: await upsertSlackMessage({
-            channel: slackChannelId,
-            text: slackMessageText,
-            url: task.slackMessage?.url,
-          }),
-        });
-      }
+      // Send to all configured channels
+      const slackMessages = await Promise.all(
+        slackChannelIds.map(async ({ channelId, channelName }) => {
+          const existingMessage = task.slackMessages?.find((msg) => msg.channel === channelId);
+
+          if (!existingMessage || existingMessage.text !== slackMessageText) {
+            return await upsertSlackMessage({
+              channel: channelId,
+              text: slackMessageText,
+              url: existingMessage?.url,
+            });
+          }
+
+          return existingMessage;
+        }),
+      );
+
+      task = await save({
+        tagName: task.tagName,
+        slackMessages,
+      });
 
       return task;
     })
