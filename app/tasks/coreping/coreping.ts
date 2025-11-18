@@ -566,7 +566,11 @@ async function _cleanSpammyMessages20251117() {
 		)
 	}))
 
-	await confirm(`About to delete ${myspammessages.length} messages sent by ComfyPR-Bot in #${channel.name} between ${st.toISOString()} and ${et.toISOString()}. Proceed?`)
+	const confirmed = await confirm(`About to delete ${myspammessages.length} messages sent by ComfyPR-Bot in #${channel.name} between ${st.toISOString()} and ${et.toISOString()}. Proceed?`);
+	if (!confirmed) {
+		console.log("Operation cancelled");
+		return;
+	}
 
 	const deletedMessages = await sflow(myspammessages)
 		.forEach(async e => await slack.chat.delete({ channel: channelId, ts: e.ts || DIE() }))
