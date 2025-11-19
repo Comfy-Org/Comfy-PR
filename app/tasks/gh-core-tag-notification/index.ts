@@ -21,8 +21,8 @@ const config = {
   repo: "https://github.com/comfyanonymous/ComfyUI",
   slackChannels: ["desktop", "live-ops"],
   slackMessage: "🏷️ ComfyUI <{url}|Tag {tagName}> created!",
-  sendSince: new Date("2025-09-24T00:00:00Z").toISOString(),
-  tagsPerPage: 10,
+  sendSince: new Date("2025-11-19T00:00:00Z").toISOString(),
+  tagsPerPage: 3,
 };
 
 export type GithubCoreTagNotificationTask = {
@@ -32,8 +32,18 @@ export type GithubCoreTagNotificationTask = {
   createdAt?: Date;
   taggerDate?: Date;
   message?: string;
+
+  /** @deprecated use slackMessages future, keep slackMessage for backward compatiable here */
+  slackMessage?: {
+    text: string;
+    /** @deprecated lets use channelName for future tasks, keep channel just for backward compatiable here */
+    channel: string;
+    url?: string;
+  };
+
   slackMessages?: {
     text: string;
+    /** @deprecated lets use channelName for future tasks, keep channel just for backward compatiable here */
     channel: string;
     url?: string;
   }[];
@@ -54,6 +64,7 @@ const save = async (task: { tagName: string } & Partial<GithubCoreTagNotificatio
 
 if (import.meta.main) {
   await runGithubCoreTagNotificationTask();
+  console.log("done");
   if (isCI) {
     await db.close();
     process.exit(0);
@@ -147,14 +158,24 @@ async function runGithubCoreTagNotificationTask() {
       // Send to all configured channels
       const slackMessages = await Promise.all(
         slackChannelIds.map(async ({ channelId, channelName }) => {
-          const existingMessage = task.slackMessages?.find((msg) => msg.channel === channelId);
+          const existingMessage =
+            task.slackMessages?.find((msg) => msg.channel === channelId) ||
+            (task.slackMessage?.channel === channelId
+              ? {
+                  text: task.slackMessage.text,
+                  channel: task.slackMessage.channel,
+                  url: task.slackMessage.url,
+                }
+              : undefined);
 
           if (!existingMessage || existingMessage.text !== slackMessageText) {
-            return await upsertSlackMessage({
+            console.log(`Tag ${task.tagName} notified to Slack channel ${channelName} (${channelId})`);
+            const msg = await upsertSlackMessage({
               channel: channelId,
               text: slackMessageText,
               url: existingMessage?.url,
             });
+            return msg;
           }
 
           return existingMessage;
