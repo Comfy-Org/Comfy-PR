@@ -56,7 +56,7 @@ export const coreReviewTrackerConfig = {
 		"https://github.com/Comfy-Org/desktop",
 	],
 	// labels
-	labels: ["Core", "Core-Important"],
+	labels: ["Core", "Core-Important", 'CoreImportant'],
 	personalLabels: {
 		notifyJK: "notify:jk",
 	},
