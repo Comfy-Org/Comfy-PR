@@ -58,6 +58,7 @@ export const coreReviewTrackerConfig = {
   ],
   // labels
   labels: ["Core", "Core-Important", "CoreImportant"],
+  // personalLabels: label to slack user mapping
   personalLabels: [
     { label: "notify:jk", slackUser: "@jk" },
     { label: "notify:sno", slackUser: "snomiao" },
@@ -186,17 +187,13 @@ function reviewStatusExplained(status: ReviewStatus) {
  *   7. open: is ready for review, but no review/response yet
  */
 async function determinePullRequestReviewStatus(
-  pull_request: GH["pull-request-simple"] | GH["pull-request"],
+  pr: GH["pull-request-simple"] | GH["pull-request"],
   {
     isUnrelated,
   }: {
     isUnrelated?: (pr: GH["pull-request-simple"] | GH["pull-request"]) => boolean;
   },
 ) {
-  const pr =
-    typeof pull_request !== "string"
-      ? pull_request
-      : await ghc.pulls.get({ ...parsePullUrl(pull_request) }).then((e) => e.data);
   return await tsmatch(pr)
     .when(
       (pr) => isUnrelated?.(pr),
