@@ -459,7 +459,7 @@ async function processPullRequestCorePingTask(
   // update lastStatus if status changed
   const statusChanged = task.status !== status;
   if (statusChanged) {
-    task = await saveTask({ url: pr.html_url, status, lastStatus: task.status });
+    task = await saveTask({ url: pr.html_url, status, statusAt, lastStatus: task.status });
   } else {
     task = await saveTask({ url: pr.html_url, status, statusAt });
   }
