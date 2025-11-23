@@ -12,6 +12,7 @@ import runGithubFrontendReleaseNotificationTask from "./gh-frontend-release-noti
 import runGithubComfyUIToDesktopIssueTransferTask from "./gh-issue-transfer-comfyui-to-desktop/index";
 import runGithubFrontendIssueTransferTask from "./gh-issue-transfer-comfyui-to-frontend/index";
 import runGithubDesktopIssueTransferTask from "./gh-issue-transfer-desktop-to-frontend/index";
+import runGithubFrontendToComfyuiIssueTransferTask from "./gh-issue-transfer-frontend-to-comfyui/index";
 import runGithubFrontendToDesktopIssueTransferTask from "./gh-issue-transfer-frontend-to-desktop/index";
 
 const TASKS = [
@@ -35,6 +36,7 @@ const TASKS = [
     name: "GitHub Core Tag Notification Task",
     run: runGithubCoreTagNotificationTask,
   },
+  // issue transfer between repos: ComfyUI, Frontend, Desktop
   {
     name: "GitHub Frontend Issue Transfer Task",
     run: runGithubFrontendIssueTransferTask,
@@ -51,6 +53,11 @@ const TASKS = [
     name: "GitHub Frontend to Desktop Issue Transfer Task",
     run: runGithubFrontendToDesktopIssueTransferTask,
   },
+  {
+    name: "GitHub Frontend to ComfyUI Issue Transfer Task",
+    run: runGithubFrontendToComfyuiIssueTransferTask,
+  },
+  // bugcop
   {
     name: "GitHub Bugcop Task",
     run: runGithubBugcopTask,

@@ -4,13 +4,10 @@ on:
     # Runs every 5 minutes
     - cron: "*/5 * * * *"
   workflow_dispatch:
-  push:
+
+  pull_request:
     branches:
       - main
-      - sno-desktop-release-notification
-      - sno-bounty
-      - sno-design-label-track
-      - sno-bug-cop
     paths:
       - ".github/workflows/gh-combined-tasks.yaml"
       - "app/tasks/run-gh-tasks.ts"
@@ -19,6 +16,7 @@ on:
       - "app/tasks/gh-desktop-release-notification/**"
       - "app/tasks/gh-core-tag-notification/**"
       - "app/tasks/gh-bugcop/**"
+      - "app/tasks/gh-issue-transfer-*/**"
 
 jobs:
   run_combined_github_tasks:

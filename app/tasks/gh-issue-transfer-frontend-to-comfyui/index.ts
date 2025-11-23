@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 import { db } from "@/src/db";
 import { gh } from "@/src/gh";
+import { ghc } from "@/src/ghc";
+import { ghPaged } from "@/src/paged";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
-import { $ } from "bun";
 import isCI from "is-ci";
-import { pageFlow } from "sflow";
 
 /**
  * GitHub Frontend to ComfyUI Issue Transfer Task
@@ -53,6 +53,7 @@ const save = async (task: { sourceIssueNumber: number } & Partial<GithubFrontend
 
 if (import.meta.main) {
   await runGithubFrontendToComfyuiIssueTransferTask();
+  console.log("Done");
   if (isCI) {
     await db.close();
     process.exit(0);
@@ -63,26 +64,13 @@ async function runGithubFrontendToComfyuiIssueTransferTask() {
   const sourceRepo = parseGithubRepoUrl(config.srcRepoUrl);
   const targetRepo = parseGithubRepoUrl(config.dstRepoUrl);
 
-  // Fetch all open issues with "comfyui-core" label from source repo using pagination
-  await pageFlow(1, async (page) => {
-    const per_page = 100;
-    const sourceIssues = await gh.issues.listForRepo({
-      owner: sourceRepo.owner,
-      repo: sourceRepo.repo,
-      labels: config.comfyuiCoreLabel,
-      state: "open",
-      page,
-      per_page,
-    });
-
-    console.log(`Found ${sourceIssues.data.length} open comfyui-core issues (page ${page}) in ${config.srcRepoUrl}`);
-
-    return {
-      data: sourceIssues.data,
-      next: sourceIssues.data.length >= per_page ? page + 1 : undefined,
-    };
+  // Fetch all open issues with "comfyui-core" label from source repo with paginated API
+  await ghPaged(gh.issues.listForRepo)({
+    owner: sourceRepo.owner,
+    repo: sourceRepo.repo,
+    labels: config.comfyuiCoreLabel,
+    state: "open",
   })
-    .flat()
     .map(async (issue) => {
       // Skip pull requests (they come through the issues API too)
       if (issue.pull_request) {
@@ -106,24 +94,14 @@ async function runGithubFrontendToComfyuiIssueTransferTask() {
       });
 
       try {
-        const comments = await pageFlow(1, async (page) => {
-          const per_page = 100;
-          const comments = await gh.issues.listComments({
-            owner: sourceRepo.owner,
-            repo: sourceRepo.repo,
-            issue_number: issue.number,
-            page,
-            per_page,
-          });
-
-          return {
-            data: comments.data,
-            next: comments.data.length >= per_page ? page + 1 : undefined,
-          };
+        const comments = await ghPaged(ghc.issues.listComments)({
+          owner: sourceRepo.owner,
+          repo: sourceRepo.repo,
+          issue_number: issue.number,
         })
-          .flat()
           .map((comment) => `@${comment.user?.login}: <pre>${comment.body}</pre>`)
           .toArray();
+
         // Create new issue in target repo
         const body = `
 ${issue.body || ""}
@@ -137,11 +115,17 @@ Original issue was created ${issue.user?.login?.replace(/^/, "by @")} at ${new D
 ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : ""}
 `;
 
+        // body max length is 65536 chars
+        const truncatedBody =
+          body.length > 60000
+            ? body.slice(0, 60000) + "\n\n...TRUNCATED, full content available in original issue"
+            : body;
+
         const newIssue = await gh.issues.create({
           owner: targetRepo.owner,
           repo: targetRepo.repo,
           title: issue.title,
-          body,
+          body: truncatedBody.trim(),
           labels: issue.labels
             .map((label) => (typeof label === "string" ? label : label.name))
             .filter((name): name is string => !!name)
@@ -150,9 +134,7 @@ ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : "
         });
 
         console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
-        if (!isCI && process.platform === "darwin") {
-          await $`open ${newIssue.data.html_url}`;
-        }
+
         task = await save({
           sourceIssueNumber: issue.number,
           targetIssueNumber: newIssue.data.number,
