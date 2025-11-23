@@ -207,7 +207,7 @@ async function determinePullRequestReviewStatus(
       if (!latestEvent?.PR_STATUS) return { statusAt: new Date(pr.created_at), status: "OPEN" as const };
       const latestEventAt = latestEvent.committed_at || latestEvent.submitted_at || latestEvent.created_at;
 
-      if (!latestEventAt) throw latestEvent;
+      if (!latestEventAt) throw new Error(`Failed to determine statusAt: no timestamp found in latest event for PR ${pr.html_url}`);
 
       return { statusAt: new Date(latestEventAt), status: latestEvent.PR_STATUS };
     });
