@@ -337,21 +337,21 @@ async function runCorePingTaskFull() {
   // console.log("ready to send slack message to notify @comfy");
   // console.log(processedTasks);
 
-  const forDuration = (at?: number) => {
+  const forDuration = (at?: number | Date) => {
     if (!at) return "";
-    const diff = Date.now() - at;
+    const diff = Date.now() - (at instanceof Date ? at.getTime() : at);
     return "for " + ms(diff, { long: true });
   };
   const reviewMessage = !pendingReviewCorePRs.length
     ? `Congratulations! All Core/Important PRs are reviewed! 🎉🎉🎉`
     : `Hey <@comfy>, Here's x${pendingReviewCorePRs.length} Core/Important PRs waiting your feedback!
-- ${pendingReviewCorePRs.map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> (${pr.labels}) is ${pr.status} ${forDuration(+pr.statusAt!)}`).join("\n- ")}`;
+- ${pendingReviewCorePRs.map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> (${pr.labels}) is ${pr.status} ${forDuration(pr.statusAt)}`).join("\n- ")}`;
   const keepInMindMessage =
     remainingOpeningCorePRs.length > 0
       ? `\n\nAdditionally, there ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} ${remainingOpeningCorePRs.length} other open Core/Important ${remainingOpeningCorePRs.length === 1 ? "PR" : "PRs"} that ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} pending for author's change/update, lets wait for them.
 - ${remainingOpeningCorePRs
           .toSorted(compareBy((e) => e.created_at))
-          .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(+pr.statusAt!)}`)
+          .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`)
           .join("\n- ")}`
       : "";
   const tail = `\n\nSent from <https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
