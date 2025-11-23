@@ -313,7 +313,7 @@ async function runCorePingTaskFull() {
       $in: ["AUTHOR_COMMENTED", "REVIEW_REQUESTED", "OPEN", "COMMITTED"],
     },
   })
-    .sort({ statusAt: 1 })
+    .sort({ statusAt: 1, created_at: 1 })
     .toArray();
 
   const allOpeningCorePRs = await ComfyCorePRs.find({
