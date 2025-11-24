@@ -11,6 +11,7 @@ import runGithubDesktopReleaseNotificationTask from "./gh-desktop-release-notifi
 import runGithubFrontendReleaseNotificationTask from "./gh-frontend-release-notification/index";
 import runGithubComfyUIToDesktopIssueTransferTask from "./gh-issue-transfer-comfyui-to-desktop/index";
 import runGithubFrontendIssueTransferTask from "./gh-issue-transfer-comfyui-to-frontend/index";
+import runGithubWorkflowTemplatesIssueTransferTask from "./gh-issue-transfer-comfyui-to-workflow_templates/index";
 import runGithubDesktopIssueTransferTask from "./gh-issue-transfer-desktop-to-frontend/index";
 import runGithubFrontendToComfyuiIssueTransferTask from "./gh-issue-transfer-frontend-to-comfyui/index";
 import runGithubFrontendToDesktopIssueTransferTask from "./gh-issue-transfer-frontend-to-desktop/index";
@@ -56,6 +57,10 @@ const TASKS = [
   {
     name: "GitHub Frontend to ComfyUI Issue Transfer Task",
     run: runGithubFrontendToComfyuiIssueTransferTask,
+  },
+  {
+    name: "GitHub Workflow Templates Issue Transfer Task",
+    run: runGithubWorkflowTemplatesIssueTransferTask,
   },
   // bugcop
   {
