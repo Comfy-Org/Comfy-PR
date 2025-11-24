@@ -38,7 +38,7 @@ const cfg = {
     /^(?:bug-cop|area):.*$/i,
     /^(?:notify):.*$/i, // notify someone, e.g. notify:sno, notify:jk
     // allow all users to edit issue transfer labels
-    /frontend|desktop|comfyui-core/i,
+    /frontend|desktop|comfyui-core|workflow_templates/i,
   ],
 };
 type GithubIssueLabelOps = {
