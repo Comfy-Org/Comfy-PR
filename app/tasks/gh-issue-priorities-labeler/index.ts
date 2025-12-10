@@ -65,7 +65,7 @@ async function GithubIssuePrioritiesLabler() {
   console.log("Fetching Comfy tasks database...");
   const database_id = notionComfyTasks.split("/").pop()!;
   const database = (await notion.databases.retrieve({ database_id })) as Notion.DatabaseObjectResponse;
-  const data_source_id = database.data_sources[0].id;
+  const data_source_id = database.data_sources?.[0]?.id ?? DIE("No data sources found in database");
 
   console.log("Database info:", JSON.stringify(database));
 
