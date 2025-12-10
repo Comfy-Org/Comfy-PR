@@ -124,6 +124,13 @@ async function runAllTasks() {
   // If any task failed, exit with error code
   if (failed.length > 0) {
     console.error(`\n=� ${failed.length} task(s) failed. Exiting with error code 1.`);
+    // show failed tasks details
+    failed.forEach((result) => {
+      if (result.status === "rejected") {
+        const error = result.reason;
+        console.error(`  L ${error.name}: ${error.duration}ms - ${error.error?.message || error.error}`);
+      }
+    });
     if (isCI) {
       await db.close();
     }
