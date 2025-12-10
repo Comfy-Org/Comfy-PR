@@ -115,24 +115,24 @@ async function GithubIssuePrioritiesLabler() {
       const originalLabels = originalLabelsResp.data.map((l) => l.name);
 
       const missingLabels = priorityLabels.filter((l) => !originalLabels.includes(l));
-      const obsolateLabels = ["High-Priority", "Medium-Priority", "Low-Priority"].filter(
+      const obsoleteLabels = ["High-Priority", "Medium-Priority", "Low-Priority"].filter(
         (l) => originalLabels.includes(l) && !priorityLabels.includes(l),
       );
 
       console.log(
         `Modifying Labels ${e.issueUrl}: `,
         missingLabels.map((e) => "+" + e),
-        obsolateLabels.map((e) => "-" + e),
+        obsoleteLabels.map((e) => "-" + e),
       );
 
-      if (missingLabels.length === 0 && obsolateLabels.length === 0) {
+      if (missingLabels.length === 0 && obsoleteLabels.length === 0) {
         console.log(`No label changes needed for ${e.issueUrl}`);
         await State.set(CHECKPOINT, { id: e.id, editedAt: e.last_edited_time }); // per-item checkpoint, can resume from last processed page
         return;
       }
 
-      // remove obsolate labels
-      for (const l of obsolateLabels) {
+      // remove obsolete labels
+      for (const l of obsoleteLabels) {
         // console.log(`Removing label ${l} from ${e.issueUrl}`);
         await github.issues
           .removeLabel({
