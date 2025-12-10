@@ -41,9 +41,10 @@ jobs:
           FORK_OWNER: "ComfyNodePRs"
           FORK_PREFIX: "PR-"
 
-          # Common environment variables for all tasks
-          GH_TOKEN_COMFY_PR: ${{ secrets.GH_TOKEN_COMFY_PR_BOT }}
+          # DB, Integrations
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          GH_TOKEN_COMFY_PR: ${{ secrets.GH_TOKEN_COMFY_PR_BOT }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SLACK_BOT_CHANNEL: ${{ secrets.SLACK_BOT_CHANNEL }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
