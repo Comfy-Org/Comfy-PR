@@ -136,17 +136,43 @@ Original issue was created ${issue.user?.login?.replace(/^/, "by @")} at ${new D
 ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : ""}
 `;
 
-        const newIssue = await gh.issues.create({
-          owner: targetRepo.owner,
-          repo: targetRepo.repo,
-          title: issue.title,
-          body,
-          labels: issue.labels
-            .map((label) => (typeof label === "string" ? label : label.name))
-            .filter((name): name is string => !!name)
-            .filter((name) => name.toLowerCase() !== "frontend"),
-          assignees: issue.assignees?.map((assignee) => assignee.login).filter((login): login is string => !!login),
-        });
+        const newIssue = await gh.issues
+          .create({
+            owner: targetRepo.owner,
+            repo: targetRepo.repo,
+            title: issue.title,
+            body,
+            labels: issue.labels
+              .map((label) => (typeof label === "string" ? label : label.name))
+              .filter((name): name is string => !!name)
+              .filter((name) => name.toLowerCase() !== "frontend"),
+            assignees: issue.assignees?.map((assignee) => assignee.login).filter((login): login is string => !!login),
+          })
+          .catch((e) => {
+            // try move the assignee to body when "assignees huchenlei cannot be assigned to this issue" matched
+            const failedAssignee = e.message.match(/assignees (\w+) cannot be assigned to this issue/)?.[1];
+            if (failedAssignee) {
+              const newBody =
+                body +
+                `\n\n*Note: @${failedAssignee} was originally assigned to this issue but could not be assigned in the target repository.*`;
+              return gh.issues.create({
+                owner: targetRepo.owner,
+                repo: targetRepo.repo,
+                title: issue.title,
+                body: newBody,
+                labels: issue.labels
+                  .map((label) => (typeof label === "string" ? label : label.name))
+                  .filter((name): name is string => !!name)
+                  .filter((name) => name.toLowerCase() !== "frontend"),
+                assignees: issue.assignees
+                  ?.map((assignee) => assignee.login)
+                  .filter((login): login is string => !!login)
+                  .filter((login) => login !== failedAssignee),
+              });
+            }
+
+            throw e;
+          });
 
         console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
         if (!isCI && process.platform === "darwin") {
