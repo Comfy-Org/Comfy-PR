@@ -107,7 +107,7 @@ async function GithubIssuePrioritiesLabler() {
       };
     })
     .forEach(async (e) => {
-      if (!(e.Title && e.Priority.trim() && e.issueUrl.trim())) return;
+      if (!(e.Title && e.Priority && e.Priority.trim() && e.issueUrl && e.issueUrl.trim())) return;
       const priorityLabels = [mapNotionPriorityToGithubLabel(e.Priority)].filter(Boolean);
       console.log(`Processing task ${e.id} - ${e.issueUrl} with priority ${e.Priority} -> labels:`, priorityLabels);
 
