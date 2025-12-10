@@ -1,4 +1,4 @@
-#!/usr/bin/env bun --hot
+#!/usr/bin/env bun
 import { db } from "@/src/db";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import KeyvSqlite from "@keyv/sqlite";
