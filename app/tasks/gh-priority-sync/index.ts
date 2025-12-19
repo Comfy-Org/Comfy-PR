@@ -278,7 +278,7 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
   const issuePriorityEditedAt =
     labelEvents.map((ev) => ({ name: ev.label.name, created_at: ev.created_at }))?.at(-1)?.created_at || null;
   const desiredNotionPriority =
-    currentPriorityLabels.find((l) => Object.values(notionPriorityToGithubLabelsMap).includes(l)) || null;
+    Object.values(notionPriorityToGithubLabelsMap).find((l) => currentPriorityLabels.includes(l)) || null; // when multiple exists, pick highest priority
   const desiredPriorityLabels = Priority ? [mapNotionPriorityToGithubLabel(Priority)] : [];
 
   const notionEditedAt = e.last_edited_time || null;
