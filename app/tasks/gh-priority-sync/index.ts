@@ -184,7 +184,11 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
     // update issue Priority state cache
     .forEach(async ({ id, issueUrl, Priority }) => {
       if (!issueUrl?.trim()) return;
-      await IssuesState.set(issueUrl, { page_id: id, Priority, ...(await IssuesState.get(issueUrl)) });
+      await IssuesState.set(issueUrl, {
+        ...(await IssuesState.get(issueUrl)),
+        page_id: id,
+        Priority,
+      });
     })
 
     .filter((e) => e.Title) // only with title
@@ -479,11 +483,11 @@ async function repoIssueLabelsFlow(repoUrl: string, { isClosed = false }: { isCl
         const typename = issue.type === "PullRequest" ? "pull" : "issues";
         const issueUrl = `https://github.com/${owner}/${repo}/${typename}/${issue.number}`;
         await IssuesState.set(issueUrl, {
+          ...(await IssuesState.get(issueUrl)),
           labels: issue.labels.nodes.map((label) => label.name),
           timeline: issue.timelineItems.nodes,
           updatedAt: issue.updatedAt,
           state: issue.state,
-          ...(await IssuesState.get(issueUrl)),
         });
         issue.updatedAt && (await State.set(checkpointKey, issue.updatedAt));
       })
