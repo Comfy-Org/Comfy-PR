@@ -356,7 +356,7 @@ async function repoIssueLabelsFlow(repoUrl: string, { isClosed = false }: { isCl
           `
       query listTasksInRepo {
       search(
-        query: "repo:${owner}/${repo} sort:updated-asc${updatedGt ? ` updated:>${updatedGt}` : ""}${isClosed ? " is:closed" : ""}",
+        query: "repo:${owner}/${repo} sort:updated-asc${updatedGt ? ` updated:>${updatedGt}` : ""}${isClosed ? " is:closed" : " is:open"}",
         type: ISSUE,
         first: ${pageSize},
         after: ${JSON.stringify(endCursor)}
