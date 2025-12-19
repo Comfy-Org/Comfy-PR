@@ -13,3 +13,7 @@ export function parseIssueUrl(issueUrl: string) {
   }
   return { owner, repo, issue_number: Number(strNumber) };
 }
+
+export function stringifyIssueUrl({ owner, repo, issue_number }: ReturnType<typeof parseIssueUrl>) {
+  return `https://github.com/${owner}/${repo}/issues/${issue_number}`;
+}

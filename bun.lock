@@ -28,7 +28,7 @@
         "@types/sha256": "^0.2.2",
         "async-sema": "^3.1.1",
         "bun": "^1.1.21",
-        "chalk": "^5.4.1",
+        "chalk": "^5.6.2",
         "class-variance-authority": "^0.7.0",
         "clsx": "^2.1.1",
         "comparing": "^1.3.1",
@@ -59,7 +59,7 @@
         "keyv-cache-proxy": "^0.2.0",
         "keyv-cached-with": "^0.0.13",
         "keyv-mongodb-store": "^0.0.3",
-        "keyv-nedb-store": "^0.0.7",
+        "keyv-nedb-store": "^0.0.10",
         "keyv-nest": "^0.0.7",
         "lodash-es": "^4.17.21",
         "lucide-react": "^0.544.0",
@@ -2055,7 +2055,7 @@
 
     "keyv-mongodb-store": ["keyv-mongodb-store@0.0.3", "", { "peerDependencies": { "keyv": "^5.0.0", "mongodb": "^6.0.0" } }, "sha512-8o6KnQkNWwYmiBXgiKeu9xg0Fp+ZcrE+xmdBvvscTvqO6s2piWTWPn4aOaj8j3LJT2AZ4/U2w9XVyTcHrJbStw=="],
 
-    "keyv-nedb-store": ["keyv-nedb-store@0.0.7", "", { "dependencies": { "@seald-io/nedb": "^4.1.2" }, "peerDependencies": { "keyv": "^5.0.0" } }, "sha512-HC1cd0322tV3eDZ0Odv/7gFosb1m5x4L0hagodORu6ZPVhNyi8+DHbBKZMGD7x8sfEpE+bNQ07N7pbL9FERoRw=="],
+    "keyv-nedb-store": ["keyv-nedb-store@0.0.10", "", { "dependencies": { "@seald-io/nedb": "^4.1.2" }, "peerDependencies": { "keyv": "^5.0.0" } }, "sha512-cgzze3//v+lXOMEhTYJ2SWgQvE83xNDUPbQ1MyaXwSjISijlcvua/dJb/9D9nbI40yVlFWJmOgl6y5gkLU1N6Q=="],
 
     "keyv-nest": ["keyv-nest@0.0.7", "", { "dependencies": { "@keyv/sqlite": "^3.6.7", "ansi-styles": "^5.2.0", "braces": "^3.0.3", "bun-types": "^1.1.17", "chalk": "^4.1.2", "ci-info": "^3.9.0", "color-convert": "^2.0.1", "color-name": "^1.1.4", "diff-sequences": "^29.6.3", "escape-string-regexp": "^2.0.0", "expect": "^29.7.0", "fill-range": "^7.1.1", "graceful-fs": "^4.2.11", "has-flag": "^4.0.0", "is-number": "^7.0.0", "jest-diff": "^29.7.0", "jest-get-type": "^29.6.3", "jest-matcher-utils": "^29.7.0", "jest-message-util": "^29.7.0", "jest-util": "^29.7.0", "js-tokens": "^4.0.0", "micromatch": "^4.0.7", "phpdie": "^1.2.12", "picocolors": "^1.0.1", "picomatch": "^2.3.1", "pretty-format": "^29.7.0", "react-is": "^18.3.1", "slash": "^3.0.0", "stack-utils": "^2.0.6", "supports-color": "^7.2.0", "to-regex-range": "^5.0.1", "undici-types": "^5.26.5" } }, "sha512-JVMzbtdQUdL7ZC1bCpyRVGQKy/D50u3WOBXkiZjktetvQfZuzCvjgpqL+p5M0hfHq7V24VOXdDw2/YBKqTWpFw=="],
 
