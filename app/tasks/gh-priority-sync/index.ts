@@ -2,22 +2,36 @@
 /**
  * GitHub Issue Priorities Labeler
  *
- * This task synchronizes priority labels from a Notion database to GitHub issues and pull requests.
+ * This task keeps priority labels in sync between a Notion database and GitHub issues and pull requests.
+ * It supports bidirectional synchronization: changes in Notion can update GitHub labels, and changes in
+ * GitHub priority labels can be reflected back into Notion.
  *
  * Workflow:
- * 1. Fetches tasks from the Notion database filtered by entries with GitHub links and priorities
- * 2. Maps Notion priorities (High/Medium/Low) to corresponding GitHub labels (High-Priority/Medium-Priority/Low-Priority)
+ * Notion → GitHub:
+ * 1. Fetches tasks from the Notion database filtered by entries with GitHub links and priorities.
+ * 2. Maps Notion priorities (High/Medium/Low) to corresponding GitHub labels (High-Priority/Medium-Priority/Low-Priority).
  * 3. For each task:
- *    - Retrieves current labels from the GitHub issue/PR
- *    - Adds missing priority labels
- *    - Removes obsolete priority labels that don't match the current Notion priority
- * 4. Uses checkpoint-based incremental processing to resume from the last processed item
+ *    - Retrieves current labels from the GitHub issue/PR.
+ *    - Adds missing priority labels.
+ *    - Removes obsolete priority labels that don't match the current Notion priority.
+ *
+ * GitHub → Notion:
+ * 4. Scans GitHub issues and pull requests that are linked to Notion tasks.
+ * 5. Reads the current priority label state (and recent label events where available).
+ * 6. Updates the corresponding Notion page's Priority property when GitHub's priority label differs,
+ *    so that Notion reflects the latest effective priority on GitHub.
+ *
+ * Both directions:
+ * 7. Uses checkpoint-based incremental processing for Notion and GitHub scanners to resume from the
+ *    last processed items without reprocessing the entire dataset.
  *
  * Important behaviors:
- * - Processes items in ascending order by last_edited_time for consistent checkpoint tracking
- * - Sequential processing ensures checkpoint state remains consistent
- * - Caches GitHub and Notion API responses to reduce API calls
- * - Gracefully handles errors for individual label operations without stopping the entire task
+ * - Processes Notion items in ascending order by last_edited_time for consistent checkpoint tracking.
+ * - Maintains separate checkpoints for Notion and GitHub scans to support robust bidirectional sync.
+ * - Sequential processing ensures checkpoint state remains consistent.
+ * - Caches GitHub and Notion API responses to reduce API calls.
+ * - Gracefully handles errors for individual label or property update operations without stopping
+ *   the entire task.
  */
 import { db } from "@/src/db";
 import type { GH } from "@/src/gh";
