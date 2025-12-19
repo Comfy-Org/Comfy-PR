@@ -376,7 +376,7 @@ async function repoIssueLabelsFlow(repoUrl: string, { isClosed = false }: { isCl
               nodes { name }
             }
 
-            # 2. Get HISTORICAL timeline of when labels were added or removed
+            # 2. get recent label events to detect priority label update time
             timelineItems(last: 100, itemTypes: [LABELED_EVENT, UNLABELED_EVENT]) {
               nodes {
                 ... on LabeledEvent {
@@ -405,7 +405,7 @@ async function repoIssueLabelsFlow(repoUrl: string, { isClosed = false }: { isCl
               nodes { name }
             }
 
-            # 2. Get HISTORICAL timeline of when labels were added or removed
+            # 2. get recent label events to detect priority label update time
             timelineItems(last: 100, itemTypes: [LABELED_EVENT, UNLABELED_EVENT]) {
               nodes {
                 ... on LabeledEvent {
