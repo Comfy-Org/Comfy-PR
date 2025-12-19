@@ -385,14 +385,14 @@ async function repoIssueLabelsFlow(repoUrl: string, { isClosed = false }: { isCl
               }
             }
           }
-            
+
           ... on Issue {
             number
             repository { name, owner { login } }
             type: __typename
             updatedAt
             state
-            
+
             # 1. Get CURRENT labels attached to the issue
             labels(first: 100) {
               nodes { name }
