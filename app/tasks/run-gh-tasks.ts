@@ -84,8 +84,13 @@ async function runAllTasks() {
       console.log(`� Starting: ${task.name}`);
       const startTime = Date.now();
 
+      const id = setInterval(() => {
+        // ping per 10s
+        console.log(`[debug] ping: ${task.name} still running`);
+      }, 10e3);
       try {
         await task.run();
+
         const duration = Date.now() - startTime;
         console.log(` Completed: ${task.name} (${duration}ms)`);
         return { name: task.name, status: "success", duration };
@@ -93,6 +98,8 @@ async function runAllTasks() {
         const duration = Date.now() - startTime;
         console.error(`L Failed: ${task.name} (${duration}ms)`, error);
         throw { name: task.name, status: "error", duration, error };
+      } finally {
+        clearInterval(id);
       }
     }),
   );
@@ -133,8 +140,8 @@ async function runAllTasks() {
     });
     if (isCI) {
       await db.close();
+      process.exit(1);
     }
-    process.exit(1);
   }
 
   console.log("\n<� All tasks completed successfully!");
