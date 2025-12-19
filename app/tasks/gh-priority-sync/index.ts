@@ -121,6 +121,7 @@ if (import.meta.main) {
 
   console.log("Done");
   if (isCI) {
+    await db.close();
     process.exit(0);
   }
 }
@@ -278,7 +279,7 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
   const issuePriorityEditedAt =
     labelEvents.map((ev) => ({ name: ev.label.name, created_at: ev.created_at }))?.at(-1)?.created_at || null;
   const desiredNotionPriority =
-    Object.values(notionPriorityToGithubLabelsMap).find((l) => currentPriorityLabels.includes(l)) || null; // when multiple exists, pick highest priority
+    Object.entries(notionPriorityToGithubLabelsMap).find(([k, v]) => currentPriorityLabels.includes(v))?.[0] || null; // when multiple exists, pick highest priority
   const desiredPriorityLabels = Priority ? [mapNotionPriorityToGithubLabel(Priority)] : [];
 
   const notionEditedAt = e.last_edited_time || null;
@@ -322,13 +323,7 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
         page_id: e.id,
         properties: {
           Priority: {
-            select: desiredNotionPriority
-              ? {
-                  name: Object.entries(notionPriorityToGithubLabelsMap).find(
-                    ([k, v]) => v === desiredNotionPriority,
-                  )![0],
-                }
-              : null,
+            select: desiredNotionPriority ? { name: desiredNotionPriority } : null,
           },
         },
       });
