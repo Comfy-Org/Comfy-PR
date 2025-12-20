@@ -1,3 +1,4 @@
+#!/usr/bin/env bun --watch
 import { db } from "@/src/db";
 import { TaskMetaCollection } from "@/src/db/TaskMeta";
 import { gh } from "@/src/gh";
@@ -13,23 +14,46 @@ import { z } from "zod";
 import { createTimeLogger } from "./createTimeLogger";
 import { ghDesignDefaultConfig } from "./default-config";
 import { slackMessageUrlParse, slackMessageUrlStringify } from "./slackMessageUrlParse";
+import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
+import { ghPaged } from "@/src/paged";
 const tlog = createTimeLogger();
-// Task bot to scan for [Design] labels on PRs and issues and send notifications to product channel
+
+/**
+ * Github Design Task
+ * -----------------------
+ * Task bot to scan for [Design] labels on PRs and issues and send notifications to product channel
+ * 1. scan specified repos for issues/PRs with [Design] label
+ * 2. send Slack notification to #product channel
+ * 3. request review from specified reviewers for PRs
+ * 4. track open/closed/merged/approved status
+ * 5. store processed items in database to avoid duplicates
+ */
+
+// 1. scan these repos
+const REPOURLS = [
+  'https://github.com/Comfy-Org/ComfyUI_frontend',
+  'https://github.com/Comfy-Org/desktop',
+];
+
+// 2. match these labels
+const MATCH_LABELS = ['Design'];
+
+// 3.1 request review from these users
+const REQUEST_REVIEWERS = ["PabloWiedemann"];
+
+// 3.2 notify to this slack channel
+const CHANNEL_NAME = 'product-design'
+const SLACK_MESSAGE_TEMPLATE = `🎨 *New Design {{ITEM_TYPE}}*: {{STATE}} <{{URL}}|{{TITLE}}> {{COMMENTS}} by {{GITHUBUSER}}`;
 
 // Schema for GithubDesignTaskMeta validation
 export const githubDesignTaskMetaSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
 
-  // task config
-  slackChannelName: z.string().optional(),
-  slackMessageTemplate: z.string().optional(),
-  repoUrls: z.array(z.string().url()).optional(),
-  requestReviewers: z.array(z.string()).optional(),
-  matchLabels: z.string().optional(),
+  // task config, able to update via site web page
+  // slackMessageTemplate: z.string().optional(),
 
   // cache
-  slackChannelId: z.string().optional(),
   lastRunAt: z.date().optional(),
   lastStatus: z.enum(["success", "error", "running"]).optional(),
   lastError: z.string().optional(),
@@ -107,93 +131,64 @@ export async function runGithubDesignTask() {
     description:
       "Task to scan for [Design] labeled issues and PRs in specified repositories and notify product channel",
     // Set defaults if not already set
-    slackChannelId: "",
     //
     lastRunAt: new Date(),
     lastStatus: "running",
     lastError: "",
   });
 
-  // save default values if not set
-  if (!meta.slackMessageTemplate)
-    meta = await GithubDesignTaskMeta.$upsert({ slackMessageTemplate: ghDesignDefaultConfig.SLACK_MESSAGE_TEMPLATE });
-  if (!meta.requestReviewers)
-    meta = await GithubDesignTaskMeta.$upsert({ requestReviewers: ghDesignDefaultConfig.REQUEST_REVIEWERS });
-  if (!meta.repoUrls) meta = await GithubDesignTaskMeta.$upsert({ repoUrls: ghDesignDefaultConfig.REPOS_TO_SCAN_URLS });
-  if (!meta.matchLabels) meta = await GithubDesignTaskMeta.$upsert({ matchLabels: ghDesignDefaultConfig.MATCH_LABEL });
-  if (!meta.slackChannelName)
-    meta = await GithubDesignTaskMeta.$upsert({ slackChannelName: ghDesignDefaultConfig.SLACK_CHANNEL_NAME });
-  if (!meta.slackChannelId) {
-    tlog("Fetching Slack product channel...");
-    meta = await GithubDesignTaskMeta.$upsert({
-      slackChannelId: (await getSlackChannel(meta.slackChannelName!)).id,
-    });
-  }
-
   tlog("TaskMeta: " + JSON.stringify(meta));
-
-  const channel = meta.slackChannelId || DIE("Missing Slack channel ID");
-  tlog(`Slack channel: ${meta.slackChannelName} (${channel})`);
+  tlog(`Slack channel: ${CHANNEL_NAME}`);
 
   // Get configuration from meta or use defaults
-  const slackMessageTemplate = meta.slackMessageTemplate || DIE("Missing Slack message template");
-  const designItemsFlow = await sflow(meta.repoUrls || DIE("Missing repo URLs"))
-    .map((e) => parseGithubRepoUrl(e))
-    .pMap(
-      async ({ owner, repo }) =>
-        pageFlow(1, async (page) => {
-          const per_page = 100;
-          // will list both issues and PRs
-          const { data: issues } = await gh.issues.listForRepo({
-            owner,
-            repo,
-            page,
-            per_page,
-            labels: meta.matchLabels || DIE("missing match label"), // comma-separated list of labels
-            state: "open", // scan only opened issues/PRs
-          });
-          tlog(`Found ${issues.length} Design labeled items in ${owner}/${repo}`);
-          return { data: issues, next: issues.length >= per_page ? page + 1 : undefined };
-        })
-          .filter((e) => e.length)
-          .flat()
-          .map((item) => ({
-            url: item.html_url,
-            title: item.title,
-            body: item.body,
-            user: item.user?.login,
-            type: item.pull_request ? ("pull_request" as const) : ("issue" as const),
-            state: item.pull_request?.merged_at ? ("merged" as const) : (item.state as "open" | "closed"),
-            stateAt: item.pull_request?.merged_at || item.closed_at || item.created_at,
-            labels: item.labels.flatMap((e) => (typeof e === "string" ? [] : [e])).map((l) => l.name),
-            comments: item.comments,
-          })),
-      { concurrency: 3 },
-    ) // concurrency 3 repos
-    .confluenceByConcat() // merge page flows
-    .map(async function process(item) {
+  // const slackMessageTemplate = meta.slackMessageTemplate || DIE("Missing Slack message template");
+  // console.log("Using Slack message template:", JSON.stringify(slackMessageTemplate));
+
+  // Start processing design items
+  const designItemsFlow = await sflow(REPOURLS)
+    .map((url) =>
+      ghPaged(gh.issues.listForRepo)({
+        ...parseGithubRepoUrl(url),
+        labels: MATCH_LABELS.join(','), // comma-separated list of labels
+        state: "open", // scan only opened issues/PRs
+      })
+    )
+    .confluenceByParallel() // merge page flows
+    // simplify issue items
+    .map((issue) => ({
+      url: issue.html_url,
+      title: issue.title,
+      body: issue.body,
+      user: issue.user?.login,
+      type: issue.pull_request ? ("pull_request" as const) : ("issue" as const),
+      state: issue.pull_request?.merged_at ? ("merged" as const) : (issue.state as "open" | "closed"),
+      stateAt: issue.pull_request?.merged_at || issue.closed_at || issue.created_at,
+      labels: issue.labels.flatMap((e) => (typeof e === "string" ? [] : [e])).map((l) => l.name),
+      comments: issue.comments,
+    }))
+    .map(async function processIssueItems(issueInfo) {
       tlog(
-        `PROCESSING ${item.url}#${item.title.replace(/\s+/g, "+")}_${item.body?.slice(0, 20).replaceAll(/\s+/g, "+")}`,
+        `PROCESSING ${issueInfo.url} #${issueInfo.title.replace(/\s+/g, "+")} ${issueInfo.body?.slice(0, 20).replaceAll(/\s+/g, "+")}`,
       );
-      const url = item.url;
+      const url = issueInfo.url;
       const { owner, repo, issue_number } = parseIssueUrl(url);
       // create task
       let task = await saveGithubDesignTask(url, {
-        type: item.type,
-        state: item.state,
-        stateAt: new Date(item.stateAt),
-        title: item.title,
-        user: item.user || "?",
-        comments: item.comments || 0,
-        bodyHash: item.body ? sha256(item.body) : undefined,
+        type: issueInfo.type, // issue or pull_request
+        state: issueInfo.state,
+        stateAt: new Date(issueInfo.stateAt),
+        title: issueInfo.title,
+        user: issueInfo.user || "?",
+        comments: issueInfo.comments || 0,
+        bodyHash: issueInfo.body ? sha256(issueInfo.body) : undefined,
         lastRunAt: new Date(),
         taskStatus: "pending",
         lastDoneAt: null, // reset lastDoneAt
       });
 
       if (task.state === "open") {
-        if (task.type === "pull_request" && meta.requestReviewers?.some((e) => !task.reviewers?.includes(e))) {
-          const requestReviewers = meta.requestReviewers ?? DIE("Missing request reviewers");
+        if (task.type === "pull_request" && REQUEST_REVIEWERS.some((e) => !task.reviewers?.includes(e))) {
+          const requestReviewers = REQUEST_REVIEWERS;
           const newReviewers = requestReviewers.filter((e) => !task.reviewers?.includes(e));
           tlog(`Requesting reviewers: ${newReviewers.join(", ")}`);
           if (!dryRun) {
@@ -207,7 +202,8 @@ export async function runGithubDesignTask() {
           }
         }
 
-        const text = (meta.slackMessageTemplate || DIE("Missing Slack message template"))
+        const text = SLACK_MESSAGE_TEMPLATE
+          // (meta.slackMessageTemplate || DIE("Missing Slack message template"))
           .replace("{{COMMENTS}}", task.comments?.toString().replace(/^(.*)$/, "[r$1]") ?? "")
           .replace("{{STATE}}", task.state.toUpperCase())
           .replace("{{USERNAME}}", task.user ?? "=??=")
@@ -221,11 +217,7 @@ export async function runGithubDesignTask() {
         if (!task.slackUrl) {
           tlog(`Sending Slack Notification for design task: ${task.url} (${task.type})`);
           if (!dryRun) {
-            const slack = getSlack();
-            const msg = await slack.chat.postMessage({
-              channel,
-              text,
-            });
+            const msg = await upsertSlackMessage({ channelName: CHANNEL_NAME, text, });
             if (!msg.ok) {
               await saveGithubDesignTask(url, {
                 error: `Failed to send Slack message: ${msg.error}`,
@@ -234,21 +226,19 @@ export async function runGithubDesignTask() {
               throw new Error(`Failed to send Slack message: ${msg.error}`);
             }
             task = await saveGithubDesignTask(url, {
-              slackUrl: slackMessageUrlStringify({ channel, ts: msg.ts! }),
+              slackUrl: slackMessageUrlStringify({ channel: msg.channel, ts: msg.ts! }),
               slackSentAt: new Date(),
               slackMsgHash,
             });
             tlog(`Slack message sent: ${task.slackUrl}`);
           }
         } else {
-          // update slack message if outdated
+          // update slack message if its outdated
           if (task.slackMsgHash !== slackMsgHash) {
             tlog(`Updating Slack message for task: ${task.url}`);
             if (!dryRun) {
-              const slack = getSlack();
-              await slack.chat.update({
-                ...slackMessageUrlParse(task.slackUrl),
-                text,
+              await upsertSlackMessage({
+                ...slackMessageUrlParse(task.slackUrl), text,
               });
               task = await saveGithubDesignTask(url, { slackMsgHash });
               tlog(`Slack message updated: ${task.slackUrl}`);
