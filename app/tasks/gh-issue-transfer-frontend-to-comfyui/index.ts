@@ -2,7 +2,7 @@
 import { db } from "@/src/db";
 import { gh } from "@/src/gh";
 import { ghc } from "@/src/ghc";
-import { ghPaged } from "@/src/paged";
+import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
 import isCI from "is-ci";
@@ -65,7 +65,7 @@ async function runGithubFrontendToComfyuiIssueTransferTask() {
   const targetRepo = parseGithubRepoUrl(config.dstRepoUrl);
 
   // Fetch all open issues with "comfyui-core" label from source repo with paginated API
-  await ghPaged(gh.issues.listForRepo)({
+  await ghPageFlow(gh.issues.listForRepo)({
     owner: sourceRepo.owner,
     repo: sourceRepo.repo,
     labels: config.comfyuiCoreLabel,
@@ -94,7 +94,7 @@ async function runGithubFrontendToComfyuiIssueTransferTask() {
       });
 
       try {
-        const comments = await ghPaged(ghc.issues.listComments)({
+        const comments = await ghPageFlow(ghc.issues.listComments)({
           owner: sourceRepo.owner,
           repo: sourceRepo.repo,
           issue_number: issue.number,

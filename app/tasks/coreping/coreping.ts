@@ -6,7 +6,7 @@ import { MetaCollection } from "@/src/db/TaskMeta";
 import { type GH } from "@/src/gh";
 import { ghc } from "@/src/ghc";
 import { ghData } from "@/src/ghData";
-import { ghPaged } from "@/src/paged";
+import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import { parsePullUrl } from "@/src/parsePullUrl";
@@ -208,14 +208,15 @@ async function determinePullRequestReviewStatus(
       if (!latestEvent?.PR_STATUS) return { statusAt: new Date(pr.created_at), status: "OPEN" as const };
       const latestEventAt = latestEvent.committed_at || latestEvent.submitted_at || latestEvent.created_at;
 
-      if (!latestEventAt) throw new Error(`Failed to determine statusAt: no timestamp found in latest event for PR ${pr.html_url}`);
+      if (!latestEventAt)
+        throw new Error(`Failed to determine statusAt: no timestamp found in latest event for PR ${pr.html_url}`);
 
       return { statusAt: new Date(latestEventAt), status: latestEvent.PR_STATUS };
     });
 }
 
 async function getTimelineReviewStatuses(pr: GH["pull-request-simple"] | GH["pull-request"]) {
-  const timeline = await ghPaged(ghc.issues.listEventsForTimeline)({ ...parseIssueUrl(pr.html_url) }).toArray();
+  const timeline = await ghPageFlow(ghc.issues.listEventsForTimeline)({ ...parseIssueUrl(pr.html_url) }).toArray();
 
   const reviewers = timeline
     .map((e) =>
@@ -282,7 +283,7 @@ async function runCorePingTaskFull() {
   console.log("start", import.meta.file);
   const processedTasks = await sflow(coreReviewTrackerConfig.REPOLIST)
     .map((repoUrl) =>
-      ghPaged(ghc.pulls.list)({
+      ghPageFlow(ghc.pulls.list)({
         ...parseGithubRepoUrl(repoUrl),
         // state: "all",
         sort: "created",
