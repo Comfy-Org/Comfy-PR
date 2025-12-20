@@ -31,8 +31,8 @@ import sflow, { pageFlow } from "sflow";
 import z from "zod";
 import { createTimeLogger } from "../../app/tasks/gh-design/createTimeLogger";
 export const REPOLIST = [
-  "https://github.com/Comfy-Org/Comfy-PR",
   "https://github.com/comfyanonymous/ComfyUI",
+  "https://github.com/Comfy-Org/Comfy-PR",
   "https://github.com/Comfy-Org/ComfyUI_frontend",
   "https://github.com/Comfy-Org/desktop",
 ];
@@ -65,7 +65,7 @@ const github = KeyvCacheProxy({
 const State = new Keyv(
   KeyvNest(
     new Map(),
-    new KeyvNedbStore(".cache/bugcop-state.nedb.yaml"),
+    // new KeyvNedbStore(".cache/bugcop-state.nedb.yaml"),
     new KeyvMongodbStore(db.collection("TaskMetaStore"), { namespace: "GithubBugcopTask" }),
   ),
 );
@@ -515,7 +515,7 @@ async function processIssue(issue: GH["issue"]) {
     .run();
   await sflow(removeLabels)
     .forEach((label) => tlog(`Removing label ${label} from ${issue.html_url}`))
-    .map((label) => gh.issues.removeLabel({ ...issueId, name: label }))
+    .map((label) => gh.issues.removeLabel({ ...issueId, name: label }).catch(console.error))
     .run();
 
   return await saveTask({
