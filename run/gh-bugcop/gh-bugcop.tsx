@@ -23,6 +23,7 @@ import { mkdir } from "fs/promises";
 import isCI from "is-ci";
 import Keyv from "keyv";
 import KeyvMongodbStore from "keyv-mongodb-store";
+import KeyvNedbStore from "keyv-nedb-store";
 import KeyvNest from "keyv-nest";
 import { union } from "rambda";
 import sflow, { pageFlow } from "sflow";
@@ -52,7 +53,7 @@ const DEBUG_CACHE = !!process.env.VERBOSE;
 const State = new Keyv(
   KeyvNest(
     new Map(),
-    // new KeyvNedbStore(".cache/bugcop-state.nedb.yaml"),
+    new KeyvNedbStore(".cache/bugcop-state.nedb.yaml"),
     new KeyvMongodbStore(db.collection("TaskMetaStore"), { namespace: "GithubBugcopTask" }),
   ),
 );
