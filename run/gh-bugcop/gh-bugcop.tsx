@@ -7,8 +7,10 @@
 
 // for repo
 import { db } from "@/src/db";
-import { TaskMetaCollection } from "@/src/db/TaskMeta";
+import { MetaCollection } from "@/src/db/TaskMeta";
 import { gh, type GH } from "@/src/gh";
+import { ghPageFlow } from "@/src/ghPageFlow";
+import { ghc } from "@/src/ghc";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import KeyvSqlite from "@keyv/sqlite";
@@ -17,9 +19,13 @@ import chalk from "chalk";
 import { compareBy } from "comparing";
 import fastDiff from "fast-diff";
 import { mkdir } from "fs/promises";
-import hotMemo from "hot-memo";
 import isCI from "is-ci";
 import Keyv from "keyv";
+import KeyvCacheProxy, { globalThisCached } from "keyv-cache-proxy";
+import KeyvMongodbStore from "keyv-mongodb-store";
+import KeyvNedbStore from "keyv-nedb-store";
+import KeyvNest from "keyv-nest";
+import { Octokit } from "octokit";
 import { union } from "rambda";
 import sflow, { pageFlow } from "sflow";
 import z from "zod";
@@ -41,6 +47,30 @@ function createKeyvCachedFn<FN extends (...args: any[]) => Promise<unknown>>(key
     return ret;
   }) as FN;
 }
+
+const DEBUG_CACHE = !!process.env.VERBOSE;
+const _github = new Octokit({ auth: process.env.GH_TOKEN_COMFY_PR_BOT });
+const github = KeyvCacheProxy({
+  store: globalThisCached(
+    "github-bugcop",
+    () => new Keyv(KeyvNest(new Map(), new KeyvNedbStore(".cache/github-bugcop.nedb.yaml"))),
+  ),
+  prefix: "github.",
+  onFetched: (key, val) => {
+    DEBUG_CACHE && console.debug(`[cache] Stored ${JSON.stringify(val).length} from ${key}`);
+    return undefined;
+  },
+})(_github);
+
+const State = new Keyv(
+  KeyvNest(
+    new Map(),
+    new KeyvNedbStore(".cache/bugcop-state.nedb.yaml"),
+    new KeyvMongodbStore(db.collection("TaskMetaStore"), { namespace: "GithubBugcopTask" }),
+  ),
+);
+
+const CheckpointPrefix = "bugcop-checkpoint-";
 export const BUGCOP_ASKING_FOR_INFO = "bug-cop:ask-for-info" as const; // asking user for more info
 export const BUGCOP_ANSWERED = "bug-cop:answered" as const; // an issue is answered by ComfyOrg Team member
 export const BUGCOP_RESPONSE_RECEIVED = "bug-cop:response-received" as const; // user has responded ask-for-info or answered label
@@ -77,7 +107,7 @@ export const zGithubBugcopTaskMeta = z.object({
   repoUrls: z.url().array(),
 });
 export const GithubBugcopTask = db.collection<GithubBugcopTask>("GithubBugcopTask");
-export const GithubBugcopTaskMeta = TaskMetaCollection("GithubBugcopTask", zGithubBugcopTaskMeta);
+export const GithubBugcopTaskMeta = MetaCollection(GithubBugcopTask, zGithubBugcopTaskMeta);
 
 const tlog = createTimeLogger();
 const isDryRun = process.env.DRY_RUN === "true" || process.argv.slice(2).includes("--dry");
@@ -90,31 +120,266 @@ if (import.meta.main) {
   }
 }
 
+/**
+ * Fetch issues from a repo using GraphQL with checkpoint-based pagination
+ * This is much more efficient than REST API as it fetches labels, timeline, and comments in a single query
+ */
+async function fetchRepoIssuesWithGraphQL(repoUrl: string, matchingLabels: string[]): Promise<GH["issue"][]> {
+  const { owner, repo } = parseGithubRepoUrl(repoUrl);
+  const checkpointKey = CheckpointPrefix + repoUrl;
+  const checkpoint = await State.get<string>(checkpointKey);
+
+  console.log(`[graphql] ${repoUrl}/issues scanning from checkpoint: ${checkpoint || "beginning"}`);
+
+  const allIssues: GH["issue"][] = [];
+
+  // Fetch issues for each label separately and combine results
+  for (const label of matchingLabels) {
+    await pageFlow(
+      {
+        endCursor: null as null | string,
+        updatedGt: checkpoint || "",
+      },
+      async (cursor, pageSize = 100) => {
+        const endCursor = cursor.endCursor;
+        const updatedGt = cursor.updatedGt;
+
+        const resp = (await github.graphql(
+          `
+      query fetchBugcopIssues {
+        search(
+          query: "repo:${owner}/${repo} is:open label:\\"${label}\\" sort:updated-asc${updatedGt ? ` updated:>${updatedGt}` : ""}",
+          type: ISSUE,
+          first: ${pageSize},
+          after: ${JSON.stringify(endCursor)}
+        ) {
+          issueCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          nodes {
+            ... on Issue {
+              number
+              title
+              body
+              state
+              updatedAt
+              createdAt
+              url
+              author {
+                login
+              }
+              repository {
+                name
+                owner { login }
+              }
+
+              # Get current labels
+              labels(first: 100) {
+                nodes { name }
+              }
+
+              # Get timeline events for labels and comments
+              timelineItems(last: 100, itemTypes: [LABELED_EVENT, UNLABELED_EVENT, ISSUE_COMMENT]) {
+                nodes {
+                  ... on LabeledEvent {
+                    event: __typename
+                    createdAt
+                    label { name }
+                    actor { login }
+                  }
+                  ... on UnlabeledEvent {
+                    event: __typename
+                    createdAt
+                    label { name }
+                    actor { login }
+                  }
+                  ... on IssueComment {
+                    event: __typename
+                    createdAt
+                    updatedAt
+                    author {
+                      login
+                    }
+                    authorAssociation
+                    body
+                  }
+                }
+              }
+            }
+          }
+        }
+      }`.replace(/ +/g, " "),
+        )) as {
+          search: {
+            issueCount: number;
+            pageInfo: {
+              hasNextPage: boolean;
+              endCursor: string | null;
+            };
+            nodes: Array<{
+              number: number;
+              title: string;
+              body: string | null;
+              state: string;
+              updatedAt: string;
+              createdAt: string;
+              url: string;
+              author: { login: string } | null;
+              repository: { name: string; owner: { login: string } };
+              labels: { nodes: { name: string }[] };
+              timelineItems: {
+                nodes: Array<
+                  | {
+                      event: "LabeledEvent";
+                      createdAt: string;
+                      label: { name: string } | null;
+                      actor: { login: string };
+                    }
+                  | {
+                      event: "UnlabeledEvent";
+                      createdAt: string;
+                      label: { name: string } | null;
+                      actor: { login: string };
+                    }
+                  | {
+                      event: "IssueComment";
+                      createdAt: string;
+                      updatedAt: string;
+                      author: { login: string } | null;
+                      authorAssociation: string;
+                      body: string;
+                    }
+                >;
+              };
+            }>;
+          };
+        };
+
+        console.debug(
+          `[graphql] Fetched ${resp.search.nodes.length}/${resp.search.issueCount} issues with label "${label}" from ${repoUrl} updated since ${updatedGt || "beginning"}`,
+        );
+
+        // Convert GraphQL response to REST API format
+        const issues = resp.search.nodes.map((node) => {
+          const issue: GH["issue"] = {
+            id: node.number,
+            number: node.number,
+            title: node.title,
+            body: node.body,
+            state: node.state.toLowerCase() as "open" | "closed",
+            updated_at: node.updatedAt,
+            created_at: node.createdAt,
+            html_url: node.url,
+            user: node.author ? { login: node.author.login } : null,
+            labels: node.labels.nodes.map((l) => ({ name: l.name })),
+            // Store timeline in a cache property for later use
+            _timeline: node.timelineItems.nodes,
+          } as any;
+          return issue;
+        });
+
+        allIssues.push(...issues);
+
+        // Update checkpoint
+        if (issues.length > 0) {
+          const lastIssue = issues[issues.length - 1];
+          await State.set(checkpointKey, lastIssue.updated_at);
+        }
+
+        const nextEndCursor = resp.search.pageInfo.hasNextPage ? resp.search.pageInfo.endCursor : null;
+        const nextUpdatedGt = nextEndCursor ? updatedGt : issues.length ? issues[issues.length - 1].updated_at : "";
+        const next =
+          !nextUpdatedGt && !nextEndCursor
+            ? null
+            : {
+                endCursor: nextEndCursor,
+                updatedGt: nextUpdatedGt,
+              };
+
+        return { data: resp.search.nodes, next };
+      },
+    )
+      .flat()
+      .run();
+  }
+
+  // Deduplicate issues by URL
+  const uniqueIssues = Array.from(new Map(allIssues.map((issue) => [issue.html_url, issue])).values());
+
+  return uniqueIssues;
+}
+
+/**
+ * Convert GraphQL timeline events to REST API format
+ */
+function convertGraphQLTimelineToREST(
+  timelineNodes: Array<
+    | {
+        event: "LabeledEvent";
+        createdAt: string;
+        label: { name: string } | null;
+        actor: { login: string };
+      }
+    | {
+        event: "UnlabeledEvent";
+        createdAt: string;
+        label: { name: string } | null;
+        actor: { login: string };
+      }
+    | {
+        event: "IssueComment";
+        createdAt: string;
+        updatedAt: string;
+        author: { login: string } | null;
+        authorAssociation: string;
+        body: string;
+      }
+  >,
+): (GH["labeled-issue-event"] | GH["timeline-comment-event"] | GH["unlabeled-issue-event"])[] {
+  return timelineNodes.map((node) => {
+    if (node.event === "LabeledEvent") {
+      return {
+        event: "labeled" as const,
+        created_at: node.createdAt,
+        label: node.label || { name: "" },
+        actor: node.actor,
+      } as GH["labeled-issue-event"];
+    } else if (node.event === "UnlabeledEvent") {
+      return {
+        event: "unlabeled" as const,
+        created_at: node.createdAt,
+        label: node.label || { name: "" },
+        actor: node.actor,
+      } as GH["unlabeled-issue-event"];
+    } else {
+      // IssueComment
+      return {
+        event: "commented" as const,
+        created_at: node.createdAt,
+        updated_at: node.updatedAt,
+        user: node.author ? { login: node.author.login } : null,
+        author_association: node.authorAssociation,
+        body: node.body,
+      } as GH["timeline-comment-event"];
+    }
+  });
+}
+
 export default async function runGithubBugcopTask() {
   tlog("Running Github Bugcop Task...");
   const matchingLabels = [BUGCOP_ASKING_FOR_INFO, BUGCOP_ANSWERED];
-  const openningIssues = await sflow(REPOLIST)
-    // list issues for each repo
-    .flatMap((repoUrl) =>
-      matchingLabels.map((label) =>
-        pageFlow(1, async (page) => {
-          const { data: issues } = await hotMemo(gh.issues.listForRepo, [
-            {
-              ...parseGithubRepoUrl(repoUrl),
-              state: "open" as const,
-              page,
-              per_page: 100,
-              labels: label,
-            },
-          ]);
-          tlog(`Found ${issues.length} ${label} issues in ${repoUrl}`);
-          return { data: issues, next: issues.length >= 100 ? page + 1 : undefined };
-        }).flat(),
-      ),
-    )
-    .confluenceByParallel() // unpack pageFlow, order does not matter, so we can run in parallel
-    .forEach(processIssue)
+
+  // Fetch all issues using GraphQL for better performance
+  const allIssues = await sflow(REPOLIST)
+    .flatMap(async (repoUrl) => {
+      const issues = await fetchRepoIssuesWithGraphQL(repoUrl, matchingLabels);
+      return issues;
+    })
     .toArray();
+
+  const openningIssues = await sflow(allIssues).forEach(processIssue).toArray();
 
   tlog(`Processed ${openningIssues.length} open issues`);
 
@@ -126,7 +391,7 @@ export default async function runGithubBugcopTask() {
     }),
   )
     .map((task) => task.url)
-    .map(async (issueUrl) => await hotMemo(gh.issues.get, [{ ...parseIssueUrl(issueUrl) }]).then((e) => e.data))
+    .map(async (issueUrl) => await ghc.issues.get({ ...parseIssueUrl(issueUrl) }).then((e) => e.data))
     .forEach(processIssue)
     .toArray();
 
@@ -173,7 +438,10 @@ async function processIssue(issue: GH["issue"]) {
   tlog(chalk.bgBlackBright("Processing Issue: " + issue.html_url));
   tlog(chalk.bgBlue("Labels: " + JSON.stringify(issueLabels)));
 
-  const timeline = await fetchAllIssueTimeline(issueId);
+  // Use cached timeline from GraphQL if available, otherwise fetch from REST API
+  const timeline = (issue as any)._timeline
+    ? convertGraphQLTimelineToREST((issue as any)._timeline)
+    : await ghPageFlow(ghc.issues.listEventsForTimeline)(issueId).toArray();
 
   // list all label events
   const labelEvents = await sflow([...timeline])
@@ -208,22 +476,19 @@ async function processIssue(issue: GH["issue"]) {
   }
 
   // check if it's answered since lastLabel
-  const hasNewComment = await (async function () {
+  const hasNewComment = (() => {
     const labelLastAddedTime = new Date(latestLabeledEvent?.created_at);
-    const newComments = await pageFlow(1, async (page) => {
-      const { data: comments } = await hotMemo(gh.issues.listComments, [{ ...issueId, page, per_page: 100 }]);
-      return { data: comments, next: comments.length >= 100 ? page + 1 : undefined };
-    })
-      .flat()
+    const commentEvents = timeline
+      .filter((e): e is GH["timeline-comment-event"] => e.event === "commented")
       .filter((e) => e.user) // filter out comments without user
       .filter((e) => !e.user?.login.match(/\[bot\]$|-bot/)) // no bots
       .filter((e) => +new Date(e.updated_at) > +new Date(labelLastAddedTime)) // only comments that is updated later than the label added time
       .filter((e) => !["COLLABORATOR", "CONTRIBUTOR", "MEMBER", "OWNER"].includes(e.author_association)) // not by collaborators, usually askForInfo for more info
-      .filter((e) => e.user?.login !== latestLabeledEvent.actor.login) // ignore the user who added the label
-      .toArray();
-    newComments.length &&
-      tlog(chalk.bgGreen("Found " + newComments.length + " comments after last added time for " + issue.html_url));
-    return !!newComments.length;
+      .filter((e) => e.user?.login !== latestLabeledEvent.actor.login); // ignore the user who added the label
+
+    commentEvents.length &&
+      tlog(chalk.bgGreen("Found " + commentEvents.length + " comments after last added time for " + issue.html_url));
+    return !!commentEvents.length;
   })();
 
   const isResponseReceived = hasNewComment || isBodyAddedContent; // check if user responsed info by new comment or body updated since last scanned
@@ -238,8 +503,8 @@ async function processIssue(issue: GH["issue"]) {
   const removeLabels = [latestLabeledEvent.label.name].filter((e) => issueLabels.includes(e)); // remove the triggering label if it exists on the issue
 
   if (isResponseReceived) {
-    console.log(chalk.bgBlue("Adding:"), addLabels);
-    console.log(chalk.bgBlue("Removing:"), removeLabels);
+    addLabels.length && console.log(chalk.bgBlue("Adding:"), addLabels);
+    removeLabels.length && console.log(chalk.bgBlue("Removing:"), removeLabels);
   }
 
   if (isDryRun) return task;
@@ -260,16 +525,4 @@ async function processIssue(issue: GH["issue"]) {
     lastChecked: new Date(),
     labels: union(task.labels || [], addLabels).filter((e) => !removeLabels.includes(e)),
   });
-}
-
-async function fetchAllIssueTimeline(issueId: { owner: string; repo: string; issue_number: number }) {
-  return await pageFlow(1, async (page, size = 100) => {
-    const { data: events } = await createKeyvCachedFn("gh.issues.listEventsForTimeline", (...args) =>
-      gh.issues.listEventsForTimeline(...args),
-    )({ ...issueId, page, per_page: size });
-    console.log("Fetched " + JSON.stringify({ ...issueId, page, per_page: size, events: events.length }) + " events");
-    return { data: events, next: events.length >= size ? page + 1 : undefined };
-  })
-    .flat()
-    .toArray();
 }
