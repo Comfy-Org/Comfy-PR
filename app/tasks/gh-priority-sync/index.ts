@@ -35,7 +35,7 @@
  */
 import { db } from "@/src/db";
 import type { GH } from "@/src/gh";
-import { ghPaged } from "@/src/paged";
+import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseIssueUrl, stringifyIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import KeyvSqlite from "@keyv/sqlite";
@@ -79,7 +79,7 @@ const State = new Keyv(
 const IssuesState = KeyvNest<IssuesState>(
   new Map(),
   new KeyvNedbStore(".cache/gh-issue-priorities-issues-state.nedb.yml"), // debuggable state store
-  // new KeyvMongodbStore(db.collection("GithubIssuePrioritiesIssuesState")), // persist to prod mongodb
+  new KeyvMongodbStore(db.collection("GithubIssuePrioritiesIssuesState")), // persist to prod mongodb
 );
 
 // await IssuesState.clear() // for testing
@@ -281,7 +281,7 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
       created_at: ev.createdAt,
       label: ev.label,
     })) ||
-    (await ghPaged(github.rest.issues.listEventsForTimeline)({ ...parseIssueUrl(issueUrl) })
+    (await ghPageFlow(github.rest.issues.listEventsForTimeline)({ ...parseIssueUrl(issueUrl) })
       .toArray()
       .catch((error) => {
         console.warn(`Failed to fetch timeline for ${issueUrl}:`, error instanceof Error ? error.message : error);
