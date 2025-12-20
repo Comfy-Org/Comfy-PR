@@ -6,6 +6,7 @@
  */
 
 // for repo
+import { createOctokit } from "@/src/createOctokit";
 import { db } from "@/src/db";
 import { MetaCollection } from "@/src/db/TaskMeta";
 import { gh, type GH } from "@/src/gh";
@@ -25,11 +26,11 @@ import KeyvCacheProxy, { globalThisCached } from "keyv-cache-proxy";
 import KeyvMongodbStore from "keyv-mongodb-store";
 import KeyvNedbStore from "keyv-nedb-store";
 import KeyvNest from "keyv-nest";
-import { Octokit } from "octokit";
 import { union } from "rambda";
 import sflow, { pageFlow } from "sflow";
 import z from "zod";
 import { createTimeLogger } from "../../app/tasks/gh-design/createTimeLogger";
+
 export const REPOLIST = [
   "https://github.com/comfyanonymous/ComfyUI",
   "https://github.com/Comfy-Org/Comfy-PR",
@@ -49,7 +50,7 @@ function createKeyvCachedFn<FN extends (...args: any[]) => Promise<unknown>>(key
 }
 
 const DEBUG_CACHE = !!process.env.VERBOSE;
-const _github = new Octokit({ auth: process.env.GH_TOKEN_COMFY_PR_BOT });
+const _github = createOctokit({ auth: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing env.GH_TOKEN_COMFY_PR_BOT") });
 const github = KeyvCacheProxy({
   store: globalThisCached(
     "github-bugcop",
@@ -144,8 +145,9 @@ async function fetchRepoIssuesWithGraphQL(repoUrl: string, matchingLabels: strin
         const endCursor = cursor.endCursor;
         const updatedGt = cursor.updatedGt;
 
-        const resp = (await github.graphql(
-          `
+        const resp = (await Promise.race([
+          github.graphql(
+            `
       query fetchBugcopIssues {
         search(
           query: "repo:${owner}/${repo} is:open label:\\"${label}\\" sort:updated-asc${updatedGt ? ` updated:>${updatedGt}` : ""}",
@@ -180,7 +182,7 @@ async function fetchRepoIssuesWithGraphQL(repoUrl: string, matchingLabels: strin
                 nodes { name }
               }
 
-              # Get timeline events for labels and comments
+              # Get recent timeline events for labels and comments
               timelineItems(last: 100, itemTypes: [LABELED_EVENT, UNLABELED_EVENT, ISSUE_COMMENT]) {
                 nodes {
                   ... on LabeledEvent {
@@ -211,7 +213,11 @@ async function fetchRepoIssuesWithGraphQL(repoUrl: string, matchingLabels: strin
           }
         }
       }`.replace(/ +/g, " "),
-        )) as {
+          ),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("GraphQL query timeout after 30s - likely rate limited")), 30000),
+          ),
+        ])) as {
           search: {
             issueCount: number;
             pageInfo: {

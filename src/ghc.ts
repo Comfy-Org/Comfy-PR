@@ -3,15 +3,16 @@ import type { components as ghComponents } from "@octokit/openapi-types";
 import crypto from "crypto";
 import fs from "fs/promises";
 import Keyv from "keyv";
-import { Octokit } from "octokit";
 import path from "path";
-import type { ArraySlice } from "type-fest";
+import { createOctokit } from "./createOctokit";
 
 const GH_TOKEN =
   process.env.GH_TOKEN_COMFY_PR ||
   process.env.GH_TOKEN ||
   "WARNING: missing env.GH_TOKEN from https://github.com/settings/tokens?type=beta";
-const octokit = new Octokit({ auth: GH_TOKEN });
+
+const octokit = createOctokit({ auth: GH_TOKEN });
+
 export const gh = octokit.rest;
 
 export type GH = ghComponents["schemas"];
@@ -97,12 +98,12 @@ function createCachedProxy(target: any, basePath: string[] = []): any {
 
 type DeepAsyncWrapper<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => Promise<any>
-  ? T[K]
-  : T[K] extends (...args: any[]) => any
-  ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
-  : T[K] extends object
-  ? DeepAsyncWrapper<T[K]>
-  : T[K];
+    ? T[K]
+    : T[K] extends (...args: any[]) => any
+      ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
+      : T[K] extends object
+        ? DeepAsyncWrapper<T[K]>
+        : T[K];
 };
 
 export async function clearGhCache(): Promise<void> {

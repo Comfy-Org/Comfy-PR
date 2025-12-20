@@ -1,9 +1,9 @@
-import { Octokit } from "octokit";
 import sflow from "sflow";
+import { createOctokit } from "./createOctokit";
 import { parseGithubRepoUrl } from "./parseOwnerRepo";
 
 const tokens = process.env.GH_SUBSCRIBER_TOKENS?.split(",") || [];
-const gh = (token: string) => new Octokit({ auth: token }).rest;
+const gh = (token: string) => createOctokit({ auth: token }).rest;
 
 // dont await
 showSubscriberUsers();

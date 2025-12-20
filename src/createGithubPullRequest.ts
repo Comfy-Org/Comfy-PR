@@ -1,9 +1,9 @@
 import DIE, { catchArgs } from "@snomiao/die";
 import "git-diff";
-import { Octokit } from "octokit";
 import { pickAll } from "rambda";
 import sflow from "sflow";
 import { isRepoBypassed } from "./bypassRepos";
+import { createOctokit } from "./createOctokit";
 import { gh } from "./gh";
 import type { GithubPull } from "./gh/GithubPull";
 import { parseGithubRepoUrl } from "./parseOwnerRepo";
@@ -189,5 +189,5 @@ export async function createGithubPullRequest({
 }
 
 function ghPR() {
-  return new Octokit({ auth: process.env.GH_TOKEN_COMFY_PR || DIE(new Error("Missing env.GH_TOKEN_COMFY_PR")) }).rest;
+  return createOctokit({ auth: process.env.GH_TOKEN_COMFY_PR || DIE(new Error("Missing env.GH_TOKEN_COMFY_PR")) }).rest;
 }

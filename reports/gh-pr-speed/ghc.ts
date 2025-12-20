@@ -4,14 +4,14 @@ import crypto from "crypto";
 import fs from "fs/promises";
 import stableStringify from "json-stable-stringify";
 import Keyv from "keyv";
-import { Octokit } from "octokit";
 import path from "path";
+import { createOctokit } from "../../src/createOctokit";
 
 const GH_TOKEN =
   process.env.GH_TOKEN_COMFY_PR ||
   process.env.GH_TOKEN ||
   "WARNING: missing env.GH_TOKEN from https://github.com/settings/tokens?type=beta";
-const octokit = new Octokit({ auth: GH_TOKEN });
+const octokit = createOctokit({ auth: GH_TOKEN });
 export const gh = octokit.rest;
 
 export type GH = ghComponents["schemas"];
