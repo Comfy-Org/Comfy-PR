@@ -23,7 +23,6 @@ import { mkdir } from "fs/promises";
 import isCI from "is-ci";
 import Keyv from "keyv";
 import KeyvMongodbStore from "keyv-mongodb-store";
-import KeyvNedbStore from "keyv-nedb-store";
 import KeyvNest from "keyv-nest";
 import { union } from "rambda";
 import sflow, { pageFlow } from "sflow";
