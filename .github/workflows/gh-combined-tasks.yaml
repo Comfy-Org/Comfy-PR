@@ -17,6 +17,7 @@ on:
       - "app/tasks/gh-core-tag-notification/**"
       - "app/tasks/gh-bugcop/**"
       - "app/tasks/gh-issue-transfer-*/**"
+      - "app/tasks/gh-priority-sync/**"
 
 jobs:
   run_combined_github_tasks:
@@ -44,6 +45,7 @@ jobs:
           # DB, Integrations
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           GH_TOKEN_COMFY_PR: ${{ secrets.GH_TOKEN_COMFY_PR_BOT }}
+          GH_TOKEN_COMFY_PR_BOT: ${{ secrets.GH_TOKEN_COMFY_PR_BOT }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           SLACK_BOT_CHANNEL: ${{ secrets.SLACK_BOT_CHANNEL }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
