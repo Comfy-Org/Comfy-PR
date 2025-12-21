@@ -2,7 +2,7 @@
 import { db } from "@/src/db";
 import { TaskMetaCollection } from "@/src/db/TaskMeta";
 import { gh } from "@/src/gh";
-import { ghPaged } from "@/src/paged";
+import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
@@ -141,7 +141,7 @@ export async function runGithubDesignTask() {
   // Start processing design items
   const designItemsFlow = await sflow(REPOURLS)
     .map((url) =>
-      ghPaged(gh.issues.listForRepo)({
+      ghPageFlow(gh.issues.listForRepo)({
         ...parseGithubRepoUrl(url),
         labels: MATCH_LABELS.join(","), // comma-separated list of labels
         state: "open", // scan only opened issues/PRs
