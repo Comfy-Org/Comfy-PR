@@ -33,20 +33,18 @@
  * - Gracefully handles errors for individual label or property update operations without stopping
  *   the entire task.
  */
-import { createOctokit } from "@/src/createOctokit";
+import { github, notion } from "@/app/libs";
 import { db } from "@/src/db";
 import type { GH } from "@/src/gh";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseIssueUrl, stringifyIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
-import KeyvSqlite from "@keyv/sqlite";
 import Notion, { type PageObjectResponse } from "@notionhq/client";
 import DIE from "@snomiao/die";
 import chalk from "chalk";
 import { compareBy } from "comparing";
 import isCI from "is-ci";
 import Keyv from "keyv";
-import KeyvCacheProxy, { globalThisCached } from "keyv-cache-proxy";
 import KeyvMongodbStore from "keyv-mongodb-store";
 import KeyvNedbStore from "keyv-nedb-store";
 import KeyvNest from "keyv-nest";
@@ -86,32 +84,6 @@ const IssuesState = KeyvNest<IssuesState>(
 const NotionCheckpoint = "checkpoint"; // notion scanner checkpoint
 const GithubCheckpointPrefix = "github-checkpoint-2-"; // github issue scanner checkpoint
 // await State.delete(CHECKPOINT); // reset checkpoint for testing
-
-const _github = createOctokit({ auth: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing env.GH_TOKEN_COMFY_PR_BOT") });
-const _notion = new Notion.Client({ auth: process.env.NOTION_TOKEN || DIE("missing env.NOTION_TOKEN") });
-const github = KeyvCacheProxy({
-  store: globalThisCached("github", () => new Keyv(KeyvNest(new Map(), new KeyvNedbStore(".cache/github.nedb.yaml")))),
-  prefix: "github.",
-  onFetched: (key, val) => {
-    DEBUG_CACHE && console.debug(`[cache] Stored ${JSON.stringify(val).length} from ${key}`);
-    return undefined;
-  },
-})(_github);
-
-const notion = KeyvCacheProxy({
-  store: globalThisCached("notion", () => new Keyv(KeyvNest(new Map(), new KeyvSqlite(".cache/notion.sqlite")))),
-  prefix: "notion.",
-  onFetched: (key, val) => {
-    DEBUG_CACHE && console.debug(`[cache] Stored ${JSON.stringify(val).length} from ${key}`);
-    // for dataSources query endpoint, only results with max-size with next_cursor
-    if (key.startsWith("notion.dataSources.query")) {
-      if (!val?.next_cursor) {
-        DEBUG_CACHE && console.debug(`[cache] Skipped incompleted data: ${key}`);
-        return { skip: true };
-      }
-    }
-  },
-})(_notion);
 
 const notionPriorityToGithubLabelsMap = {
   High: "High-Priority",

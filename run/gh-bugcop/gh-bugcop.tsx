@@ -6,10 +6,10 @@
  */
 
 // for repo
-import { createOctokit } from "@/src/createOctokit";
+import { github } from "@/app/libs";
 import { db } from "@/src/db";
 import { MetaCollection } from "@/src/db/TaskMeta";
-import { gh, type GH } from "@/src/gh";
+import { type GH } from "@/src/gh";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { ghc } from "@/src/ghc";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
@@ -22,9 +22,7 @@ import fastDiff from "fast-diff";
 import { mkdir } from "fs/promises";
 import isCI from "is-ci";
 import Keyv from "keyv";
-import KeyvCacheProxy, { globalThisCached } from "keyv-cache-proxy";
 import KeyvMongodbStore from "keyv-mongodb-store";
-import KeyvNedbStore from "keyv-nedb-store";
 import KeyvNest from "keyv-nest";
 import { union } from "rambda";
 import sflow, { pageFlow } from "sflow";
@@ -50,18 +48,6 @@ function createKeyvCachedFn<FN extends (...args: any[]) => Promise<unknown>>(key
 }
 
 const DEBUG_CACHE = !!process.env.VERBOSE;
-const _github = createOctokit({ auth: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing env.GH_TOKEN_COMFY_PR_BOT") });
-const github = KeyvCacheProxy({
-  store: globalThisCached(
-    "github-bugcop",
-    () => new Keyv(KeyvNest(new Map(), new KeyvNedbStore(".cache/github-bugcop.nedb.yaml"))),
-  ),
-  prefix: "github.",
-  onFetched: (key, val) => {
-    DEBUG_CACHE && console.debug(`[cache] Stored ${JSON.stringify(val).length} from ${key}`);
-    return undefined;
-  },
-})(_github);
 
 const State = new Keyv(
   KeyvNest(
@@ -517,11 +503,11 @@ async function processIssue(issue: GH["issue"]) {
 
   await sflow(addLabels)
     .forEach((label) => tlog(`Adding label ${label} to ${issue.html_url}`))
-    .map((label) => gh.issues.addLabels({ ...issueId, labels: [label] }))
+    .map((label) => github.rest.issues.addLabels({ ...issueId, labels: [label] }))
     .run();
   await sflow(removeLabels)
     .forEach((label) => tlog(`Removing label ${label} from ${issue.html_url}`))
-    .map((label) => gh.issues.removeLabel({ ...issueId, name: label }).catch(console.error))
+    .map((label) => github.rest.issues.removeLabel({ ...issueId, name: label }).catch(console.error))
     .run();
 
   return await saveTask({
