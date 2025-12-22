@@ -33,7 +33,7 @@
  * - Gracefully handles errors for individual label or property update operations without stopping
  *   the entire task.
  */
-import { github, notion } from "@/app/libs";
+import { github, notion } from "@/lib";
 import { db } from "@/src/db";
 import type { GH } from "@/src/gh";
 import { ghPageFlow } from "@/src/ghPageFlow";

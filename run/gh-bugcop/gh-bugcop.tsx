@@ -6,7 +6,7 @@
  */
 
 // for repo
-import { github } from "@/app/libs";
+import { github } from "@/lib";
 import { db } from "@/src/db";
 import { MetaCollection } from "@/src/db/TaskMeta";
 import { type GH } from "@/src/gh";
