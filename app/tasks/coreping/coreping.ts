@@ -321,9 +321,21 @@ async function runCorePingTaskFull() {
   const allOpeningCorePRs = await ComfyCorePRs.find({
     state: "open",
   }).toArray();
-  const remainingOpeningCorePRs = allOpeningCorePRs.filter(
-    (e) => !pendingReviewCorePRs.map((e) => e.url).includes(e.url),
-  );
+  const remainingOpeningCorePRs = await sflow(allOpeningCorePRs)
+    .filter(
+      (e) => !pendingReviewCorePRs.map((e) => e.url).includes(e.url),
+    )
+    .filter(async e => {
+      const prUrl = e.url;
+      // revalidate if it is still open, calls gh.pulls.get
+      const pr = await ghData(ghc.pulls.get)({ ...parsePullUrl(prUrl) });
+      // update to db if state changed
+      if (pr.state !== e.state) {
+        await saveTask({ url: prUrl, state: pr.state });
+      }
+      return pr.state === "open";
+    })
+    .toArray();
   console.log(`Total opening Core/Important PRs: ${allOpeningCorePRs.length}`);
 
   // sflow(pendingCorePRs).filter(pr=> !processedTasks.some(t=>t.url===pr.url)).run();
@@ -349,9 +361,9 @@ async function runCorePingTaskFull() {
     remainingOpeningCorePRs.length > 0
       ? `\n\nAdditionally, there ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} ${remainingOpeningCorePRs.length} other open Core/Important ${remainingOpeningCorePRs.length === 1 ? "PR" : "PRs"} that ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} pending for author's change/update, lets wait for them.
 - ${remainingOpeningCorePRs
-          .toSorted(compareBy((e) => e.created_at))
-          .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`)
-          .join("\n- ")}`
+        .toSorted(compareBy((e) => e.created_at))
+        .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`)
+        .join("\n- ")}`
       : "";
   const tail = `\n\nSent from <https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
 
