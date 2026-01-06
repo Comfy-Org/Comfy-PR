@@ -1,9 +1,8 @@
-.env*.local
-.env.gcp
 .venv*
-node_modules 
+node_modules
 prs/
 *.log
+logs/
 cache
 .cache
 secrets
@@ -40,7 +39,10 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+# ignore .env to prevent ai mistakes, lets use .env.dev for public env conf, and .env.local for private local overrides
+.env
 .env*.local
+.env.gcp
 
 # vercel
 .vercel
@@ -66,3 +68,8 @@ gh-service/state.sqlite
 
 # running data
 data/
+
+# cloned repositories for sub-agent coding (backward compatibility)
+repos/
+
+TODO.md
