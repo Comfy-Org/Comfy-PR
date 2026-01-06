@@ -2,6 +2,39 @@
 
 This directory contains the skills/utilities used by the ComfyPR Bot to interact with Slack, Notion, and other services.
 
+## Unified CLI
+
+A consolidated CLI is available at `bot/cli.ts` using yargs. It exposes GitHub PR-bot actions and Slack/Notion utilities via a single entry point.
+
+Run with Bun:
+
+```bash
+bun bot/cli.ts --help
+```
+
+Common commands:
+
+```bash
+# Create a coding sub-agent and open a PR
+bun bot/cli.ts github pr -r Comfy-Org/ComfyUI -b main -p "Fix auth bug"
+
+# Alias for the above
+bun bot/cli.ts pr -r Comfy-Org/desktop -p "Add spellcheck to editor"
+
+# Slack utilities
+bun bot/cli.ts slack update -c C123 -t 1234567890.123456 -m "Working on it"
+bun bot/cli.ts slack read-thread -c C123 -t 1234567890.123456 -l 50
+
+# Notion search
+bun bot/cli.ts notion search -q "ComfyUI setup" -l 5
+```
+
+Environment requirements:
+
+- GitHub PR agent: token/config as required by existing `bot/github` tools
+- Slack: `SLACK_BOT_TOKEN`, `SLACK_SOCKET_TOKEN` (for socket mode)
+- Notion: `NOTION_TOKEN`
+
 ## Slack Skills
 
 ### msg-update.ts
@@ -80,20 +113,20 @@ const iso = slackTsToISO("1703347200.123456");
 
 ## Notion Skills
 
-### notion-search.ts
+### notion/search.ts
 
 Search Notion pages in the Comfy-Org workspace.
 
 **Usage:**
 
 ```bash
-bun bot/notion-search.ts --query "<search_term>" [--limit <number>]
+bun bot/notion/search.ts --query "<search_term>" [--limit <number>]
 ```
 
 **Example:**
 
 ```bash
-bun bot/notion-search.ts --query "ComfyUI setup" --limit 5
+bun bot/notion/search.ts --query "ComfyUI setup" --limit 5
 ```
 
 **Environment Variables:**
@@ -122,7 +155,7 @@ All scripts follow the standard development pattern outlined in CLAUDE.md:
 1. TypeScript with full type safety
 2. Executable with `bun <file.ts>` when `import.meta.main` is true
 3. Exportable functions for use as libraries
-4. Command-line argument parsing with `parseArgs`
+4. Command-line argument parsing with `yargs` in `bot/cli.ts` and `parseArgs` in leaf tools
 5. Proper error handling and validation
 6. Cached API clients from `@/lib`
 
