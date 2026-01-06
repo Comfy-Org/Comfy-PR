@@ -5,48 +5,11 @@ import sflow from "sflow";
 import { parseArgs } from "util";
 import { parseSlackMessageToMarkdown } from "./parseSlackMessageToMarkdown";
 import { slackTsToISO } from "./slackTsToISO";
-
+import yaml from "yaml";
 /**
  * Read messages from a Slack thread
  * Usage: bun bot/slack/msg-read-thread.ts --channel C123 --ts 1234567890.123456
  */
-async function readSlackThread(channel: string, ts: string, limit: number = 100) {
-  try {
-    const result = await slack.conversations.replies({
-      channel,
-      ts,
-      limit,
-    });
-
-    if (!result.ok) {
-      throw new Error(`Failed to read thread: ${result.error}`);
-    }
-
-    const messages = await sflow(result.messages || [])
-      .map(async (m) => {
-        const user = m.user
-          ? await slack.users
-              .info({ user: m.user })
-              .then((res) => res.user?.name || `<@${m.user}>`)
-              .catch(() => `<@${m.user}>`)
-          : "Unknown";
-
-        return {
-          ts: m.ts || DIE("missing ts"),
-          iso: slackTsToISO(m.ts || DIE("missing ts")),
-          username: user,
-          text: m.text || "",
-          markdown: await parseSlackMessageToMarkdown(m.text || ""),
-        };
-      })
-      .toArray();
-
-    return messages;
-  } catch (error) {
-    console.error("Error reading Slack thread:", error);
-    throw error;
-  }
-}
 
 if (import.meta.main) {
   const { values } = parseArgs({
@@ -78,7 +41,69 @@ if (import.meta.main) {
 
   const messages = await readSlackThread(values.channel, values.ts, parseInt(values.limit || "100"));
 
-  console.log(JSON.stringify(messages, null, 2));
+  console.log(yaml.stringify(messages));
 }
 
-export { readSlackThread };
+export async function readSlackThread(channel: string, ts: string, limit: number = 100) {
+  try {
+    const result = await slack.conversations.replies({
+      channel,
+      ts,
+      limit,
+    });
+
+    if (!result.ok) {
+      throw new Error(`Failed to read thread: ${result.error}`);
+    }
+
+    const messages = await sflow(result.messages || [])
+      .map(async (m) => {
+        const user = m.user
+          ? await slack.users
+              .info({ user: m.user })
+              .then((res) => res.user?.name || `<@${m.user}>`)
+              .catch(() => `<@${m.user}>`)
+          : "Unknown";
+
+        return {
+          ts: m.ts || DIE("missing ts"),
+          iso: slackTsToISO(m.ts || DIE("missing ts")),
+          username: user,
+          text: m.text || "",
+          markdown: await parseSlackMessageToMarkdown(m.text || ""),
+          ...(m.files && m.files.length > 0 && {
+            files: m.files.map((f: any) => ({
+              name: f.name,
+              title: f.title,
+              mimetype: f.mimetype,
+              size: f.size,
+              url_private: f.url_private,
+              permalink: f.permalink,
+            })),
+          }),
+          ...(m.attachments && m.attachments.length > 0 && {
+            attachments: m.attachments.map((a: any) => ({
+              title: a.title,
+              title_link: a.title_link,
+              text: a.text,
+              fallback: a.fallback,
+              image_url: a.image_url,
+              from_url: a.from_url,
+            })),
+          }),
+          ...(m.reactions && m.reactions.length > 0 && {
+            reactions: m.reactions.map((r: any) => ({
+              name: r.name,
+              count: r.count,
+            })),
+          }),
+        };
+      })
+      .toArray();
+
+    return messages;
+  } catch (error) {
+    console.error("Error reading Slack thread:", error);
+    throw error;
+  }
+}
