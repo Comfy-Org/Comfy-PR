@@ -11,7 +11,7 @@ import KeyvNest from "keyv-nest";
 import { lazyProxy } from "../src/utils/lazyProxy";
 
 export const github = KeyvCacheProxy({
-  store: globalThisCached("github", () => new Keyv(KeyvNest(new Map(), new KeyvNedbStore(".cache/github.nedb.yaml")))),
+  store: globalThisCached("github", () => new Keyv(KeyvNest(new Map(), new KeyvNedbStore("./.cache/github.nedb.yaml")))),
   prefix: "github.",
   onFetched: (key, val) => {
     VERBOSE && console.debug(`CACHE.${key} := ${JSON.stringify(val).length}`);
@@ -26,7 +26,7 @@ export const github = KeyvCacheProxy({
 );
 
 export const notion = KeyvCacheProxy({
-  store: globalThisCached("notion", () => new Keyv(KeyvNest(new Map(), new KeyvSqlite(".cache/notion.sqlite")))),
+  store: globalThisCached("notion", () => new Keyv(KeyvNest(new Map(), new KeyvSqlite("./.cache/notion.sqlite")))),
   prefix: "notion.",
   onFetched: (key, val) => {
     // for dataSources query endpoint, only results with max-size with next_cursor
@@ -38,7 +38,7 @@ export const notion = KeyvCacheProxy({
 })(lazyProxy(() => new Notion.Client({ auth: process.env.NOTION_TOKEN || DIE("missing env.NOTION_TOKEN") })));
 
 export const slack = KeyvCacheProxy({
-  store: globalThisCached("slack", () => new Keyv(KeyvNest(new Map(), new KeyvNedbStore(".cache/slack.nedb.yaml")))),
+  store: globalThisCached("slack", () => new Keyv(KeyvNest(new Map(), new KeyvNedbStore("./.cache/slack.nedb.yaml")))),
   prefix: "slack.",
   onFetched: (key, val) => {
     VERBOSE && console.debug(`CACHE.${key} := ${JSON.stringify(val).length}`);
