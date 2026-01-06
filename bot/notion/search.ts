@@ -5,7 +5,7 @@ import { parseArgs } from "util";
 
 /**
  * Search Notion pages from Comfy-Org team workspace
- * Usage: bun bot/notion-search.ts --query "search term"
+ * Usage: bun bot/notion/search.ts --query "search term"
  */
 async function searchNotion(query: string, limit: number = 10) {
   try {
@@ -24,10 +24,11 @@ async function searchNotion(query: string, limit: number = 10) {
 
     const results = await sflow(response.results)
       .map(async (page: any) => {
-        // Extract title from page properties
         let title = "Untitled";
         if (page.properties) {
-          const titleProp = Object.values(page.properties).find((prop: any) => prop.type === "title") as any;
+          const titleProp = Object.values(page.properties).find(
+            (prop: any) => prop.type === "title",
+          ) as any;
           if (titleProp?.title?.[0]?.plain_text) {
             title = titleProp.title[0].plain_text;
           }
@@ -69,8 +70,8 @@ if (import.meta.main) {
   });
 
   if (!values.query) {
-    console.error('Usage: bun bot/notion-search.ts --query "<search term>" [--limit <number>]');
-    console.error('Example: bun bot/notion-search.ts --query "ComfyUI setup" --limit 5');
+    console.error('Usage: bun bot/notion/search.ts --query "<search term>" [--limit <number>]');
+    console.error('Example: bun bot/notion/search.ts --query "ComfyUI setup" --limit 5');
     process.exit(1);
   }
 
@@ -87,3 +88,4 @@ if (import.meta.main) {
 }
 
 export { searchNotion };
+
