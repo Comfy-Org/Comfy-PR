@@ -1,25 +1,59 @@
-FROM pytorch/pytorch:latest
+# Use Debian base image
+FROM debian:bookworm-slim
 
-# requirements
-RUN apt-get update -y && apt-get install -y git && pip install comfy-cli
-RUN apt install curl -y
+# Set SHELL to use bash for RUN commands
+SHELL ["/bin/bash", "-c"]
 
-WORKDIR /ComfyUI
+# Install dependencies
+RUN apt-get update -y && \
+    apt-get install -y curl unzip ca-certificates git libatomic1 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# install ComfyUI + Manager
-RUN git clone https://github.com/comfyanonymous/ComfyUI /ComfyUI && \
-    pip install -r requirements.txt && \
-    cd custom_nodes && \
-    git clone https://github.com/Comfy-Org/ComfyUI-Manager && \
-    cd ComfyUI-Manager && \
-    pip install -r requirements.txt
+# Install nvm
+ENV NVM_DIR="/root/.nvm"
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 
-# setup entrypoint script, which runs python main.py
-COPY entry.sh /bin/comfyui
-RUN chmod +x /bin/comfyui
-ENTRYPOINT ["comfyui"]
+# Install latest Node.js using nvm and set it as default
+RUN source "$NVM_DIR/nvm.sh" && \
+    nvm install node && \
+    nvm alias default node && \
+    nvm use default
 
-# default command to run ComfyUI with CPU support and latest frontend version
-# CMD ["--cpu", "--listen", "0.0.0.0", "--front-end-version", "Comfy-Org/ComfyUI_frontend@latest"]
+# Create a script to load nvm and add it to PATH
+RUN printf '#!/bin/bash\nexport NVM_DIR="/root/.nvm"\n[ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"\nexec "$@"\n' > /usr/local/bin/docker-entrypoint.sh && \
+    chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 8188
+# Set NODE_PATH and PATH for direct access
+RUN source "$NVM_DIR/nvm.sh" && \
+    ln -s "$NVM_DIR/versions/node/$(node -v)/bin/node" /usr/local/bin/node && \
+    ln -s "$NVM_DIR/versions/node/$(node -v)/bin/npm" /usr/local/bin/npm && \
+    ln -s "$NVM_DIR/versions/node/$(node -v)/bin/npx" /usr/local/bin/npx
+
+# Install Bun
+RUN curl -fsSL https://bun.sh/install | bash
+
+# Add Bun to PATH
+ENV PATH="/root/.bun/bin:${PATH}"
+
+# Verify installations
+RUN node --version && npm --version && bun --version
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files and patches (build context is project root)
+COPY package.json bun.lock* ./
+COPY patches ./patches
+
+# Install dependencies
+RUN bun install --frozen-lockfile
+
+# Copy entire project
+COPY . ./
+
+# Set entrypoint to load nvm
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
+# Run the bot service
+CMD ["bun", "bot/index.ts"]
