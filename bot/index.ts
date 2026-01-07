@@ -25,6 +25,9 @@ import { tap } from "rambda";
 import { slackMessageUrlParse } from "@/app/tasks/gh-design/slackMessageUrlParse";
 import { execa } from "execa";
 import { TerminalTextRender } from 'terminal-render'
+import minimist from "minimist";
+import path from "path";
+import { appendFile } from "fs/promises";
 
 // Configure winston logger
 const logDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -94,8 +97,8 @@ g.instanceId ??= new Date().toISOString()
 g.hotId = new Date().toISOString()
 
 if (import.meta.main) {
+    console.log("Starting ComfyPR Bot...");
   const port = Number(process.env.PRBOT_PORT || DIE("missing env.PRBOT_PORT"))
-  
 
   const server = Bun.serve({
     port: port,
@@ -104,6 +107,50 @@ if (import.meta.main) {
     }
   })
 
+  const argv = minimist(process.argv.slice(2));
+
+  if (argv.continue) {
+    logger.info("BOT - --continue flag detected, resuming crashed tasks...");
+
+    try {
+      const tasks = await db.collection("ComfyPRBotState").find({ "value.status": { $nin: ["done", "stopped_by_user", "forward_to_pr_bot_channel"] } }).toArray();
+
+      for (const task of tasks) {
+        const event = task.value.event;
+        if (event) {
+          logger.info(`Resuming task ${task.key}`);
+          processSlackAppMentionEvent(event).catch(err => {
+            logger.error(`Error resuming task for event ${event.ts}`, { err });
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to resume tasks from mongodb', { error });
+      // fallback to nedb
+      try {
+        const nedbContent = await Bun.file('./.cache/ComfyPRBotState.nedb.yaml').text();
+        const tasks = nedbContent.split('\n')
+          .filter(line => line.includes('"key":"task-'))
+          .map(line => JSON.parse(line))
+          .filter(task => task.value.status && !['done', 'stopped_by_user', 'forward_to_pr_bot_channel'].includes(task.value.status));
+
+        for (const task of tasks) {
+          const event = task.value.event;
+          if (event) {
+            logger.info(`Resuming task from nedb ${task.key}`);
+            processSlackAppMentionEvent(event).catch(err => {
+              logger.error(`Error resuming task for event ${event.ts}`, { err });
+            });
+          }
+        }
+      }
+      catch (e) {
+        logger.error('Failed to resume tasks from nedb', { e });
+      }
+    }
+  }
+
+
   logger.info(`Starting ComfyPR Bot... id: ${g.instanceId}, hotId: ${g.hotId}`);
   // console.log(await execa`claude-yes --verbose -- version`)
   // console.log(await Bun.$`claude-yes -- version`)
@@ -111,9 +158,10 @@ if (import.meta.main) {
 
 
   // https://comfy-organization.slack.com/archives/C0A51KF8SMU/p1767111710741919
-  const testUrl = 'https://comfy-organization.slack.com/archives/C0A51KF8SMU/p1767111710741919';
-  const msg = await getSlackMessageFromUrl(testUrl)
-  logger.debug('Test message from Slack URL', { msg })
+  // Disabled test code that was causing crashes on startup
+  // const testUrl = 'https://comfy-organization.slack.com/archives/C08FRPK0R8X/p1767701229552979?thread_ts=1766699838.506129&cid=C08FRPK0R8X';
+  // const msg = await getSlackMessageFromUrl(testUrl)
+  // logger.debug('Test message from Slack URL', { msg })
 
   // mock an app_mention event from msg
   // // Build a minimal zAppMentionEvent-compatible object from the fetched message
@@ -206,6 +254,7 @@ if (import.meta.main) {
       // const zSlackMessage = ... // TODO
 
       logger.debug('MESSAGE EVENT', { event });
+      logger.debug('parsed_text: ' + await parseSlackMessageToMarkdown(event.text || ""));
 
       await ack();
 
@@ -229,6 +278,27 @@ if (import.meta.main) {
         };
         await processSlackAppMentionEvent(dmEvent);
       }
+
+      if ((event as any).channel_type === "im" && (event as any).user && (event as any).text && !(event as any).bot_id) {
+        logger.debug('TAGME DETECTED - Processing DM message', { event });
+        const dmEvent = {
+          type: "app_mention" as const,
+          user: (event as any).user,
+          ts: (event as any).ts,
+          client_msg_id: (event as any).client_msg_id,
+          text: (event as any).text,
+          team: (event as any).team,
+          thread_ts: (event as any).thread_ts,
+          parent_user_id: (event as any).parent_user_id,
+          blocks: (event as any).blocks || [],
+          channel: (event as any).channel,
+          assistant_thread: (event as any).assistant_thread,
+          attachments: (event as any).attachments,
+          event_ts: (event as any).event_ts,
+        };
+        await processSlackAppMentionEvent(dmEvent);
+      }
+
     })
     .on("error", (error) => { logger.error('Socket Mode error', { error }); })
     .on('connect', () => logger.info('SOCKET - Slack connected'))
@@ -422,7 +492,7 @@ Respond in JSON format with the following fields:
   }
 
   // mark that msg as seeing
-  await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "checking" });
+  await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "checking", event });
   await slack.reactions.add({ name: "eyes", channel: event.channel, timestamp: event.ts }).catch(() => { });
 
   // quick-intent-detect-respond by chatgpt, give quick plan/context responds before start heavy agent work
@@ -477,6 +547,17 @@ Respond in JSON format with the following fields:
         await State.set(`task-quick-respond-msg-${taskId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
         return { ...newMsg, markdown_text: resp.my_respond_before_spawn_agent };
       }
+      // actually lets always post new msg for now.
+      if (true) {
+        const newMsg = await slack.chat.postMessage({
+          channel: event.channel,
+          thread_ts: event.ts,
+          markdown_text: resp.my_respond_before_spawn_agent,
+        });
+        await State.set(`task-quick-respond-msg-${taskId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
+        return { ...newMsg, markdown_text: resp.my_respond_before_spawn_agent };
+      }
+
       const msg = await slack.chat.update({
         channel: event.channel,
         ts: existing.ts,
@@ -542,7 +623,7 @@ Respond in JSON format with the following fields:
   //   });
   // }
 
-  await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "thinking" });
+  await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "thinking", event });
 
   slack.reactions.remove({ name: "eyes", channel: event.channel, timestamp: event.ts }).catch(() => { });
   slack.reactions.add({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
@@ -596,7 +677,7 @@ Possible Context Repos:
 - notion: Search Notion docs from Comfy-Org team using 'pr-bot notion search --query="<search terms>" --limit=5'
 - notion: Update notion docs by @Fennic-bot in slack channel and asking it to make the changes.
 - registry: Search ComfyUI custom nodes registry using 'pr-bot registry search --query="<search terms>" --limit=5'
-- Local file system: Your working directory are temp, make sure commit your work to external services like slack/github/notion where user can see it, before your ./ dir get cleaned up.
+- Local file system: Your working directory are temp, make sure commit your work to external services like slack/github/notion where user can see it, before your ./ dir get cleaned up
 - TODO.md: You can utilize TODO.md file in your working directory to track tasks and progress.
 
 ## IMPORTANT: File Sharing with Users
@@ -614,6 +695,8 @@ Possible Context Repos:
 - When user asks for code changes, analyze the request, then spawn a pr-bot with clear, specific instructions
 - IMPORTANT: Remember to use the pr-bot CLI for any GitHub code changes.
 - IMPORTANT: DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION USING ALL YOUR TOOLS and RESOURCES AND SHOW YOUR BEST UNDERSTANDING.
+- DO NOT INCLUDE ANY internal-only info or debugging contexts, system info, any tokens, passwords, credentials.
+- DO NOT INCLUDE ANY local paths in your report to users! You have to sanitize them into github url before sharing.
 `;
 
   // const taskUser = `bot-user-${taskId.replace(".", "-")}`;
@@ -874,8 +957,8 @@ Please assist them with their request using all your resources available.
 
   // create a user for task
   const p = (() => {
-    const cli = 'claude-yes'
-    const p = spawn(cli, ['--queue', '-i=1min',  "--prompt", agentPrompt], {
+    const cli = 'codex-yes'
+    const p = spawn(cli, ['--queue', '-i=1min', "--prompt", agentPrompt], {
       cwd: botWorkingDir,
       // stdio: 'inherit'
       // env: { ...process.env, }
@@ -970,7 +1053,8 @@ If all infomations from my_internal_thoughts are already contained in my_origina
 
 
 IMPORTANT: KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents.
-IMPORTANT: Focus on end-user's question or intent's helpful contents, remove all internal-only or debugging contexts, system info, local paths, etc.
+IMPORTANT: Focus on end-user's question or intent's helpful contents
+DO NOT INCLUDE ANY internal-only or debugging contexts, system info, local paths, etc IN updated_response.
 IMPORTANT: my_internal_thoughts may contain terminal control characters and environment system info, ignore them and only focus on the end-user-helpful content. 
 IMPORTANT: YOU CAN ONLY change/remove/add up to 1 line!
 IMPORTANT: Describe what you are currently doing in only 1 line! Dont show any ERRORs to user, if there are errors in tools, just record them to ERRORS.md and try to workaround by your self.

@@ -376,3 +376,7 @@ pr-bot code search -q "TODO performance"
 # Create a PR to fix a TODO
 pr-bot code pr -r Comfy-Org/Comfy-PR -p "Fix TODO in bot/index.ts line 145: Define zSlackMessage schema"
 ```
+
+### Process Cleaning
+
+use `bunx kill-port [port]`

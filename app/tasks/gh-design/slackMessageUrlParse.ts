@@ -1,10 +1,14 @@
 export function slackMessageUrlParse(url: string) {
+  // e.g. https://comfy-organization.slack.com/archives/C08FRPK0R8X/p1767701983084899?thread_ts=1766699838.506129&cid=C08FRPK0R8X
+  const u = new URL(url); // validate URL
+  // get channel and ts from path
   // slack use microsecond as message id, uniq by channel
   const match = url.match(/archives\/([^/]+)\/p(\d+)/);
   if (!match) throw new Error(`Invalid Slack message URL: ${url}`);
   return {
     channel: match[1],
     ts: match[2].replace(/^(\d+)(\d{6})$/, "$1.$2"), // convert Slack message ID (e.g., "1234567890123456") to Slack timestamp format with decimal (e.g., "1234567890.123456")
+    thread_ts: u.searchParams.get("thread_ts") || undefined,
   };
 }
 
