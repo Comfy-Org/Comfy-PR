@@ -1,4 +1,4 @@
-#!/usr/bin/env bun --watch
+#!/usr/bin/env bun
 
 import { slack } from "@/lib";
 import { db } from "@/src/db";
@@ -19,6 +19,7 @@ import winston from "winston";
 import zChatCompletion from "z-chat-completion";
 import z from "zod";
 import { IdleWaiter } from "./IdleWaiter";
+import { RestartManager } from "./RestartManager";
 import { parseSlackMessageToMarkdown } from "./slack/parseSlackMessageToMarkdown";
 import { slackTsToISO } from "./slack/slackTsToISO";
 import { tap } from "rambda";
@@ -28,6 +29,7 @@ import { TerminalTextRender } from 'terminal-render'
 import minimist from "minimist";
 import path from "path";
 import { appendFile } from "fs/promises";
+import { existsSync } from "fs";
 
 // Configure winston logger
 const logDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
@@ -91,13 +93,37 @@ const zAppMentionEvent = z.object({
   attachments: z.array(z.any()).optional(),
   event_ts: z.string(),
 });
+
+// Helper functions to manage current working tasks
+async function addWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
+  const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+  const events = workingTasks.workingMessageEvents || [];
+
+  // Check if event already exists (by ts and channel)
+  const exists = events.some((e: any) => e.ts === event.ts && e.channel === event.channel);
+  if (!exists) {
+    events.push(event);
+    await State.set('current-working-tasks', { workingMessageEvents: events });
+    logger.info(`Added task to working list: ${event.ts} (total: ${events.length})`);
+  }
+}
+
+async function removeWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
+  const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+  const events = workingTasks.workingMessageEvents || [];
+
+  // Remove event by ts and channel
+  const filtered = events.filter((e: any) => !(e.ts === event.ts && e.channel === event.channel));
+  await State.set('current-working-tasks', { workingMessageEvents: filtered });
+  logger.info(`Removed task from working list: ${event.ts} (remaining: ${filtered.length})`);
+}
 const g = globalThis as typeof globalThis & { instanceId?: string, hotId?: string }
 
 g.instanceId ??= new Date().toISOString()
 g.hotId = new Date().toISOString()
 
 if (import.meta.main) {
-    console.log("Starting ComfyPR Bot...");
+  console.log("Starting ComfyPR Bot...");
   const port = Number(process.env.PRBOT_PORT || DIE("missing env.PRBOT_PORT"))
 
   const server = Bun.serve({
@@ -112,46 +138,48 @@ if (import.meta.main) {
   if (argv.continue) {
     logger.info("BOT - --continue flag detected, resuming crashed tasks...");
 
-    try {
-      const tasks = await db.collection("ComfyPRBotState").find({ "value.status": { $nin: ["done", "stopped_by_user", "forward_to_pr_bot_channel"] } }).toArray();
+    // Read current working tasks from state
+    const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+    const events = workingTasks.workingMessageEvents || [];
 
-      for (const task of tasks) {
-        const event = task.value.event;
-        if (event) {
-          logger.info(`Resuming task ${task.key}`);
+    if (events.length === 0) {
+      logger.info("No working tasks to resume");
+    } else {
+      logger.info(`Found ${events.length} working task(s) to resume`);
+
+      for (const event of events) {
+        if (event && event.ts) {
+          logger.info(`Resuming task for event ${event.ts} in channel ${event.channel}`);
           processSlackAppMentionEvent(event).catch(err => {
             logger.error(`Error resuming task for event ${event.ts}`, { err });
           });
         }
       }
-    } catch (error) {
-      logger.error('Failed to resume tasks from mongodb', { error });
-      // fallback to nedb
-      try {
-        const nedbContent = await Bun.file('./.cache/ComfyPRBotState.nedb.yaml').text();
-        const tasks = nedbContent.split('\n')
-          .filter(line => line.includes('"key":"task-'))
-          .map(line => JSON.parse(line))
-          .filter(task => task.value.status && !['done', 'stopped_by_user', 'forward_to_pr_bot_channel'].includes(task.value.status));
-
-        for (const task of tasks) {
-          const event = task.value.event;
-          if (event) {
-            logger.info(`Resuming task from nedb ${task.key}`);
-            processSlackAppMentionEvent(event).catch(err => {
-              logger.error(`Error resuming task for event ${event.ts}`, { err });
-            });
-          }
-        }
-      }
-      catch (e) {
-        logger.error('Failed to resume tasks from nedb', { e });
-      }
     }
   }
 
-
   logger.info(`Starting ComfyPR Bot... id: ${g.instanceId}, hotId: ${g.hotId}`);
+
+  // Setup smart restart manager (only restart when bot is idle)
+  if (!argv['no-watch']) {
+    const restartManager = new RestartManager({
+      watchPaths: ['bot', 'src', 'lib'],
+      isIdle: () => TaskInputFlows.size === 0,
+      onRestart: () => {
+        logger.warn('🔄 Restarting bot process...');
+        process.exit(0);
+      },
+      idleCheckInterval: 5000,
+      debounceDelay: 1000,
+      logger: {
+        info: (msg, meta) => logger.info(`[RestartManager] ${msg}`, meta),
+        warn: (msg, meta) => logger.warn(`[RestartManager] ${msg}`, meta),
+      }
+    });
+    restartManager.start();
+    logger.info('Smart restart manager enabled (use --no-watch to disable)');
+  }
+
   // console.log(await execa`claude-yes --verbose -- version`)
   // console.log(await Bun.$`claude-yes -- version`)
   // console.log(await execa`claude-yes -- version`)
@@ -345,17 +373,18 @@ async function processSlackAppMentionEvent(event: {
 
 
   // task state
-  const taskId = event.thread_ts || event.ts;
-  logger.info(`Processing Slack app_mention event in channel ${event.channel} (isAgentChannel: ${isAgentChannel}) with taskId: ${taskId}`);
-  const botWorkingDir = `/bot/slack/${sanitized(channelName || username)}/${taskId.replace(".", "-")}`;
-  const task = await State.get(`task-${taskId}`);
+  const workspaceId = event.thread_ts || event.ts;
+  const eventId = event.channel + '_' + event.ts
+  logger.info(`Processing Slack app_mention event in channel ${event.channel} (isAgentChannel: ${isAgentChannel}) with workspaceId: ${workspaceId}`);
+  const botWorkingDir = `/bot/slack/${sanitized(channelName || username)}/${workspaceId.replace(".", "-")}`;
+  const task = await State.get(`task-${workspaceId}`);
 
   // Allow append messages to running task
 
   // grab 100 most nearby messages in this thread or channel
   const nearbyMessagesResp = await slack.conversations.replies({
     channel: event.channel,
-    ts: taskId,
+    ts: workspaceId,
     limit: 100,
   });
   const nearbyMessages = (
@@ -397,14 +426,14 @@ async function processSlackAppMentionEvent(event: {
       .toArray()
   ).toSorted(compareBy((e) => +(e.ts || 0))); // sort by ts asc
 
-  const existedTaskInputFlow = TaskInputFlows.get(taskId);
+  const existedTaskInputFlow = TaskInputFlows.get(workspaceId);
   if (existedTaskInputFlow && false) { // disable for now, lets use --queue to serialize tasks
     // while agent still running, user sent new message in the same thread very quickly
     // lets understand the user's intent and give a quick response, and then append the msg to the existing agent input flow
     // const threadMessages = await pageFlow(undefined as undefined | string, async (cursor, limit = 100) => {
     //   const resp = await slack.conversations.replies({
     //     channel: event.channel,
-    //     ts: taskId,
+    //     ts: workspaceId,
     //     cursor,
     //     limit,
     //   });
@@ -462,16 +491,32 @@ Respond in JSON format with the following fields:
       channel: event.channel,
       thread_ts: event.ts,
       text: action.my_quick_respond,
+      blocks: [
+        {
+          type: "markdown",
+          text: action.my_quick_respond,
+        },
+      ],
     });
     if (action.stop_existing_task) {
       // stop existing task
-      TaskInputFlows.delete(taskId);
+      TaskInputFlows.delete(workspaceId);
       await slack.chat.postMessage({
         channel: event.channel,
         thread_ts: event.thread_ts || event.ts,
         text: `The existing task has been stopped as per your request.`,
+        blocks: [
+          {
+            type: "markdown",
+            text: `The existing task has been stopped as per your request.`,
+          },
+        ],
       });
-      await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "stopped_by_user" });
+      await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "stopped_by_user" });
+
+      // Remove task from working list
+      await removeWorkingTask(event);
+
       return "existing task stopped by user";
     }
     if (action.msg_to_append_to_agent && action.msg_to_append_to_agent.trim()) {
@@ -480,19 +525,17 @@ Respond in JSON format with the following fields:
         await parseSlackMessageToMarkdown(`New message from <@${(event.user)}> in the thread:\n${event.text}\n\nMy quick response to the user: ${action.my_quick_respond}\n\n`),
       );
       w.releaseLock();
-      logger.info(`Appended new message to existing task ${taskId} input flow`);
+      logger.info(`Appended new message to existing task ${workspaceId} input flow`);
       return "msg appended to existing task";
     }
     return;
   }
 
   const taskInputFlow = new TransformStream<string, string>();
-  if (isAgentChannel) {
-    TaskInputFlows.set(taskId, taskInputFlow);
-  }
+  TaskInputFlows.set(workspaceId, taskInputFlow); // able to append more inputs later
 
   // mark that msg as seeing
-  await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "checking", event });
+  await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "checking", event });
   await slack.reactions.add({ name: "eyes", channel: event.channel, timestamp: event.ts }).catch(() => { });
 
   // quick-intent-detect-respond by chatgpt, give quick plan/context responds before start heavy agent work
@@ -535,43 +578,67 @@ Respond in JSON format with the following fields:
   logger.info("Intent detection response", { resp });
 
   // upsert quick respond msg
-  const quickRespondMsg = await State.get(`task-quick-respond-msg-${taskId}`).then(async (existing: any) => {
+  const quickRespondMsg = await State.get(`task-quick-respond-msg-${eventId}`).then(async (existing: any) => {
     if (existing) {
       // if its a DM, always create a new message
       if (isDM) {
         const newMsg = await slack.chat.postMessage({
           channel: event.channel,
           thread_ts: event.ts,
-          text: resp.my_respond_before_spawn_agent,
+          // text: resp.my_respond_before_spawn_agent,
+          blocks: [
+            {
+              type: "markdown",
+              text: resp.my_respond_before_spawn_agent,
+            },
+          ],
         });
-        await State.set(`task-quick-respond-msg-${taskId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
+        await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
         return { ...newMsg, text: resp.my_respond_before_spawn_agent };
       }
       // actually lets always post new msg for now.
-      if (true) {
-        const newMsg = await slack.chat.postMessage({
-          channel: event.channel,
-          thread_ts: event.ts,
-          text: resp.my_respond_before_spawn_agent,
-        });
-        await State.set(`task-quick-respond-msg-${taskId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-        return { ...newMsg, text: resp.my_respond_before_spawn_agent };
-      }
+      // if (true) {
+      //   const newMsg = await slack.chat.postMessage({
+      //     channel: event.channel,
+      //     thread_ts: event.ts,
+      //     // text: resp.my_respond_before_spawn_agent,
+      //     blocks: [
+      //       {
+      //         type: "markdown",
+      //         text: resp.my_respond_before_spawn_agent,
+      //       },
+      //     ],
+      //   });
+      //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
+      //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
+      // }
 
       const msg = await slack.chat.update({
         channel: event.channel,
         ts: existing.ts,
-        text: resp.my_respond_before_spawn_agent,
+        // text: resp.my_respond_before_spawn_agent,
+        blocks: [
+          {
+            type: "markdown",
+            text: resp.my_respond_before_spawn_agent,
+          },
+        ],
       });
-      await State.set(`task-quick-respond-msg-${taskId}`, { ts: existing.ts, text: resp.my_respond_before_spawn_agent });
+      await State.set(`task-quick-respond-msg-${eventId}`, { ts: existing.ts, text: resp.my_respond_before_spawn_agent });
       return { ...msg, text: resp.my_respond_before_spawn_agent };
     } else {
       const newMsg = await slack.chat.postMessage({
         channel: event.channel,
         thread_ts: event.ts,
-        text: resp.my_respond_before_spawn_agent,
+        // text: resp.my_respond_before_spawn_agent,
+        blocks: [
+          {
+            type: "markdown",
+            text: resp.my_respond_before_spawn_agent,
+          },
+        ],
       });
-      await State.set(`task-quick-respond-msg-${taskId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
+      await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
       return { ...newMsg, text: resp.my_respond_before_spawn_agent };
     }
   });
@@ -583,7 +650,7 @@ Respond in JSON format with the following fields:
   //   // update status
   //   await slack.reactions.remove({ name: 'eyes', channel: event.channel, timestamp: event.ts, });
   //   await slack.reactions.add({ name: 'white_check_mark', channel: event.channel, timestamp: event.ts, });j
-  //   await State.set(`task-${taskId}`, { ...await State.get(`task-${taskId}`), status: 'done' });
+  //   await State.set(`task-${workspaceId}`, { ...await State.get(`task-${workspaceId}`), status: 'done' });
   //   return 'no agent spawned'
   // }
 
@@ -611,7 +678,7 @@ Respond in JSON format with the following fields:
   //     ts: quickRespondMsg.ts!,
   //     markdown_text: `${resp.my_respond_before_spawn_agent}\n\nI have forwarded your message to <#${agentChannelId}>. I will continue the research there.`,
   //   });
-  //   await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "forward_to_pr_bot_channel" });
+  //   await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "forward_to_pr_bot_channel" });
 
   //   // process the forwarded message in agent channel
   //   return await processSlackAppMentionEvent({
@@ -623,7 +690,10 @@ Respond in JSON format with the following fields:
   //   });
   // }
 
-  await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "thinking", event });
+  await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "thinking", event });
+
+  // Add task to working list
+  await addWorkingTask(event);
 
   slack.reactions.remove({ name: "eyes", channel: event.channel, timestamp: event.ts }).catch(() => { });
   slack.reactions.add({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
@@ -664,6 +734,7 @@ Possible Context Repos:
 - If you reference code, repos, or documents, provide links to them.
 - Always prioritize user privacy and data security.
 - Provide rich references and citations for your information.
+- If there are errors in tools, just record them to ./ERRORS.md and try to workaround by your self, don't show any error info with end-user.
 
 ## Skills you have:
 - Search the web for relevant information.
@@ -671,21 +742,22 @@ Possible Context Repos:
 - github: Search code across All CustomNodes/ComfyUI/ComfyOrg repositories using 'pr-bot code search --query="<search terms>" [--repo=<owner/repo>]' (NO --limit support)
 - github: Search for issues and PRs using 'pr-bot github-issue search --query="<search terms>" --limit=10'
 - github: To make code changes to any GitHub repository, you MUST use the pr-bot CLI: 'pr-bot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"'
-- slack: Read thread messages for context using 'bun ${process.cwd()}/bot/slack/msg-read-thread.ts --channel=${event.channel} --ts=[ts] --limit=100'
-- slack: Update your response message using 'bun ${process.cwd()}/bot/slack/msg-update.ts --channel=${event.channel} --ts=${quickRespondMsg.ts!} --text="<your response here>"'
-- slack: Upload files to share results using 'bun ${process.cwd()}/bot/slack/file.ts upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
+- slack: Read thread messages for context using 'pr-bot slack read-thread --channel=${event.channel} --ts=[ts] --limit=100'
+- slack: Update your response message using 'pr-bot slack update --channel=${event.channel} --ts=${quickRespondMsg.ts!} --text="<your response here>"'
+- slack: Upload files to share results using 'pr-bot slack upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
 - notion: Search Notion docs from Comfy-Org team using 'pr-bot notion search --query="<search terms>" --limit=5'
 - notion: Update notion docs by @Fennic-bot in slack channel and asking it to make the changes.
 - registry: Search ComfyUI custom nodes registry using 'pr-bot registry search --query="<search terms>" --limit=5'
 - Local file system: Your working directory are temp, make sure commit your work to external services like slack/github/notion where user can see it, before your ./ dir get cleaned up
 - TODO.md: You can utilize TODO.md file in your working directory to track tasks and progress.
 
+
 ## IMPORTANT: File Sharing with Users
 - When generating reports, code files, diagrams, or any deliverables, ALWAYS upload them to Slack
-- Use: 'bun ${process.cwd()}/bot/slack/file.ts upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
+- Use: 'pr-bot slack upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
 - Upload files to the same thread where the user asked the question using --thread parameter
 - Common file types to share: .md (reports), .pdf (documents), .png/.jpg (diagrams/screenshots), .txt (logs), .json (data), .py/.ts/.js (code samples)
-- Example: 'bun ${process.cwd()}/bot/slack/file.ts upload --channel=${event.channel} --file=./report.md --comment="Analysis complete" --thread=${quickRespondMsg.ts!}'
+- Example: 'pr-bot slack upload --channel=${event.channel} --file=./report.md --comment="Analysis complete" --thread=${quickRespondMsg.ts!}'
 
 ## IMPORTANT Constraints:
 - DO NOT make any direct code changes to GitHub repositories yourself
@@ -699,8 +771,8 @@ Possible Context Repos:
 - DO NOT INCLUDE ANY local paths in your report to users! You have to sanitize them into github url before sharing.
 `;
 
-  // const taskUser = `bot-user-${taskId.replace(".", "-")}`;
-  // const taskUser = `bot-user-${taskId.replace(".", "-")}`;
+  // const taskUser = `bot-user-${workspaceId.replace(".", "-")}`;
+  // const taskUser = `bot-user-${workspaceId.replace(".", "-")}`;
   await mkdir(botWorkingDir, { recursive: true });
   // todo: create a linux user for task
 
@@ -747,11 +819,11 @@ description: Upload files and share deliverables with users in Slack threads.
 Use this command to upload files in Slack:
 
 ## Upload a file to thread:
-  bun ${process.cwd()}/bot/slack/file.ts upload --channel <channel_id> --file <file_path> --comment "<message>" --thread <thread_ts>
+  pr-bot slack upload --channel <channel_id> --file <file_path> --comment "<message>" --thread <thread_ts>
 
 Examples:
-  bun ${process.cwd()}/bot/slack/file.ts upload --channel ${event.channel} --file ./report.md --comment "Analysis complete" --thread ${quickRespondMsg.ts!}
-  bun ${process.cwd()}/bot/slack/file.ts upload --channel ${event.channel} --file ./data.json --comment "Here is the data" --thread ${quickRespondMsg.ts!}
+  pr-bot slack upload --channel ${event.channel} --file ./report.md --comment "Analysis complete" --thread ${quickRespondMsg.ts!}
+  pr-bot slack upload --channel ${event.channel} --file ./data.json --comment "Here is the data" --thread ${quickRespondMsg.ts!}
 
 ## When to upload files:
 - Reports, analysis results, or documentation (.md, .pdf, .txt)
@@ -958,7 +1030,17 @@ Please assist them with their request using all your resources available.
   // create a user for task
   const p = (() => {
     const cli = 'claude-yes'
-    const p = spawn(cli, ['--queue', '-i=1min', "--prompt", agentPrompt], {
+    const continueArgs = []
+    // if (botworkingdir/.claude-yes have content)
+    // then continueArgs.push('--continue')
+    // TODO: maybe use smarter way to detect if need continue
+    if (existsSync(`${botWorkingDir}/.claude-yes`)) {
+      // const stat = Bun.statSync(`${botWorkingDir}/.claude-yes`)
+      // if (stat.isDirectory && stat.size > 0) {
+      // }
+      continueArgs.push('--continue')
+    }
+    const p = spawn(cli, ['--queue', '-i=5min', ...continueArgs, "--prompt", agentPrompt], {
       cwd: botWorkingDir,
       // stdio: 'inherit'
       // env: { ...process.env, }
@@ -966,10 +1048,10 @@ Please assist them with their request using all your resources available.
 
     // check if p spawned successfully
     p.on("error", (err) => {
-      logger.error(`Failed to start ${cli} process for task ${taskId}:`, { err });
+      logger.error(`Failed to start ${cli} process for task ${workspaceId}:`, { err });
     });
     p.on("exit", (code, signal) => {
-      logger.info(`process for task ${taskId} exited with code ${code} and signal ${signal}`);
+      logger.info(`process for task ${workspaceId} exited with code ${code} and signal ${signal}`);
     });
     return p
   })()
@@ -1009,7 +1091,7 @@ Please assist them with their request using all your resources available.
           });
         }
         return chunk;
-      });
+      }).run();
     })
 
     // Render terminal text to plain text and show live updates in slack
@@ -1038,29 +1120,30 @@ Please assist them with their request using all your resources available.
           const updateText = sent || "_(no output yet)_";
 
           const updateResponseResp = (await zChatCompletion(({
-            updated_response: z.string(),
+            updated_response_md: z.string(),
           }))`
-TASK: Update my my_original_response based on agent's my_internal_thoughts findings, and give me updated_response to post in slack.
+TASK: Update my my_original_response_md based on agent's my_internal_thoughts findings, and give me updated_response_md to post in slack.
 
 RULES:
-- Do not remove any parts from my_original_response that are not mentioned in my_internal_thoughts.
-- Preserve markdown formatting in my_original_response.
-- If my_internal_thoughts contains new information, append it to the relevant sections in my_original_response.
-- If my_internal_thoughts indicates completion of a task, add a "Tasks" section at the end of my_original_response with - [x] mark.
-- Ensure updated_response is clear and concise.
+- Do not remove any parts from my_original_response_md that are not mentioned in my_internal_thoughts.
+- Preserve markdown formatting in my_original_response_md.
+- If my_internal_thoughts contains new information, append it to the relevant sections in my_original_response_md.
+- If my_internal_thoughts indicates completion of a task, add a "Tasks" section at the end of my_original_response_md with - [x] mark.
+- Ensure updated_response_md is clear and concise.
 - Use **bold** to highlight any new sections or important updates. and remove previeous highlighted sections if not important anymore.
-If all infomations from my_internal_thoughts are already contained in my_original_response, you can feel free to return {updated_response: "__NOTHING_CHANGED__"}
+If all infomations from my_internal_thoughts are already contained in my_original_response_md, you can feel free to return {updated_response_md: "__NOTHING_CHANGED__"}
 
 
 IMPORTANT: KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents.
 IMPORTANT: Focus on end-user's question or intent's helpful contents
-DO NOT INCLUDE ANY internal-only or debugging contexts, system info, local paths, etc IN updated_response.
+DO NOT INCLUDE ANY internal-only or debugging contexts, system info, local paths, etc IN updated_response_md.
 IMPORTANT: my_internal_thoughts may contain terminal control characters and environment system info, ignore them and only focus on the end-user-helpful content. 
 IMPORTANT: YOU CAN ONLY change/remove/add up to 1 line!
-IMPORTANT: Describe what you are currently doing in only 1 line! Dont show any ERRORs to user, if there are errors in tools, just record them to ERRORS.md and try to workaround by your self.
+IMPORTANT: Describe what you are currently doing in only 1 line! Don't show any ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
 IMPORTANT: DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION BY YOUR SELF AND SHOW YOUR BEST UNDERSTANDING.
-MOST IMPORTANT: Keep the my_original_response's context and formatting and contents as much as possible, only update a few lines that need to be updated based on my_internal_thoughts.
-LENGTH LIMIT: updated_response must be within 4000 characters. SYSTEM WILL TRUNCATE IF EXCEEDING THIS LIMIT.
+IMPORTANT: Output the updated_response_md in standard markdown format.
+MOST IMPORTANT: Keep the my_original_response_md's context and formatting and contents as much as possible, only update a few lines that need to be updated based on my_internal_thoughts.
+LENGTH LIMIT: updated_response_md must be within 4000 characters. SYSTEM WILL TRUNCATE IF EXCEEDING THIS LIMIT.
 
 Task Contexts in YAML:
 
@@ -1068,23 +1151,29 @@ ${yaml.stringify({
             my_internal_thoughts: tr.render().split('\n').slice(-40).join('\n'),
             news: news,
             user_original_intent: resp.user_intent,
-            my_original_response: quickRespondMsg.text || '',
+            my_original_response_md: quickRespondMsg.text || '',
           })}
 `)
-          const updated_response_full = updateResponseResp.updated_response.trim().replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || '')
+          const updated_response_full = updateResponseResp.updated_response_md.trim().replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || '')
           // truncate to 4000 chars, from the middle, replace to '...TRUNCATED...'
-          const updated_response = updated_response_full.length > 4000
+          const updated_response_md = updated_response_full.length > 4000
             ? updated_response_full.slice(0, 2000) + '\n\n...TRUNCATED...\n\n' + updated_response_full.slice(-2000)
             : updated_response_full;
 
           await slack.chat.update({
             channel: event.channel,
             ts: quickRespondMsg.ts!,
-            text: updated_response,
+            text: updated_response_md,
+            blocks: [
+              {
+                type: "markdown",
+                text: updated_response_md,
+              },
+            ],
           });
           // update quickRespondMsg content
-          quickRespondMsg.text = updated_response;
-          await State.set(`task-quick-respond-msg-${taskId}`, { ts: quickRespondMsg.ts!, text: quickRespondMsg.text });
+          quickRespondMsg.text = updated_response_md;
+          await State.set(`task-quick-respond-msg-${eventId}`, { ts: quickRespondMsg.ts!, text: quickRespondMsg.text });
         }
 
         lastOutputs.push(renderedText);
@@ -1105,11 +1194,14 @@ ${yaml.stringify({
     .forkTo((e) => e.pipeTo(fromWritable(process.stdout)))
     .run();
 
-  TaskInputFlows.delete(taskId);
+  TaskInputFlows.delete(workspaceId);
   // claude exited as no more inputs/outputs for a while, update the status message
   await slack.reactions.remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
   await slack.reactions.add({ name: "white_check_mark", channel: event.channel, timestamp: event.ts }).catch(() => { });
-  await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "done" });
+  await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "done" });
+
+  // Remove task from working list
+  await removeWorkingTask(event);
 }
 
 function sleep(ms: number) {
