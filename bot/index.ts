@@ -461,7 +461,7 @@ Respond in JSON format with the following fields:
     const myQuickRespondMsg = await slack.chat.postMessage({
       channel: event.channel,
       thread_ts: event.ts,
-      markdown_text: action.my_quick_respond,
+      text: action.my_quick_respond,
     });
     if (action.stop_existing_task) {
       // stop existing task
@@ -469,7 +469,7 @@ Respond in JSON format with the following fields:
       await slack.chat.postMessage({
         channel: event.channel,
         thread_ts: event.thread_ts || event.ts,
-        markdown_text: `The existing task has been stopped as per your request.`,
+        text: `The existing task has been stopped as per your request.`,
       });
       await State.set(`task-${taskId}`, { ...(await State.get(`task-${taskId}`)), status: "stopped_by_user" });
       return "existing task stopped by user";
@@ -542,37 +542,37 @@ Respond in JSON format with the following fields:
         const newMsg = await slack.chat.postMessage({
           channel: event.channel,
           thread_ts: event.ts,
-          markdown_text: resp.my_respond_before_spawn_agent,
+          text: resp.my_respond_before_spawn_agent,
         });
         await State.set(`task-quick-respond-msg-${taskId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-        return { ...newMsg, markdown_text: resp.my_respond_before_spawn_agent };
+        return { ...newMsg, text: resp.my_respond_before_spawn_agent };
       }
       // actually lets always post new msg for now.
       if (true) {
         const newMsg = await slack.chat.postMessage({
           channel: event.channel,
           thread_ts: event.ts,
-          markdown_text: resp.my_respond_before_spawn_agent,
+          text: resp.my_respond_before_spawn_agent,
         });
         await State.set(`task-quick-respond-msg-${taskId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-        return { ...newMsg, markdown_text: resp.my_respond_before_spawn_agent };
+        return { ...newMsg, text: resp.my_respond_before_spawn_agent };
       }
 
       const msg = await slack.chat.update({
         channel: event.channel,
         ts: existing.ts,
-        markdown_text: resp.my_respond_before_spawn_agent,
+        text: resp.my_respond_before_spawn_agent,
       });
       await State.set(`task-quick-respond-msg-${taskId}`, { ts: existing.ts, text: resp.my_respond_before_spawn_agent });
-      return { ...msg, markdown_text: resp.my_respond_before_spawn_agent };
+      return { ...msg, text: resp.my_respond_before_spawn_agent };
     } else {
       const newMsg = await slack.chat.postMessage({
         channel: event.channel,
         thread_ts: event.ts,
-        markdown_text: resp.my_respond_before_spawn_agent,
+        text: resp.my_respond_before_spawn_agent,
       });
       await State.set(`task-quick-respond-msg-${taskId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-      return { ...newMsg, markdown_text: resp.my_respond_before_spawn_agent };
+      return { ...newMsg, text: resp.my_respond_before_spawn_agent };
     }
   });
 
@@ -957,7 +957,7 @@ Please assist them with their request using all your resources available.
 
   // create a user for task
   const p = (() => {
-    const cli = 'codex-yes'
+    const cli = 'claude-yes'
     const p = spawn(cli, ['--queue', '-i=1min', "--prompt", agentPrompt], {
       cwd: botWorkingDir,
       // stdio: 'inherit'
@@ -1068,10 +1068,10 @@ ${yaml.stringify({
             my_internal_thoughts: tr.render().split('\n').slice(-40).join('\n'),
             news: news,
             user_original_intent: resp.user_intent,
-            my_original_response: quickRespondMsg.markdown_text || '',
+            my_original_response: quickRespondMsg.text || '',
           })}
 `)
-          const updated_response_full = updateResponseResp.updated_response.trim().replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.markdown_text || '')
+          const updated_response_full = updateResponseResp.updated_response.trim().replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || '')
           // truncate to 4000 chars, from the middle, replace to '...TRUNCATED...'
           const updated_response = updated_response_full.length > 4000
             ? updated_response_full.slice(0, 2000) + '\n\n...TRUNCATED...\n\n' + updated_response_full.slice(-2000)
@@ -1080,11 +1080,11 @@ ${yaml.stringify({
           await slack.chat.update({
             channel: event.channel,
             ts: quickRespondMsg.ts!,
-            markdown_text: updated_response,
+            text: updated_response,
           });
           // update quickRespondMsg content
-          quickRespondMsg.markdown_text = updated_response;
-          await State.set(`task-quick-respond-msg-${taskId}`, { ts: quickRespondMsg.ts!, text: quickRespondMsg.markdown_text });
+          quickRespondMsg.text = updated_response;
+          await State.set(`task-quick-respond-msg-${taskId}`, { ts: quickRespondMsg.ts!, text: quickRespondMsg.text });
         }
 
         lastOutputs.push(renderedText);

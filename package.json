@@ -29,7 +29,7 @@
     "build:worker": "bun build . --define 'import.meta.main=false' --define 'import.meta.env.IS_BUNDLE=true' --target=bun > dist/index.js",
     "predev": "bun i",
     "dev": "next dev",
-    "dev:bot": "bun --watch bot/",
+    "dev:bot": "bun --watch ./bot/index.ts",
     "dev:tsc": "tsc -w",
     "fmt": "bunx oxlint && bunx oxfmt",
     "gh-service": "bun run/index.ts",
