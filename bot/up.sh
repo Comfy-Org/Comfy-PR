@@ -1,5 +1,5 @@
 #!/bin/bash
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 # Auto-restart loop for the bot
 # The bot will exit with code 0 when it detects file changes and is idle
