@@ -1183,7 +1183,9 @@ ${yaml.stringify({
       }, 1e3);
 
       await e.forEach(async chunk => {
-        const rendered = tr.write(chunk)
+        if (chunk !== undefined && chunk !== null) {
+          const rendered = tr.write(chunk)
+        }
       })
         .onFlush(() => clearInterval(id))
         .run()
