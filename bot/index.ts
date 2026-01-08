@@ -180,90 +180,6 @@ if (import.meta.main) {
     logger.info('Smart restart manager enabled (use --no-watch to disable)');
   }
 
-  // console.log(await execa`claude-yes --verbose -- version`)
-  // console.log(await Bun.$`claude-yes -- version`)
-  // console.log(await execa`claude-yes -- version`)
-
-
-  // https://comfy-organization.slack.com/archives/C0A51KF8SMU/p1767111710741919
-  // Disabled test code that was causing crashes on startup
-  // const testUrl = 'https://comfy-organization.slack.com/archives/C08FRPK0R8X/p1767701229552979?thread_ts=1766699838.506129&cid=C08FRPK0R8X';
-  // const msg = await getSlackMessageFromUrl(testUrl)
-  // logger.debug('Test message from Slack URL', { msg })
-
-  // mock an app_mention event from msg
-  // // Build a minimal zAppMentionEvent-compatible object from the fetched message
-  // try {
-  //   const { channel } = slackMessageUrlParse(testUrl);
-  //   const parsedEvent = await zAppMentionEvent.parseAsync({
-  //     type: 'app_mention',
-  //     user: (msg as any).user || DIE('missing user in message'),
-  //     ts: (msg as any).ts || DIE('missing ts in message'),
-  //     client_msg_id: (msg as any).client_msg_id,
-  //     text: (msg as any).text || '',
-  //     team: (msg as any).team || 'T_UNKNOWN',
-  //     thread_ts: (msg as any).thread_ts,
-  //     parent_user_id: (msg as any).parent_user_id,
-  //     blocks: (msg as any).blocks || [],
-  //     channel,
-  //     assistant_thread: (msg as any).assistant_thread,
-  //     attachments: (msg as any).attachments || (msg as any).files || [],
-  //     event_ts: (msg as any).event_ts || (msg as any).ts || DIE('missing event_ts/ts'),
-  //   });
-  //   await processSlackAppMentionEvent(parsedEvent);
-  // } catch (err) {
-  //   logger.warn('Failed to mock app_mention event from Slack message', { err });
-  // }
-
-  // test agent resp render
-  // await sflow('')
-  //   .by(fromStdio(spawn('claude-yes', ['--prompt=hello'])))
-  //   // write to process.stdout
-  //   .forkTo(
-  //     async e => {
-  //       const w = fromWritable(process.stdout);
-  //       const writer = w.getWriter();
-  //       await e.forEach(async chunk => {
-  //         await writer.write(chunk);
-  //       })
-  //         .onFlush(() => writer.close())
-  //         .run()
-  //     }
-  //   )
-  //   // Render terminal text to plain text and show live updates in slack
-  //   .forkTo(async e => {
-  //     const tr = new TerminalTextRender()
-  //     let sent = ''
-  //     let last = ''
-
-  //     // logger.info('Rendered chunk size:', rendered.length, 'lines: ', rendered.split(/\r|\n/).length);
-  //     const id = setInterval(async () => {
-  //       const renderedText = tr.render();
-  //       console.log('Rendered Text:', renderedText);
-  //       // diff from last, and send stable lines
-  //       const common = commonPrefix(last, renderedText)
-  //       const newStable = renderedText.slice(0, common.length);
-  //       console.log({ common, newStable, last, renderedText });
-  //       if (newStable !== sent) {
-  //         // send update to slack
-  //         const unsent = newStable.slice(sent.length);
-  //         console.log(unsent)
-  //         sent = newStable;
-  //         const updateText = sent || "_(no output yet)_";
-  //       }
-
-  //       last = renderedText;
-  //     }, 1e3);
-
-  //     await e.forEach(async chunk => {
-  //       console.log('Chunk:', (chunk).toString());
-  //       const rendered = tr.write(chunk.toString())
-  //     })
-  //       .onFlush(() => clearInterval(id))
-  //       .run()
-  //   })
-  //   .run()
-
   // Initialize Socket Mode client with app-level token
   const socketModeClient = new SocketModeClient({ appToken: process.env.SLACK_SOCKET_TOKEN || DIE("missing env.SLACK_SOCKET_TOKEN"), });
 
@@ -575,33 +491,33 @@ Respond in JSON format with the following fields:
 - should_spawn_agent: true if further research needed
 `;
   // - spawn_agent?: true or false, indicating whether an agent is needed to handle this request. e.g. if the user is asking for complex tasks like searching the web, managing repositories, or interacting with other services, or need to check original thread, set this to true.
-  logger.info("Intent detection response", { resp });
+  logger.info("Intent detection response", JSON.stringify({ resp }));
 
   // upsert quick respond msg
   const quickRespondMsg = await State.get(`task-quick-respond-msg-${eventId}`).then(async (existing: any) => {
     if (existing) {
       // if its a DM, always create a new message
-      if (isDM) {
-        const newMsg = await slack.chat.postMessage({
-          channel: event.channel,
-          thread_ts: event.ts,
-          // text: resp.my_respond_before_spawn_agent,
-          blocks: [
-            {
-              type: "markdown",
-              text: resp.my_respond_before_spawn_agent,
-            },
-          ],
-        });
-        await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-        return { ...newMsg, text: resp.my_respond_before_spawn_agent };
-      }
+      // if (isDM) {
+      //   const newMsg = await slack.chat.postMessage({
+      //     channel: event.channel,
+      //     thread_ts: event.ts,
+      //     text: resp.my_respond_before_spawn_agent,
+      //     blocks: [
+      //       {
+      //         type: "markdown",
+      //         text: resp.my_respond_before_spawn_agent,
+      //       },
+      //     ],
+      //   });
+      //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
+      //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
+      // }
       // actually lets always post new msg for now.
       // if (true) {
       //   const newMsg = await slack.chat.postMessage({
       //     channel: event.channel,
       //     thread_ts: event.ts,
-      //     // text: resp.my_respond_before_spawn_agent,
+      //     text: resp.my_respond_before_spawn_agent,
       //     blocks: [
       //       {
       //         type: "markdown",
@@ -616,7 +532,7 @@ Respond in JSON format with the following fields:
       const msg = await slack.chat.update({
         channel: event.channel,
         ts: existing.ts,
-        // text: resp.my_respond_before_spawn_agent,
+        text: resp.my_respond_before_spawn_agent,
         blocks: [
           {
             type: "markdown",
@@ -630,7 +546,7 @@ Respond in JSON format with the following fields:
       const newMsg = await slack.chat.postMessage({
         channel: event.channel,
         thread_ts: event.ts,
-        // text: resp.my_respond_before_spawn_agent,
+        text: resp.my_respond_before_spawn_agent,
         blocks: [
           {
             type: "markdown",
@@ -1034,15 +950,16 @@ Please assist them with their request using all your resources available.
     // if (botworkingdir/.claude-yes have content)
     // then continueArgs.push('--continue')
     // TODO: maybe use smarter way to detect if need continue
-    if (existsSync(`${botWorkingDir}/.claude-yes`)) {
-      // const stat = Bun.statSync(`${botWorkingDir}/.claude-yes`)
-      // if (stat.isDirectory && stat.size > 0) {
-      // }
-      continueArgs.push('--continue')
-    }
+    // if (existsSync(`${botWorkingDir}/.claude-yes`)) {
+    //   // const stat = Bun.statSync(`${botWorkingDir}/.claude-yes`)
+    //   // if (stat.isDirectory && stat.size > 0) {
+    //   // }
+    //   continueArgs.push('--continue')
+    // }
+    logger.debug(`Spawning process: ${cli} ${['--queue', '-i=5min', ...continueArgs, "--prompt", agentPrompt].join(" ")}`);
     const p = spawn(cli, ['--queue', '-i=5min', ...continueArgs, "--prompt", agentPrompt], {
       cwd: botWorkingDir,
-      // stdio: 'inherit'
+      // stdio: 'pipe'
       // env: { ...process.env, }
     })
 
@@ -1070,6 +987,7 @@ Please assist them with their request using all your resources available.
     return p
   })()
 
+  logger.info(`Spawned claude-yes process with PID ${p.pid} for task ${workspaceId}`);
   await sflow(
     [""], // Initial Prompt to start the agent, could be empty
   )
@@ -1096,21 +1014,21 @@ Please assist them with their request using all your resources available.
       await e.forEach(async chunk => await appendFile(`${botWorkingDir}/.logs/bot-${logDate}.log`, chunk))
     })
     // show loading icon when any output activity, and remove the loading icon after idle for 5s
-    .by((e) => {
+    .forkTo(async (e) => {
       const idleWaiter = new IdleWaiter();
       let isThinking = false;
-      return e.forEach(async (chunk) => {
+      return await e.forEach(async () => {
         idleWaiter.ping();
         if (!isThinking) {
           isThinking = true;
           await slack.reactions.add({ name: "loading", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! }).catch(() => { });
-          idleWaiter.wait(5000).finally(async () => {
-            // clearInterval(id);
-            await slack.reactions.remove({ name: "loading", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! }).catch(() => { });
-            isThinking = false;
-          });
+          idleWaiter
+            .wait(5e3)
+            .finally(async () => {
+              await slack.reactions.remove({ name: "loading", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! }).catch(() => { });
+              isThinking = false;
+            });
         }
-        return chunk;
       }).run();
     })
 
@@ -1153,7 +1071,6 @@ RULES:
 - Use **bold** to highlight any new sections or important updates. and remove previeous highlighted sections if not important anymore.
 If all infomations from my_internal_thoughts are already contained in my_original_response_md, you can feel free to return {updated_response_md: "__NOTHING_CHANGED__"}
 
-
 IMPORTANT: KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents.
 IMPORTANT: Focus on end-user's question or intent's helpful contents
 DO NOT INCLUDE ANY internal-only or debugging contexts, system info, local paths, etc IN updated_response_md.
@@ -1161,7 +1078,7 @@ IMPORTANT: my_internal_thoughts may contain terminal control characters and envi
 IMPORTANT: YOU CAN ONLY change/remove/add up to 1 line!
 IMPORTANT: Describe what you are currently doing in only 1 line! Don't show any ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
 IMPORTANT: DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION BY YOUR SELF AND SHOW YOUR BEST UNDERSTANDING.
-IMPORTANT: Output the updated_response_md in standard markdown format.
+IMPORTANT: Output the updated_response_md in standard markdown format (github favored).
 MOST IMPORTANT: Keep the my_original_response_md's context and formatting and contents as much as possible, only update a few lines that need to be updated based on my_internal_thoughts.
 LENGTH LIMIT: updated_response_md must be within 4000 characters. SYSTEM WILL TRUNCATE IF EXCEEDING THIS LIMIT.
 
@@ -1169,7 +1086,7 @@ Task Contexts in YAML:
 
 ${yaml.stringify({
             my_internal_thoughts: tr.render().split('\n').slice(-40).join('\n'),
-            news: news,
+            news,
             user_original_intent: resp.user_intent,
             my_original_response_md: quickRespondMsg.text || '',
           })}
@@ -1181,7 +1098,7 @@ ${yaml.stringify({
             : updated_response_full;
 
           await slack.chat.update({
-            channel: event.channel,
+            channel: quickRespondMsg.channel,
             ts: quickRespondMsg.ts!,
             text: updated_response_md,
             blocks: [
@@ -1191,6 +1108,11 @@ ${yaml.stringify({
               },
             ],
           });
+          logger.debug('Updated quick respond message in slack:', {
+            url: `https://${event.team}.slack.com/archives/${quickRespondMsg.channel}/p${quickRespondMsg.ts!.replace('.', '')}`,
+            updated_response_md
+          });
+
           // update quickRespondMsg content
           quickRespondMsg.text = updated_response_md;
           await State.set(`task-quick-respond-msg-${eventId}`, { ts: quickRespondMsg.ts!, text: quickRespondMsg.text });
@@ -1227,6 +1149,29 @@ ${yaml.stringify({
     .run();
 
   TaskInputFlows.delete(workspaceId);
+
+  // check exit code, checkmark if claude-yes exited 0, cross if not
+
+  const exitCode = await p.exitCode;
+  if (exitCode !== 0) {
+    logger.error(`claude-yes process for task ${workspaceId} exited with code ${exitCode}`);
+    // those error tasks will got  retry after a restart
+    // update my slack message reactions shows a cross mark and update it appending a error happened and say will retry later
+    await slack.reactions.remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
+    await slack.reactions.add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! }).catch(() => { });
+    await slack.chat.update({
+      channel: event.channel,
+      ts: quickRespondMsg.ts!,
+      markdown_text: (quickRespondMsg.text || '') + `\n\n:Warning: An error occurred while processing this request <@snomiao>, I will try it again later`,
+      blocks: [
+        {
+          type: "markdown",
+          text: (quickRespondMsg.text || '') + `\n\n:Warning: An error occurred while processing this request <@snomiao>, I will try it again later`,
+        },
+      ],
+    });
+  }
+
   // claude exited as no more inputs/outputs for a while, update the status message
   await slack.reactions.remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
   await slack.reactions.add({ name: "white_check_mark", channel: event.channel, timestamp: event.ts }).catch(() => { });
