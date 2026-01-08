@@ -15,7 +15,7 @@ import z from "zod";
  *
  * In unknown of those repos:
  * https://github.com/Comfy-Org/Comfy-PR
- * https://github.com/comfyanonymous/ComfyUI
+ * https://github.com/Comfy-Org/ComfyUI
  * https://github.com/Comfy-Org/ComfyUI_frontend
  * https://github.com/Comfy-Org/desktop
  *
@@ -27,7 +27,7 @@ import z from "zod";
 
 const cfg = {
   REPOLIST: [
-    "https://github.com/comfyanonymous/ComfyUI",
+    "https://github.com/Comfy-Org/ComfyUI",
     // "https://github.com/Comfy-Org/Comfy-PR", // handled by webhook
     // "https://github.com/Comfy-Org/ComfyUI_frontend", // handled by webhook
     // "https://github.com/Comfy-Org/desktop", // handled by webhook
@@ -77,7 +77,7 @@ const saveTask = async (task: Partial<GithubIssueLabelOps> & { target_url: strin
   )) || DIE("fail to save task");
 
 if (import.meta.main) {
-  // const issueCommentUrl = 'https://github.com/comfyanonymous/ComfyUI/issues/10522#issuecomment-3459764591'
+  // const issueCommentUrl = 'https://github.com/Comfy-Org/ComfyUI/issues/10522#issuecomment-3459764591'
   // const issue = await ghc.issues.get({ ...parseIssueUrl(issueCommentUrl) });
   // const comment = await ghc.issues.getComment({ ...parseIssueUrl(issueCommentUrl), comment_id: issueCommentUrl.match(/\d+$/).at(0) });
   // await processIssueCommentForLableops({ issue: issue.data, comment: comment.data })

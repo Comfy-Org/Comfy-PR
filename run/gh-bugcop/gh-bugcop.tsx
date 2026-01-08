@@ -32,7 +32,7 @@ import { createTimeLogger } from "../../app/tasks/gh-design/createTimeLogger";
 import { tsmatch } from "@/packages/mongodb-pipeline-ts/Task";
 
 export const REPOLIST = [
-  "https://github.com/comfyanonymous/ComfyUI",
+  "https://github.com/Comfy-Org/ComfyUI",
   "https://github.com/Comfy-Org/Comfy-PR",
   "https://github.com/Comfy-Org/ComfyUI_frontend",
   "https://github.com/Comfy-Org/desktop",

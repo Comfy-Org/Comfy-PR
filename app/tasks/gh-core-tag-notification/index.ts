@@ -18,7 +18,7 @@ import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSla
  */
 
 const config = {
-  repo: "https://github.com/comfyanonymous/ComfyUI",
+  repo: "https://github.com/Comfy-Org/ComfyUI",
   slackChannels: ["desktop", "live-ops"],
   slackMessage: "🏷️ ComfyUI <{url}|Tag {tagName}> created!",
   sendSince: new Date("2025-11-19T00:00:00Z").toISOString(),

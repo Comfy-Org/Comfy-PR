@@ -143,8 +143,8 @@ if (import.meta.main) {
   // Designed to be mon to sat, TIME CHECKING
   // Pacific Daylight Time
 
-  // const url = "https://github.com/comfyanonymous/ComfyUI/pull/10179";
-  // const url = "https://github.com/comfyanonymous/ComfyUI/pull/8351";
+  // const url = "https://github.com/Comfy-Org/ComfyUI/pull/10179";
+  // const url = "https://github.com/Comfy-Org/ComfyUI/pull/8351";
   // await determinePullRequestReviewStatus(url);
 
   // await _cleanSpammyMessages20251117()

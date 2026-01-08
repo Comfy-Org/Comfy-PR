@@ -11,16 +11,16 @@ import { pageFlow } from "sflow";
  * GitHub Frontend Issue Transfer Task
  *
  * Workflow:
- * 1. Fetch new/unseen issues from comfyanonymous/ComfyUI with label "frontend"
+ * 1. Fetch new/unseen issues from Comfy-Org/ComfyUI with label "frontend"
  * 2. For each issue:
  *    1. Create corresponding issues in Comfy-Org/ComfyUI_frontend, copying title, body (+meta and backlinks), labels, assignees
  *    2. Comment on original issue that it's been transferred
- *    3. Close original issue in comfyanonymous/ComfyUI
+ *    3. Close original issue in Comfy-Org/ComfyUI
  *    4. Track transferred issues to avoid duplicates
  */
 
 const config = {
-  srcRepoUrl: "https://github.com/comfyanonymous/ComfyUI",
+  srcRepoUrl: "https://github.com/Comfy-Org/ComfyUI",
   dstRepoUrl: "https://github.com/Comfy-Org/ComfyUI_frontend",
   frontendLabel: "frontend",
   transferComment: (newIssueUrl: string) =>

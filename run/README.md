@@ -278,7 +278,7 @@ bun run run/gh-service.tsx
 The system monitors these repositories by default:
 
 - `Comfy-Org/Comfy-PR`
-- `comfyanonymous/ComfyUI`
+- `Comfy-Org/ComfyUI`
 - `Comfy-Org/ComfyUI_frontend`
 - `Comfy-Org/desktop`
 

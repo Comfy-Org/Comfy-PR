@@ -14,7 +14,7 @@ import { processIssueCommentForLableops } from "./easylabel";
 
 export const REPOLIST = [
   "https://github.com/Comfy-Org/Comfy-PR",
-  "https://github.com/comfyanonymous/ComfyUI",
+  "https://github.com/Comfy-Org/ComfyUI",
   "https://github.com/Comfy-Org/ComfyUI_frontend",
   "https://github.com/Comfy-Org/desktop",
 ];

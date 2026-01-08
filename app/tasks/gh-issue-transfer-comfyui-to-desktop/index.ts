@@ -11,16 +11,16 @@ import { pageFlow } from "sflow";
  * GitHub ComfyUI to Desktop Issue Transfer Task
  *
  * Workflow:
- * 1. Fetch new/unseen issues from comfyanonymous/ComfyUI with label "desktop"
+ * 1. Fetch new/unseen issues from Comfy-Org/ComfyUI with label "desktop"
  * 2. For each issue:
  *    1. Create corresponding issues in Comfy-Org/desktop, copying title, body (+meta and backlinks), labels, assignees
  *    2. Comment on original issue that it's been transferred
- *    3. Close original issue in comfyanonymous/ComfyUI
+ *    3. Close original issue in Comfy-Org/ComfyUI
  *    4. Track transferred issues to avoid duplicates
  */
 
 const config = {
-  srcRepoUrl: "https://github.com/comfyanonymous/ComfyUI",
+  srcRepoUrl: "https://github.com/Comfy-Org/ComfyUI",
   dstRepoUrl: "https://github.com/Comfy-Org/desktop",
   desktopLabel: "desktop",
   transferComment: (newIssueUrl: string) =>
