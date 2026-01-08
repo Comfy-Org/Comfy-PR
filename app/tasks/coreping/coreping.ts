@@ -52,7 +52,8 @@ import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSla
 
 export const coreReviewTrackerConfig = {
   REPOLIST: [
-    "https://github.com/comfyanonymous/ComfyUI",
+    // "https://github.com/comfyanonymous/ComfyUI", // deprecated
+    "https://github.com/Comfy-Org/ComfyUI", // 2026-01-08 new 
     "https://github.com/Comfy-Org/Comfy-PR",
     "https://github.com/Comfy-Org/ComfyUI_frontend",
     "https://github.com/Comfy-Org/desktop",
@@ -279,9 +280,31 @@ async function getTimelineReviewStatuses(pr: GH["pull-request-simple"] | GH["pul
   return timeline_statuses;
 }
 
+/**
+ * Deduplicates PR tasks by PR number, preferring Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
+ */
+function deduplicatePRTasks<T extends { url: string }>(tasks: T[]): T[] {
+  const seenPRNumbers = new Map<number, T>();
+  for (const task of tasks) {
+    const prNumber = Number(task.url.split("/").pop());
+    if (isNaN(prNumber)) continue;
+
+    const existingTask = seenPRNumbers.get(prNumber);
+    if (!existingTask) {
+      seenPRNumbers.set(prNumber, task);
+    } else {
+      // Prefer Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
+      if (task.url.includes("Comfy-Org/ComfyUI") && !existingTask.url.includes("Comfy-Org/ComfyUI")) {
+        seenPRNumbers.set(prNumber, task);
+      }
+    }
+  }
+  return Array.from(seenPRNumbers.values());
+}
+
 async function runCorePingTaskFull() {
   console.log("start", import.meta.file);
-  const processedTasks = await sflow(coreReviewTrackerConfig.REPOLIST)
+  const allPRs = await sflow(coreReviewTrackerConfig.REPOLIST)
     .map((repoUrl) =>
       ghPageFlow(ghc.pulls.list)({
         ...parseGithubRepoUrl(repoUrl),
@@ -293,6 +316,24 @@ async function runCorePingTaskFull() {
     )
     .confluenceByConcat()
     .filter((e) => e.labels.some((e) => ["Core", "Core-Important"].includes(e.name)))
+    .toArray();
+
+  // Deduplicate PRs by number, preferring Comfy-Org/ComfyUI over comfyanonymous/ComfyUI
+  const seenPRNumbers = new Map<number, GH["pull-request-simple"]>();
+  for (const pr of allPRs) {
+    const existingPR = seenPRNumbers.get(pr.number);
+    if (!existingPR) {
+      seenPRNumbers.set(pr.number, pr);
+    } else {
+      // Prefer Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
+      if (pr.html_url.includes("Comfy-Org/ComfyUI") && !existingPR.html_url.includes("Comfy-Org/ComfyUI")) {
+        seenPRNumbers.set(pr.number, pr);
+      }
+    }
+  }
+  const deduplicatedPRs = Array.from(seenPRNumbers.values());
+
+  const processedTasks = await sflow(deduplicatedPRs)
     // filter Core/Core-Important labeled PRs
     .map(async (e) => await processPullRequestCorePingTask(e))
     .filter((e) => Boolean(e))
@@ -310,17 +351,22 @@ async function runCorePingTaskFull() {
   console.log(`updated ${updatedOldTasks.length} old tasks`);
 
   // processedTasks
-  const pendingReviewCorePRs = await ComfyCorePRs.find({
-    status: {
-      $in: ["AUTHOR_COMMENTED", "REVIEW_REQUESTED", "OPEN", "COMMITTED"],
-    },
-  })
-    .sort({ statusAt: 1, created_at: 1 })
-    .toArray();
+  const pendingReviewCorePRs = deduplicatePRTasks(
+    await ComfyCorePRs.find({
+      status: {
+        $in: ["AUTHOR_COMMENTED", "REVIEW_REQUESTED", "OPEN", "COMMITTED"],
+      },
+    })
+      .sort({ statusAt: 1, created_at: 1 })
+      .toArray(),
+  );
 
-  const allOpeningCorePRs = await ComfyCorePRs.find({
-    state: "open",
-  }).toArray();
+  const allOpeningCorePRs = deduplicatePRTasks(
+    (await (ComfyCorePRs.find({
+      state: "open",
+    })).toArray()),
+  );
+
   const remainingOpeningCorePRs = await sflow(allOpeningCorePRs)
     .filter(
       (e) => !pendingReviewCorePRs.map((e) => e.url).includes(e.url),
