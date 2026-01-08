@@ -72,4 +72,8 @@ data/
 # cloned repositories for sub-agent coding (backward compatibility)
 repos/
 
+# temporary working directories
+codes/
+tmp/
+
 TODO.md
