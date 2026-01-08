@@ -1053,6 +1053,20 @@ Please assist them with their request using all your resources available.
     p.on("exit", (code, signal) => {
       logger.info(`process for task ${workspaceId} exited with code ${code} and signal ${signal}`);
     });
+
+    // Log stderr separately for debugging
+    p.stderr?.on('data', (data) => {
+      logger.warn(`[${cli} stderr]:`, { data: data.toString() });
+    });
+
+    // Check if stdout/stderr are available
+    if (!p.stdout) {
+      logger.error(`Process ${cli} has no stdout stream!`);
+    }
+    if (!p.stderr) {
+      logger.warn(`Process ${cli} has no stderr stream`);
+    }
+
     return p
   })()
 
@@ -1067,7 +1081,13 @@ Please assist them with their request using all your resources available.
     )
     .by(fromStdio(p))
     // convert buffer to string
-    .map(async (buffer) => buffer.toString())
+    .map(async (buffer) => {
+      if (buffer === undefined || buffer === null) {
+        logger.warn(`Received undefined/null buffer from process ${workspaceId}`);
+        return '';
+      }
+      return buffer.toString();
+    })
 
     // pipe to /botWorkingDir/.logs/bot-<date>.log to claude input
     .forkTo(async (e) => {
@@ -1183,8 +1203,18 @@ ${yaml.stringify({
       }, 1e3);
 
       await e.forEach(async chunk => {
-        if (chunk !== undefined && chunk !== null) {
-          const rendered = tr.write(chunk)
+        if (chunk === undefined || chunk === null) {
+          logger.warn(`Terminal render received undefined/null chunk for task ${workspaceId}`);
+          return;
+        }
+        if (chunk === '') {
+          // Empty string is valid, just skip rendering
+          return;
+        }
+        try {
+          const rendered = tr.write(chunk);
+        } catch (err) {
+          logger.error(`Error writing chunk to terminal render for task ${workspaceId}:`, { err, chunkType: typeof chunk, chunkLength: chunk?.length });
         }
       })
         .onFlush(() => clearInterval(id))
