@@ -1,10 +1,10 @@
-import DIE from "@snomiao/die";
 import { beforeAll, afterAll, jest, it, expect } from "@jest/globals";
 import { Db, MongoClient, type ObjectId } from "mongodb";
 import { $fresh, $stale } from ".";
 
-type g = typeof globalThis & { _db: Db };
+type g = typeof globalThis & { _db: Db; _client: MongoClient };
 let db: Db;
+let client: MongoClient;
 let Test: ReturnType<Db["collection"]>;
 
 // Setup database connection before all tests
@@ -14,19 +14,34 @@ beforeAll(async () => {
     throw new Error("MONGODB_URI is not set. Please set it to run these tests.");
   }
 
-  db = ((global as any as g)._db ??= new MongoClient(
-    process.env.MONGODB_URI,
-    { serverSelectionTimeoutMS: 5000 } // 5 second timeout
-  ).db());
+  const globalAny = global as any as g;
+  if (!globalAny._db) {
+    client = new MongoClient(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000, // 5 second timeout
+    });
+    await client.connect();
+    globalAny._client = client;
+    globalAny._db = client.db();
+  } else {
+    client = globalAny._client;
+  }
+  db = globalAny._db;
 
   Test = db.collection<any>("test-fresh-stale");
   await Test.createIndex({ t: 1 });
 }, 10000); // 10 second timeout for beforeAll
 
+// Clean up database connection after all tests
+afterAll(async () => {
+  jest.useRealTimers();
+  if (client) {
+    await client.close();
+  }
+});
+
 // mock Date
 const now = new Date();
 jest.useFakeTimers().setSystemTime(now);
-afterAll(() => jest.useRealTimers());
 
 const staleDate = new Date(+now - 86400e3); // 1day ago
 const notStaleDate = new Date(+staleDate + 1);
