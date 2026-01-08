@@ -1076,7 +1076,8 @@ IMPORTANT: Focus on end-user's question or intent's helpful contents
 DO NOT INCLUDE ANY internal-only or debugging contexts, system info, local paths, etc IN updated_response_md.
 IMPORTANT: my_internal_thoughts may contain terminal control characters and environment system info, ignore them and only focus on the end-user-helpful content. 
 IMPORTANT: YOU CAN ONLY change/remove/add up to 1 line!
-IMPORTANT: Describe what you are currently doing in only 1 line! Don't show any ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
+IMPORTANT: Describe what you are currently doing in up to 3 words!
+IMPORTANT: Don't show any ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
 IMPORTANT: DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION BY YOUR SELF AND SHOW YOUR BEST UNDERSTANDING.
 IMPORTANT: Output the updated_response_md in standard markdown format (github favored).
 MOST IMPORTANT: Keep the my_original_response_md's context and formatting and contents as much as possible, only update a few lines that need to be updated based on my_internal_thoughts.
