@@ -1,15 +1,27 @@
 import DIE from "@snomiao/die";
+import { beforeAll, afterAll } from "bun:test";
 import { Db, MongoClient, type ObjectId } from "mongodb";
 import { $fresh, $stale } from ".";
 
 type g = typeof globalThis & { _db: Db };
-export const db = ((global as any as g)._db ??= new MongoClient(
-  process.env.MONGODB_URI ?? DIE("Missing env.MONGODB_URI"),
-).db());
+let db: Db;
+let Test: ReturnType<Db["collection"]>;
 
-const Test = db.collection<any>("test-fresh-stale");
-// afterAll(async () => await Test.drop());
-await Test.createIndex({ t: 1 });
+// Setup database connection before all tests
+beforeAll(async () => {
+  // Only connect if MONGODB_URI is set
+  if (!process.env.MONGODB_URI) {
+    throw new Error("MONGODB_URI is not set. Please set it to run these tests.");
+  }
+
+  db = ((global as any as g)._db ??= new MongoClient(
+    process.env.MONGODB_URI,
+    { serverSelectionTimeoutMS: 5000 } // 5 second timeout
+  ).db());
+
+  Test = db.collection<any>("test-fresh-stale");
+  await Test.createIndex({ t: 1 });
+}, 10000); // 10 second timeout for beforeAll
 
 // mock Date
 const now = new Date();
