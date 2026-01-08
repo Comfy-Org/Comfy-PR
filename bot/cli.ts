@@ -308,25 +308,6 @@ async function main() {
       },
     )
     .command(
-      "slack upload-file",
-      "Upload a file to Slack",
-      (y) =>
-        y
-          .option("channel", { alias: "c", type: "string", demandOption: true, describe: "Channel ID" })
-          .option("file", { alias: "f", type: "string", demandOption: true, describe: "File path to upload" })
-          .option("title", { type: "string", describe: "File title" })
-          .option("comment", { alias: "m", type: "string", describe: "Initial comment" })
-          .option("thread", { alias: "t", type: "string", describe: "Thread timestamp to reply in" }),
-      async (args) => {
-        await loadEnvLocal();
-        await uploadSlackFile(args.channel as string, args.file as string, {
-          title: args.title as string | undefined,
-          initialComment: args.comment as string | undefined,
-          threadTs: args.thread as string | undefined,
-        });
-      },
-    )
-    .command(
       "slack download-file",
       "Download a file from Slack",
       (y) =>
@@ -366,6 +347,25 @@ async function main() {
           files,
           args.thread as string | undefined,
         );
+      },
+    )
+    .command(
+      ["slack upload-file", "slack upload"],
+      "Upload a file to Slack",
+      (y) =>
+        y
+          .option("channel", { alias: "c", type: "string", demandOption: true, describe: "Channel ID" })
+          .option("file", { alias: "f", type: "string", demandOption: true, describe: "File path to upload" })
+          .option("title", { type: "string", describe: "File title" })
+          .option("comment", { alias: "m", type: "string", describe: "Initial comment" })
+          .option("thread", { alias: "t", type: "string", describe: "Thread timestamp to reply in" }),
+      async (args) => {
+        await loadEnvLocal();
+        await uploadSlackFile(args.channel as string, args.file as string, {
+          title: args.title as string | undefined,
+          initialComment: args.comment as string | undefined,
+          threadTs: args.thread as string | undefined,
+        });
       },
     )
     .command(
@@ -434,7 +434,7 @@ async function main() {
         "  pr-bot slack read-thread -c C123 -t 1234567890.123456",
         "  pr-bot slack read-thread -u 'https://workspace.slack.com/archives/C123/p1234567890'",
         "  pr-bot slack read-nearby -u 'https://workspace.slack.com/archives/C123/p1234567890' -b 20 -a 20",
-        "  pr-bot slack upload-file -c C123 -f ./report.pdf -m 'Here is the report'",
+        "  pr-bot slack upload -c C123 -f ./report.pdf -m 'Here is the report'",
         "  pr-bot slack post-with-files -c C123 -m 'Check these files' -f file1.pdf -f file2.png",
         "  pr-bot slack download-file -f F123ABC -o ./downloaded.pdf",
         "  pr-bot slack file-info -f F123ABC",
