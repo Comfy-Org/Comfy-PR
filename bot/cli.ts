@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
-import yargs from "yargs/yargs";
-import { hideBin } from "yargs/helpers";
 import path from "path";
+import { hideBin } from "yargs/helpers";
+import yargs from "yargs/yargs";
 
 // GitHub abilities
 import { spawnSubAgent } from "./code/coding/pr-agent";
@@ -12,10 +12,11 @@ import { searchGitHubIssues } from "./code/issue-search";
 import { searchRegistryNodes } from "./registry/search";
 
 // Slack abilities
-import { updateSlackMessage } from "./slack/msg-update";
+import { downloadSlackFile, getSlackFileInfo, postMessageWithFiles, uploadSlackFile } from "./slack/file";
+import { readNearbyMessages } from "./slack/msg-read-nearby";
 import { readSlackThread } from "./slack/msg-read-thread";
+import { updateSlackMessage } from "./slack/msg-update";
 import { parseSlackUrl } from "./slack/parseSlackUrl";
-import { uploadSlackFile, downloadSlackFile, getSlackFileInfo, postMessageWithFiles } from "./slack/file";
 
 // Notion ability
 import { searchNotion } from "./notion/search";
@@ -110,7 +111,7 @@ async function main() {
         }
 
         const { $ } = await import("bun");
-        const result = await $`comfy-codesearch ${{raw: query}}`.quiet();
+        const result = await $`comfy-codesearch ${{ raw: query }}`.quiet();
         console.log(result.stdout.toString());
       },
     )
@@ -257,6 +258,56 @@ async function main() {
       },
     )
     .command(
+      "slack read-nearby",
+      "Read nearby messages around a specific timestamp in a Slack channel",
+      (y) =>
+        y
+          .option("url", { alias: "u", type: "string", describe: "Slack message URL" })
+          .option("channel", { alias: "c", type: "string", describe: "Slack channel ID" })
+          .option("ts", { alias: "t", type: "string", describe: "Message timestamp" })
+          .option("before", { alias: "b", type: "number", default: 10, describe: "Messages before" })
+          .option("after", { alias: "a", type: "number", default: 10, describe: "Messages after" })
+          .check((argv) => {
+            // Require either URL or (channel + ts)
+            if (!argv.url && (!argv.channel || !argv.ts)) {
+              throw new Error("Either --url or both --channel and --ts are required");
+            }
+            if (argv.url && (argv.channel || argv.ts)) {
+              throw new Error("Cannot use --url with --channel or --ts");
+            }
+            return true;
+          }),
+      async (args) => {
+        await loadEnvLocal();
+
+        let channel: string;
+        let ts: string;
+
+        // Parse from URL if provided
+        if (args.url) {
+          const parsed = parseSlackUrl(args.url as string);
+          if (!parsed) {
+            console.error("Failed to parse Slack URL. Please check the format.");
+            process.exit(1);
+          }
+          channel = parsed.channel;
+          ts = parsed.ts;
+        } else {
+          // Use channel and ts directly
+          channel = args.channel as string;
+          ts = args.ts as string;
+        }
+
+        const items = await readNearbyMessages(
+          channel,
+          ts,
+          (args.before as number) ?? 10,
+          (args.after as number) ?? 10,
+        );
+        console.log(JSON.stringify(items, null, 2));
+      },
+    )
+    .command(
       "slack upload-file",
       "Upload a file to Slack",
       (y) =>
@@ -290,8 +341,7 @@ async function main() {
     .command(
       "slack file-info",
       "Get information about a Slack file",
-      (y) =>
-        y.option("fileId", { alias: "f", type: "string", demandOption: true, describe: "Slack file ID" }),
+      (y) => y.option("fileId", { alias: "f", type: "string", demandOption: true, describe: "Slack file ID" }),
       async (args) => {
         await loadEnvLocal();
         const info = await getSlackFileInfo(args.fileId as string);
@@ -310,7 +360,12 @@ async function main() {
       async (args) => {
         await loadEnvLocal();
         const files = (args.file as string[]).filter((f) => typeof f === "string");
-        await postMessageWithFiles(args.channel as string, args.text as string, files, args.thread as string | undefined);
+        await postMessageWithFiles(
+          args.channel as string,
+          args.text as string,
+          files,
+          args.thread as string | undefined,
+        );
       },
     )
     .command(
@@ -378,6 +433,7 @@ async function main() {
         "  pr-bot slack update -c C123 -t 1234567890.123456 -m 'Working on it'",
         "  pr-bot slack read-thread -c C123 -t 1234567890.123456",
         "  pr-bot slack read-thread -u 'https://workspace.slack.com/archives/C123/p1234567890'",
+        "  pr-bot slack read-nearby -u 'https://workspace.slack.com/archives/C123/p1234567890' -b 20 -a 20",
         "  pr-bot slack upload-file -c C123 -f ./report.pdf -m 'Here is the report'",
         "  pr-bot slack post-with-files -c C123 -m 'Check these files' -f file1.pdf -f file2.png",
         "  pr-bot slack download-file -f F123ABC -o ./downloaded.pdf",
