@@ -147,10 +147,10 @@ if (import.meta.main) {
     } else {
       logger.info(`Found ${events.length} working task(s) to resume`);
 
-      for (const event of events) {
+      for await (const event of events) {
         if (event && event.ts) {
           logger.info(`Resuming task for event ${event.ts} in channel ${event.channel}`);
-          processSlackAppMentionEvent(event).catch(err => {
+          await spawnBotOnSlackMessageEvent(event).catch(err => {
             logger.error(`Error resuming task for event ${event.ts}`, { err });
           });
         }
@@ -191,7 +191,7 @@ if (import.meta.main) {
 
       // Acknowledge the event as its parsed
       await ack();
-      await processSlackAppMentionEvent(parsedEvent);
+      await spawnBotOnSlackMessageEvent(parsedEvent);
     })
     .on("message", async ({ event, body, ack }) => {
       // bot-1  | msg:  {"type":"message","user":"U04F3GHTG2X","ts":"1767100459.669809","client_msg_id":"2fed13c0-9739-4888-a4f6-b876c25f1407","text":"test","team":"T0462DJ9G3C","blocks":[{"type":"rich_text","block_id":"gB9fq","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"test"}]}]}],"channel":"C0A6Y4AU52L","event_ts":"1767100459.669809","channel_type":"channel"}
@@ -220,7 +220,7 @@ if (import.meta.main) {
           attachments: (event as any).attachments,
           event_ts: (event as any).event_ts,
         };
-        await processSlackAppMentionEvent(dmEvent);
+        await spawnBotOnSlackMessageEvent(dmEvent);
       }
 
       if ((event as any).channel_type === "im" && (event as any).user && (event as any).text && !(event as any).bot_id) {
@@ -240,7 +240,7 @@ if (import.meta.main) {
           attachments: (event as any).attachments,
           event_ts: (event as any).event_ts,
         };
-        await processSlackAppMentionEvent(dmEvent);
+        await spawnBotOnSlackMessageEvent(dmEvent);
       }
 
     })
@@ -256,7 +256,7 @@ if (import.meta.main) {
 }
 
 
-async function processSlackAppMentionEvent(event: {
+async function spawnBotOnSlackMessageEvent(event: {
   type: "app_mention";
   user: string;
   ts: string;
@@ -597,7 +597,7 @@ Respond in JSON format with the following fields:
   //   await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "forward_to_pr_bot_channel" });
 
   //   // process the forwarded message in agent channel
-  //   return await processSlackAppMentionEvent({
+  //   return await spawnBotOnSlackMessageEvent({
   //     ...event,
   //     channel: agentChannelId,
   //     ts: forwardedMsg.ts!,
@@ -956,8 +956,8 @@ Please assist them with their request using all your resources available.
     //   // }
     //   continueArgs.push('--continue')
     // }
-    logger.debug(`Spawning process: ${cli} ${['--queue', '-i=5min', ...continueArgs, "--prompt", agentPrompt].join(" ")}`);
-    const p = spawn(cli, ['--queue', '-i=5min', ...continueArgs, "--prompt", agentPrompt], {
+    logger.debug(`Spawning process: ${cli} ${['--queue', '-i=3min', ...continueArgs, "--prompt", agentPrompt].join(" ")}`);
+    const p = spawn(cli, ['--queue', '-i=3min', ...continueArgs, "--prompt", agentPrompt], {
       cwd: botWorkingDir,
       // stdio: 'pipe'
       // env: { ...process.env, }
