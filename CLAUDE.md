@@ -60,6 +60,136 @@ The TypeScript server was experiencing severe performance issues causing slowdow
 - **`run/`**: Executable scripts and services
 - **Tests**: Co-located with source files using `.spec.ts` suffix
 
+## Working Tasks State Management
+
+### Overview
+
+The bot uses a simplified state management system to track currently active tasks. Instead of querying the entire database, it maintains a lightweight list of working message events in the `current-working-tasks` state key.
+
+### Implementation
+
+- **File**: `bot/index.ts` (lines ~96-119 for helper functions)
+- **Tests**: `bot/WorkingTasksManager.spec.ts`
+- **Documentation**: `docs/WORKING-TASKS.md`
+
+### Key Features
+
+1. **Lightweight State**: Single state key `current-working-tasks` with array of event objects
+2. **Automatic Management**: Tasks added when started, removed when completed/stopped
+3. **Fast Resume**: On `--continue`, reads list and resumes each task by calling `processSlackAppMentionEvent(event)`
+4. **No Database Queries**: Eliminates need to scan entire MongoDB collection for incomplete tasks
+
+### State Structure
+
+```typescript
+{
+  "current-working-tasks": {
+    workingMessageEvents: [
+      { type: "app_mention", user: "U123", ts: "1234567890.123456", channel: "C123", ... },
+      // ... more events
+    ]
+  }
+}
+```
+
+### Usage
+
+```typescript
+// Add task when starting
+await addWorkingTask(event);
+
+// Remove task when done
+await removeWorkingTask(event);
+
+// Resume on restart (--continue flag)
+const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+for (const event of workingTasks.workingMessageEvents) {
+  processSlackAppMentionEvent(event).catch(err => logger.error('Resume error', { err }));
+}
+```
+
+## Smart Restart Manager
+
+### Overview
+
+The bot includes a smart restart mechanism that watches for file changes and automatically restarts **only when idle** (no active tasks running). This replaces the problematic `--watch` flag that would interrupt ongoing tasks.
+
+### Implementation
+
+- **File**: `bot/RestartManager.ts`
+- **Tests**: `bot/RestartManager.spec.ts`
+- **Example**: `bot/restart-example.ts`
+- **Startup Script**: `bot/up.sh` (production auto-restart loop)
+- **Documentation**: `docs/RESTART.md`, `docs/RESTART-SUMMARY.md`, `docs/RESTART-FLOW.md`, `docs/RESTART-QUICKREF.md`
+
+### Key Features
+
+1. **File Watching**: Monitors specified directories for changes using Node.js `fs.watch`
+2. **Debouncing**: Prevents multiple restarts from rapid file changes (default: 1 second)
+3. **Idle Detection**: Checks if bot is idle before restarting (default: every 5 seconds)
+4. **Smart Restart**: Only restarts when `TaskInputFlows.size === 0` (no active tasks)
+5. **Configurable**: Easy to customize watch paths, intervals, and ignored files
+
+### Usage in bot/index.ts
+
+```typescript
+import { RestartManager } from "./RestartManager";
+
+const restartManager = new RestartManager({
+  watchPaths: ['bot', 'src', 'lib'],
+  isIdle: () => TaskInputFlows.size === 0,
+  onRestart: () => process.exit(0),
+  idleCheckInterval: 5000,
+  debounceDelay: 1000,
+  logger: {
+    info: (msg, meta) => logger.info(`[RestartManager] ${msg}`, meta),
+    warn: (msg, meta) => logger.warn(`[RestartManager] ${msg}`, meta),
+  }
+});
+restartManager.start();
+```
+
+### Deployment
+
+The `bot/up.sh` script includes an auto-restart loop that catches the exit code and restarts the bot:
+
+```bash
+while true; do
+  bun bot/index.ts --continue
+  EXIT_CODE=$?
+  if [ $EXIT_CODE -eq 0 ]; then
+    sleep 2  # Clean exit (file change restart)
+  else
+    sleep 5  # Crash (wait longer)
+  fi
+done
+```
+
+### Benefits vs `--watch`
+
+| Feature | `--watch` | Smart Restart |
+|---------|-----------|---------------|
+| Detects changes | ✅ | ✅ |
+| Restarts immediately | ✅ | ❌ |
+| Waits for idle | ❌ | ✅ |
+| Interrupts tasks | ✅ | ❌ |
+| Configurable | ❌ | ✅ |
+
+### Testing
+
+Run the example to see it in action:
+
+```bash
+bun bot/restart-example.ts
+# Then edit any file in bot/ directory while it's running
+```
+
+Run the test suite:
+
+```bash
+bun test bot/RestartManager.spec.ts
+```
+
 ## Cached GitHub Client (ghc)
 
 ### Overview
