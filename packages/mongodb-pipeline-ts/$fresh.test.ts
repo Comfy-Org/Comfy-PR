@@ -1,5 +1,5 @@
 import DIE from "@snomiao/die";
-import { beforeAll, afterAll } from "bun:test";
+import { beforeAll, afterAll, jest, it, expect } from "@jest/globals";
 import { Db, MongoClient, type ObjectId } from "mongodb";
 import { $fresh, $stale } from ".";
 
