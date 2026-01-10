@@ -39,6 +39,7 @@
     "start": "next start",
     "test": "bun test",
     "test:watch": "bun test --watch",
+    "typecheck": "bunx tsgo --noEmit",
     "vercel:build": "vercel build",
     "vercel:dev": "vercel dev"
   },
