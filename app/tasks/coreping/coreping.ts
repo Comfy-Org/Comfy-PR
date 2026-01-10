@@ -53,7 +53,7 @@ import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSla
 export const coreReviewTrackerConfig = {
   REPOLIST: [
     // "https://github.com/comfyanonymous/ComfyUI", // deprecated
-    "https://github.com/Comfy-Org/ComfyUI", // 2026-01-08 new 
+    "https://github.com/Comfy-Org/ComfyUI", // 2026-01-08 new
     "https://github.com/Comfy-Org/Comfy-PR",
     "https://github.com/Comfy-Org/ComfyUI_frontend",
     "https://github.com/Comfy-Org/desktop",
@@ -216,93 +216,7 @@ async function determinePullRequestReviewStatus(
     });
 }
 
-async function getTimelineReviewStatuses(pr: GH["pull-request-simple"] | GH["pull-request"]) {
-  const timeline = await ghPageFlow(ghc.issues.listEventsForTimeline)({ ...parseIssueUrl(pr.html_url) }).toArray();
-
-  const reviewers = timeline
-    .map((e) =>
-      tsmatch(e)
-        .with(
-          {
-            event: "review_requested",
-            requested_reviewer: { login: P.select() },
-          },
-          (e) => e,
-        )
-        .otherwise(() => null),
-    )
-    .filter(Boolean) as string[];
-
-  const timeline_statuses = timeline
-    .map((e) => e as UnionToIntersection<typeof e>)
-    // determine PR_STATUS, committed_at
-    .map((e) => ({
-      ...e,
-      PR_STATUS: tsmatch(e)
-        .with({ event: "committed" }, () => "COMMITTED" as const)
-        .with({ event: "reviewed" }, () => "REVIEWED" as const)
-        .with({ event: "review_requested" }, () => "REVIEW_REQUESTED" as const)
-        .with({ event: "commented" }, (e) =>
-          reviewers.includes(e.user.login)
-            ? ("REVIEWER_COMMENTED" as const)
-            : e.user.login === pr.user?.login
-              ? ("AUTHOR_COMMENTED" as const)
-              : null,
-        )
-        .otherwise(() => null),
-      committed_at: e.committer?.date,
-    }))
-    // sanitize output for debug
-    .map((e) => ({
-      ...e,
-      url: undefined,
-      issue_url: undefined,
-      id: undefined,
-      node_id: undefined,
-      performed_via_github_app: undefined,
-      actor: e.actor?.login?.replace(/^/, "@"),
-      user: e.user?.login?.replace(/^/, "@"),
-      author: e.author?.name?.replace(/^/, ""),
-      committer: e.committer?.name?.replace(/^/, "@"),
-      tree: undefined,
-      parents: undefined,
-      verification: undefined,
-      _links: undefined,
-      sha: undefined,
-      review_requester: e.review_requester?.login?.replace(/^/, "@"),
-      requested_reviewer: e.requested_reviewer?.login?.replace(/^/, "@"),
-      label: e.label?.name,
-
-      reactions: e.reactions?.total_count,
-      body: e.body?.replace(/\s+/g, " ").replace(/(?<=.{30})[\s\S]+/g, (e) => `...[${e.length} more chars]`),
-      message: e.message?.replace(/\s+/g, " ").replace(/(?<=.{30})[\s\S]+/g, (e) => `...[${e.length} more chars]`),
-    }));
-  return timeline_statuses;
-}
-
-/**
- * Deduplicates PR tasks by PR number, preferring Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
- */
-function deduplicatePRTasks<T extends { url: string }>(tasks: T[]): T[] {
-  const seenPRNumbers = new Map<number, T>();
-  for (const task of tasks) {
-    const prNumber = Number(task.url.split("/").pop());
-    if (isNaN(prNumber)) continue;
-
-    const existingTask = seenPRNumbers.get(prNumber);
-    if (!existingTask) {
-      seenPRNumbers.set(prNumber, task);
-    } else {
-      // Prefer Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
-      if (task.url.includes("Comfy-Org/ComfyUI") && !existingTask.url.includes("Comfy-Org/ComfyUI")) {
-        seenPRNumbers.set(prNumber, task);
-      }
-    }
-  }
-  return Array.from(seenPRNumbers.values());
-}
-
-async function runCorePingTaskFull() {
+export default async function runCorePingTaskFull() {
   console.log("start", import.meta.file);
   const allPRs = await sflow(coreReviewTrackerConfig.REPOLIST)
     .map((repoUrl) =>
@@ -342,7 +256,13 @@ async function runCorePingTaskFull() {
   console.log("processedTasks", processedTasks.length);
 
   // process the opening before but not-opened now tasks, e.g. merged/closed recently
-  const updatedOldTasks = await sflow(ComfyCorePRs.find({ status: { $nin: ["MERGED", "CLOSED", "UNRELATED"] } }))
+  const updatedOldTasks = await sflow(
+    ComfyCorePRs.find({
+      status: { $nin: ["MERGED", "CLOSED", "UNRELATED"] },
+      // Exclude deprecated comfyanonymous/ComfyUI URLs
+      url: { $not: { $regex: "comfyanonymous/ComfyUI" } },
+    }),
+  )
     .filter((task) => !processedTasks.some((t) => t.url === task.url))
     .map((task) => ghData(ghc.pulls.get)({ ...parsePullUrl(task.url) }))
     .filter()
@@ -356,22 +276,24 @@ async function runCorePingTaskFull() {
       status: {
         $in: ["AUTHOR_COMMENTED", "REVIEW_REQUESTED", "OPEN", "COMMITTED"],
       },
+      // Exclude deprecated comfyanonymous/ComfyUI URLs to prevent showing stale data
+      url: { $not: { $regex: "comfyanonymous/ComfyUI" } },
     })
       .sort({ statusAt: 1, created_at: 1 })
       .toArray(),
   );
 
   const allOpeningCorePRs = deduplicatePRTasks(
-    (await (ComfyCorePRs.find({
+    await ComfyCorePRs.find({
       state: "open",
-    })).toArray()),
+      // Exclude deprecated comfyanonymous/ComfyUI URLs to prevent showing stale data
+      url: { $not: { $regex: "comfyanonymous/ComfyUI" } },
+    }).toArray(),
   );
 
   const remainingOpeningCorePRs = await sflow(allOpeningCorePRs)
-    .filter(
-      (e) => !pendingReviewCorePRs.map((e) => e.url).includes(e.url),
-    )
-    .filter(async e => {
+    .filter((e) => !pendingReviewCorePRs.map((e) => e.url).includes(e.url))
+    .filter(async (e) => {
       const prUrl = e.url;
       // revalidate if it is still open, calls gh.pulls.get
       const pr = await ghData(ghc.pulls.get)({ ...parsePullUrl(prUrl) });
@@ -407,9 +329,9 @@ async function runCorePingTaskFull() {
     remainingOpeningCorePRs.length > 0
       ? `\n\nAdditionally, there ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} ${remainingOpeningCorePRs.length} other open Core/Important ${remainingOpeningCorePRs.length === 1 ? "PR" : "PRs"} that ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} pending for author's change/update, lets wait for them.
 - ${remainingOpeningCorePRs
-        .toSorted(compareBy((e) => e.created_at))
-        .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`)
-        .join("\n- ")}`
+          .toSorted(compareBy((e) => e.created_at))
+          .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`)
+          .join("\n- ")}`
       : "";
   const tail = `\n\nSent from <https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
 
@@ -670,4 +592,89 @@ async function _cleanSpammyMessages20251117() {
         `Deleted message at ${new Date(+(e.ts || DIE()) * 1000).toISOString()}: ${e.text?.replace(/\n/g, " ").slice(0, 30)}...`,
     )
     .run();
+}
+/**
+ * Deduplicates PR tasks by PR number, preferring Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
+ */
+function deduplicatePRTasks<T extends { url: string }>(tasks: T[]): T[] {
+  const seenPRNumbers = new Map<number, T>();
+  for (const task of tasks) {
+    const prNumber = Number(task.url.split("/").pop());
+    if (isNaN(prNumber)) continue;
+
+    const existingTask = seenPRNumbers.get(prNumber);
+    if (!existingTask) {
+      seenPRNumbers.set(prNumber, task);
+    } else {
+      // Prefer Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
+      if (task.url.includes("Comfy-Org/ComfyUI") && !existingTask.url.includes("Comfy-Org/ComfyUI")) {
+        seenPRNumbers.set(prNumber, task);
+      }
+    }
+  }
+  return Array.from(seenPRNumbers.values());
+}
+
+async function getTimelineReviewStatuses(pr: GH["pull-request-simple"] | GH["pull-request"]) {
+  const timeline = await ghPageFlow(ghc.issues.listEventsForTimeline)({ ...parseIssueUrl(pr.html_url) }).toArray();
+
+  const reviewers = timeline
+    .map((e) =>
+      tsmatch(e)
+        .with(
+          {
+            event: "review_requested",
+            requested_reviewer: { login: P.select() },
+          },
+          (e) => e,
+        )
+        .otherwise(() => null),
+    )
+    .filter(Boolean) as string[];
+
+  const timeline_statuses = timeline
+    .map((e) => e as UnionToIntersection<typeof e>)
+    // determine PR_STATUS, committed_at
+    .map((e) => ({
+      ...e,
+      PR_STATUS: tsmatch(e)
+        .with({ event: "committed" }, () => "COMMITTED" as const)
+        .with({ event: "reviewed" }, () => "REVIEWED" as const)
+        .with({ event: "review_requested" }, () => "REVIEW_REQUESTED" as const)
+        .with({ event: "commented" }, (e) =>
+          reviewers.includes(e.user.login)
+            ? ("REVIEWER_COMMENTED" as const)
+            : e.user.login === pr.user?.login
+              ? ("AUTHOR_COMMENTED" as const)
+              : null,
+        )
+        .otherwise(() => null),
+      committed_at: e.committer?.date,
+    }))
+    // sanitize output for debug
+    .map((e) => ({
+      ...e,
+      url: undefined,
+      issue_url: undefined,
+      id: undefined,
+      node_id: undefined,
+      performed_via_github_app: undefined,
+      actor: e.actor?.login?.replace(/^/, "@"),
+      user: e.user?.login?.replace(/^/, "@"),
+      author: e.author?.name?.replace(/^/, ""),
+      committer: e.committer?.name?.replace(/^/, "@"),
+      tree: undefined,
+      parents: undefined,
+      verification: undefined,
+      _links: undefined,
+      sha: undefined,
+      review_requester: e.review_requester?.login?.replace(/^/, "@"),
+      requested_reviewer: e.requested_reviewer?.login?.replace(/^/, "@"),
+      label: e.label?.name,
+
+      reactions: e.reactions?.total_count,
+      body: e.body?.replace(/\s+/g, " ").replace(/(?<=.{30})[\s\S]+/g, (e) => `...[${e.length} more chars]`),
+      message: e.message?.replace(/\s+/g, " ").replace(/(?<=.{30})[\s\S]+/g, (e) => `...[${e.length} more chars]`),
+    }));
+  return timeline_statuses;
 }
