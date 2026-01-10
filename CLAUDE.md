@@ -1,5 +1,30 @@
 # Claude Development Notes
 
+## TypeScript Performance Optimization (2026-01-10)
+
+### Problem
+
+The TypeScript server was experiencing severe performance issues causing slowdowns and crashes.
+
+### Root Causes
+
+1. **Overly broad include pattern** (`**/*.ts`) - forced scanning of 15,355+ .d.ts files in node_modules
+2. **Expensive recursive type** (`DeepAsyncWrapper<T>`) - computed over 122K+ line Octokit type definitions
+3. **Test files included** - unnecessary type checking during development
+
+### Solution (PR #139)
+
+- Replaced `**/*.ts` with specific directory patterns in tsconfig.json
+- Removed `DeepAsyncWrapper` type from src/ghc.ts (runtime proxy handles async wrapping)
+- Excluded `**/*.spec.ts` and `**/*.test.ts` from compilation
+- TypeScript compilation now completes in ~33s with clean builds
+
+### Key Files Modified
+
+- `tsconfig.json`: Specific includes instead of broad patterns
+- `src/ghc.ts`: Simplified type annotation for `ghc` export
+- `next-env.d.ts`: Created (auto-generated, git-ignored)
+
 ## General Development Flow for All Scripts
 
 ### Standard Development Pattern
@@ -111,7 +136,7 @@ SFlow is a powerful functional stream processing library used throughout the cod
 
 ### Implementation Details
 
-- **Package**: `sflow@1.24.0` 
+- **Package**: `sflow@1.24.0`
 - **Author**: snomiao
 - **License**: MIT
 - **Core Concepts**: SFlow is built around composable stream operators, lazy evaluation, and support for both synchronous and asynchronous data flows.
