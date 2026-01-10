@@ -82,7 +82,10 @@ export type WEBHOOK_EVENTS = {
 //   payload: WEBHOOK_EVENTS[K];
 // };
 export type WEBHOOK_EVENT =
-  | { type: "branch_protection_configuration"; payload: WEBHOOK_EVENTS["branch_protection_configuration"] }
+  | {
+      type: "branch_protection_configuration";
+      payload: WEBHOOK_EVENTS["branch_protection_configuration"];
+    }
   | { type: "branch_protection_rule"; payload: WEBHOOK_EVENTS["branch_protection_rule"] }
   | { type: "check_run"; payload: WEBHOOK_EVENTS["check_run"] }
   | { type: "check_suite"; payload: WEBHOOK_EVENTS["check_suite"] }
@@ -120,7 +123,10 @@ export type WEBHOOK_EVENT =
   | { type: "organization"; payload: WEBHOOK_EVENTS["organization"] }
   | { type: "package"; payload: WEBHOOK_EVENTS["package"] }
   | { type: "page_build"; payload: WEBHOOK_EVENTS["page_build"] }
-  | { type: "personal_access_token_request"; payload: WEBHOOK_EVENTS["personal_access_token_request"] }
+  | {
+      type: "personal_access_token_request";
+      payload: WEBHOOK_EVENTS["personal_access_token_request"];
+    }
   | { type: "ping"; payload: WEBHOOK_EVENTS["ping"] }
   | { type: "project"; payload: WEBHOOK_EVENTS["project"] }
   | { type: "project_card"; payload: WEBHOOK_EVENTS["project_card"] }
@@ -141,9 +147,15 @@ export type WEBHOOK_EVENT =
   | { type: "repository_dispatch"; payload: WEBHOOK_EVENTS["repository_dispatch"] }
   | { type: "repository_import"; payload: WEBHOOK_EVENTS["repository_import"] }
   | { type: "repository_ruleset"; payload: WEBHOOK_EVENTS["repository_ruleset"] }
-  | { type: "repository_vulnerability_alert"; payload: WEBHOOK_EVENTS["repository_vulnerability_alert"] }
+  | {
+      type: "repository_vulnerability_alert";
+      payload: WEBHOOK_EVENTS["repository_vulnerability_alert"];
+    }
   | { type: "secret_scanning_alert"; payload: WEBHOOK_EVENTS["secret_scanning_alert"] }
-  | { type: "secret_scanning_alert_location"; payload: WEBHOOK_EVENTS["secret_scanning_alert_location"] }
+  | {
+      type: "secret_scanning_alert_location";
+      payload: WEBHOOK_EVENTS["secret_scanning_alert_location"];
+    }
   | { type: "secret_scanning_scan"; payload: WEBHOOK_EVENTS["secret_scanning_scan"] }
   | { type: "security_advisory"; payload: WEBHOOK_EVENTS["security_advisory"] }
   | { type: "security_and_analysis"; payload: WEBHOOK_EVENTS["security_and_analysis"] }

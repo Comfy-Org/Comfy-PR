@@ -20,7 +20,11 @@ const TEAM_MEMBERS: TeamMember[] = [
   { username: "christian-byrne", startDate: new Date("2020-01-01"), displayName: "Christian" },
   { username: "robinjhuang", startDate: new Date("2020-01-01"), displayName: "Robin" },
   { username: "pythongosssss", startDate: new Date("2020-01-01"), displayName: "Simon" },
-  { username: "bigcat88", startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), displayName: "BigCat" }, // 2 months ago
+  {
+    username: "bigcat88",
+    startDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+    displayName: "BigCat",
+  }, // 2 months ago
   { username: "ltdrdata", startDate: new Date("2020-01-01"), displayName: "Dr Lt Data" },
   { username: "guill", startDate: new Date("2024-06-01"), displayName: "Guill" },
   // Additional active contributors (temporarily limiting for performance)

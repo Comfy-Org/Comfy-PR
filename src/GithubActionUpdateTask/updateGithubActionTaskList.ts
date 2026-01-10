@@ -49,7 +49,7 @@ if (import.meta.main) {
     }),
     GithubActionUpdateTask.find({
       pullRequestMessage: new RegExp(
-        "- ## Add your own personal access token to your Github Repository secrets and reference it here\.",
+        "- ## Add your own personal access token to your Github Repository secrets and reference it here.",
       ),
     }),
   )

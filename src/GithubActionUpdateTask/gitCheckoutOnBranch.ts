@@ -11,6 +11,6 @@ git config user.name ${await GIT_USERNAME()} && \
 git config user.email ${await GIT_USEREMAIL()} && \
 git checkout -b ${branch}
 `;
-  console.log('checkout', JSON.stringify({ cwd }));
+  console.log("checkout", JSON.stringify({ cwd }));
   return cwd;
 }

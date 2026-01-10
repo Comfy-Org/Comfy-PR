@@ -3,6 +3,7 @@
 We are working with dr.lt.data and comfyanon to build a global registry for custom nodes (similar to PyPI). Eventually, the registry will be used as a backend for the UI-manager. All nodes go through a verification process before being published to users.
 
 The main benefits are that authors can
+
 - publish nodes by version and users can safely update nodes knowing ahead of time if their workflows will break or not
 - automate testing against new commits in the comfy repo and existing workflows through our CI/CD dashboard
 

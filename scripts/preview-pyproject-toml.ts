@@ -58,7 +58,7 @@ async function previewPyprojectToml() {
     try {
       const { fetchRepoDescriptionMap } = await import("../src/fetchRepoDescriptionMap");
       const repoDescriptionMap = await fetchRepoDescriptionMap();
-      const urlParts = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      const urlParts = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
       if (urlParts) {
         const referenceUrl = `https://github.com/${urlParts[1]}/${urlParts[2]}`;
         const description = repoDescriptionMap[referenceUrl];

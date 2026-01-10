@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { resetGithubActionUpdateTaskAction } from "./actions";
 export function ResetTaskButton(e: { repo: string }) {
-  const [state, formAction, pending] = useActionState(resetGithubActionUpdateTaskAction, { ok: false });
+  const [state, formAction, pending] = useActionState(resetGithubActionUpdateTaskAction, {
+    ok: false,
+  });
   const router = useRouter();
   useEffect(() => {
     if (state.ok) router.refresh();
@@ -23,7 +25,7 @@ export function ResetTaskButton(e: { repo: string }) {
             const btns = [...document.querySelectorAll("button.btn-reset")] as HTMLButtonElement[];
             btns[btns.indexOf(e.currentTarget) + offset]?.scrollIntoView({ block: "start" });
             btns[btns.indexOf(e.currentTarget) + offset]?.focus();
-            e.stopPropagation(), e.preventDefault();
+            (e.stopPropagation(), e.preventDefault());
           };
           if (isHotkey("ArrowUp")(e)) mv(-1);
           if (isHotkey("ArrowDown")(e)) mv(1);

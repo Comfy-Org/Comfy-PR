@@ -129,7 +129,9 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
   console.log("Fetching Comfy tasks database...");
 
   const database_id = notionComfyTasks.split("/").pop()!;
-  const database = (await notion.databases.retrieve({ database_id })) as Notion.DatabaseObjectResponse;
+  const database = (await notion.databases.retrieve({
+    database_id,
+  })) as Notion.DatabaseObjectResponse;
   const data_source_id = database.data_sources?.[0]?.id ?? DIE("No data sources found in database");
 
   console.log("Database info:", JSON.stringify(database));
@@ -204,7 +206,9 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
     .forEach(async (e) => {
       const issueState = (await IssuesState.get(e.url)) as IssuesState;
       if (!issueState.page_id) return null; // no notion page linked yet, maybe unito sync not working
-      const page = (await notion.pages.retrieve({ page_id: issueState.page_id })) as PageObjectResponse;
+      const page = (await notion.pages.retrieve({
+        page_id: issueState.page_id,
+      })) as PageObjectResponse;
       await ComfyTaskPrioritySync(page);
     })
     .run();

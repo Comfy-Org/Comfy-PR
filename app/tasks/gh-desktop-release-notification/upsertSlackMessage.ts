@@ -5,7 +5,7 @@ import KeyvSqlite from "@keyv/sqlite";
 import DIE from "@snomiao/die";
 import chalk from "chalk";
 import Keyv from "keyv";
-import { slackMessageUrlStringify, slackMessageUrlParse } from "../gh-design/slackMessageUrlParse";
+import { slackMessageUrlParse, slackMessageUrlStringify } from "../gh-design/slackMessageUrlParse";
 import { COMFY_PR_CACHE_DIR } from "./COMFY_PR_CACHE_DIR";
 
 const SlackChannelIdsCache = new Keyv<string>({
@@ -61,7 +61,12 @@ export async function upsertSlackMessage({
     const thread_ts = !replyUrl ? undefined : slackMessageUrlParse(replyUrl).ts;
     const msg = !thread_ts
       ? await slack.chat.postMessage({ text, channel })
-      : await slack.chat.postMessage({ text, channel, thread_ts, reply_broadcast: reply_broadcast ?? false });
+      : await slack.chat.postMessage({
+          text,
+          channel,
+          thread_ts,
+          reply_broadcast: reply_broadcast ?? false,
+        });
 
     const url = slackMessageUrlStringify({ channel, ts: msg.ts! });
     return { ...msg, url, text, channel };

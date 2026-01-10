@@ -38,7 +38,9 @@ export const router = t.router({
     .output(z.any())
     .query(async () => await getWorkerInstance()),
   analyzePullsStatus: t.procedure
-    .meta({ openapi: { method: "GET", path: "/analyze-pulls-status", description: "Get current worker" } })
+    .meta({
+      openapi: { method: "GET", path: "/analyze-pulls-status", description: "Get current worker" },
+    })
     .input(z.object({ skip: z.number(), limit: z.number() }).partial())
     .output(
       z.object({
@@ -100,7 +102,11 @@ export const router = t.router({
 
   githubContributorAnalyze: t.procedure
     .meta({
-      openapi: { method: "GET", path: "/github-contributor-analyze", description: "Get github contributor analyze" },
+      openapi: {
+        method: "GET",
+        path: "/github-contributor-analyze",
+        description: "Get github contributor analyze",
+      },
     })
     .input(z.object({ url: z.string() }))
     .output(
@@ -125,7 +131,11 @@ export const router = t.router({
 
   getGithubDesignTaskMeta: t.procedure
     .meta({
-      openapi: { method: "GET", path: "/tasks/gh-design/meta", description: "Get github design task metadata" },
+      openapi: {
+        method: "GET",
+        path: "/tasks/gh-design/meta",
+        description: "Get github design task metadata",
+      },
     })
     .input(z.object({}))
     .output(
@@ -159,7 +169,11 @@ export const router = t.router({
 
   updateGithubDesignTaskMeta: t.procedure
     .meta({
-      openapi: { method: "PATCH", path: "/tasks/gh-design/meta", description: "Update github design task metadata" },
+      openapi: {
+        method: "PATCH",
+        path: "/tasks/gh-design/meta",
+        description: "Update github design task metadata",
+      },
     })
     .input(
       z.object({

@@ -22,7 +22,6 @@
     add-comment:
       by: robinjhuang
       body: "hey @{{$ownername}}, wanted to send a small nudge and ask if you had any questions!"
-
 # - name: rule2 - second follow up on one comment
 #   $match:
 #     state: OPEN

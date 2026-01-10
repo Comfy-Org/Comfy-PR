@@ -19,7 +19,9 @@ export const github = KeyvCacheProxy({
   },
 })(
   lazyProxy(() =>
-    createOctokit({ auth: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing env.GH_TOKEN_COMFY_PR_BOT") }),
+    createOctokit({
+      auth: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing env.GH_TOKEN_COMFY_PR_BOT"),
+    }),
   ),
 );
 

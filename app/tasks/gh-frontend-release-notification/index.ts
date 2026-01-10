@@ -109,7 +109,7 @@ async function runGithubFrontendReleaseNotificationTask() {
         .replace(/$/, "\n" + formattedReleaseNotes)
         .replace(/(.*) in (https:\/\/\S*)$/gm, "<$2|$1>") // linkify URLs at the end of lines;
         .replace(/^([\s\S]{1800}.*)\r?\n[\s\S]*?(.*[\s\S]{1800})$/, "$1\n...TRUNCATED...\n$2") // truncate to 4000 characters, slack limit is 40000 but be safe
-        .replace('**Full Changelog**', 'Full Changelog'); 
+        .replace("**Full Changelog**", "Full Changelog");
 
       console.log(newSlackMessageText);
       const shouldSendDraftingMessage = !task.isStable;

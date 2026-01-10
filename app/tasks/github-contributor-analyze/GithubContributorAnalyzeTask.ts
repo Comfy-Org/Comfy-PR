@@ -19,4 +19,3 @@ export const GithubContributorAnalyzeTaskFilter = {
   updatedAt: { $not: { $gt: new Date(Date.now() - 1000 * 60 * 60 * 24) } },
 };
 // todo: rename GithubContributorAnalzyeTask => GithubContributorAnalyzeTask
-

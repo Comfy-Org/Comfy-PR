@@ -40,7 +40,11 @@ export async function updateAuthorsForGithub() {
       Authors.findOneAndUpdate(
         { githubId: login },
         {
-          $set: { githubMtime: new Date(), ...(email && { email }), ...(null != hireable && { hireable }) },
+          $set: {
+            githubMtime: new Date(),
+            ...(email && { email }),
+            ...(null != hireable && { hireable }),
+          },
           $addToSet: {
             ...(bio && { bios: bio }),
             avatars: avatar_url,

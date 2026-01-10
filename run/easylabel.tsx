@@ -153,7 +153,11 @@ async function runLabelOpInitializeScan() {
       console.log(`+issue ${issue.html_url} with ${issue.comments} comments`);
       if (!issue.comments) return;
       await pageFlow(1, async (page, per_page = 100) => {
-        const { data } = await ghc.issues.listComments({ ...parseIssueUrl(issue.html_url), page, per_page });
+        const { data } = await ghc.issues.listComments({
+          ...parseIssueUrl(issue.html_url),
+          page,
+          per_page,
+        });
         return { data, next: data.length >= per_page ? page + 1 : null };
       })
         .flat()

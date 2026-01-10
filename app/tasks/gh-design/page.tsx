@@ -1,13 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
 import { GithubDesignTask } from "./gh-design";
 import { GithubDesignTaskMetaEditor } from "./GithubDesignTaskMetaEditor";
@@ -19,7 +11,6 @@ import { GithubDesignTaskMetaEditor } from "./GithubDesignTaskMetaEditor";
 export default async function GithubDesignTaskPage() {
   // Fetch all tasks from the database
   const tasks = await GithubDesignTask.find({}).sort({ lastCheckedAt: -1 }).toArray();
-
 
   const formatDate = (date: Date | string | undefined) => {
     if (!date) return "N/A";
@@ -37,7 +28,7 @@ export default async function GithubDesignTaskPage() {
   };
 
   const getRepoFromUrl = (url: string) => {
-    const match = url.match(/github\.com\/([^\/]+\/[^\/]+)/);
+    const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
     return match?.[1] || url;
   };
 
@@ -64,8 +55,7 @@ export default async function GithubDesignTaskPage() {
           <TableCaption>
             {tasks.length === 0
               ? "No design tasks found"
-              : `A list of ${tasks.length} design task${tasks.length !== 1 ? 's' : ''} being tracked`
-            }
+              : `A list of ${tasks.length} design task${tasks.length !== 1 ? "s" : ""} being tracked`}
           </TableCaption>
           <TableHeader>
             <TableRow>
@@ -91,8 +81,12 @@ export default async function GithubDesignTaskPage() {
               tasks.map((task) => (
                 <TableRow key={task.url}>
                   <TableCell>
-                    <Link className="text-sm text-muted-foreground outline outline-[1px] rounded-full px-2 py-1 whitespace-pre" href={`https://github.com/${task.user}`}
-                      target="_blank" rel="noopener noreferrer">
+                    <Link
+                      className="text-sm text-muted-foreground outline outline-[1px] rounded-full px-2 py-1 whitespace-pre"
+                      href={`https://github.com/${task.user}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       @{task.user}
                     </Link>
                   </TableCell>
@@ -105,19 +99,15 @@ export default async function GithubDesignTaskPage() {
                     >
                       <div className="flex items-center gap-2">
                         <Badge className="w-16 text-center justify-center">
-                          {({ "pull_request": "PR", 'issue': "Issue" })[task.type] || "Task"}
+                          {{ pull_request: "PR", issue: "Issue" }[task.type] || "Task"}
                         </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {getIssueNumber(task.url)}
-                        </span>
-                        <h3>
-                          {task.title}
-                        </h3>
+                        <span className="text-sm text-muted-foreground">{getIssueNumber(task.url)}</span>
+                        <h3>{task.title}</h3>
                       </div>
                     </Link>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Badge variant={'outline'}>{task.state?.toUpperCase() || '?'}</Badge>
+                    <Badge variant={"outline"}>{task.state?.toUpperCase() || "?"}</Badge>
                   </TableCell>
                   <TableCell className="text-center text-sm text-muted-foreground">
                     {formatDate(task.stateAt)}
@@ -126,28 +116,34 @@ export default async function GithubDesignTaskPage() {
                     {task.labels && task.labels.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {task.labels.map((label, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs" style={{ backgroundColor: `#${label.color}` }}>
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="text-xs"
+                            style={{ backgroundColor: `#${label.color}` }}
+                          >
                             {label.name}
                           </Badge>
                         ))}
                       </div>
-                    ) : (
-                      null
-                    )}</TableCell>
+                    ) : null}
+                  </TableCell>
                   <TableCell className="text-center">
-
                     {task.reviewers && task.reviewers.length > 0 ? (
                       <div className=" flex flex-wrap gap-1">
                         {task.reviewers.map((reviewer, index) => (
-                          <Link key={index} className="text-sm text-muted-foreground outline outline-[1px] rounded-full px-2 py-1" href={`https://github.com/${reviewer}`}
-                            target="_blank" rel="noopener noreferrer">
+                          <Link
+                            key={index}
+                            className="text-sm text-muted-foreground outline outline-[1px] rounded-full px-2 py-1"
+                            href={`https://github.com/${reviewer}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
                             @{reviewer}
                           </Link>
                         ))}
                       </div>
-                    ) : (
-                      null
-                    )}
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-center">
                     {task.slackUrl ? (
@@ -161,7 +157,6 @@ export default async function GithubDesignTaskPage() {
                       </Link>
                     ) : null}
                   </TableCell>
-
                 </TableRow>
               ))
             )}
@@ -171,7 +166,9 @@ export default async function GithubDesignTaskPage() {
 
       <div className="mt-6 text-sm text-muted-foreground">
         <p>
-          {('This table shows all GitHub issues and pull requests with the "Design" label that have been processed by the automated tracking system. The system monitors repositories, sends Slack notifications, and requests reviews for design-related items.')}
+          {
+            'This table shows all GitHub issues and pull requests with the "Design" label that have been processed by the automated tracking system. The system monitors repositories, sends Slack notifications, and requests reviews for design-related items.'
+          }
         </p>
       </div>
     </div>

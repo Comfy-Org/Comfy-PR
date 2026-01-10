@@ -62,7 +62,11 @@ if (import.meta.main) {
             })
             .then((res) => res.permalink || DIE("got empty permalink " + JSON.stringify({ res, chanId, lastMessage })));
         });
-        await upsertSlackMessage({ channel: member.channel.id, text: "hello", url: lastMessageUrl });
+        await upsertSlackMessage({
+          channel: member.channel.id,
+          text: "hello",
+          url: lastMessageUrl,
+        });
       })
       // log result
       .log()
