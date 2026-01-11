@@ -133,7 +133,10 @@ class RepoEventMonitor {
       //   processIssueCommentForLableops({ issue: issue as GH["issue"], comment: comment as GH["issue-comment"] }),
       // )
       .with({ type: "issue_comment" }, async ({ payload: { issue, comment } }) =>
-        processIssueCommentForLableops({ issue: issue as GH["issue"], comment: comment as GH["issue-comment"] }),
+        processIssueCommentForLableops({
+          issue: issue as GH["issue"],
+          comment: comment as GH["issue-comment"],
+        }),
       )
       .otherwise(() => null);
     // match core-important in +Core-Important
@@ -349,7 +352,11 @@ class RepoEventMonitor {
   private async checkPollingRepos() {
     sflow(this.pollingRepos).map((html_url) => {
       pageFlow(1, async (page, per_page = 100) => {
-        const { data } = await ghc.issues.listForRepo({ ...parseGithubRepoUrl(html_url), page, per_page });
+        const { data } = await ghc.issues.listForRepo({
+          ...parseGithubRepoUrl(html_url),
+          page,
+          per_page,
+        });
         return { data, next: data.length >= per_page ? page + 1 : null };
       }).flat();
     });

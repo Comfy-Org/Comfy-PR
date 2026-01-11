@@ -53,7 +53,10 @@ export async function watchRepo(repoUrl: string) {
   await sflow(tokens)
     .map((token) => gh(token))
     .map(async (gh) => {
-      const result = await gh.activity.setRepoSubscription({ ...parseGithubRepoUrl(repoUrl), subscribed: true });
+      const result = await gh.activity.setRepoSubscription({
+        ...parseGithubRepoUrl(repoUrl),
+        subscribed: true,
+      });
 
       console.log(result);
     })
@@ -63,7 +66,10 @@ export async function unwatchRepo(repoUrl: string) {
   await sflow(tokens)
     .map((token) => gh(token))
     .map(async (gh) => {
-      const result = await gh.activity.setRepoSubscription({ ...parseGithubRepoUrl(repoUrl), subscribed: false });
+      const result = await gh.activity.setRepoSubscription({
+        ...parseGithubRepoUrl(repoUrl),
+        subscribed: false,
+      });
       console.log(result);
     })
     .run();

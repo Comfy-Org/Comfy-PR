@@ -71,7 +71,11 @@ export function baseCRPullStatusPipeline(): Pipeline<
   return (
     $pipeline(CNRepos)
       // get latest pr comments time
-      .set({ "crPulls.data.pull.latest_comment_at": { $max: { $max: "$crPulls.data.comments.data.updated_at" } } })
+      .set({
+        "crPulls.data.pull.latest_comment_at": {
+          $max: { $max: "$crPulls.data.comments.data.updated_at" },
+        },
+      })
       // unwind
       .stage({ $unwind: "$crPulls.data" })
       .match({ "crPulls.data.comments.data": { $exists: true } })
@@ -145,7 +149,11 @@ export function analyzePullsStatusPipeline(): Pipeline<{
       .project({ authors: 0 })
 
       .set({ lastcomment: { $arrayElemAt: ["$comments", -1] } })
-      .set({ lastcomment: { $ifNull: [{ $concat: ["$lastcomment.user.login", ": ", "$lastcomment.body"] }, ""] } })
+      .set({
+        lastcomment: {
+          $ifNull: [{ $concat: ["$lastcomment.user.login", ": ", "$lastcomment.body"] }, ""],
+        },
+      })
 
       // calculate update_at max( )
       // date format convert

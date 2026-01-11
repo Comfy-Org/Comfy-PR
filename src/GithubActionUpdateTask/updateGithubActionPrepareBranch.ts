@@ -105,7 +105,10 @@ export async function updateGithubActionPrepareBranch(repo: string) {
       { role: "user", content: JSON.stringify({ diff }) },
     ]),
     pullRequestMessage: gptWriter([
-      { role: "system", content: "Act as a pull request message writer, no explain, output as markdown format" },
+      {
+        role: "system",
+        content: "Act as a pull request message writer, no explain, output as markdown format",
+      },
       { role: "developer", content: "$ read git diff" },
       { role: "function", name: "read", content: diff },
       { role: "developer", content: "$ read Pull Request message template" },

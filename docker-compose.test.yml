@@ -33,7 +33,7 @@ services:
   #   env_file:
   #     - .env
   #     - .env.test
-  # 
+  #
   # db is not necessary for local dev
   # todo: use .override.yml to enable testing dmongodb
   comfy-pr-db:

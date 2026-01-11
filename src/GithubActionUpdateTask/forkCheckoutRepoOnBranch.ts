@@ -2,7 +2,6 @@ import { createGithubForkForRepoEx } from "../createGithubForkForRepo";
 import { getBranchWorkingDir } from "../getBranchWorkingDir";
 import { gitCheckoutOnBranch } from "./gitCheckoutOnBranch";
 
-
 export async function forkCheckoutRepoOnBranch(upstreamUrl: string, branch: string) {
   console.log("==== CHECKOUT " + upstreamUrl);
   const forkedRepo = await createGithubForkForRepoEx(upstreamUrl);

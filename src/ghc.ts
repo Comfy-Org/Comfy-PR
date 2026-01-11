@@ -96,15 +96,9 @@ function createCachedProxy(target: any, basePath: string[] = []): any {
   });
 }
 
-type DeepAsyncWrapper<T> = {
-  [K in keyof T]: T[K] extends (...args: any[]) => Promise<any>
-    ? T[K]
-    : T[K] extends (...args: any[]) => any
-      ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
-      : T[K] extends object
-        ? DeepAsyncWrapper<T[K]>
-        : T[K];
-};
+// Simplified type - avoid expensive recursive type computation
+// The proxy already handles the async wrapping at runtime
+export const ghc = createCachedProxy(gh) as typeof gh;
 
 export async function clearGhCache(): Promise<void> {
   const keyvInstance = await getKeyv();
@@ -116,8 +110,6 @@ export async function getGhCacheStats(): Promise<{ size: number; keys: string[] 
   // For now, return basic info
   return { size: 0, keys: [] };
 }
-
-export const ghc = createCachedProxy(gh) as DeepAsyncWrapper<typeof gh>;
 
 // manual test with real api
 if (import.meta.main) {

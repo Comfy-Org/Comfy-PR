@@ -70,7 +70,9 @@ export async function updateFollowRuleSet({
       async (rule) => {
         if (runAction) {
           // pre-fetch comments before run a rule -> match -> action, to prevent comment on a outdated pull state
-          const preMatched = await analyzePullsStatus({ pipeline: analyzePullsStatusPipeline().match(rule.$match) })
+          const preMatched = await analyzePullsStatus({
+            pipeline: analyzePullsStatusPipeline().match(rule.$match),
+          })
             .then(TaskOK)
             .catch(TaskError);
 
@@ -92,7 +94,9 @@ export async function updateFollowRuleSet({
           });
         }
 
-        const matched = await analyzePullsStatus({ pipeline: analyzePullsStatusPipeline().match(rule.$match) })
+        const matched = await analyzePullsStatus({
+          pipeline: analyzePullsStatusPipeline().match(rule.$match),
+        })
           .then(TaskOK)
           .catch(TaskError);
 

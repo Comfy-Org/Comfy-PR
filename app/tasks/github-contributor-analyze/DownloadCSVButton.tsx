@@ -16,9 +16,5 @@ export function DownloadCSVButton({ csvContent, filename }: DownloadCSVButtonPro
     document.body.removeChild(link);
   };
 
-  return (
-    <button onClick={handleDownload}>
-      Download CSV
-    </button>
-  );
+  return <button onClick={handleDownload}>Download CSV</button>;
 }

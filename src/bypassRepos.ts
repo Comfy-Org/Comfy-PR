@@ -7,4 +7,3 @@ export const { ignore_repos } = z
   })
   .parse(yaml.parse(await Bun.file("./comfypr-ignore.yaml").text()));
 export const isRepoBypassed = (repo: string) => ignore_repos.some((reg) => repo.match(reg));
-

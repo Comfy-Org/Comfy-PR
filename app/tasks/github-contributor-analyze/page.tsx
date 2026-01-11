@@ -19,7 +19,6 @@ export default async function GithubContributorAnalyzeTaskPage() {
 
       <h2>Details</h2>
       <DownloadCSVButton csvContent={csvContent} filename="uniq-contributor-emails.csv" />
-
     </main>
   );
 }

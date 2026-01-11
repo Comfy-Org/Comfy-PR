@@ -26,18 +26,22 @@ export async function analyzeTotals() {
       "on ComfyUI Manager": CMNodes.estimatedDocumentCount(),
       "on Registry": CRNodes.estimatedDocumentCount(),
       "on Registry (exclude unclaimed)": CRNodes.countDocuments({
-         'publisher.id': { $ne: UNCLAIMED_ADMIN_PUBLISHER_ID } ,
+        "publisher.id": { $ne: UNCLAIMED_ADMIN_PUBLISHER_ID },
       } as any),
     }),
     "Total Repos": $pipeline(CNRepos)
       .group({
         _id: null,
-        "on Comfy Manager List": { $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] } },
+        "on Comfy Manager List": {
+          $sum: { $cond: [{ $eq: [{ $type: "$cm" }, "missing"] }, 0, 1] },
+        },
         "on Registry": { $sum: { $cond: [{ $eq: [{ $type: "$cr" }, "missing"] }, 0, 1] } },
         Archived: { $sum: { $cond: ["$info.data.archived", 1, 0] } },
         All: { $sum: 1 },
         // Candidates: { $sum: { $cond: ["$candidate.data", 1, 0] } },
-        "Got ERROR on creating PR": { $sum: { $cond: [{ $eq: ["$createdPulls.state", "error"] }, 1, 0] } },
+        "Got ERROR on creating PR": {
+          $sum: { $cond: [{ $eq: ["$createdPulls.state", "error"] }, 1, 0] },
+        },
       })
       .project({ _id: 0 })
       .aggregate()

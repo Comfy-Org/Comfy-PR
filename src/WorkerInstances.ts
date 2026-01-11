@@ -39,7 +39,11 @@ if (import.meta.main) {
   await WorkerInstances.createIndex({ ip: 1 });
   console.log(await getWorkerInstance());
   console.log(
-    await sflow(WorkerInstances.watch([{ $match: { up: $fresh("5min") } }], { fullDocument: "whenAvailable" }))
+    await sflow(
+      WorkerInstances.watch([{ $match: { up: $fresh("5min") } }], {
+        fullDocument: "whenAvailable",
+      }),
+    )
       .map((e) => yaml.stringify(e))
       .log()
       .run(),

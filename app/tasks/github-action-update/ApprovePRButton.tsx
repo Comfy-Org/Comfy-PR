@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { approveGithubActionUpdateTaskAction } from "./actions";
 export function ApprovePRButton(e: { repo: string; branchVersionHash?: string }) {
-  const [state, formAction, pending] = useActionState(approveGithubActionUpdateTaskAction, { ok: false });
+  const [state, formAction, pending] = useActionState(approveGithubActionUpdateTaskAction, {
+    ok: false,
+  });
   const router = useRouter();
   useEffect(() => {
     if (state.ok) router.refresh();
@@ -25,7 +27,7 @@ export function ApprovePRButton(e: { repo: string; branchVersionHash?: string })
             btns[btns.indexOf(e.currentTarget) + offset]?.scrollIntoView({ block: "start" });
             btns[btns.indexOf(e.currentTarget) + offset]?.focus();
 
-            e.stopPropagation(), e.preventDefault();
+            (e.stopPropagation(), e.preventDefault());
           };
           if (isHotkey("ArrowUp")(e)) mv(-1);
           if (isHotkey("ArrowDown")(e)) mv(1);

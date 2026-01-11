@@ -9,7 +9,6 @@ Action Required:
 - [ ] Go to the [registry](https://www.comfyregistry.org/). Login and create a publisher id. Comment it here and we will update the PR (or just merge it and change it yourself).
 - [ ] Write a short the description.
 - [ ] Merge the separate Github Actions PR and run the workflow.
-If you want to publish the node manually, [install the cli](https://www.comfydocs.org/comfy-cli/getting-started#install-cli) and run `comfy node publish`
-
+      If you want to publish the node manually, [install the cli](https://www.comfydocs.org/comfy-cli/getting-started#install-cli) and run `comfy node publish`
 
 Please message me on [Discord](https://discord.com/invite/comfycontrib) if you have any questions!

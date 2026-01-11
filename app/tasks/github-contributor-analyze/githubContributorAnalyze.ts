@@ -16,7 +16,11 @@ if (import.meta.main) {
   await $pipeline(CNRepos)
     .project({ repoUrl: "$repository", _id: 0 })
     .match({ repoUrl: /^https:\/\/github\.com/ })
-    .merge({ into: GithubContributorAnalyzeTask.collectionName, on: "repoUrl", whenMatched: "merge" })
+    .merge({
+      into: GithubContributorAnalyzeTask.collectionName,
+      on: "repoUrl",
+      whenMatched: "merge",
+    })
     .aggregate()
     .next();
 
@@ -57,7 +61,6 @@ if (import.meta.main) {
         ),
     )
     .filter((e) => !e.error?.match("Access to this repository has been disabled by GitHub staff.")) //filter out not retryable error
-
     .pMap(
       async ({ _id, repoUrl }, index) => {
         console.log(`Task githubContributorAnalyze ${index}/${remain}/${total}`, { repoUrl });

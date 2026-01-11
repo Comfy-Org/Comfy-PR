@@ -53,7 +53,7 @@ import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSla
 export const coreReviewTrackerConfig = {
   REPOLIST: [
     // "https://github.com/comfyanonymous/ComfyUI", // deprecated
-    "https://github.com/Comfy-Org/ComfyUI", // 2026-01-08 new 
+    "https://github.com/Comfy-Org/ComfyUI", // 2026-01-08 new
     "https://github.com/Comfy-Org/Comfy-PR",
     "https://github.com/Comfy-Org/ComfyUI_frontend",
     "https://github.com/Comfy-Org/desktop",
@@ -201,8 +201,14 @@ async function determinePullRequestReviewStatus(
       (pr) => isUnrelated?.(pr),
       () => ({ status: "UNRELATED" as const, statusAt: new Date(pr.updated_at!) }),
     )
-    .with({ merged_at: P.string }, () => ({ status: "MERGED" as const, statusAt: new Date(pr.merged_at!) }))
-    .with({ closed_at: P.string }, () => ({ status: "CLOSED" as const, statusAt: new Date(pr.closed_at!) }))
+    .with({ merged_at: P.string }, () => ({
+      status: "MERGED" as const,
+      statusAt: new Date(pr.merged_at!),
+    }))
+    .with({ closed_at: P.string }, () => ({
+      status: "CLOSED" as const,
+      statusAt: new Date(pr.closed_at!),
+    }))
     .with({ draft: true }, () => ({ status: "DRAFT" as const, statusAt: new Date(pr.created_at) }))
     .otherwise(async () => {
       const latestEvent = (await getTimelineReviewStatuses(pr)).flatMap((e) => (e.PR_STATUS ? [e] : [])).at(-1);
@@ -217,7 +223,9 @@ async function determinePullRequestReviewStatus(
 }
 
 async function getTimelineReviewStatuses(pr: GH["pull-request-simple"] | GH["pull-request"]) {
-  const timeline = await ghPageFlow(ghc.issues.listEventsForTimeline)({ ...parseIssueUrl(pr.html_url) }).toArray();
+  const timeline = await ghPageFlow(ghc.issues.listEventsForTimeline)({
+    ...parseIssueUrl(pr.html_url),
+  }).toArray();
 
   const reviewers = timeline
     .map((e) =>
@@ -342,7 +350,13 @@ async function runCorePingTaskFull() {
   console.log("processedTasks", processedTasks.length);
 
   // process the opening before but not-opened now tasks, e.g. merged/closed recently
-  const updatedOldTasks = await sflow(ComfyCorePRs.find({ status: { $nin: ["MERGED", "CLOSED", "UNRELATED"] } }))
+  const updatedOldTasks = await sflow(
+    ComfyCorePRs.find({
+      status: { $nin: ["MERGED", "CLOSED", "UNRELATED"] },
+      // Exclude deprecated comfyanonymous/ComfyUI URLs
+      url: { $not: { $regex: "comfyanonymous/ComfyUI" } },
+    }),
+  )
     .filter((task) => !processedTasks.some((t) => t.url === task.url))
     .map((task) => ghData(ghc.pulls.get)({ ...parsePullUrl(task.url) }))
     .filter()
@@ -356,22 +370,24 @@ async function runCorePingTaskFull() {
       status: {
         $in: ["AUTHOR_COMMENTED", "REVIEW_REQUESTED", "OPEN", "COMMITTED"],
       },
+      // Exclude deprecated comfyanonymous/ComfyUI URLs to prevent showing stale data
+      url: { $not: { $regex: "comfyanonymous/ComfyUI" } },
     })
       .sort({ statusAt: 1, created_at: 1 })
       .toArray(),
   );
 
   const allOpeningCorePRs = deduplicatePRTasks(
-    (await (ComfyCorePRs.find({
+    await ComfyCorePRs.find({
       state: "open",
-    })).toArray()),
+      // Exclude deprecated comfyanonymous/ComfyUI URLs to prevent showing stale data
+      url: { $not: { $regex: "comfyanonymous/ComfyUI" } },
+    }).toArray(),
   );
 
   const remainingOpeningCorePRs = await sflow(allOpeningCorePRs)
-    .filter(
-      (e) => !pendingReviewCorePRs.map((e) => e.url).includes(e.url),
-    )
-    .filter(async e => {
+    .filter((e) => !pendingReviewCorePRs.map((e) => e.url).includes(e.url))
+    .filter(async (e) => {
       const prUrl = e.url;
       // revalidate if it is still open, calls gh.pulls.get
       const pr = await ghData(ghc.pulls.get)({ ...parsePullUrl(prUrl) });
@@ -407,9 +423,9 @@ async function runCorePingTaskFull() {
     remainingOpeningCorePRs.length > 0
       ? `\n\nAdditionally, there ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} ${remainingOpeningCorePRs.length} other open Core/Important ${remainingOpeningCorePRs.length === 1 ? "PR" : "PRs"} that ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} pending for author's change/update, lets wait for them.
 - ${remainingOpeningCorePRs
-        .toSorted(compareBy((e) => e.created_at))
-        .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`)
-        .join("\n- ")}`
+          .toSorted(compareBy((e) => e.created_at))
+          .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`)
+          .join("\n- ")}`
       : "";
   const tail = `\n\nSent from <https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
 

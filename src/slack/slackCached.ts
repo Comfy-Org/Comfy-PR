@@ -34,12 +34,12 @@ async function getKeyv() {
 
 type DeepAsyncWrapper<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => Promise<any>
-  ? T[K]
-  : T[K] extends (...args: any[]) => any
-  ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
-  : T[K] extends object
-  ? DeepAsyncWrapper<T[K]>
-  : T[K];
+    ? T[K]
+    : T[K] extends (...args: any[]) => any
+      ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
+      : T[K] extends object
+        ? DeepAsyncWrapper<T[K]>
+        : T[K];
 };
 function createCachedProxy<T extends object>(target: T, basePath: string[] = []): DeepAsyncWrapper<T> {
   return new Proxy<T>(target, {

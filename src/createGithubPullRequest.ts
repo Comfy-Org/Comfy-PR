@@ -105,7 +105,9 @@ export async function createGithubPullRequest({
   sameContentPRList.length <= 1 ||
     DIE(
       new Error(`expect <= 1 same content pr, but got ${sameContentPRList.length}`, {
-        cause: { sameContentPRList: sameContentPRList.map((e) => ({ url: e.html_url, title: e.title })) },
+        cause: {
+          sameContentPRList: sameContentPRList.map((e) => ({ url: e.html_url, title: e.title })),
+        },
       }),
     );
 
@@ -150,18 +152,16 @@ export async function createGithubPullRequest({
           DIE(
             new Error("expect only 1 pr, but got " + existedList.length, {
               cause: {
-                existed: existedList.map((e) => ({ url: e.html_url, title: e.title })),
+                existed: existedList.map((e) => ({
+                  url: e.html_url,
+                  title: e.title,
+                })),
                 error: e,
-                ...{
-                  // source repo
-                  state: "open",
-                  // head_repo: `${src.owner}/${src.repo}`,
-                  head: `${src.owner}:${branch}`,
-                  // pr will merge into
-                  owner: dst.owner,
-                  repo: dst.repo,
-                  base: repo.default_branch,
-                },
+                state: "open",
+                head: `${src.owner}:${branch}`,
+                owner: dst.owner,
+                repo: dst.repo,
+                base: repo.default_branch,
               },
             }),
           );
@@ -175,12 +175,23 @@ export async function createGithubPullRequest({
     if (!updateIfNotMatched)
       DIE(
         new Error("pr content mismatch", {
-          cause: { mismatch, expected: { title, body }, actual: pickAll(["title", "body"], pr_result) },
+          cause: {
+            mismatch,
+            expected: { title, body },
+            actual: pickAll(["title", "body"], pr_result),
+          },
         }),
       );
     const { owner, repo } = parseGithubRepoUrl(dstUrl); // upstream repo
-    const updated = (await catchArgs(ghPR().pulls.update)({ pull_number: pr_result.number, body, title, owner, repo }))
-      .data!;
+    const updated = (
+      await catchArgs(ghPR().pulls.update)({
+        pull_number: pr_result.number,
+        body,
+        title,
+        owner,
+        repo,
+      })
+    ).data!;
     const updatedPRStillMismatch = updated.title !== title || updated.body !== body;
     if (updatedPRStillMismatch) DIE(new Error("updatedPRStillMismatch", { cause: arguments }));
     console.warn(`PR content updated ${owner}/${repo} / \n<< ${pr_result.title}\n>> ${updated.title}`);
@@ -189,5 +200,7 @@ export async function createGithubPullRequest({
 }
 
 function ghPR() {
-  return createOctokit({ auth: process.env.GH_TOKEN_COMFY_PR || DIE(new Error("Missing env.GH_TOKEN_COMFY_PR")) }).rest;
+  return createOctokit({
+    auth: process.env.GH_TOKEN_COMFY_PR || DIE(new Error("Missing env.GH_TOKEN_COMFY_PR")),
+  }).rest;
 }

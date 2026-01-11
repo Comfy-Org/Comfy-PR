@@ -26,11 +26,7 @@ describe("getRepoUrls filter logic", () => {
   });
 
   it("should handle all invalid values", async () => {
-    const mockData = [
-      { repository: "" },
-      { repository: undefined },
-      { repository: null },
-    ];
+    const mockData = [{ repository: "" }, { repository: undefined }, { repository: null }];
 
     const result = await sflow(mockData)
       .map((e) => (e as unknown as { repository: string }).repository)
