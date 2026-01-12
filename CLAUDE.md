@@ -128,6 +128,55 @@ const stats = await getGhCacheStats();
 - Short args: `gh.repos.get({"owner":"octocat","repo":"Hello-World"})#b3117af2`
 - Long args: `gh.repos.get({"owner":"octocat","descripti...bbbbbbbbbb"})#4240f076`
 
+## ComfyPR Bot Skills
+
+### Overview
+
+The ComfyPR Bot (defined in `bot/index.ts`) is a Slack-integrated AI assistant that helps with research, documentation, and code investigation tasks. When spawned, the bot agent has access to several specialized skills.
+
+### Available Skills
+
+The bot agent prompt (lines 390-396 in `bot/index.ts`) includes the following skills:
+
+1. **Web Search**
+   - Search the web for relevant information
+   - Gather up-to-date information and context
+
+2. **GitHub Repository Access**
+   - Clone any repositories from https://github.com/Comfy-Org
+   - Inspect codebases at `./codes/Comfy-Org/[repo]/tree/[branch]`
+   - Read and analyze source code
+
+3. **Slack Integration**
+   - **Update messages**: `bun ../bot/slack/msg-update.ts --channel ${event.channel} --ts ${quickRespondMsg.ts} --text "<response>"`
+   - **Read threads**: `bun ../bot/slack/msg-read-thread.ts --channel ${event.channel} --ts [ts]`
+   - Update responses frequently to provide live progress updates
+
+4. **Notion Documentation Search**
+   - Search Notion docs from Comfy-Org team: `./bot/notion-search.ts`
+   - Access internal documentation and knowledge base
+
+### Context Repositories
+
+The bot has knowledge of these Comfy-Org repositories:
+
+- **comfyanonymous/ComfyUI**: Main ComfyUI repository (Python ML backend)
+- **Comfy-Org/ComfyUI_frontend**: Frontend codebase (Vue + TypeScript)
+- **Comfy-Org/docs**: Documentation, setup guides, tutorials, API references
+- **Comfy-Org/desktop**: Desktop application
+- **Comfy-Org/registry**: registry.comfy.org for custom-nodes and extensions
+- **Comfy-Org/workflow_templates**: Official shared workflow templates
+
+### Usage
+
+The bot is automatically spawned when:
+
+1. A user mentions the bot in a Slack channel
+2. The message is in an authorized channel (`#comfypr-bot` or `#pr-bot`)
+3. The bot determines that agent assistance is needed
+
+See `bot/README.md` for documentation on the individual skill scripts.
+
 ## SFlow Stream Processing Library
 
 ### Overview
