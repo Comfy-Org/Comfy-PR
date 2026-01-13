@@ -8,6 +8,7 @@ import runGithubBountyTask from "./gh-bounty/gh-bounty";
 import runGithubCoreTagNotificationTask from "./gh-core-tag-notification/index";
 import { runGithubDesignTask } from "./gh-design/gh-design";
 import runGithubDesktopReleaseNotificationTask from "./gh-desktop-release-notification/index";
+import runGithubFrontendBackportCheckerTask from "./gh-frontend-backport-checker/index";
 import runGithubFrontendReleaseNotificationTask from "./gh-frontend-release-notification/index";
 import runGithubComfyUIToDesktopIssueTransferTask from "./gh-issue-transfer-comfyui-to-desktop/index";
 import runGithubFrontendIssueTransferTask from "./gh-issue-transfer-comfyui-to-frontend/index";
@@ -33,6 +34,10 @@ const TASKS = [
   {
     name: "GitHub Frontend Release Notification Task",
     run: runGithubFrontendReleaseNotificationTask,
+  },
+  {
+    name: "GitHub Frontend Backport Checker Task",
+    run: runGithubFrontendBackportCheckerTask,
   },
   {
     name: "GitHub Core Tag Notification Task",
