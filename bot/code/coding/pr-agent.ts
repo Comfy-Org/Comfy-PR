@@ -41,7 +41,6 @@ export async function spawnSubAgent(options: SpawnSubAgentOptions) {
 
     // Clone the repository using gh CLI with authentication
     // This uses the GH_TOKEN_COMFY_PR_BOT token automatically
-    const parentDir = path.dirname(repoDir);
     await $`GH_TOKEN=${ghToken} gh repo clone ${repo} ${repoDir} -- --single-branch --branch ${branch}`;
 
     console.log(`Successfully cloned ${repo}@${branch}`);

@@ -1,11 +1,9 @@
-import { describe, test, expect, beforeEach, afterEach, mock } from "bun:test";
+import { describe, test, expect, afterEach } from "bun:test";
 import { downloadAvatar, setSlackBotAvatar } from "./avatar";
 import { existsSync } from "fs";
-import { unlink, writeFile } from "fs/promises";
+import { unlink } from "fs/promises";
 import { http, HttpResponse } from "msw";
 import { server } from "@/src/test/msw-setup";
-import { tmpdir } from "os";
-import { join } from "path";
 
 describe("avatar", () => {
   let downloadedFiles: string[] = [];

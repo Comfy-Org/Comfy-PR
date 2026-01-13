@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { describe, it, expect } from "bun:test";
 import type { BackportStatus } from "./index";
 
 describe("GithubFrontendBackportCheckerTask", () => {

@@ -1,5 +1,5 @@
 import { db } from "@/src/db";
-import { afterEach, beforeEach, describe, expect, it, jest } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createHmac } from "crypto";
 import { GET, POST } from "./route";
 
@@ -48,7 +48,7 @@ describe("GitHub Webhook Route", () => {
       });
 
       const response = await POST(request as any);
-      const data = await response.json();
+      await response.json();
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
@@ -119,7 +119,7 @@ describe("GitHub Webhook Route", () => {
       });
 
       const response = await POST(request as any);
-      const data = await response.json();
+      await response.json();
 
       expect(response.status).toBe(200);
 
@@ -205,10 +205,6 @@ describe("GitHub Webhook Route", () => {
 
   describe("GET /api/webhook/github", () => {
     it("should return health check status", async () => {
-      const request = new Request("http://localhost:3000/api/webhook/github", {
-        method: "GET",
-      });
-
       const response = await GET();
       const data = await response.json();
 

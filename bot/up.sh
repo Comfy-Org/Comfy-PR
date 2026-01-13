@@ -8,8 +8,8 @@ SERVICE_NAME="comfy-pr-bot"
 
 # Check if pm2 is installed
 if ! command -v pm2 &> /dev/null; then
-  echo "pm2 is not installed. Installing pm2 globally..."
-  npm install -g pm2
+  echo "pm2 is not installed. Installing pm2@5.3.0 globally..."
+  npm install -g pm2@5.3.0
 fi
 
 # Stop existing instance if running
