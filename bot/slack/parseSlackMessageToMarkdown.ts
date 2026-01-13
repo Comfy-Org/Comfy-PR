@@ -1,7 +1,10 @@
+import { getSlackCached } from "@/src/slack/slackCached";
+import { isSlackAvailable } from "@/src/slack";
+
 /**
  * Parse Slack message format to Markdown
  * Converts Slack's formatting to standard Markdown:
- * - <@U123> -> @username
+ * - <@U123> -> @username (Real Name)
  * - <#C123|channel> -> #channel
  * - <https://example.com|link text> -> [link text](https://example.com)
  * - *bold* -> **bold**
@@ -12,8 +15,39 @@
 export async function parseSlackMessageToMarkdown(text: string): Promise<string> {
   let markdown = text;
 
-  // Convert user mentions <@U123> to @U123 (we'd need to fetch usernames for full conversion)
-  markdown = markdown.replace(/<@([A-Z0-9]+)>/g, "@$1");
+  // Convert user mentions <@U123> to @username (Real Name)
+  // Extract all user IDs first
+  const userIdMatches = [...markdown.matchAll(/<@([A-Z0-9]+)>/g)];
+  const userIds = [...new Set(userIdMatches.map(match => match[1]))];
+
+  // Fetch user info for all mentioned users (if Slack is available)
+  const userInfoMap = new Map<string, string>();
+  if (isSlackAvailable() && userIds.length > 0) {
+    const slack = getSlackCached();
+    await Promise.all(
+      userIds.map(async (userId) => {
+        try {
+          const userInfo = await slack.users.info({ user: userId });
+          if (userInfo.ok && userInfo.user) {
+            const username = userInfo.user.name || userId;
+            const realName = userInfo.user.real_name || userInfo.user.profile?.real_name;
+            const displayText = realName ? `@${username} (${realName})` : `@${username}`;
+            userInfoMap.set(userId, displayText);
+          } else {
+            userInfoMap.set(userId, `@${userId}`);
+          }
+        } catch (error) {
+          // Fallback to user ID if fetch fails
+          userInfoMap.set(userId, `@${userId}`);
+        }
+      })
+    );
+  }
+
+  // Replace user mentions with fetched info
+  markdown = markdown.replace(/<@([A-Z0-9]+)>/g, (match, userId) => {
+    return userInfoMap.get(userId) || `@${userId}`;
+  });
 
   // Convert channel mentions <#C123|channel-name> or <#C123>
   markdown = markdown.replace(/<#([A-Z0-9]+)\|([^>]+)>/g, "#$2");
@@ -58,7 +92,12 @@ if (import.meta.main) {
     "This is *bold* and _italic_ and `code`",
     "```\ncode block\n```",
     "Mixed <@U123> with *bold* and <https://example.com>",
+    // Real user ID test (if Slack token is available)
+    "<@U078499LK5K> explain why this issue happened cc. <@U04F3GHTG2X>",
   ];
+
+  console.log(`Slack available: ${isSlackAvailable()}`);
+  console.log("");
 
   for (const test of tests) {
     console.log("Input: ", test);

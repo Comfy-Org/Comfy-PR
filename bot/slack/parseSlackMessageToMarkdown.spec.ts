@@ -2,9 +2,10 @@ import { describe, expect, it } from "bun:test";
 import { parseSlackMessageToMarkdown } from "./parseSlackMessageToMarkdown";
 
 describe("parseSlackMessageToMarkdown", () => {
-  it("should convert user mentions", async () => {
+  it("should convert user mentions (fallback to ID when Slack unavailable)", async () => {
     const input = "Hello <@U123ABC>";
     const output = await parseSlackMessageToMarkdown(input);
+    // When Slack is unavailable or user fetch fails, it falls back to @userId
     expect(output).toBe("Hello @U123ABC");
   });
 

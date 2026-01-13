@@ -14,7 +14,7 @@ echo ""
 # This script will automatically restart it
 while true; do
   # PRBOT_PORT=3475
-  bunx kill-port 3475
+  # bunx kill-port 3475
   echo "[$(date)] Starting ComfyPR Bot..."
   /root/.bun/bin/bun bot/index.ts --continue
   EXIT_CODE=$?

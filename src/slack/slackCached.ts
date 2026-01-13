@@ -9,14 +9,41 @@ import { createLogger } from "../logger";
 
 const logger = createLogger("slackCached");
 
-const CACHE_DIR = path.join(process.cwd(), "node_modules/.cache/Comfy-PR");
+// Use a cache directory that works from any working directory
+// Priority: 1) Project's node_modules if it exists, 2) Temp directory
+function getCacheDir(): string {
+  const projectCache = path.join(process.cwd(), "node_modules/.cache/Comfy-PR");
+  const tempCache = path.join(require("os").tmpdir(), ".cache/Comfy-PR");
+
+  // Try to use project cache if node_modules exists
+  try {
+    const nodeModulesPath = path.join(process.cwd(), "node_modules");
+    if (require("fs").existsSync(nodeModulesPath)) {
+      return projectCache;
+    }
+  } catch {
+    // Fall through to temp cache
+  }
+
+  return tempCache;
+}
+
+const CACHE_DIR = getCacheDir();
 const CACHE_FILE = path.join(CACHE_DIR, "slack-cache.sqlite");
 const DEFAULT_TTL = process.env.LOCAL_DEV
   ? 30 * 60 * 1000 // cache 30 minutes when local dev
   : 0 * 60 * 1000; // cache 0 minute in production
 
 async function ensureCacheDir() {
-  await fs.mkdir(CACHE_DIR, { recursive: true });
+  try {
+    await fs.mkdir(CACHE_DIR, { recursive: true });
+  } catch (error: any) {
+    // Ignore errors if directory already exists or can't be created
+    // This prevents crashes when running from different working directories
+    if (error.code !== 'EEXIST') {
+      console.warn(`Warning: Could not create cache directory ${CACHE_DIR}:`, error.message);
+    }
+  }
 }
 
 let keyv: Keyv | null = null;
@@ -24,10 +51,18 @@ let keyv: Keyv | null = null;
 async function getKeyv() {
   if (!keyv) {
     await ensureCacheDir();
-    keyv = new Keyv({
-      store: new KeyvSqlite(CACHE_FILE),
-      ttl: DEFAULT_TTL,
-    });
+    try {
+      keyv = new Keyv({
+        store: new KeyvSqlite(CACHE_FILE),
+        ttl: DEFAULT_TTL,
+      });
+    } catch (error: any) {
+      // If SQLite fails, fall back to in-memory cache
+      console.warn(`Warning: Could not initialize SQLite cache, using in-memory cache:`, error.message);
+      keyv = new Keyv({
+        ttl: DEFAULT_TTL,
+      });
+    }
   }
   return keyv;
 }

@@ -22,6 +22,7 @@ import { IdleWaiter } from "./IdleWaiter";
 import { RestartManager } from "./RestartManager";
 import { parseSlackMessageToMarkdown } from "./slack/parseSlackMessageToMarkdown";
 import { slackTsToISO } from "./slack/slackTsToISO";
+import { safeSlackPostMessage, safeSlackUpdateMessage } from "./slack/safeSlackMessage";
 import { tap } from "rambda";
 import { slackMessageUrlParse } from "@/app/tasks/gh-design/slackMessageUrlParse";
 import { execa } from "execa";
@@ -30,7 +31,9 @@ import minimist from "minimist";
 import path from "path";
 import { appendFile } from "fs/promises";
 import { existsSync } from "fs";
+import fsp from 'fs/promises'
 
+const SLACK_ORG_DOMAIN_NAME = 'comfy-organization'
 // Configure winston logger
 const logDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 const logger = winston.createLogger({
@@ -118,44 +121,138 @@ async function removeWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
   logger.info(`Removed task from working list: ${event.ts} (remaining: ${filtered.length})`);
 }
 const g = globalThis as typeof globalThis & { instanceId?: string, hotId?: string }
-
-g.instanceId ??= new Date().toISOString()
-g.hotId = new Date().toISOString()
+const now = new Date().toISOString()
+g.instanceId ??= now
+g.hotId = now
 
 if (import.meta.main) {
   console.log("Starting ComfyPR Bot...");
+  const argv = minimist(process.argv.slice(2));
   const port = Number(process.env.PRBOT_PORT || DIE("missing env.PRBOT_PORT"))
+
+  // Step 1: Health check (only for non-PTY launches)
+  const isHumanLaunched = process.stdin.isTTY;
+
+  if (!isHumanLaunched) {
+    // Non-PTY launch (PM2): Poll for 10 seconds to ensure port is continuously unhealthy
+    logger.info(`Detected non-PTY launch - polling for 10s to ensure port ${port} is unhealthy`);
+
+    const pollDuration = 10000; // 10 seconds
+    const pollInterval = 1000; // 1 second
+    const startTime = Date.now();
+    let healthyInstanceFound = false;
+
+    while ((Date.now() - startTime) < pollDuration) {
+      try {
+        const statusResp = await fetch(`http://localhost:${port}/status`, {
+          signal: AbortSignal.timeout(1000)
+        });
+
+        if (statusResp.ok) {
+          // Found a healthy instance - abort and exit
+          const statusData = await statusResp.json();
+          healthyInstanceFound = true;
+
+          // Try to get PID of existing process
+          let existingPid = 'unknown';
+          try {
+            const lsofOutput = await Bun.$`lsof -ti:${port}`.text();
+            existingPid = lsofOutput.trim();
+          } catch { }
+
+          logger.info(`Healthy instance detected (PID: ${existingPid}) - aborting launch to avoid conflict`);
+          logger.info(`Status: ${JSON.stringify(statusData)}`);
+          process.exit(0);
+        }
+      } catch (err) {
+        // Port is unhealthy/unreachable - this is expected
+        logger.debug(`Health check: port ${port} is unhealthy (${Date.now() - startTime}ms elapsed)`);
+      }
+
+      await sleep(pollInterval);
+    }
+
+    if (!healthyInstanceFound) {
+      logger.info(`Port ${port} remained unhealthy for 10s - proceeding to launch`);
+    }
+  } else {
+    // PTY launch (human): Skip health check entirely
+    logger.info(`Detected PTY launch - skipping health check`);
+  }
+
+  // Step 2: Kill port and launch
+  logger.info(`Killing port ${port} and starting server`);
+  await Bun.$`npx -y kill-port ${port}`;
 
   const server = Bun.serve({
     port: port,
     fetch: async (req: Request) => {
+      const url = new URL(req.url);
+
+      if (url.pathname === '/status') {
+        // Get current working tasks from state
+        const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+        const events = workingTasks.workingMessageEvents || [];
+
+        // Build message URLs from events
+        const processing_message_urls = events.map((event: any) => {
+          const tsForUrl = event.ts.replace('.', '');
+          return `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${tsForUrl}`;
+        });
+
+        const status = {
+          status: TaskInputFlows.size === 0 ? 'idle' : 'busy',
+          processing_message_urls,
+          processing_message_urls_count: processing_message_urls.length
+        };
+
+        return new Response(JSON.stringify(status, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
       return new Response('ComfyPR Bot is running.\n', { status: 200 });
     }
   })
 
-  const argv = minimist(process.argv.slice(2));
+  // const missedMsg = "https://comfy-organization.slack.com/archives/C09QKKXK8RX/p1767849032076329?thread_ts=1767838632.470639&cid=C09QKKXK8RX"
+  // const missedMsg = "https://comfy-organization.slack.com/archives/C0A4XMHANP3/p1767893546609709?thread_ts=1767862331.962569&cid=C0A4XMHANP3"
+  // spawnBotOnSlackMessageUrl(missedMsg)
+
+  const msgs = await fsp.readFile("./msgs.yaml", 'utf-8').then(s => yaml.parse(s)).then(e => z.object({ missed: z.string().array() }).parseAsync(e))
+  await fsp.writeFile('./msgs.yaml', 'missed: []')
+
+  // clean the file
+  // 
+  sflow(msgs.missed)
+    .forEach(url => spawnBotOnSlackMessageUrl(url))
+    .run()
+
 
   if (argv.continue) {
-    logger.info("BOT - --continue flag detected, resuming crashed tasks...");
+    (async () => {
+      logger.info("BOT - --continue flag detected, resuming crashed tasks...");
 
-    // Read current working tasks from state
-    const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
-    const events = workingTasks.workingMessageEvents || [];
+      // Read current working tasks from state
+      const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+      const events = workingTasks.workingMessageEvents || [];
 
-    if (events.length === 0) {
-      logger.info("No working tasks to resume");
-    } else {
-      logger.info(`Found ${events.length} working task(s) to resume`);
+      if (events.length === 0) {
+        logger.info("No working tasks to resume");
+      } else {
+        logger.info(`Found ${events.length} working task(s) to resume`);
 
-      for await (const event of events) {
-        if (event && event.ts) {
-          logger.info(`Resuming task for event ${event.ts} in channel ${event.channel}`);
-          await spawnBotOnSlackMessageEvent(event).catch(err => {
-            logger.error(`Error resuming task for event ${event.ts}`, { err });
-          });
+        for await (const event of events) {
+          if (event && event.ts) {
+            logger.info(`Resuming task for event ${event.ts} in channel ${event.channel}, text: ${event.text}`);
+            await spawnBotOnSlackMessageEvent(event).catch(err => {
+              logger.error(`Error resuming task for event ${event.ts}`, { err });
+            });
+          }
         }
       }
-    }
+    })
   }
 
   logger.info(`Starting ComfyPR Bot... id: ${g.instanceId}, hotId: ${g.hotId}`);
@@ -202,30 +299,32 @@ if (import.meta.main) {
 
       await ack();
 
-      // Handle DM messages (channel_type: "im") and treat them like app mentions
-      if ((event as any).channel_type === "im" && (event as any).user && (event as any).text && !(event as any).bot_id) {
-        logger.debug('DM DETECTED - Processing DM message', { event });
-        const dmEvent = {
-          type: "app_mention" as const,
-          user: (event as any).user,
-          ts: (event as any).ts,
-          client_msg_id: (event as any).client_msg_id,
-          text: (event as any).text,
-          team: (event as any).team,
-          thread_ts: (event as any).thread_ts,
-          parent_user_id: (event as any).parent_user_id,
-          blocks: (event as any).blocks || [],
-          channel: (event as any).channel,
-          assistant_thread: (event as any).assistant_thread,
-          attachments: (event as any).attachments,
-          event_ts: (event as any).event_ts,
-        };
-        await spawnBotOnSlackMessageEvent(dmEvent);
+      // Skip bot messages
+      if ((event as any).bot_id) {
+        return;
       }
 
-      if ((event as any).channel_type === "im" && (event as any).user && (event as any).text && !(event as any).bot_id) {
-        logger.debug('TAGME DETECTED - Processing DM message', { event });
-        const dmEvent = {
+      // Get bot user ID
+      const botUsername = 'comfyprbot'
+      // TODO: fetch botUserId by botUsername or use slack api to "get my name"
+      const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K"; // ComfyPR-Bot user ID
+
+      // Check if message mentions the bot
+      const text = (event as any).text || "";
+      const hasBotMention = text.includes(`<@${botUserId}>`);
+
+      // Handle DM messages (channel_type: "im") and treat them like app mentions
+      const isDM = (event as any).channel_type === "im";
+
+      if ((isDM || hasBotMention) && (event as any).user && (event as any).text) {
+        const eventType = isDM ? 'DM' : 'BOT MENTION';
+        logger.debug(`${eventType} DETECTED - Processing message as app_mention`, {
+          channel: (event as any).channel,
+          ts: (event as any).ts,
+          text: text.substring(0, 100)
+        });
+
+        const mentionEvent = {
           type: "app_mention" as const,
           user: (event as any).user,
           ts: (event as any).ts,
@@ -240,7 +339,7 @@ if (import.meta.main) {
           attachments: (event as any).attachments,
           event_ts: (event as any).event_ts,
         };
-        await spawnBotOnSlackMessageEvent(dmEvent);
+        await spawnBotOnSlackMessageEvent(mentionEvent);
       }
 
     })
@@ -273,9 +372,11 @@ async function spawnBotOnSlackMessageEvent(event: {
 }) {
   // msg dedup for same content
   const eventProcessed = await State.get(`msg-${event.ts}`);
-  if (eventProcessed?.content === event.text) return;
-  // if (+new Date() - eventProcessed.touchedAt < 60000) return; // dedup for 1min
+  // if (eventProcessed?.content === event.text) return;
+  if (+new Date() - (eventProcessed?.touchedAt ?? 0) <= 10e3) return; // debounce for 10s
   await State.set(`msg-${event.ts}`, { touchedAt: +new Date(), content: event.text });
+
+  logger.info(`SPAWN - Received Slack app_mention event in channel ${event.channel} from user ${event.user}`);
 
   // whitelist channel name #comfypr-bot, for security reason, only runs agent against @mention messages in #comfypr-bot channel
   // you can forward other channel messages to #comfypr-bot if needed, and the bot will read the context from the original thread messages
@@ -403,10 +504,10 @@ Respond in JSON format with the following fields:
     logger.info("New message intent analysis", { action });
 
     // send quick response
-    const myQuickRespondMsg = await slack.chat.postMessage({
+    const myQuickRespondMsg = await safeSlackPostMessage(slack, {
       channel: event.channel,
       thread_ts: event.ts,
-      text: action.my_quick_respond,
+      text: action.my_quick_respond, // Fallback text for notifications
       blocks: [
         {
           type: "markdown",
@@ -414,13 +515,14 @@ Respond in JSON format with the following fields:
         },
       ],
     });
+
     if (action.stop_existing_task) {
       // stop existing task
       TaskInputFlows.delete(workspaceId);
-      await slack.chat.postMessage({
+      await safeSlackPostMessage(slack, {
         channel: event.channel,
         thread_ts: event.thread_ts || event.ts,
-        text: `The existing task has been stopped as per your request.`,
+        text: `The existing task has been stopped as per your request.`, // Fallback text for notifications
         blocks: [
           {
             type: "markdown",
@@ -496,6 +598,8 @@ Respond in JSON format with the following fields:
   // upsert quick respond msg
   const quickRespondMsg = await State.get(`task-quick-respond-msg-${eventId}`).then(async (existing: any) => {
     if (existing) {
+      await slack.reactions.remove({ name: "x", channel: existing.channel, timestamp: existing.ts! }).catch(() => { });
+
       // if its a DM, always create a new message
       // if (isDM) {
       //   const newMsg = await slack.chat.postMessage({
@@ -529,10 +633,10 @@ Respond in JSON format with the following fields:
       //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
       // }
 
-      const msg = await slack.chat.update({
+      const msg = await safeSlackUpdateMessage(slack, {
         channel: event.channel,
         ts: existing.ts,
-        text: resp.my_respond_before_spawn_agent,
+        text: resp.my_respond_before_spawn_agent, // Fallback text for notifications
         blocks: [
           {
             type: "markdown",
@@ -543,10 +647,10 @@ Respond in JSON format with the following fields:
       await State.set(`task-quick-respond-msg-${eventId}`, { ts: existing.ts, text: resp.my_respond_before_spawn_agent });
       return { ...msg, text: resp.my_respond_before_spawn_agent };
     } else {
-      const newMsg = await slack.chat.postMessage({
+      const newMsg = await safeSlackPostMessage(slack, {
         channel: event.channel,
         thread_ts: event.ts,
-        text: resp.my_respond_before_spawn_agent,
+        text: resp.my_respond_before_spawn_agent, // Fallback text for notifications
         blocks: [
           {
             type: "markdown",
@@ -615,8 +719,49 @@ Respond in JSON format with the following fields:
   slack.reactions.add({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
 
   const CLAUDEMD = `
+# ComfyPR-Bot Instructions
+
 Act as @ComfyPR-Bot, belongs to @Comfy-Org made by @snomiao.
 You are AI assistant integrated with Comfy-Org's many internal services including Slack, Notion, Github, CustomNode Registry.
+
+## About Your self
+
+- You are ComfyPR-Bot, an AI assistant specialized in helping users with ComfyUI and Comfy-Org related questions and tasks.
+- You are integrated with Comfy-Org's internal services including Slack, Notion, Github, and CustomNode Registry.
+- Your primary goal is to assist users effectively by leveraging your skills and resources.
+- Made by @snomiao, the member of Comfy-Org.
+- Your code are located at: https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot, To Improve Your self or check what you can do, please read the code there.
+
+## Repos You already know about:
+
+- https://github.com/comfyanonymous/ComfyUI: The main ComfyUI repository containing the core application logic and features. Its a python backend to run any machine learning models and solves various machine learning tasks.
+- https://github.com/Comfy-Org/ComfyUI_frontend: The frontend codebase for ComfyUI, built with Vue and TypeScript.
+- https://github.com/Comfy-Org/docs: Documentation for ComfyUI, including setup guides, tutorials, and API references.
+- https://github.com/Comfy-Org/desktop: The desktop application for ComfyUI, providing a user-friendly interface and additional functionalities.
+- https://github.com/Comfy-Org/registry: The registry.comfy.org, where users can share and discover ComfyUI custom-nodes, and extensions.
+- https://github.com/Comfy-Org/workflow_templates: A collection of official shared workflow templates for ComfyUI to help users get started quickly.
+- https://github.com/Comfy-Org/comfy-api: A RESTful API service for comfy-registry, it stores custom-node metadatas and user profile/billings informations.
+- https://github.com/Comfy-Org/team-dash: Team Dashboard for Comfy-Org, managing team projects, tasks, and collaboration.
+- https://github.com/Comfy-Org/Comfy-PR: Your own codebase, the ComfyPR Bot repository containing the bot's logic and integrations. Which is already cloned to your ./codes/pr-bot/tree/main for reference.
+- https://github.com/Comfy-Org/*: And also other repos under Comfy-Org organization on GitHub.
+
+## Skills you have:
+
+- Search the web for relevant information.
+- github: Clone any repositories from https://github.com/Comfy-Org to ${botWorkingDir}/codes/Comfy-Org/[repo]/tree/[branch] to inspect codebases for READ-ONLY researching purposes.
+- github: Search code across All CustomNodes/ComfyUI/ComfyOrg repositories using 'pr-bot code search --query="<search terms>" [--repo=<owner/repo>]' (NO --limit support)
+- github: Search for issues and PRs using 'pr-bot github-issue search --query="<search terms>" --limit=10'
+- github: To make code changes to any GitHub repository, you MUST use the pr-bot CLI: 'pr-bot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"'
+- slack: Read thread messages for context using 'pr-bot slack read-thread --channel=${event.channel} --ts=[ts] --limit=100'
+- slack: Update your response message using 'pr-bot slack update --channel ${event.channel} --ts ${quickRespondMsg.ts!} --text "<your response here>"'
+- slack: Upload files to share results using 'pr-bot slack upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
+- notion: Search Notion docs from Comfy-Org team using 'pr-bot notion search --query="<search terms>" --limit=5'
+- notion: Update notion docs by @Fennic-bot in slack channel and asking it to make the changes.
+- registry: Search ComfyUI custom nodes registry using 'pr-bot registry search --query="<search terms>" --limit=5'
+- Local file system: Your working directory are temp, make sure commit your work to external services like slack/github/notion where user can see it, before your ./ dir get cleaned up
+- TODO.md: You can utilize TODO.md file in your working directory to track tasks and progress.
+
+## The User Request
 
 for context, the thread context messages is:
 ${yaml.stringify(nearbyMessages)}
@@ -633,43 +778,20 @@ IMPORTANT: YOU MUST ASSIST THE USER INTENT: ${resp.user_intent}
 
 Now, based on the user's intent, please do research and provide a detailed and helpful response to assist the user with their request.
 
-Possible Context Repos:
-- https://github.com/comfyanonymous/ComfyUI: The main ComfyUI repository containing the core application logic and features. Its a python backend to run any machine learning models and solves various machine learning tasks.
-- https://github.com/Comfy-Org/ComfyUI_frontend: The frontend codebase for ComfyUI, built with Vue and TypeScript.
-- https://github.com/Comfy-Org/docs: Documentation for ComfyUI, including setup guides, tutorials, and API references.
-- https://github.com/Comfy-Org/desktop: The desktop application for ComfyUI, providing a user-friendly interface and additional functionalities.
-- https://github.com/Comfy-Org/registry: The registry.comfy.org, where users can share and discover ComfyUI custom-nodes, and extensions.
-- https://github.com/Comfy-Org/workflow_templates: A collection of official shared workflow templates for ComfyUI to help users get started quickly.
-- https://github.com/Comfy-Org/comfy-api: A RESTful API service for comfy-registry, it stores custom-node metadatas and user profile/billings informations.
-- https://github.com/Comfy-Org/team-dash: Team Dashboard for Comfy-Org, managing team projects, tasks, and collaboration.
+## Response Guidelines
 
-- And also other repos under Comfy-Org organization on GitHub.
-
-## Respond Rules
 - Use markdown format for all your responses.
-- If you reference code, repos, or documents, provide links to them.
-- Always prioritize user privacy and data security.
-- Provide rich references and citations for your information.
-- If there are errors in tools, just record them to ./ERRORS.md and try to workaround by your self, don't show any error info with end-user.
+- Provide rich references and citations for your information. If you reference code, repos, or documents, MUST provide links to them.
+- Always prioritize user privacy and data security, dont show any token contents, local paths, secrets.
+- If there are errors in tools, just record them to ./TOOLS_ERRORS.md and try to workaround by your self, don't show any error info with end-user.
 
-## Skills you have:
-- Search the web for relevant information.
-- github: Clone any repositories from https://github.com/Comfy-Org to ${botWorkingDir}/codes/Comfy-Org/[repo]/tree/[branch] to inspect codebases for READ-ONLY purposes.
-- github: Search code across All CustomNodes/ComfyUI/ComfyOrg repositories using 'pr-bot code search --query="<search terms>" [--repo=<owner/repo>]' (NO --limit support)
-- github: Search for issues and PRs using 'pr-bot github-issue search --query="<search terms>" --limit=10'
-- github: To make code changes to any GitHub repository, you MUST use the pr-bot CLI: 'pr-bot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"'
-- slack: Read thread messages for context using 'pr-bot slack read-thread --channel=${event.channel} --ts=[ts] --limit=100'
-- slack: Update your response message using 'pr-bot slack update --channel=${event.channel} --ts=${quickRespondMsg.ts!} --text="<your response here>"'
-- slack: Upload files to share results using 'pr-bot slack upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
-- notion: Search Notion docs from Comfy-Org team using 'pr-bot notion search --query="<search terms>" --limit=5'
-- notion: Update notion docs by @Fennic-bot in slack channel and asking it to make the changes.
-- registry: Search ComfyUI custom nodes registry using 'pr-bot registry search --query="<search terms>" --limit=5'
-- Local file system: Your working directory are temp, make sure commit your work to external services like slack/github/notion where user can see it, before your ./ dir get cleaned up
-- TODO.md: You can utilize TODO.md file in your working directory to track tasks and progress.
+## Communication
 
+- YOU MUST: Use your slack messaging skills to post all deliverables before exit, your local workspace will be cleaned after you exit.
 
 ## IMPORTANT: File Sharing with Users
-- When generating reports, code files, diagrams, or any deliverables, ALWAYS upload them to Slack
+
+- When generating reports, code files, diagrams, or any deliverables, ALWAYS upload them to Slack.
 - Use: 'pr-bot slack upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
 - Upload files to the same thread where the user asked the question using --thread parameter
 - Common file types to share: .md (reports), .pdf (documents), .png/.jpg (diagrams/screenshots), .txt (logs), .json (data), .py/.ts/.js (code samples)
@@ -693,7 +815,14 @@ Possible Context Repos:
   // todo: create a linux user for task
 
   // fill initial files for agent
+
   await Bun.write(`${botWorkingDir}/CLAUDE.md`, CLAUDEMD);
+
+  // clone https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot to ./repos/pr-bot (branch: sno-bot)
+  const prBotRepoDir = `${botWorkingDir}/codes/Comfy-Org/pr-bot/tree/main`;
+  await mkdir(prBotRepoDir, { recursive: true });
+  await Bun.$`git clone --branch sno-bot https://github.com/Comfy-Org/Comfy-PR ${prBotRepoDir}`
+
   // await Bun.write(`${botWorkingDir}/PROMPT.txt`, agentPrompt);
 
   // Add Claude Skills to working dir (.claude/skills)
@@ -711,14 +840,14 @@ description: Update or append messages in Slack threads for progress updates, cl
 Use these commands to communicate in the current Slack thread:
 
 - Update an existing message in the thread:
-  bun ${process.cwd()}/bot/slack/msg-update.ts --channel <channel_id> --ts <message_ts> --text "<message_text>"
+  pr-bot slack update --channel <channel_id> --ts <message_ts> --text "<message_text>"
 
 - Read the latest context from a thread root (useful before replying):
-  bun ${process.cwd()}/bot/slack/msg-read-thread.ts --channel <channel_id> --ts <root_ts> --limit 100
+  pr-bot slack read-thread --channel <channel_id> --ts <root_ts> --limit 100
 
 Examples:
-  bun ${process.cwd()}/bot/slack/msg-update.ts --channel ${event.channel} --ts ${quickRespondMsg.ts!} --text "Working on it..."
-  bun ${process.cwd()}/bot/slack/msg-read-thread.ts --channel ${event.channel} --ts ${event.thread_ts || event.ts} --limit 50
+  pr-bot slack update --channel ${event.channel} --ts ${quickRespondMsg.ts!} --text "Working on it..."
+  pr-bot slack read-thread --channel ${event.channel} --ts ${event.thread_ts || event.ts} --limit 50
 
 Guidelines:
 - Acknowledge quickly; post iterative, concise updates.
@@ -781,7 +910,7 @@ description: Search code across ComfyUI repositories using comfy-codesearch serv
 # ComfyUI Code Search
 
 Search for code patterns, functions, and implementations:
-  pr-bot code search --query "<search terms>" [--repo=<owner/repo>]
+  pr-bot code search --query "<search terms>"
 
 NOTE: Does NOT support --limit parameter. Results are automatically paginated.
 
@@ -913,6 +1042,7 @@ Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
 
   await Bun.write(`${botWorkingDir}/TODO.md`, `
 # Task TODOs
+
 - Analyze the user's request and gather necessary information.
 - Search relevant documents, codebases, and resources using pr-bot CLI:
   - Code search: pr-bot code search --query="<search terms>" [--repo=<owner/repo>]
@@ -923,16 +1053,12 @@ Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
   - pr-bot pr --repo=<owner/repo> --prompt="<detailed coding task>"
 - Compile findings and provide a comprehensive response to the user.
 
-## Communication
-- IMPORTANT: Keep the user informed of your progress by updating the Slack thread frequently:
-  pr-bot slack update --channel=${event.channel} --ts=${quickRespondMsg.ts!} --text="<your response here>"
-
 ## GitHub Changes
 - IMPORTANT: Remember to use the pr-bot CLI for any GitHub code changes:
   pr-bot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
 
 `);
-  await Bun.$`code ${botWorkingDir}` // open the working dir in vscode for debugging
+  await Bun.$`code ${botWorkingDir}`.catch(() => null) // open the working dir in vscode for debugging
 
   const agentPrompt = `
 @${username} intented to ${resp.user_intent}
@@ -944,6 +1070,7 @@ Please assist them with their request using all your resources available.
   // await Bun.$.cwd(botWorkingDir)`claude-yes -- solve-everything-in=TODO.md, PROMPT.txt, current bot args --working-dir=${botWorkingDir} --slack-channel=${event.channel} --slack-thread-ts=${quickRespondMsg.ts!}`
 
   // create a user for task
+  const exitCodePromise = Promise.withResolvers<number | null>();
   const p = (() => {
     const cli = 'claude-yes'
     const continueArgs = []
@@ -956,11 +1083,15 @@ Please assist them with their request using all your resources available.
     //   // }
     //   continueArgs.push('--continue')
     // }
-    logger.debug(`Spawning process: ${cli} ${['--queue', '-i=3min', ...continueArgs, "--prompt", agentPrompt].join(" ")}`);
-    const p = spawn(cli, ['--queue', '-i=3min', ...continueArgs, "--prompt", agentPrompt], {
+    logger.debug(`Spawning process: ${cli} ${['-i=60s', ...continueArgs, "--prompt", agentPrompt].join(" ")}`);
+    const p = spawn(cli, ['-i=60s', ...continueArgs, "--prompt", agentPrompt], {
       cwd: botWorkingDir,
+
       // stdio: 'pipe'
-      // env: { ...process.env, }
+      env: {
+        ...process.env,
+        GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT
+      }
     })
 
     // check if p spawned successfully
@@ -969,6 +1100,7 @@ Please assist them with their request using all your resources available.
     });
     p.on("exit", (code, signal) => {
       logger.info(`process for task ${workspaceId} exited with code ${code} and signal ${signal}`);
+      exitCodePromise.resolve(code);
     });
 
     // Log stderr separately for debugging
@@ -1051,71 +1183,80 @@ Please assist them with their request using all your resources available.
           sent = newStable;// agent outputs have new lines to send
           if (news)
             logger.debug(JSON.stringify({ news }));
-          logger.info(`New stable output detected, length: ${sent.length}, news length: ${news.length}`);
-          logger.info('Unsent preview:', { preview: news.slice(0, 200) });
+          logger.info(`New stable output detected, length: ${newStable.length}, news length: ${news.length}`);
+
+          const my_internal_thoughts = tr.render().split('\n').slice(-80).join('\n')
+          logger.info('Unsent preview: ' + yaml.stringify({ preview: news.slice(0, 200), my_internal_thoughts }));
 
           // send update to slack          
           const updateText = sent || "_(no output yet)_";
-
-          const updateResponseResp = (await zChatCompletion(({
-            updated_response_md: z.string(),
-          }))`
-TASK: Update my my_original_response_md based on agent's my_internal_thoughts findings, and give me updated_response_md to post in slack.
-
-RULES:
-- Do not remove any parts from my_original_response_md that are not mentioned in my_internal_thoughts.
-- Preserve markdown formatting in my_original_response_md.
-- If my_internal_thoughts contains new information, append it to the relevant sections in my_original_response_md.
-- If my_internal_thoughts indicates completion of a task, add a "Tasks" section at the end of my_original_response_md with - [x] mark.
-- Ensure updated_response_md is clear and concise.
-- Use **bold** to highlight any new sections or important updates. and remove previeous highlighted sections if not important anymore.
-If all infomations from my_internal_thoughts are already contained in my_original_response_md, you can feel free to return {updated_response_md: "__NOTHING_CHANGED__"}
-
-IMPORTANT: KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents.
-IMPORTANT: Focus on end-user's question or intent's helpful contents
-DO NOT INCLUDE ANY internal-only or debugging contexts, system info, local paths, etc IN updated_response_md.
-IMPORTANT: my_internal_thoughts may contain terminal control characters and environment system info, ignore them and only focus on the end-user-helpful content. 
-IMPORTANT: YOU CAN ONLY change/remove/add up to 1 line!
-IMPORTANT: Describe what you are currently doing and what next will do in up to 7 words! less is better.
-IMPORTANT: Don't show any ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
-IMPORTANT: DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION BY YOUR SELF AND SHOW YOUR BEST UNDERSTANDING.
-IMPORTANT: Output the updated_response_md in standard markdown format (github favored).
-MOST IMPORTANT: Keep the my_original_response_md's context and formatting and contents as much as possible, only update a few lines that need to be updated based on my_internal_thoughts.
-LENGTH LIMIT: updated_response_md must be within 4000 characters. SYSTEM WILL TRUNCATE IF EXCEEDING THIS LIMIT.
-
-Task Contexts in YAML:
-
-${yaml.stringify({
-            my_internal_thoughts: tr.render().split('\n').slice(-40).join('\n'),
+          const contexts = ({
+            my_internal_thoughts,
             news,
             user_original_intent: resp.user_intent,
-            my_original_response_md: quickRespondMsg.text || '',
-          })}
+            my_response_md_original: quickRespondMsg.text || '',
+          })
+          const updateResponseResp = (await zChatCompletion(({
+            my_response_md_updated: z.string(),
+          }))`
+TASK: Update my my_response_md_original based on agent's my_internal_thoughts findings, and give me my_response_md_updated to post in slack.
+
+RULES:
+- Do not remove any parts from my_response_md_original that are not mentioned in my_internal_thoughts.
+- Preserve markdown formatting in my_response_md_original.
+- If my_internal_thoughts contains new information, append it to the relevant sections in my_response_md_original.
+- If my_internal_thoughts indicates completion of a task, add a "Tasks" section at the end of my_response_md_original with - [x] mark.
+- Ensure my_response_md_updated is clear and concise.
+- Use **bold** to highlight any new sections or important updates. and remove previeous highlighted sections if not important anymore.
+If all infomations from my_internal_thoughts are already contained in my_response_md_original, you can feel free to return {my_response_md_updated: "__NOTHING_CHANGED__"}
+
+- IMPORTANT NOTES:
+
+- KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents.
+- Response Message should be short and in up to 16 lines, the agent will post long report by .md files.
+- Focus on end-user's question or intent's helpful contents
+- DO NOT INCLUDE ANY internal-only or debugging contexts, system info, local paths, etc IN my_response_md_updated.
+- my_internal_thoughts may contain terminal control characters and environment system info, ignore them and only focus on the end-user-helpful content. 
+- YOU CAN ONLY change/remove/add up to 1 line!
+- Describe what you are currently doing in up to 7 words! less is better.
+- Don't show any ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
+- DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION BY YOUR SELF AND SHOW YOUR BEST UNDERSTANDING.
+- Output the my_response_md_updated in standard markdown format (github favored).
+- LENGTH LIMIT: my_response_md_updated must be within 4000 characters. SYSTEM WILL TRUNCATE IF EXCEEDING THIS LIMIT.
+
+- MOST_IMPORTANT: Keep the my_response_md_original's context and formatting and contents as much as possible, only update a few lines that need to be updated based on my_internal_thoughts.
+
+- Here's Contexts in YAML for your respondse:
+
+<task-context-yaml>
+${yaml.stringify(contexts)}
+</task-context-yaml>
+
 `)
-          const updated_response_full = updateResponseResp.updated_response_md.trim().replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || '')
+          const updated_response_full = updateResponseResp.my_response_md_updated.trim().replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || '')
           // truncate to 4000 chars, from the middle, replace to '...TRUNCATED...'
-          const updated_response_md = updated_response_full.length > 4000
+          const my_response_md_updated = updated_response_full.length > 4000
             ? updated_response_full.slice(0, 2000) + '\n\n...TRUNCATED...\n\n' + updated_response_full.slice(-2000)
             : updated_response_full;
 
-          await slack.chat.update({
+          await safeSlackUpdateMessage(slack, {
             channel: quickRespondMsg.channel,
             ts: quickRespondMsg.ts!,
-            text: updated_response_md,
+            text: my_response_md_updated, // Fallback text for notifications
             blocks: [
               {
                 type: "markdown",
-                text: updated_response_md,
+                text: my_response_md_updated,
               },
             ],
           });
           logger.debug('Updated quick respond message in slack:', {
             url: `https://${event.team}.slack.com/archives/${quickRespondMsg.channel}/p${quickRespondMsg.ts!.replace('.', '')}`,
-            updated_response_md
+            my_response_md_updated
           });
 
           // update quickRespondMsg content
-          quickRespondMsg.text = updated_response_md;
+          quickRespondMsg.text = my_response_md_updated;
           await State.set(`task-quick-respond-msg-${eventId}`, { ts: quickRespondMsg.ts!, text: quickRespondMsg.text });
         }
 
@@ -1153,21 +1294,22 @@ ${yaml.stringify({
 
   // check exit code, checkmark if claude-yes exited 0, cross if not
 
-  const exitCode = await p.exitCode;
+  const exitCode = await exitCodePromise.promise;
   if (exitCode !== 0) {
     logger.error(`claude-yes process for task ${workspaceId} exited with code ${exitCode}`);
     // those error tasks will got  retry after a restart
     // update my slack message reactions shows a cross mark and update it appending a error happened and say will retry later
     await slack.reactions.remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
     await slack.reactions.add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! }).catch(() => { });
-    await slack.chat.update({
+    const errorText = (quickRespondMsg.text || '') + `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`;
+    await safeSlackUpdateMessage(slack, {
       channel: event.channel,
       ts: quickRespondMsg.ts!,
-      markdown_text: (quickRespondMsg.text || '') + `\n\n:Warning: An error occurred while processing this request <@snomiao>, I will try it again later`,
+      text: errorText, // Fallback text for notifications
       blocks: [
         {
           type: "markdown",
-          text: (quickRespondMsg.text || '') + `\n\n:Warning: An error occurred while processing this request <@snomiao>, I will try it again later`,
+          text: errorText,
         },
       ],
     });
@@ -1207,4 +1349,19 @@ function commonPrefix(...args: string[]): string {
 }
 function sanitized(name: string) {
   return name.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
+}
+
+async function spawnBotOnSlackMessageUrl(url: string) {
+  const { team, channel, ts } = (await slackMessageUrlParse(url))
+  const event = await slack.conversations.replies({
+    channel: channel,
+    ts: ts,
+    limit: 1,
+  }).then(res => res.messages?.[0] || DIE("failed to fetch message from slack"));
+  logger.info("Processing missed message " + JSON.stringify({ url, event }))
+  await spawnBotOnSlackMessageEvent({
+    ...event, type: "app_mention",
+    channel: channel,
+  })
+
 }

@@ -23,6 +23,12 @@ export async function spawnSubAgent(options: SpawnSubAgentOptions) {
     throw new Error(`Invalid repo format: ${repo}. Expected format: owner/repo`);
   }
 
+  // Get the GitHub token for the PR bot
+  const ghToken = process.env.GH_TOKEN_COMFY_PR_BOT || process.env.GH_TOKEN;
+  if (!ghToken) {
+    throw new Error("Missing GH_TOKEN_COMFY_PR_BOT or GH_TOKEN environment variable");
+  }
+
   // Construct the target directory path using absolute /repos
   const repoDir = path.join("/repos", owner, repoName, "tree", branch);
 
@@ -33,9 +39,10 @@ export async function spawnSubAgent(options: SpawnSubAgentOptions) {
     // Create parent directory
     await mkdir(path.dirname(repoDir), { recursive: true });
 
-    // Clone the repository
-    const repoUrl = `https://github.com/${repo}.git`;
-    await $`git clone --single-branch --branch ${branch} ${repoUrl} ${repoDir}`;
+    // Clone the repository using gh CLI with authentication
+    // This uses the GH_TOKEN_COMFY_PR_BOT token automatically
+    const parentDir = path.dirname(repoDir);
+    await $`GH_TOKEN=${ghToken} gh repo clone ${repo} ${repoDir} -- --single-branch --branch ${branch}`;
 
     console.log(`Successfully cloned ${repo}@${branch}`);
   } else {
@@ -43,7 +50,7 @@ export async function spawnSubAgent(options: SpawnSubAgentOptions) {
 
     // Optionally pull latest changes
     console.log("Pulling latest changes...");
-    await $`cd ${repoDir} && git pull origin ${branch}`;
+    await $`cd ${repoDir} && GH_TOKEN=${ghToken} git pull origin ${branch}`;
   }
 
   // Spawn claude-yes agent in the repository directory
@@ -51,9 +58,17 @@ export async function spawnSubAgent(options: SpawnSubAgentOptions) {
   console.log(`Prompt: ${prompt}\n`);
 
   return new Promise<void>((resolve, reject) => {
-    const claudeProcess = spawn("claude-yes", ["--prompt", prompt], {
+    // Pass the GitHub token to the subagent via environment variables
+    const env = {
+      ...process.env,
+      GH_TOKEN: ghToken,
+      GH_TOKEN_COMFY_PR_BOT: ghToken,
+    };
+
+    const claudeProcess = spawn("claude-yes", ['-i=3min', "--prompt", prompt], {
       cwd: repoDir,
       stdio: "inherit", // Pass through stdin/stdout/stderr to parent process
+      env, // Pass environment variables including the GitHub token
     });
 
     claudeProcess.on("error", (error) => {
