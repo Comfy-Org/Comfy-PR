@@ -1,7 +1,7 @@
 import { VERBOSE } from "@/src/constants";
 import { createOctokit } from "@/src/createOctokit";
 import KeyvSqlite from "@keyv/sqlite";
-import Notion from "@notionhq/client";
+import { Client as Notion } from "@notionhq/client";
 import { WebClient } from "@slack/web-api";
 import DIE from "@snomiao/die";
 import Keyv from "keyv";
