@@ -33,7 +33,7 @@
     "dev:tsc": "tsc -w",
     "fmt": "bunx oxlint && bunx oxfmt",
     "gh-service": "bun run/index.ts",
-    "lint": "next lint",
+    "lint": "oxlint --fix && oxfmt",
     "prepare": "husky",
     "preview:pyproject": "bun scripts/preview-pyproject-minimal.ts",
     "preview:pyproject-repo": "bun scripts/preview-pyproject-toml.ts",
@@ -42,17 +42,17 @@
     "start": "next start",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "typecheck": "tsgo --noEmit --verbose",
+    "typecheck": "tsgo",
     "vercel:build": "vercel build",
     "vercel:dev": "vercel dev"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
+      "oxlint --fix",
+      "oxfmt --write"
     ],
-    "*.{json,md,yml,yaml}": [
-      "prettier --write"
+    "*": [
+      "oxfmt --write"
     ]
   },
   "overrides": {
@@ -200,12 +200,12 @@
     "@types/react": "19.0.4",
     "@types/react-dom": "19.0.2",
     "@typescript/native-preview": "^7.0.0-dev.20260113.1",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "15.1.4",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
     "msw": "^2.11.6",
     "next": "15.4.8",
+    "oxfmt": "^0.24.0",
+    "oxlint": "^1.39.0",
     "postcss": "^8.4.40",
     "prettier-plugin-organize-imports": "^3.2.4",
     "prettier-plugin-packagejson": "^2.5.1",
