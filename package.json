@@ -42,7 +42,7 @@
     "start": "next start",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "typecheck": "bunx tsgo --noEmit",
+    "typecheck": "tsgo --noEmit --verbose",
     "vercel:build": "vercel build",
     "vercel:dev": "vercel dev"
   },
@@ -199,7 +199,7 @@
     "@types/open": "^6.2.1",
     "@types/react": "19.0.4",
     "@types/react-dom": "19.0.2",
-    "@typescript/native-preview": "^7.0.0-dev.20260109.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260113.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "15.1.4",
     "husky": "^9.1.7",

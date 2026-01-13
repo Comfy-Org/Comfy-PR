@@ -1,3 +1,7 @@
 {
-  "recommendations": ["formulahendry.code-runner", "nicoespeon.abracadabra"]
+  "recommendations": [
+    "formulahendry.code-runner",
+    "nicoespeon.abracadabra",
+    "typescriptteam.native-preview"
+  ]
 }

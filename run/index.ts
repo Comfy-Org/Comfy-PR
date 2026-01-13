@@ -1,15 +1,17 @@
+#!/usr/bin/env bun
 import KeyvSqlite from "@keyv/sqlite";
 import DIE from "@snomiao/die";
-import crypto from "crypto";
+import * as crypto from "crypto";
 import Keyv from "keyv";
 import sflow, { pageFlow } from "sflow";
 import { match, P } from "ts-pattern";
-import { type UnionToIntersection } from "type-fest";
+import type { UnionToIntersection } from "type-fest";
 import { gh, type GH } from "../src/gh/index.js";
 import { ghc } from "../src/ghc.js";
 import { parseGithubRepoUrl } from "../src/parseOwnerRepo.js";
-import { processIssueCommentForLableops } from "./easylabel";
-import type { WEBHOOK_EVENT } from "./github-webhook-event-type";
+import { processIssueCommentForLableops } from "./easylabel.js";
+import type { WebhookEventMap } from "@octokit/webhooks-types";
+
 export const REPOLIST = [
   "https://github.com/Comfy-Org/Comfy-PR",
   "https://github.com/comfyanonymous/ComfyUI",
@@ -119,33 +121,23 @@ class RepoEventMonitor {
     if (!this.verifyWebhookSignature(body, signature)) return new Response("Unauthorized", { status: 401 });
 
     const payload = JSON.parse(body);
-    this.handleWebhookEvent({ type: event, payload } as WEBHOOK_EVENT);
+    this.handleWebhookEvent({ [event]: payload } );
     return new Response("OK");
   }
 
-  private async handleWebhookEvent(event: WEBHOOK_EVENT) {
+  private async handleWebhookEvent(event: Partial<WebhookEventMap>) {
     const timestamp = this.formatTimestamp();
     // const repo = event.payload.repository;
     // const repoName = repo ? `${repo.owner.login}/${repo.name}` : "unknown";
 
     match(event)
-      // .with({ type: "issues" }, async ({ payload: { issue } }) =>
-      //   processIssueCommentForLableops({ issue: issue as GH["issue"], comment: comment as GH["issue-comment"] }),
-      // )
-      .with({ type: "issue_comment" }, async ({ payload: { issue, comment } }) =>
-        processIssueCommentForLableops({
-          issue: issue as GH["issue"],
-          comment: comment as GH["issue-comment"],
-        }),
-      )
-      .otherwise(() => null);
-    // match core-important in +Core-Important
-    match(event)
-      .with({ payload: { issue: { html_url: P.string }, comment: { body: P.string } } }, async ({ type, payload }) => {
-        const { issue, comment, action } = payload;
-        const fullEvent = `${type}:${action}` as const;
-        console.log(type, comment.body);
-        return { issueUrl: issue.html_url, body: comment.body };
+      .with({ "issue_comment": P.select(P.nonNullable) }, async (payload) => {
+        if ('issue' in payload && 'comment' in payload) {
+          await processIssueCommentForLableops({
+            issue: payload.issue as GH["issue"],
+            comment: payload.comment as GH["issue-comment"],
+          });
+        }
       })
       .otherwise(() => null);
 

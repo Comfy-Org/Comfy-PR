@@ -1,9 +1,9 @@
 import KeyvSqlite from "@keyv/sqlite";
 import type { components as ghComponents } from "@octokit/openapi-types";
-import crypto from "crypto";
-import fs from "fs/promises";
+import * as crypto from "crypto";
+import { promises as fs } from "fs";
 import Keyv from "keyv";
-import path from "path";
+import * as path from "path";
 import { createOctokit } from "./createOctokit";
 
 const GH_TOKEN =
