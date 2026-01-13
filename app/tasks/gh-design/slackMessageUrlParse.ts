@@ -8,7 +8,7 @@ export function slackMessageUrlParse(url: string) {
   // slack use microsecond as message id, uniq by channel
   const match = url.match(/archives\/([^/]+)\/p(\d+)/);
   if (!match) throw new Error(`Invalid Slack message URL: ${url}`);
-  const ts = match[2].replace(/^(\d+)(\d{6})$/, "$1.$2"), // convert Slack message ID (e.g., "1234567890123456") to Slack timestamp format with decimal (e.g., "1234567890.123456")
+  const ts = match[2].replace(/^(\d+)(\d{6})$/, "$1.$2"); // convert Slack message ID (e.g., "1234567890123456") to Slack timestamp format with decimal (e.g., "1234567890.123456")
   return {
     channel: match[1],
     ts,
