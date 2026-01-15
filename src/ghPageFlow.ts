@@ -21,9 +21,11 @@ import { pageFlow } from "sflow";
 
 export function ghPageFlow<Params extends object & { page?: number; per_page?: number }, Item>(
   listEndpoint: (params?: Params) => Promise<{ data: Item[] }>,
+  // options
+  { per_page = 100, startPage = 1 } = {},
 ): (params: Params & { page?: never; per_page?: never }) => sflow<Item> {
   return (params) =>
-    pageFlow(1, async (page, per_page = 100) => {
+    pageFlow(startPage, async (page) => {
       const { data } = await listEndpoint({ ...params, page, per_page });
 
       return { data, next: data.length >= per_page ? page + 1 : null };
