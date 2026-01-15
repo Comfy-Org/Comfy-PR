@@ -4,11 +4,12 @@
     "*.{js,ts,tsx,jsx,mjs}": "bun --hot",
     "*.{spec,test}.{js,ts,tsx,jsx,mjs}": "bun test --watch"
   },
-  // "typescript.tsdk": "node_modules/typescript/lib",
-  // "typescript.enablePromptUseWorkspaceTsdk": true,
-  // "typescript.preferences.importModuleSpecifier": "relative",
-  // "typescript.updateImportsOnFileMove.enabled": "always",
-  // "typescript.suggest.autoImports": true,
-  // "typescript.preferences.includePackageJsonAutoImports": "on",
-  "typescript.experimental.useTsgo": true
+  // Enable tsgo for faster type checking
+  "typescript.experimental.useTsgo": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.suggest.autoImports": true,
+  "typescript.preferences.includePackageJsonAutoImports": "on"
 }

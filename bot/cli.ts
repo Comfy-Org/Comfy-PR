@@ -9,7 +9,7 @@ import { spawnSubAgent } from "./code/coding/pr-agent";
 import { searchGitHubIssues } from "./code/issue-search";
 
 // Registry ability
-import { searchRegistryNodes } from "./registry/search";
+import { searchRegistryNodes } from "@/lib/registry/search";
 
 // Slack abilities
 import {
@@ -24,7 +24,7 @@ import { updateSlackMessage } from "@/lib/slack/msg-update";
 import { parseSlackUrl } from "@/lib/slack/parseSlackUrl";
 
 // Notion ability
-import { searchNotion } from "./notion/search";
+import { searchNotion } from "@/lib/notion/search";
 
 /**
  * Load environment variables from .env.local in the project root
@@ -50,6 +50,59 @@ async function loadEnvLocal() {
   }
 }
 
+/**
+ * Handle PR command with auto-generated branch names
+ */
+async function handlePrCommand(args: {
+  repo: string;
+  base?: string;
+  head?: string;
+  prompt: string;
+}) {
+  const { repo, base = "main", head, prompt } = args;
+
+  // Import here to avoid circular dependencies
+  const zChatCompletion = (await import("z-chat-completion")).default;
+  const z = (await import("zod")).default;
+
+  let finalHead = head;
+  let finalBase = base;
+
+  // Auto-generate head branch if not provided
+  if (!finalHead) {
+    console.log("Generating head branch name from prompt...");
+    const branchInfo = (await zChatCompletion(
+      z.object({
+        base: z.string(),
+        head: z.string(),
+      }),
+      {
+        model: "gpt-4o-mini",
+        system: `Generate a git branch name following conventions:
+- Format: <type>/<description>
+- Types: feature/, fix/, refactor/, docs/, test/, chore/
+- Description: kebab-case, short and descriptive`,
+        messages: [
+          {
+            role: "user",
+            content: `Base: ${finalBase}\nTask: ${prompt}\n\nGenerate branch name.`,
+          },
+        ],
+      },
+    ) as unknown) as { base: string; head: string };
+    finalBase = branchInfo.base;
+    finalHead = branchInfo.head;
+    console.log(`Generated head branch: ${finalHead}`);
+  }
+
+  await spawnSubAgent({
+    repo,
+    base: finalBase,
+    head: finalHead as string,
+    prompt,
+  });
+}
+
 async function main() {
   const argv = yargs(hideBin(process.argv))
     .scriptName("pr-bot")
@@ -65,11 +118,14 @@ async function main() {
             describe: "owner/repo (e.g. Comfy-Org/ComfyUI)",
             demandOption: true,
           })
-          .option("branch", {
-            alias: "b",
+          .option("base", {
             type: "string",
-            describe: "Target branch",
+            describe: "Base branch to merge into (defaults to main)",
             default: "main",
+          })
+          .option("head", {
+            type: "string",
+            describe: "Head branch to develop on (auto-generated if not provided)",
           })
           .option("prompt", {
             alias: "p",
@@ -78,9 +134,10 @@ async function main() {
             demandOption: true,
           }),
       async (args) => {
-        await spawnSubAgent({
+        await handlePrCommand({
           repo: args.repo as string,
-          branch: (args.branch as string) ?? "main",
+          base: args.base as string | undefined,
+          head: args.head as string | undefined,
           prompt: args.prompt as string,
         });
       },
@@ -172,11 +229,14 @@ async function main() {
             describe: "owner/repo (e.g. Comfy-Org/ComfyUI)",
             demandOption: true,
           })
-          .option("branch", {
-            alias: "b",
+          .option("base", {
             type: "string",
-            describe: "Target branch",
+            describe: "Base branch to merge into (defaults to main)",
             default: "main",
+          })
+          .option("head", {
+            type: "string",
+            describe: "Head branch to develop on (auto-generated if not provided)",
           })
           .option("prompt", {
             alias: "p",
@@ -185,9 +245,10 @@ async function main() {
             demandOption: true,
           }),
       async (args) => {
-        await spawnSubAgent({
+        await handlePrCommand({
           repo: args.repo as string,
-          branch: (args.branch as string) ?? "main",
+          base: args.base as string | undefined,
+          head: args.head as string | undefined,
           prompt: args.prompt as string,
         });
       },
@@ -198,12 +259,14 @@ async function main() {
       (y) =>
         y
           .option("repo", { alias: "r", type: "string", demandOption: true })
-          .option("branch", { alias: "b", type: "string", default: "main" })
+          .option("base", { type: "string", default: "main" })
+          .option("head", { type: "string" })
           .option("prompt", { alias: "p", type: "string", demandOption: true }),
       async (args) => {
-        await spawnSubAgent({
+        await handlePrCommand({
           repo: args.repo as string,
-          branch: (args.branch as string) ?? "main",
+          base: args.base as string | undefined,
+          head: args.head as string | undefined,
           prompt: args.prompt as string,
         });
       },

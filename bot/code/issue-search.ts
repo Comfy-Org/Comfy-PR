@@ -1,4 +1,4 @@
-import { createOctokit } from "../../src/createOctokit";
+import { createOctokit } from "@/lib/github/createOctokit";
 
 /**
  * Search for issues across Comfy-Org repositories

@@ -55,7 +55,7 @@ The TypeScript server was experiencing severe performance issues causing slowdow
 
 - **`src/`**: Core utilities and shared functionality
 - **`app/tasks/`**: Specific task implementations
-- **`bot/github/`**: GitHub integration tools including pr-bot for spawning AI agents on repositories
+- **`bot/code/`**: GitHub integration tools including pr-bot for spawning AI agents on repositories
 - **`gh-service/`**: GitHub webhook service components
 - **`run/`**: Executable scripts and services
 - **Tests**: Co-located with source files using `.spec.ts` suffix
@@ -277,7 +277,7 @@ The bot system uses a two-tier architecture:
    - Must delegate all coding tasks to PR-Bot sub-agents
 
 2. **Worker Agents (PR-Bot Sub-Agents)** - Code Modification
-   - Spawned by master agent via `bun bot/github/pr-bot.ts`
+   - Spawned by master agent via `bun bot/code/pr-bot.ts`
    - Clones repositories to isolated directories (`/repos/`)
    - Has full write access to make code changes
    - Creates commits, branches, and pull requests
@@ -314,7 +314,8 @@ The bot agent prompt (lines 390-396 in `bot/index.ts`) includes the following sk
    - Access internal documentation and knowledge base
 
 5. **Code Modification via PR-Bot (REQUIRED for GitHub changes)**
-   - To make any code changes to GitHub repositories, use: `bun ../bot/github/pr-bot.ts --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"`
+   - To make any code changes to GitHub repositories, use: `bun ../bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<detailed coding task>"`
+   - If `--head` is not provided, the branch name will be auto-generated based on the prompt
    - Master bot is a RESEARCH and COORDINATION agent only
    - All actual coding work must be delegated to pr-bot sub-agents
    - Master bot CANNOT create commits, branches, or PRs directly
@@ -344,43 +345,52 @@ See `bot/README.md` for documentation on the individual skill scripts.
 
 ### Overview
 
-The coding sub-agent system (`bot/github/coding/`) allows you to spawn AI coding agents that work on specific GitHub repositories. The agent automatically clones repositories, checks out branches, and runs in an interactive coding session.
+The coding sub-agent system (`bot/code/coding/`) allows you to spawn AI coding agents that work on specific GitHub repositories. The agent automatically clones repositories, manages branches for PRs, and runs in an interactive coding session.
 
 ### Implementation
 
-- **Main Script**: `bot/github/pr-bot.ts`
-- **Core Logic**: `bot/github/coding/pr-agent.ts`
-- **Tests**: `bot/github/coding/pr-agent.spec.ts`
-- **Repository Storage**: `/repos/[owner]/[repo]/tree/[branch]/`
+- **Main Script**: `bot/code/pr-bot.ts`
+- **Core Logic**: `bot/code/coding/pr-agent.ts`
+- **Tests**: `bot/code/coding/pr-agent.spec.ts`
+- **Repository Storage**: `/repos/[owner]/[repo]/tree/[head]/`
 
 ### Usage
 
 ```bash
-bun bot/github/pr-bot.ts --repo=<owner/repo> [--branch=<branch>] --prompt="<your prompt>"
+bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<your prompt>"
 ```
 
 **Arguments:**
 
 - `--repo` (required): GitHub repository in format `owner/repo`
-- `--branch` (optional): Branch to work on (defaults to `main`)
+- `--base` (optional): Base branch to merge into (defaults to `main`)
+- `--head` (optional): Head branch to develop on (auto-generated if not provided)
 - `--prompt` (required): The coding task for the agent
 
 **Examples:**
 
 ```bash
-# Fix a bug in ComfyUI
-bun bot/github/pr-bot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix authentication bug in login module"
+# Auto-generate head branch name from prompt
+bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix authentication bug in login module"
 
-# Add a feature to the frontend
-bun bot/github/pr-bot.ts --repo=Comfy-Org/ComfyUI_frontend --branch=develop --prompt="Add dark mode support"
+# Specify both base and head branches explicitly
+bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=fix/auth-bug --prompt="Fix authentication bug"
+
+# Work on a feature branch to merge into develop
+bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=feature/dark-mode --prompt="Add dark mode support"
 ```
 
 ### How It Works
 
-1. **Auto-Clone**: Clones the repository to `/repos/[owner]/[repo]/tree/[branch]/` if not already present
-2. **Update**: If repository exists, pulls latest changes from the specified branch
-3. **Spawn Agent**: Launches `claude-yes` agent in the repository directory with the specified prompt
-4. **Interactive Session**: Agent has full access to read, edit, and create files in the repository
+1. **Branch Name Generation**: If `--head` is not provided, uses AI (GPT-4o-mini) to generate an appropriate branch name following conventions (e.g., `feature/add-dark-mode`, `fix/auth-bug`)
+2. **Auto-Clone**: Clones the repository to `/repos/[owner]/[repo]/tree/[head]/` if not already present
+3. **Branch Setup**:
+   - Verifies base branch exists
+   - Checks if head branch exists remotely; creates it from base if not
+   - Ensures proper branch isolation for feature development
+4. **Update**: If repository exists, pulls latest changes
+5. **Spawn Agent**: Launches `claude-yes` agent with enhanced prompt including branch context
+6. **Interactive Session**: Agent has full access to read, edit, and create files, with clear instructions to create a PR merging `head` → `base`
 
 ### Key Features
 

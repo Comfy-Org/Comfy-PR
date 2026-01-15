@@ -46,11 +46,12 @@ async function setSlackBotAvatar(imagePath: string): Promise<void> {
       image: Buffer.from(imageBuffer),
     });
 
-    if (result.ok) {
-      console.log("✓ Bot avatar updated successfully!");
-    } else {
-      throw new Error(`Slack API error: ${JSON.stringify(result)}`);
-    }
+    // if (result.ok) {
+    //   console.log("✓ Bot avatar updated successfully!");
+    // } else {
+    //   throw new Error(`Slack API error: ${JSON.stringify(result)}`);
+    // }
+    throw new Error("setPhoto API is not available in current Slack SDK version");
   } catch (error) {
     console.error("Failed to update bot avatar:", error);
     throw error;

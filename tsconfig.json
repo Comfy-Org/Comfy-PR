@@ -38,30 +38,19 @@
     "resolveJsonModule": true
   },
   "include": [
-    "next-env.d.ts",
-    "app/**/*.ts",
-    "app/**/*.tsx",
-    "components/**/*.ts",
-    "components/**/*.tsx",
-    "lib/**/*.ts",
-    "src/**/*.ts",
-    "run/**/*.ts",
-    "gh-service/**/*.ts",
-    "packages/**/*.ts",
-    "reports/**/*.ts",
-    "mocks/**/*.ts",
-    "index.ts",
-    "next.config.ts",
-    ".next/types/**/*.ts"
+    "**/*.ts",
+    "**/*.tsx"
   ],
   "exclude": [
     "node_modules",
-    "prs/*",
+    "**/node_modules",
+    ".next",
     ".cache",
     "dist",
+    "prs",
+    "repos",
     "scripts",
     "**/*.spec.ts",
-    "**/*.test.ts",
-    "**/node_modules"
+    "**/*.test.ts"
   ]
 }

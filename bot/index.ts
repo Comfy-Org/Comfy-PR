@@ -564,7 +564,11 @@ Respond in JSON format with the following fields:
       return "existing task stopped by user";
     }
     if (action.msg_to_append_to_agent && action.msg_to_append_to_agent.trim()) {
-      const w = existedTaskInputFlow.writable.getWriter();
+      if (!existedTaskInputFlow) {
+        logger.warn("No existing task input flow found");
+        return;
+      }
+      const w = existedTaskInputFlow!.writable.getWriter();
       await w.write(
         await parseSlackMessageToMarkdown(
           `New message from <@${event.user}> in the thread:\n${event.text}\n\nMy quick response to the user: ${action.my_quick_respond}\n\n`,
@@ -607,7 +611,7 @@ Also, provide a brief response that I can send to the user immediately to acknow
 Finally, I will spawn an agent to help with this request if necessary.
 
 For context, Recent messages from this thread are as follows:
-${nearbyMessages.map((m) => `- User ${m.username} said: ${JSON.stringify(m.text)}`).join("\n\n")}
+${nearbyMessages.map((m) => `- User ${m.username} said: ${JSON.stringify(m.markdown)}`).join("\n\n")}
 
 Possible Context Repos:
 - https://github.com/comfyanonymous/ComfyUI: The main ComfyUI repository containing the core application logic and features. Its a python backend to run any machine learning models and solves various machine learning tasks.
@@ -811,11 +815,18 @@ You are AI assistant integrated with Comfy-Org's many internal services includin
 - notion: Update notion docs by @Fennic-bot in slack channel and asking it to make the changes.
 - registry: Search ComfyUI custom nodes registry using 'pr-bot registry search --query="<search terms>" --limit=5'
 - Local file system: Your working directory are temp, make sure commit your work to external services like slack/github/notion where user can see it, before your ./ dir get cleaned up
-- TODO.md: You can utilize TODO.md file in your working directory to track tasks and progress.
+  - TODO.md: You can utilize TODO.md file in your working directory to track tasks and progress.
+  - TOOLS_ERRORS.md: You must log any errors encountered while using tools to TOOLS_ERRORS.md in your working directory for later review.
+
+## Improve your self
+
+- To improve your self, you can READ your own codebase at ./codes/Comfy-Org/Comfy-PR/tree/sno-bot (READONLY)
+- When you need to make code changes to your own codebase, you MUST use the pr-bot CLI: 'pr-bot pr --repo=Comfy-Org/Comfy-PR [--branch=<branch>] --prompt="<detailed coding task>"'
 
 ## The User Request
 
 for context, the thread context messages is:
+
 ${yaml.stringify(nearbyMessages)}
 
 THIS TIME, THE user mentioned you with the following message:
@@ -1132,7 +1143,7 @@ Please assist them with their request using all your resources available.
   const exitCodePromise = Promise.withResolvers<number | null>();
   const p = (() => {
     const cli = "claude-yes";
-    const continueArgs = [];
+    const continueArgs: string[] = [];
     // if (botworkingdir/.claude-yes have content)
     // then continueArgs.push('--continue')
     // TODO: maybe use smarter way to detect if need continue
@@ -1215,21 +1226,23 @@ Please assist them with their request using all your resources available.
       return await e
         .forEach(async () => {
           idleWaiter.ping();
-          if (!isThinking) {
+          if (!isThinking && quickRespondMsg.ts && quickRespondMsg.channel) {
             isThinking = true;
+            const msgChannel = quickRespondMsg.channel;
+            const msgTs = quickRespondMsg.ts;
             await slack.reactions
               .add({
                 name: "loading",
-                channel: quickRespondMsg.channel,
-                timestamp: quickRespondMsg.ts!,
+                channel: msgChannel,
+                timestamp: msgTs,
               })
               .catch(() => {});
             idleWaiter.wait(5e3).finally(async () => {
               await slack.reactions
                 .remove({
                   name: "loading",
-                  channel: quickRespondMsg.channel,
-                  timestamp: quickRespondMsg.ts!,
+                  channel: msgChannel,
+                  timestamp: msgTs,
                 })
                 .catch(() => {});
               isThinking = false;
@@ -1243,7 +1256,7 @@ Please assist them with their request using all your resources available.
     .forkTo(async (e) => {
       const tr = new TerminalTextRender();
       let sent = "";
-      let lastOutputs = []; // keep 3 last outputs to detect stability
+      let lastOutputs: string[] = []; // keep 3 last outputs to detect stability
 
       // logger.info('Rendered chunk size:', rendered.length, 'lines: ', rendered.split(/\r|\n/).length);
       const id = setInterval(async () => {
@@ -1275,8 +1288,8 @@ Please assist them with their request using all your resources available.
             user_original_intent: resp.user_intent,
             my_response_md_original: quickRespondMsg.text || "",
           };
-          const updateResponseResp = await zChatCompletion({
-            my_response_md_updated: z.string(),
+          const updateResponseResp = (await zChatCompletion({
+            my_response_md_updated: z.string() as any,
           })`
 TASK: Update my my_response_md_original based on agent's my_internal_thoughts findings, and give me my_response_md_updated to post in slack.
 
@@ -1311,7 +1324,7 @@ If all infomations from my_internal_thoughts are already contained in my_respons
 ${yaml.stringify(contexts)}
 </task-context-yaml>
 
-`;
+`) as { my_response_md_updated: string };
           const updated_response_full = updateResponseResp.my_response_md_updated
             .trim()
             .replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || "");
@@ -1323,28 +1336,29 @@ ${yaml.stringify(contexts)}
                 updated_response_full.slice(-2000)
               : updated_response_full;
 
-          await safeSlackUpdateMessage(slack, {
-            channel: quickRespondMsg.channel,
-            ts: quickRespondMsg.ts!,
-            text: my_response_md_updated, // Fallback text for notifications
-            blocks: [
-              {
-                type: "markdown",
-                text: my_response_md_updated,
-              },
-            ],
-          });
-          logger.debug("Updated quick respond message in slack:", {
-            url: `https://${event.team}.slack.com/archives/${quickRespondMsg.channel}/p${quickRespondMsg.ts!.replace(".", "")}`,
-            my_response_md_updated,
-          });
+          if (quickRespondMsg.ts && quickRespondMsg.channel) {
+            await safeSlackUpdateMessage(slack, {
+              channel: quickRespondMsg.channel,
+              ts: quickRespondMsg.ts,
+              text: my_response_md_updated, // Fallback text for notifications
+              blocks: [
+                {
+                  type: "markdown",
+                  text: my_response_md_updated,
+                },
+              ],
+            });
+            logger.debug("Updated quick respond message in slack:", {
+              url: `https://${event.team}.slack.com/archives/${quickRespondMsg.channel}/p${quickRespondMsg.ts.replace(".", "")}`,
+            });
 
-          // update quickRespondMsg content
-          quickRespondMsg.text = my_response_md_updated;
-          await State.set(`task-quick-respond-msg-${eventId}`, {
-            ts: quickRespondMsg.ts!,
-            text: quickRespondMsg.text,
-          });
+            // update quickRespondMsg content
+            quickRespondMsg.text = my_response_md_updated;
+            await State.set(`task-quick-respond-msg-${eventId}`, {
+              ts: quickRespondMsg.ts,
+              text: quickRespondMsg.text,
+            });
+          }
         }
 
         lastOutputs.push(renderedText);
@@ -1394,23 +1408,25 @@ ${yaml.stringify(contexts)}
     await slack.reactions
       .remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts })
       .catch(() => {});
-    await slack.reactions
-      .add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! })
-      .catch(() => {});
-    const errorText =
-      (quickRespondMsg.text || "") +
-      `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`;
-    await safeSlackUpdateMessage(slack, {
-      channel: event.channel,
-      ts: quickRespondMsg.ts!,
-      text: errorText, // Fallback text for notifications
-      blocks: [
-        {
-          type: "markdown",
-          text: errorText,
-        },
-      ],
-    });
+    if (quickRespondMsg.ts && quickRespondMsg.channel) {
+      await slack.reactions
+        .add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts })
+        .catch(() => {});
+      const errorText =
+        (quickRespondMsg.text || "") +
+        `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`;
+      await safeSlackUpdateMessage(slack, {
+        channel: event.channel,
+        ts: quickRespondMsg.ts,
+        text: errorText, // Fallback text for notifications
+        blocks: [
+          {
+            type: "markdown",
+            text: errorText,
+          },
+        ],
+      });
+    }
   }
 
   // claude exited as no more inputs/outputs for a while, update the status message
@@ -1474,6 +1490,8 @@ async function spawnBotOnSlackMessageUrl(url: string) {
   await spawnBotOnSlackMessageEvent({
     ...event,
     type: "app_mention",
+    user: event.user || "",
     channel: channel,
-  });
+    event_ts: event.ts || ts,
+  } as any);
 }
