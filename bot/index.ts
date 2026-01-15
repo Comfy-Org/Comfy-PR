@@ -1432,8 +1432,6 @@ ${yaml.stringify(contexts)}
       const errorText =
        await mdFmt( (quickRespondMsg.text || "") +
         `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`)
-        
-
       await safeSlackUpdateMessage(slack, {
         channel: event.channel,
         ts: quickRespondMsg.ts,
