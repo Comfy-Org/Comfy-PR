@@ -27,7 +27,8 @@ export async function updateGithubActionPrepareBranch(repo: string) {
   // can also peek on ${repo_url}/raw/main/.github/workflows/publish.yml
   const files = await globby(`${cwd}/.github/workflows/{publish,publish_action}.{yaml,yml}`);
   console.assert(
-    files.length === 1 || DIE(`expected exactly 1 publish.yaml file, but got ${files.length} ${JSON.stringify(files)}`),
+    files.length === 1 ||
+      DIE(`expected exactly 1 publish.yaml file, but got ${files.length} ${JSON.stringify(files)}`),
   );
   const file = files[0];
   const currentContent = await readFile(file, "utf8");
@@ -39,7 +40,8 @@ export async function updateGithubActionPrepareBranch(repo: string) {
       await gptWriter([
         {
           role: "system",
-          content: "You write only yaml content, no explain, no code-fences, output only yaml content",
+          content:
+            "You write only yaml content, no explain, no code-fences, output only yaml content",
         },
         { role: "developer", content: "$ read current .github/workflows/publish.yaml" },
         { role: "function", name: "read", content: currentContent },
@@ -59,7 +61,8 @@ export async function updateGithubActionPrepareBranch(repo: string) {
   // console.log(yaml.stringify({ testUpdatedPublishYaml, updatedActionContent }));
 
   const isParsedContentSame =
-    new Set([updatedActionContent, currentContent].map((e) => JSON.stringify(yaml.parse(e)))).size === 1;
+    new Set([updatedActionContent, currentContent].map((e) => JSON.stringify(yaml.parse(e))))
+      .size === 1;
   if (isParsedContentSame) {
     // already up to date
     return {

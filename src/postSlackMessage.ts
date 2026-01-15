@@ -1,5 +1,5 @@
 import DIE from "@snomiao/die";
-import { getSlack } from "./slack";
+import { getSlack } from "@/lib/slack";
 
 /**
  * @deprecated use upsertSlackMessage from gh-desktop-release-notification/upsertSlackMessage.ts

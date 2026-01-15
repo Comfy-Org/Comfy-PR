@@ -424,7 +424,8 @@ describe("GitHub API Client (gh)", () => {
           return new HttpResponse(
             JSON.stringify({
               message: "API rate limit exceeded",
-              documentation_url: "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting",
+              documentation_url:
+                "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting",
             }),
             {
               status: 403,

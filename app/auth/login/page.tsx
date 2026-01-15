@@ -28,7 +28,9 @@ export default function LoginPage() {
             className="flex items-center justify-center w-full py-3 px-4 border-2 border-gray-200 rounded-lg bg-white hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md group"
           >
             <FcGoogle className="w-6 h-6 mr-3" />
-            <span className="font-medium text-gray-700 group-hover:text-gray-900">Continue with Google</span>
+            <span className="font-medium text-gray-700 group-hover:text-gray-900">
+              Continue with Google
+            </span>
           </button>
 
           {/* GitHub OAuth Button */}

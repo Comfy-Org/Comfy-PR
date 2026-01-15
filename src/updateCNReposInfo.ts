@@ -5,7 +5,7 @@ import { $OK, TaskError, TaskOK } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos } from "./CNRepos";
 import { getWorkerInstance } from "./WorkerInstances";
 import { $flatten, $stale } from "./db";
-import { gh } from "./gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "./parseOwnerRepo";
 import { tLog } from "./utils/tLog";
 

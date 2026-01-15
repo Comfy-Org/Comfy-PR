@@ -54,10 +54,13 @@ const events = await getRepositoryEvents("Comfy-Org/ComfyUI_frontend", 100);
 console.log(`Found ${events.length} events for ComfyUI_frontend`);
 
 // Group by event type
-const byType = events.reduce((acc, event) => {
-  acc[event.eventType!] = (acc[event.eventType!] || 0) + 1;
-  return acc;
-}, {} as Record<string, number>);
+const byType = events.reduce(
+  (acc, event) => {
+    acc[event.eventType!] = (acc[event.eventType!] || 0) + 1;
+    return acc;
+  },
+  {} as Record<string, number>,
+);
 
 console.log("Events by type:", byType);
 ```
@@ -114,7 +117,10 @@ stats.eventTypes.slice(0, 10).forEach((e) => {
 ### Auto-Label New PRs
 
 ```typescript
-import { getUnprocessedEvents, markEventAsProcessed } from "./app/api/webhook/github/webhook-events";
+import {
+  getUnprocessedEvents,
+  markEventAsProcessed,
+} from "./app/api/webhook/github/webhook-events";
 import { ghc } from "@/src/ghc";
 
 async function autoLabelPRs() {
@@ -172,7 +178,10 @@ await autoLabelPRs();
 ### Notify Slack on New Issues
 
 ```typescript
-import { getUnprocessedEvents, markEventAsProcessed } from "./app/api/webhook/github/webhook-events";
+import {
+  getUnprocessedEvents,
+  markEventAsProcessed,
+} from "./app/api/webhook/github/webhook-events";
 import { slack } from "@/src/slack";
 
 async function notifyNewIssues() {
@@ -467,7 +476,10 @@ if (import.meta.main) {
 
 ```typescript
 #!/usr/bin/env bun
-import { getUnprocessedEvents, markEventAsProcessed } from "./app/api/webhook/github/webhook-events";
+import {
+  getUnprocessedEvents,
+  markEventAsProcessed,
+} from "./app/api/webhook/github/webhook-events";
 
 async function processEvents() {
   const events = await getUnprocessedEvents(undefined, 100);

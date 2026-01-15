@@ -38,6 +38,7 @@ bun bot/index.ts --continue
 ### Troubleshooting
 
 If the bot crashes frequently:
+
 1. Check logs in `.logs/bot-YYYY-MM-DD.log`
 2. Verify Slack tokens in `.env.local`
 3. Check MongoDB connection

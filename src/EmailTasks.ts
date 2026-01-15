@@ -74,21 +74,38 @@ export async function updateEmailTasks() {
         return await sendEmailTask(e)
           .then(() => EmailTasks.updateOne({ _id }, { $set: { mtime: new Date(), state: "sent" } }))
           .catch((err) =>
-            EmailTasks.updateOne({ _id }, { $set: { mtime: new Date(), state: "error", error: String(err) } }),
+            EmailTasks.updateOne(
+              { _id },
+              { $set: { mtime: new Date(), state: "error", error: String(err) } },
+            ),
           );
       }
     })
     .toCount();
   console.log(count, "email tasks processed");
 }
-export async function sendEmailTask({ _id, state, name, from, to, subject, body, provider }: WithId<EmailTask>) {
+export async function sendEmailTask({
+  _id,
+  state,
+  name,
+  from,
+  to,
+  subject,
+  body,
+  provider,
+}: WithId<EmailTask>) {
   // prerequisites
   if (provider !== "google") DIE("providers other than google is implemented yet");
   const auth = await getGCloudOAuth2Client({
     email: from,
     scope: ["https://www.googleapis.com/auth/gmail.compose"],
     authorize: async (url) =>
-      DIE("ERROR: Trying send email from " + from + " but it's not authorized, plz grant permission in " + url),
+      DIE(
+        "ERROR: Trying send email from " +
+          from +
+          " but it's not authorized, plz grant permission in " +
+          url,
+      ),
   });
   // do send
   return sendGmail({

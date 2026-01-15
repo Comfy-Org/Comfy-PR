@@ -40,15 +40,21 @@ export type PullStatus = z.infer<typeof zPullStatus>;
 export type PullsStatus = PullStatus[];
 export type PullStatusShown = Awaited<ReturnType<typeof analyzePullsStatus>>[number];
 
-export async function analyzePullsStatus({ skip = 0, limit = 0, pipeline = analyzePullsStatusPipeline() } = {}) {
+export async function analyzePullsStatus({
+  skip = 0,
+  limit = 0,
+  pipeline = analyzePullsStatusPipeline(),
+} = {}) {
   "use server";
   return await pipeline
     .skip(skip)
     .limit(limit || 2 ** 31 - 1)
     .aggregate()
     .map(({ updated_at, created_at, actived_at, on_registry_at, ...pull }) => {
-      const pull_updated = prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
-      const repo_updated = prettyMs(+new Date() - +new Date(actived_at), { compact: true }) + " ago";
+      const pull_updated =
+        prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
+      const repo_updated =
+        prettyMs(+new Date() - +new Date(actived_at), { compact: true }) + " ago";
       return {
         updated: pull_updated, // @deprecated
         pull_updated,

@@ -10,6 +10,5 @@
   // "typescript.updateImportsOnFileMove.enabled": "always",
   // "typescript.suggest.autoImports": true,
   // "typescript.preferences.includePackageJsonAutoImports": "on",
-    "typescript.experimental.useTsgo": true
-
+  "typescript.experimental.useTsgo": true
 }

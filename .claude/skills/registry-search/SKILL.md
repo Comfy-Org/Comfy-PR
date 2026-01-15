@@ -24,6 +24,7 @@ pr-bot registry search -q "<SEARCH_QUERY>" [-l <LIMIT>] [--include-deprecated]
 ## Search Coverage
 
 The search looks across multiple fields:
+
 - Node name
 - Description
 - Author name
@@ -51,6 +52,7 @@ pr-bot registry search -q "upscale" --include-deprecated -l 10
 ## Output Format
 
 Returns results with:
+
 - Node name and ID
 - Description (truncated to 100 chars)
 - Publisher information

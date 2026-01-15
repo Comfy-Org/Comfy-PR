@@ -1,7 +1,7 @@
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
-import { getSlackChannel } from "@/src/slack/channels";
+import { getSlackChannel } from "@/lib/slack/channels";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import runGithubFrontendReleaseNotificationTask from "./index";
 
@@ -11,7 +11,9 @@ jest.mock("../gh-desktop-release-notification/upsertSlackMessage");
 
 const mockGh = gh as jest.Mocked<typeof gh>;
 const mockGetSlackChannel = getSlackChannel as jest.MockedFunction<typeof getSlackChannel>;
-const { upsertSlackMessage } = jest.requireMock("../gh-desktop-release-notification/upsertSlackMessage");
+const { upsertSlackMessage } = jest.requireMock(
+  "../gh-desktop-release-notification/upsertSlackMessage",
+);
 
 describe("GithubFrontendReleaseNotificationTask", () => {
   let collection: any;

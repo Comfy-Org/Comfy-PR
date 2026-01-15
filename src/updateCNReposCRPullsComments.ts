@@ -7,7 +7,7 @@ import { $flatten } from "@/packages/mongodb-pipeline-ts/$flatten";
 import { $pipeline } from "@/packages/mongodb-pipeline-ts/$pipeline";
 import { TaskError, TaskOK } from "../packages/mongodb-pipeline-ts/Task";
 import { getWorkerInstance } from "./WorkerInstances";
-import { fetchIssueComments } from "./gh/fetchIssueComments";
+import { fetchIssueComments } from "@/lib/github/fetchIssueComments";
 
 if (import.meta.main) {
   await getWorkerInstance("updateCNReposCRPullsComments");
@@ -19,7 +19,9 @@ export async function updateCNReposCRPullsComments() {
   return await pMap(
     $pipeline(CNRepos)
       .unwind("$crPulls.data")
-      .match($flatten({ crPulls: { mtime: $fresh("7d"), data: { comments: { mtime: $stale("1d") } } } }))
+      .match(
+        $flatten({ crPulls: { mtime: $fresh("7d"), data: { comments: { mtime: $stale("1d") } } } }),
+      )
       .set($flatten({ "crPulls.data": { repository: "$repository" } }))
       .replaceRoot({ newRoot: "$crPulls.data" })
       .aggregate(),

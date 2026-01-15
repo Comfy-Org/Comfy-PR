@@ -1,8 +1,8 @@
 #!/usr/bin/env bun --hot
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
-import { getSlackChannel } from "@/src/slack/channels";
+import { getSlackChannel } from "@/lib/slack/channels";
 import DIE from "@snomiao/die";
 import isCI from "is-ci";
 import sflow from "sflow";
@@ -142,7 +142,9 @@ async function runGithubCoreTagNotificationTask() {
           ref: tag.commit.sha,
         });
         const commitDate = new Date(
-          commitData.data.commit.author?.date || commitData.data.commit.committer?.date || new Date(),
+          commitData.data.commit.author?.date ||
+            commitData.data.commit.committer?.date ||
+            new Date(),
         );
 
         if (+commitDate < +new Date(config.sendSince)) {
@@ -169,7 +171,9 @@ async function runGithubCoreTagNotificationTask() {
               : undefined);
 
           if (!existingMessage || existingMessage.text !== slackMessageText) {
-            console.log(`Tag ${task.tagName} notified to Slack channel ${channelName} (${channelId})`);
+            console.log(
+              `Tag ${task.tagName} notified to Slack channel ${channelName} (${channelId})`,
+            );
             const msg = await upsertSlackMessage({
               channel: channelId,
               text: slackMessageText,

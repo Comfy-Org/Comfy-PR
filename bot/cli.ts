@@ -12,11 +12,16 @@ import { searchGitHubIssues } from "./code/issue-search";
 import { searchRegistryNodes } from "./registry/search";
 
 // Slack abilities
-import { downloadSlackFile, getSlackFileInfo, postMessageWithFiles, uploadSlackFile } from "./slack/file";
-import { readNearbyMessages } from "./slack/msg-read-nearby";
-import { readSlackThread } from "./slack/msg-read-thread";
-import { updateSlackMessage } from "./slack/msg-update";
-import { parseSlackUrl } from "./slack/parseSlackUrl";
+import {
+  downloadSlackFile,
+  getSlackFileInfo,
+  postMessageWithFiles,
+  uploadSlackFile,
+} from "@/lib/slack/file";
+import { readNearbyMessages } from "@/lib/slack/msg-read-nearby";
+import { readSlackThread } from "@/lib/slack/msg-read-thread";
+import { updateSlackMessage } from "@/lib/slack/msg-update";
+import { parseSlackUrl } from "@/lib/slack/parseSlackUrl";
 
 // Notion ability
 import { searchNotion } from "./notion/search";
@@ -134,7 +139,10 @@ async function main() {
           }),
       async (args) => {
         await loadEnvLocal();
-        const results = await searchGitHubIssues(args.query as string, (args.limit as number) ?? 10);
+        const results = await searchGitHubIssues(
+          args.query as string,
+          (args.limit as number) ?? 10,
+        );
 
         console.log(`Found ${results.length} results for: "${args.query}"\n`);
 
@@ -265,7 +273,12 @@ async function main() {
           .option("url", { alias: "u", type: "string", describe: "Slack message URL" })
           .option("channel", { alias: "c", type: "string", describe: "Slack channel ID" })
           .option("ts", { alias: "t", type: "string", describe: "Message timestamp" })
-          .option("before", { alias: "b", type: "number", default: 10, describe: "Messages before" })
+          .option("before", {
+            alias: "b",
+            type: "number",
+            default: 10,
+            describe: "Messages before",
+          })
           .option("after", { alias: "a", type: "number", default: 10, describe: "Messages after" })
           .check((argv) => {
             // Require either URL or (channel + ts)
@@ -312,8 +325,18 @@ async function main() {
       "Download a file from Slack",
       (y) =>
         y
-          .option("fileId", { alias: "f", type: "string", demandOption: true, describe: "Slack file ID" })
-          .option("output", { alias: "o", type: "string", demandOption: true, describe: "Output file path" }),
+          .option("fileId", {
+            alias: "f",
+            type: "string",
+            demandOption: true,
+            describe: "Slack file ID",
+          })
+          .option("output", {
+            alias: "o",
+            type: "string",
+            demandOption: true,
+            describe: "Output file path",
+          }),
       async (args) => {
         await loadEnvLocal();
         await downloadSlackFile(args.fileId as string, args.output as string);
@@ -322,7 +345,13 @@ async function main() {
     .command(
       "slack file-info",
       "Get information about a Slack file",
-      (y) => y.option("fileId", { alias: "f", type: "string", demandOption: true, describe: "Slack file ID" }),
+      (y) =>
+        y.option("fileId", {
+          alias: "f",
+          type: "string",
+          demandOption: true,
+          describe: "Slack file ID",
+        }),
       async (args) => {
         await loadEnvLocal();
         const info = await getSlackFileInfo(args.fileId as string);
@@ -334,10 +363,29 @@ async function main() {
       "Post a message with file attachments",
       (y) =>
         y
-          .option("channel", { alias: "c", type: "string", demandOption: true, describe: "Channel ID" })
-          .option("text", { alias: "m", type: "string", demandOption: true, describe: "Message text" })
-          .option("file", { alias: "f", type: "array", demandOption: true, describe: "File path(s) to attach" })
-          .option("thread", { alias: "t", type: "string", describe: "Thread timestamp to reply in" }),
+          .option("channel", {
+            alias: "c",
+            type: "string",
+            demandOption: true,
+            describe: "Channel ID",
+          })
+          .option("text", {
+            alias: "m",
+            type: "string",
+            demandOption: true,
+            describe: "Message text",
+          })
+          .option("file", {
+            alias: "f",
+            type: "array",
+            demandOption: true,
+            describe: "File path(s) to attach",
+          })
+          .option("thread", {
+            alias: "t",
+            type: "string",
+            describe: "Thread timestamp to reply in",
+          }),
       async (args) => {
         await loadEnvLocal();
         const files = (args.file as string[]).filter((f) => typeof f === "string");
@@ -354,11 +402,25 @@ async function main() {
       "Upload a file to Slack",
       (y) =>
         y
-          .option("channel", { alias: "c", type: "string", demandOption: true, describe: "Channel ID" })
-          .option("file", { alias: "f", type: "string", demandOption: true, describe: "File path to upload" })
+          .option("channel", {
+            alias: "c",
+            type: "string",
+            demandOption: true,
+            describe: "Channel ID",
+          })
+          .option("file", {
+            alias: "f",
+            type: "string",
+            demandOption: true,
+            describe: "File path to upload",
+          })
           .option("title", { type: "string", describe: "File title" })
           .option("comment", { alias: "m", type: "string", describe: "Initial comment" })
-          .option("thread", { alias: "t", type: "string", describe: "Thread timestamp to reply in" }),
+          .option("thread", {
+            alias: "t",
+            type: "string",
+            describe: "Thread timestamp to reply in",
+          }),
       async (args) => {
         await loadEnvLocal();
         await uploadSlackFile(args.channel as string, args.file as string, {
@@ -406,7 +468,9 @@ async function main() {
 
         for (const node of results) {
           console.log(`📦 ${node.name} (${node.id})`);
-          console.log(`   ${node.description.substring(0, 100)}${node.description.length > 100 ? "..." : ""}`);
+          console.log(
+            `   ${node.description.substring(0, 100)}${node.description.length > 100 ? "..." : ""}`,
+          );
           console.log(`   Publisher: ${node.publisher.name}`);
           console.log(`   Version: ${node.latest_version.version}`);
           console.log(`   Repository: ${node.repository}`);

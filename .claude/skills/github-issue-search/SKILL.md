@@ -23,6 +23,7 @@ pr-bot github-issue search -q "<SEARCH_QUERY>" [-l <LIMIT>]
 ## Search Query Syntax
 
 The search supports GitHub's issue search syntax:
+
 - Simple keywords: `authentication bug`
 - State filters: `is:open`, `is:closed`
 - Type filters: `is:issue`, `is:pr`
@@ -52,6 +53,7 @@ pr-bot github-issue search -q "created:>2024-12-01 is:open"
 ## Output Format
 
 Returns results with:
+
 - Issue/PR number
 - Title
 - Repository name
@@ -65,6 +67,7 @@ Returns results with:
 ## Repositories Searched
 
 Searches across all Comfy-Org repositories including:
+
 - Comfy-Org/ComfyUI
 - Comfy-Org/ComfyUI_frontend
 - Comfy-Org/desktop

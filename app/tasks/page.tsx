@@ -11,10 +11,16 @@ import {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const Counts = {
-  GithubActionUpdateTask: () => <Suspense>{GithubActionUpdateTask.estimatedDocumentCount()}</Suspense>,
-  GithubContributorAnalyzeTask: () => <Suspense>{GithubContributorAnalyzeTask.estimatedDocumentCount()}</Suspense>,
+  GithubActionUpdateTask: () => (
+    <Suspense>{GithubActionUpdateTask.estimatedDocumentCount()}</Suspense>
+  ),
+  GithubContributorAnalyzeTask: () => (
+    <Suspense>{GithubContributorAnalyzeTask.estimatedDocumentCount()}</Suspense>
+  ),
   GithubContributorAnalyzeTaskRemain: () => (
-    <Suspense>{GithubContributorAnalyzeTask.countDocuments(GithubContributorAnalyzeTaskFilter)}</Suspense>
+    <Suspense>
+      {GithubContributorAnalyzeTask.countDocuments(GithubContributorAnalyzeTaskFilter)}
+    </Suspense>
   ),
   GithubBountyTask: () => <Suspense>{GithubBountyTask.estimatedDocumentCount()}</Suspense>,
   GithubDesignTask: () => <Suspense>{GithubDesignTask.estimatedDocumentCount()}</Suspense>,
@@ -28,7 +34,9 @@ export default async function TasksIndexPage() {
   return (
     <ol className="px-8">
       <li>
-        <Link href="/tasks/github-action-update">GithubActionUpdateTask x {<Counts.GithubActionUpdateTask />}</Link>
+        <Link href="/tasks/github-action-update">
+          GithubActionUpdateTask x {<Counts.GithubActionUpdateTask />}
+        </Link>
       </li>
       <li>
         <Link href="/tasks/github-contributor-analyze">

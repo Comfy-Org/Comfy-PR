@@ -6,10 +6,10 @@ import Keyv from "keyv";
 import sflow, { pageFlow } from "sflow";
 import { match, P } from "ts-pattern";
 import type { UnionToIntersection } from "type-fest";
-import { gh, type GH } from "../src/gh/index.js";
-import { ghc } from "../src/ghc.js";
-import { parseGithubRepoUrl } from "../src/parseOwnerRepo.js";
-import { processIssueCommentForLableops } from "./easylabel.js";
+import { gh, type GH } from "@/lib/github";
+import { ghc } from "@/lib/github/githubCached";
+import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
+import { processIssueCommentForLableops } from "./easylabel";
 import type { WebhookEventMap } from "@octokit/webhooks-types";
 
 export const REPOLIST = [
@@ -33,7 +33,8 @@ type WebhookIssue = GH[`webhook-issues-${string}` & keyof GH];
 type WebhookIssueComment = GH[`webhook-issue-comment-${string}` & keyof GH];
 type WebhookPullRequest = GH[`webhook-pull-request-${string}` & keyof GH];
 type WebhookPullRequestReview = GH[`webhook-pull-request-review${string}` & keyof GH];
-type WebhookPullRequestReviewComment = GH[`webhook-pull-request-review-comment-${string}` & keyof GH];
+type WebhookPullRequestReviewComment = GH[`webhook-pull-request-review-comment-${string}` &
+  keyof GH];
 type HaveBody<T> = T extends { issue: { body: string } } ? T : never;
 type test = HaveBody<GH[`webhook-${string}-${string}` & keyof GH]>;
 type WebhookAll = GH[`webhook-${string}-${string}` & keyof GH];
@@ -118,10 +119,11 @@ class RepoEventMonitor {
     const event = req.headers.get("x-github-event") || "";
     const body = await req.text();
 
-    if (!this.verifyWebhookSignature(body, signature)) return new Response("Unauthorized", { status: 401 });
+    if (!this.verifyWebhookSignature(body, signature))
+      return new Response("Unauthorized", { status: 401 });
 
     const payload = JSON.parse(body);
-    this.handleWebhookEvent({ [event]: payload } );
+    this.handleWebhookEvent({ [event]: payload });
     return new Response("OK");
   }
 
@@ -131,8 +133,8 @@ class RepoEventMonitor {
     // const repoName = repo ? `${repo.owner.login}/${repo.name}` : "unknown";
 
     match(event)
-      .with({ "issue_comment": P.select(P.nonNullable) }, async (payload) => {
-        if ('issue' in payload && 'comment' in payload) {
+      .with({ issue_comment: P.select(P.nonNullable) }, async (payload) => {
+        if ("issue" in payload && "comment" in payload) {
           await processIssueCommentForLableops({
             issue: payload.issue as GH["issue"],
             comment: payload.comment as GH["issue-comment"],
@@ -253,7 +255,9 @@ class RepoEventMonitor {
           existingHook = hooks.find((hook) => hook.config?.url === WEBHOOK_URL);
 
           if (existingHook) {
-            console.log(`[${this.formatTimestamp()}] ✅ Webhook already exists for ${owner}/${repo}`);
+            console.log(
+              `[${this.formatTimestamp()}] ✅ Webhook already exists for ${owner}/${repo}`,
+            );
             continue;
           }
         } catch (listError: any) {
@@ -294,7 +298,10 @@ class RepoEventMonitor {
           );
           this.pollingRepos.add(repoUrl);
         } else {
-          console.error(`[${this.formatTimestamp()}] ❌ Error creating webhook for ${repoUrl}:`, error.message);
+          console.error(
+            `[${this.formatTimestamp()}] ❌ Error creating webhook for ${repoUrl}:`,
+            error.message,
+          );
         }
       }
     }

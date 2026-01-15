@@ -23,7 +23,9 @@ export function ApprovePRButton(e: { repo: string; branchVersionHash?: string })
         title="will perform on next run"
         onKeyDown={(e) => {
           const mv = (offset: number) => {
-            const btns = [...document.querySelectorAll("button.btn-approve")] as HTMLButtonElement[];
+            const btns = [
+              ...document.querySelectorAll("button.btn-approve"),
+            ] as HTMLButtonElement[];
             btns[btns.indexOf(e.currentTarget) + offset]?.scrollIntoView({ block: "start" });
             btns[btns.indexOf(e.currentTarget) + offset]?.focus();
 
@@ -34,7 +36,9 @@ export function ApprovePRButton(e: { repo: string; branchVersionHash?: string })
         }}
         onClick={(e) => {
           const mv = (offset: number) => {
-            const btns = [...document.querySelectorAll("button.btn-approve")] as HTMLButtonElement[];
+            const btns = [
+              ...document.querySelectorAll("button.btn-approve"),
+            ] as HTMLButtonElement[];
             btns[btns.indexOf(e.currentTarget) + offset]?.scrollIntoView({ block: "start" });
             btns[btns.indexOf(e.currentTarget) + offset]?.focus();
           };

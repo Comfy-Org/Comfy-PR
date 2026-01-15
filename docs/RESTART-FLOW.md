@@ -136,6 +136,7 @@ Edit File → Immediate Restart → Tasks Interrupted ❌
 ```
 
 Timeline:
+
 ```
 00:00   Task starts
 00:05   Edit file
@@ -150,6 +151,7 @@ Edit File → Queue Restart → Wait for Idle → Safe Restart ✅
 ```
 
 Timeline:
+
 ```
 00:00   Task starts
 00:05   Edit file
@@ -198,4 +200,3 @@ Long (30000ms)  → Slower restart, less CPU
 5. **Bot never becomes idle**
    - Restart stays queued indefinitely
    - Logs every 5 seconds: "Bot is busy, waiting..."
-

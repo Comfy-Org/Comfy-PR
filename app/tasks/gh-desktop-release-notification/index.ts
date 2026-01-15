@@ -1,7 +1,7 @@
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
-import { getSlackChannel } from "@/src/slack/channels";
+import { getSlackChannel } from "@/lib/slack/channels";
 import DIE from "@snomiao/die";
 import isCI from "is-ci";
 import parseGithubUrl from "parse-github-url";
@@ -92,7 +92,9 @@ async function runGithubDesktopReleaseNotificationTask() {
         isStable: status == "stable",
         version: release.tag_name,
         coreVersion: (release.body || release.body_text)?.match(coreVersionPattern)?.[1],
-        createdAt: new Date(release.created_at || DIE("no created_at in release, " + JSON.stringify(release))),
+        createdAt: new Date(
+          release.created_at || DIE("no created_at in release, " + JSON.stringify(release)),
+        ),
         releasedAt: !release.published_at ? undefined : new Date(release.published_at),
       });
       const coreTask = !task.coreVersion
@@ -105,15 +107,24 @@ async function runGithubDesktopReleaseNotificationTask() {
         channel: await pSlackChannelId,
         text: config.slackMessage
           .replace("{url}", task.url)
-          .replace("{repo}", parseGithubUrl(task.url)?.repo || DIE(`unable parse REPO from URL ${task.url}`))
-          .replace("{version}", task.version || DIE(`unable to parse version from task ${JSON.stringify(task)}`))
+          .replace(
+            "{repo}",
+            parseGithubUrl(task.url)?.repo || DIE(`unable parse REPO from URL ${task.url}`),
+          )
+          .replace(
+            "{version}",
+            task.version || DIE(`unable to parse version from task ${JSON.stringify(task)}`),
+          )
           .replace("{status}", task.status)
           .replace(/$/, !coreTask?.version ? "" : " Core: " + coreTask.version),
       };
 
       // upsert drafting message if new/changed
       const shouldSendDraftingMessage = !task.isStable || task.slackMessageDrafting?.url;
-      if (shouldSendDraftingMessage && task.slackMessageDrafting?.text?.trim() !== newSlackMessage.text.trim()) {
+      if (
+        shouldSendDraftingMessage &&
+        task.slackMessageDrafting?.text?.trim() !== newSlackMessage.text.trim()
+      ) {
         task = await save({
           url,
           slackMessageDrafting: await upsertSlackMessage({

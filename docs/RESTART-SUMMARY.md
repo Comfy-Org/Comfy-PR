@@ -7,6 +7,7 @@ The bot was using `--watch` flag which would restart immediately on file changes
 ## Solution
 
 Implemented a **Smart Restart Manager** that:
+
 1. Watches for file changes
 2. Queues a restart when changes are detected
 3. **Only restarts when the bot is idle** (no active tasks)
@@ -94,6 +95,7 @@ Default settings in `bot/index.ts`:
 ## Ignored Files
 
 The following patterns are automatically ignored:
+
 - `node_modules/`
 - `.cache/`, `.logs/`, `.git/`
 - `.nedb`, `.sqlite`, `.log` files
@@ -162,11 +164,13 @@ bun bot/restart-example.ts
 ## Migration from `--watch`
 
 **Before:**
+
 ```bash
 #!/usr/bin/env bun --watch
 ```
 
 **After:**
+
 ```bash
 #!/usr/bin/env bun
 # Smart restart manager handles file watching
@@ -177,9 +181,9 @@ The bot now uses the RestartManager instead of Bun's built-in `--watch` flag.
 ## Future Enhancements
 
 Potential improvements:
+
 - Add metrics for restart frequency
 - Support for custom file patterns via CLI args
 - Graceful shutdown with task cleanup
 - Notification to Slack when restart is queued
 - Dashboard showing pending restart status
-

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
 import { $ } from "bun";
@@ -38,13 +38,19 @@ export type GithubWorkflowTemplatesIssueTransferTask = {
   error?: string;
 };
 
-export const GithubWorkflowTemplatesIssueTransferTask = db.collection<GithubWorkflowTemplatesIssueTransferTask>(
-  "GithubWorkflowTemplatesIssueTransferTask",
+export const GithubWorkflowTemplatesIssueTransferTask =
+  db.collection<GithubWorkflowTemplatesIssueTransferTask>(
+    "GithubWorkflowTemplatesIssueTransferTask",
+  );
+
+await GithubWorkflowTemplatesIssueTransferTask.createIndex(
+  { sourceIssueNumber: 1 },
+  { unique: true },
 );
 
-await GithubWorkflowTemplatesIssueTransferTask.createIndex({ sourceIssueNumber: 1 }, { unique: true });
-
-const save = async (task: { sourceIssueNumber: number } & Partial<GithubWorkflowTemplatesIssueTransferTask>) =>
+const save = async (
+  task: { sourceIssueNumber: number } & Partial<GithubWorkflowTemplatesIssueTransferTask>,
+) =>
   (await GithubWorkflowTemplatesIssueTransferTask.findOneAndUpdate(
     { sourceIssueNumber: task.sourceIssueNumber },
     { $set: task },
@@ -147,10 +153,14 @@ ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : "
             .map((label) => (typeof label === "string" ? label : label.name))
             .filter((name): name is string => !!name)
             .filter((name) => name.toLowerCase() !== "workflow_templates"),
-          assignees: issue.assignees?.map((assignee) => assignee.login).filter((login): login is string => !!login),
+          assignees: issue.assignees
+            ?.map((assignee) => assignee.login)
+            .filter((login): login is string => !!login),
         });
 
-        console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
+        console.log(
+          `Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`,
+        );
         if (!isCI && process.platform === "darwin") {
           await $`open ${newIssue.data.html_url}`;
         }

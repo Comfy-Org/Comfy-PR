@@ -1,4 +1,4 @@
-import { type GH } from "@/src/gh";
+import { type GH } from "@/lib/github";
 import { match } from "ts-pattern";
 
 export function onIssueComment(
@@ -18,26 +18,34 @@ export function onIssueComment(
   match(action)
     .with("created", () => {
       const type = isPR ? "PR" : "ISSUE";
-      console.log(`[${timestamp}] 💬 NEW ${type} COMMENT: ${repoName}#${issueNumber} by ${username}`);
+      console.log(
+        `[${timestamp}] 💬 NEW ${type} COMMENT: ${repoName}#${issueNumber} by ${username}`,
+      );
 
       // Log comment details if available
       if (comment.body) {
-        const preview = comment.body.length > 100 ? comment.body.substring(0, 100) + "..." : comment.body;
+        const preview =
+          comment.body.length > 100 ? comment.body.substring(0, 100) + "..." : comment.body;
         console.log(`[${timestamp}] 📝 Comment preview: "${preview.trim()}"`);
       }
     })
     .with("edited", () => {
       const type = isPR ? "PR" : "ISSUE";
-      console.log(`[${timestamp}] ✏️  ${type} COMMENT EDITED: ${repoName}#${issueNumber} by ${username}`);
+      console.log(
+        `[${timestamp}] ✏️  ${type} COMMENT EDITED: ${repoName}#${issueNumber} by ${username}`,
+      );
       // Log comment details if available
       if (comment.body) {
-        const preview = comment.body.length > 100 ? comment.body.substring(0, 100) + "..." : comment.body;
+        const preview =
+          comment.body.length > 100 ? comment.body.substring(0, 100) + "..." : comment.body;
         console.log(`[${timestamp}] 📝 Comment preview: "${preview.trim()}"`);
       }
     })
     .with("deleted", () => {
       const type = isPR ? "PR" : "ISSUE";
-      console.log(`[${timestamp}] 🗑️  ${type} COMMENT DELETED: ${repoName}#${issueNumber} by ${username}`);
+      console.log(
+        `[${timestamp}] 🗑️  ${type} COMMENT DELETED: ${repoName}#${issueNumber} by ${username}`,
+      );
     })
     .exhaustive();
 }

@@ -8,7 +8,9 @@ const trackingMockDb = {
   collection: () => ({
     createIndex: async () => ({}),
     findOne: async (filter: any) => {
-      const op = dbOperations.find((op) => op.filter?.sourceIssueNumber === filter?.sourceIssueNumber);
+      const op = dbOperations.find(
+        (op) => op.filter?.sourceIssueNumber === filter?.sourceIssueNumber,
+      );
       return op?.data || null;
     },
     findOneAndUpdate: async (filter: any, update: any) => {
@@ -120,25 +122,31 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
         ]);
       }),
       // Mock creating issue in target repo
-      http.post("https://api.github.com/repos/Comfy-Org/workflow_templates/issues", async ({ request }) => {
-        createdIssue = await request.json();
-        return HttpResponse.json({
-          number: 456,
-          html_url: "https://github.com/Comfy-Org/workflow_templates/issues/456",
-          ...createdIssue,
-        });
-      }),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/workflow_templates/issues",
+        async ({ request }) => {
+          createdIssue = await request.json();
+          return HttpResponse.json({
+            number: 456,
+            html_url: "https://github.com/Comfy-Org/workflow_templates/issues/456",
+            ...createdIssue,
+          });
+        },
+      ),
       // Mock creating comment on source issue
-      http.post("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments", async ({ request }) => {
-        createdComment = await request.json();
-        return HttpResponse.json({
-          id: 999,
-          body: createdComment.body,
-          user: { login: "test-user", id: 1 },
-          html_url: "https://github.com/comfyanonymous/ComfyUI/issues/123#issuecomment-999",
-          created_at: new Date().toISOString(),
-        });
-      }),
+      http.post(
+        "https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments",
+        async ({ request }) => {
+          createdComment = await request.json();
+          return HttpResponse.json({
+            id: 999,
+            body: createdComment.body,
+            user: { login: "test-user", id: 1 },
+            html_url: "https://github.com/comfyanonymous/ComfyUI/issues/123#issuecomment-999",
+            created_at: new Date().toISOString(),
+          });
+        },
+      ),
       // Mock closing the issue
       http.patch("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123", () => {
         return HttpResponse.json({});
@@ -160,7 +168,9 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
     // Verify comment was posted
     expect(createdComment).toBeTruthy();
     expect(createdComment.body).toContain("transferred to the workflow_templates repository");
-    expect(createdComment.body).toContain("https://github.com/Comfy-Org/workflow_templates/issues/456");
+    expect(createdComment.body).toContain(
+      "https://github.com/Comfy-Org/workflow_templates/issues/456",
+    );
 
     // Verify database was updated
     const lastOp = dbOperations[dbOperations.length - 1];

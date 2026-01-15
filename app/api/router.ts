@@ -58,7 +58,10 @@ export const router = t.router({
         author_email: z.string().optional(),
       }),
     )
-    .query(async ({ input: { limit = 0, skip = 0 } }) => (await analyzePullsStatus({ limit, skip })) as any),
+    .query(
+      async ({ input: { limit = 0, skip = 0 } }) =>
+        (await analyzePullsStatus({ limit, skip })) as any,
+    ),
   getRepoUrls: t.procedure
     .meta({ openapi: { method: "GET", path: "/repo-urls", description: "Get repo urls" } })
     .input(z.object({}))
@@ -124,7 +127,8 @@ export const router = t.router({
     )
     .query(async ({ input: { url } }) => {
       // await import { githubContributorAnalyze } from "../tasks/github-contributor-analyze/githubContributorAnalyze";
-      const { githubContributorAnalyze } = await import("../tasks/github-contributor-analyze/githubContributorAnalyze");
+      const { githubContributorAnalyze } =
+        await import("../tasks/github-contributor-analyze/githubContributorAnalyze");
       const result = await githubContributorAnalyze(url);
       return result;
     }),
@@ -184,13 +188,18 @@ export const router = t.router({
             (template) => template.includes("{{ITEM_TYPE}}"),
             "Slack message template must include {{ITEM_TYPE}} placeholder",
           )
-          .refine((template) => template.includes("{{URL}}"), "Slack message template must include {{URL}} placeholder")
+          .refine(
+            (template) => template.includes("{{URL}}"),
+            "Slack message template must include {{URL}} placeholder",
+          )
           .refine(
             (template) => template.includes("{{TITLE}}"),
             "Slack message template must include {{TITLE}} placeholder",
           )
           .optional(),
-        requestReviewers: z.array(z.string().min(1, "Reviewer username cannot be empty")).optional(),
+        requestReviewers: z
+          .array(z.string().min(1, "Reviewer username cannot be empty"))
+          .optional(),
         repoUrls: z
           .array(
             z
@@ -225,12 +234,16 @@ export const router = t.router({
       }),
     )
     .mutation(async ({ input }) => {
-      throw new Error("Meta editing functionality is temporarily disabled. This feature is under maintenance.");
+      throw new Error(
+        "Meta editing functionality is temporarily disabled. This feature is under maintenance.",
+      );
       // TODO: add back later
       try {
         const updateData: any = {};
-        if (input.slackMessageTemplate !== undefined) updateData.slackMessageTemplate = input.slackMessageTemplate;
-        if (input.requestReviewers !== undefined) updateData.requestReviewers = input.requestReviewers;
+        if (input.slackMessageTemplate !== undefined)
+          updateData.slackMessageTemplate = input.slackMessageTemplate;
+        if (input.requestReviewers !== undefined)
+          updateData.requestReviewers = input.requestReviewers;
         if (input.repoUrls !== undefined) updateData.repoUrls = input.repoUrls;
 
         const meta = await GithubDesignTaskMeta.$upsert(updateData);

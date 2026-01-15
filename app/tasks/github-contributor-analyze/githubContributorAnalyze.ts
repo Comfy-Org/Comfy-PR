@@ -6,7 +6,10 @@ import isCI from "is-ci";
 import sflow from "sflow";
 import sha256 from "sha256";
 import { $ } from "zx";
-import { GithubContributorAnalyzeTask, GithubContributorAnalyzeTaskFilter } from "./GithubContributorAnalyzeTask";
+import {
+  GithubContributorAnalyzeTask,
+  GithubContributorAnalyzeTaskFilter,
+} from "./GithubContributorAnalyzeTask";
 import { parseGitShortLog } from "./parseGitShortLog";
 
 if (import.meta.main) {
@@ -24,7 +27,9 @@ if (import.meta.main) {
     .aggregate()
     .next();
 
-  const remain = await GithubContributorAnalyzeTask.countDocuments(GithubContributorAnalyzeTaskFilter);
+  const remain = await GithubContributorAnalyzeTask.countDocuments(
+    GithubContributorAnalyzeTaskFilter,
+  );
   const total = await GithubContributorAnalyzeTask.countDocuments();
 
   const notRetryableErrors = [
@@ -72,7 +77,11 @@ if (import.meta.main) {
           }
           const result = await githubContributorAnalyze(repoUrl);
 
-          await GithubContributorAnalyzeTask.updateOne({ repoUrl }, { $set: { ...result } }, { upsert: true });
+          await GithubContributorAnalyzeTask.updateOne(
+            { repoUrl },
+            { $set: { ...result } },
+            { upsert: true },
+          );
           return result;
         } catch (e) {
           console.error("githubContributorAnalyze error", e);

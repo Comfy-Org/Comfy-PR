@@ -2,7 +2,9 @@ import { $before, $fresh, $stale } from "@/packages/mongodb-pipeline-ts/$fresh";
 import { tryCatch } from "rambda";
 import { z } from "zod";
 
-const znot_include = z.object({ "not-include": z.string() }).transform((x) => ({ $nin: x["not-include"] }));
+const znot_include = z
+  .object({ "not-include": z.string() })
+  .transform((x) => ({ $nin: x["not-include"] }));
 const mString = z.string().transform((x) =>
   tryCatch<string, string | RegExp>(
     (x) => new RegExp(x) as RegExp,
@@ -12,8 +14,12 @@ const mString = z.string().transform((x) =>
 const zbefore = z
   .object({ $before: z.coerce.date().or(z.string()).or(z.number()) })
   .transform((x) => $before(x.$before));
-const zfresh = z.object({ $fresh: z.coerce.date().or(z.string()).or(z.number()) }).transform((x) => $fresh(x.$fresh));
-const mstale = z.object({ $stale: z.coerce.date().or(z.string()).or(z.number()) }).transform((x) => $stale(x.$stale));
+const zfresh = z
+  .object({ $fresh: z.coerce.date().or(z.string()).or(z.number()) })
+  .transform((x) => $fresh(x.$fresh));
+const mstale = z
+  .object({ $stale: z.coerce.date().or(z.string()).or(z.number()) })
+  .transform((x) => $stale(x.$stale));
 const mDate = z.date().or(zbefore).or(zfresh).or(mstale);
 const mAny = z.number().or(znot_include).or(mString).or(zbefore).or(zfresh);
 const mNumber = z

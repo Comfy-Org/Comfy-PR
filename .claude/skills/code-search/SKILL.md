@@ -24,6 +24,7 @@ pr-bot code search -q "<SEARCH_QUERY>" [--repo <REPO>] [--path <PATH>]
 ## Search Syntax
 
 The search query supports special filters:
+
 - `repo:owner/name` - Search within a specific repository
 - `path:pattern` - Search within specific file paths
 
@@ -46,6 +47,7 @@ pr-bot code search -q "repo:Comfy-Org/ComfyUI path:python last_node_id"
 ## Output Format
 
 Returns JSON with search results containing:
+
 - Repository name and URL
 - File path and line number
 - Code snippet with match context

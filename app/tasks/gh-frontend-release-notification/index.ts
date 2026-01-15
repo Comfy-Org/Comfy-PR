@@ -1,6 +1,6 @@
 #!/usr/bin/env bun --hot
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
 import isCI from "is-ci";
@@ -47,9 +47,8 @@ export type GithubFrontendReleaseNotificationTask = {
   };
 };
 
-export const GithubFrontendReleaseNotificationTask = db.collection<GithubFrontendReleaseNotificationTask>(
-  "GithubFrontendReleaseNotificationTask",
-);
+export const GithubFrontendReleaseNotificationTask =
+  db.collection<GithubFrontendReleaseNotificationTask>("GithubFrontendReleaseNotificationTask");
 
 const save = async (task: { url: string } & Partial<GithubFrontendReleaseNotificationTask>) =>
   (await GithubFrontendReleaseNotificationTask.findOneAndUpdate(
@@ -92,7 +91,9 @@ async function runGithubFrontendReleaseNotificationTask() {
         isStable: status == "stable",
         version: release.tag_name,
         releaseNotes: releaseNotes,
-        createdAt: new Date(release.created_at || DIE("no created_at in release, " + JSON.stringify(release))),
+        createdAt: new Date(
+          release.created_at || DIE("no created_at in release, " + JSON.stringify(release)),
+        ),
         releasedAt: !release.published_at ? undefined : new Date(release.published_at),
       });
 
@@ -103,8 +104,14 @@ async function runGithubFrontendReleaseNotificationTask() {
 
       const newSlackMessageText = config.slackMessage
         .replace("{url}", task.url)
-        .replace("{repo}", parseGithubUrl(task.url)?.repo || DIE(`Unable to parse REPO from URL ${task.url}`))
-        .replace("{version}", task.version || DIE(`Unable to parse version from task ${JSON.stringify(task)}`))
+        .replace(
+          "{repo}",
+          parseGithubUrl(task.url)?.repo || DIE(`Unable to parse REPO from URL ${task.url}`),
+        )
+        .replace(
+          "{version}",
+          task.version || DIE(`Unable to parse version from task ${JSON.stringify(task)}`),
+        )
         .replace("{status}", task.status)
         .replace(/$/, "\n" + formattedReleaseNotes)
         .replace(/(.*) in (https:\/\/\S*)$/gm, "<$2|$1>") // linkify URLs at the end of lines;
@@ -114,7 +121,8 @@ async function runGithubFrontendReleaseNotificationTask() {
       console.log(newSlackMessageText);
       const shouldSendDraftingMessage = !task.isStable;
       const draftingTextChanged =
-        !task.slackMessageDrafting?.text || task.slackMessageDrafting.text.trim() !== newSlackMessageText.trim();
+        !task.slackMessageDrafting?.text ||
+        task.slackMessageDrafting.text.trim() !== newSlackMessageText.trim();
       if (shouldSendDraftingMessage && draftingTextChanged) {
         task = await save({
           url,

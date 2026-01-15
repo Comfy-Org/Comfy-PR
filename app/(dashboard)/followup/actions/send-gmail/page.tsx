@@ -1,8 +1,16 @@
 // /followup/actions/email
 
 import { getAuthUser } from "@/app/api/auth/[...nextauth]/getAuthUser";
-import { TaskDataOrNull, TaskError, TaskErrorOrNull, TaskOK } from "@/packages/mongodb-pipeline-ts/Task";
-import { GCloudOAuth2Credentials, getGCloudOAuth2Client } from "@/src/gcloud/GCloudOAuth2Credentials";
+import {
+  TaskDataOrNull,
+  TaskError,
+  TaskErrorOrNull,
+  TaskOK,
+} from "@/packages/mongodb-pipeline-ts/Task";
+import {
+  GCloudOAuth2Credentials,
+  getGCloudOAuth2Client,
+} from "@/src/gcloud/GCloudOAuth2Credentials";
 import { sendGmail } from "@/src/sendGmail";
 import { yaml } from "@/src/utils/yaml";
 import DIE from "@snomiao/die";
@@ -112,7 +120,11 @@ ${"```"}
               Send your self a Test e-mail
             </button>
 
-            <Link target="_blank" href="https://myaccount.google.com/connections" className="btn btn-secondary">
+            <Link
+              target="_blank"
+              href="https://myaccount.google.com/connections"
+              className="btn btn-secondary"
+            >
               Revoke permission to compose gmail (go to google 3rd party conn manager)
             </Link>
           </>

@@ -31,6 +31,7 @@ export const logger = winston.createLogger({
     new winston.transports.Console({
       format: combine(colorize({ all: true }), consoleFormat),
     }),
+    
   ],
 });
 

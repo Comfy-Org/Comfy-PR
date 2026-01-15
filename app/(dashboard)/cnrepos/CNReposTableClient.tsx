@@ -10,7 +10,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { TaskDataOrNull, TaskErrorOrNull } from "@/packages/mongodb-pipeline-ts/Task";
 import type { CNRepo } from "@/src/CNRepos";
 import { Info } from "lucide-react";
@@ -138,7 +145,11 @@ function CNRepoRow({ repo }: { repo: CNRepo & { _id?: any } }) {
             </div>
           ))}
           {TaskErrorOrNull(repo.crPulls) && (
-            <Badge variant="destructive" className="text-xs" title={TaskErrorOrNull(repo.crPulls) || ""}>
+            <Badge
+              variant="destructive"
+              className="text-xs"
+              title={TaskErrorOrNull(repo.crPulls) || ""}
+            >
               Error
             </Badge>
           )}
@@ -153,7 +164,9 @@ function CNRepoRow({ repo }: { repo: CNRepo & { _id?: any } }) {
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="font-mono text-sm">{getRepoName(repo.repository)}</DialogTitle>
+              <DialogTitle className="font-mono text-sm">
+                {getRepoName(repo.repository)}
+              </DialogTitle>
               <DialogDescription>Repository details and metadata</DialogDescription>
             </DialogHeader>
             <div className="mt-4">

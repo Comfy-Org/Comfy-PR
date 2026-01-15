@@ -33,17 +33,21 @@ const differences = {
   },
   commitCount: {
     absolute: newData.commitCount - oldData.commitCount,
-    percentage: (((newData.commitCount - oldData.commitCount) / oldData.commitCount) * 100).toFixed(2) + "%",
+    percentage:
+      (((newData.commitCount - oldData.commitCount) / oldData.commitCount) * 100).toFixed(2) + "%",
     dailyAverage: ((newData.commitCount - oldData.commitCount) / daysDifference).toFixed(2),
   },
   repoCount: {
     absolute: newData.allRepoCount - oldData.repoCount,
-    percentage: (((newData.allRepoCount - oldData.repoCount) / oldData.repoCount) * 100).toFixed(2) + "%",
+    percentage:
+      (((newData.allRepoCount - oldData.repoCount) / oldData.repoCount) * 100).toFixed(2) + "%",
     dailyAverage: ((newData.allRepoCount - oldData.repoCount) / daysDifference).toFixed(2),
   },
   usernameCount: {
     absolute: newData.usernameCount - oldData.usernameCount,
-    percentage: (((newData.usernameCount - oldData.usernameCount) / oldData.usernameCount) * 100).toFixed(2) + "%",
+    percentage:
+      (((newData.usernameCount - oldData.usernameCount) / oldData.usernameCount) * 100).toFixed(2) +
+      "%",
     dailyAverage: ((newData.usernameCount - oldData.usernameCount) / daysDifference).toFixed(2),
   },
 };
@@ -51,8 +55,10 @@ const differences = {
 // Additional insights
 const insights = {
   duplicateEmails: newData.emails - newData.dedupedEmails,
-  duplicateEmailPercentage: (((newData.emails - newData.dedupedEmails) / newData.emails) * 100).toFixed(2) + "%",
-  cloneableRepoPercentage: ((newData.cloneableRepoCount / newData.allRepoCount) * 100).toFixed(2) + "%",
+  duplicateEmailPercentage:
+    (((newData.emails - newData.dedupedEmails) / newData.emails) * 100).toFixed(2) + "%",
+  cloneableRepoPercentage:
+    ((newData.cloneableRepoCount / newData.allRepoCount) * 100).toFixed(2) + "%",
   nonCloneableRepos: newData.allRepoCount - newData.cloneableRepoCount,
 };
 
@@ -60,16 +66,24 @@ console.log("=== CONTRIBUTOR STATS ANALYSIS ===");
 console.log(`Time Period: ${differences.timePeriod} (${oldData.date} to ${newData.date})\n`);
 
 console.log("📧 EMAIL GROWTH:");
-console.log(`  Total increase: ${differences.emails.absolute} emails (${differences.emails.percentage})`);
+console.log(
+  `  Total increase: ${differences.emails.absolute} emails (${differences.emails.percentage})`,
+);
 console.log(`  Daily average: ${differences.emails.dailyAverage} new emails/day`);
-console.log(`  Current duplicates: ${insights.duplicateEmails} (${insights.duplicateEmailPercentage})\n`);
+console.log(
+  `  Current duplicates: ${insights.duplicateEmails} (${insights.duplicateEmailPercentage})\n`,
+);
 
 console.log("💾 COMMIT GROWTH:");
-console.log(`  Total increase: ${differences.commitCount.absolute} commits (${differences.commitCount.percentage})`);
+console.log(
+  `  Total increase: ${differences.commitCount.absolute} commits (${differences.commitCount.percentage})`,
+);
 console.log(`  Daily average: ${differences.commitCount.dailyAverage} new commits/day\n`);
 
 console.log("📁 REPOSITORY GROWTH:");
-console.log(`  Total increase: ${differences.repoCount.absolute} repos (${differences.repoCount.percentage})`);
+console.log(
+  `  Total increase: ${differences.repoCount.absolute} repos (${differences.repoCount.percentage})`,
+);
 console.log(`  Daily average: ${differences.repoCount.dailyAverage} new repos/day`);
 console.log(
   `  Cloneable repos: ${newData.cloneableRepoCount}/${newData.allRepoCount} (${insights.cloneableRepoPercentage})`,

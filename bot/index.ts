@@ -20,54 +20,54 @@ import zChatCompletion from "z-chat-completion";
 import z from "zod";
 import { IdleWaiter } from "./IdleWaiter";
 import { RestartManager } from "./RestartManager";
-import { parseSlackMessageToMarkdown } from "./slack/parseSlackMessageToMarkdown";
-import { slackTsToISO } from "./slack/slackTsToISO";
-import { safeSlackPostMessage, safeSlackUpdateMessage } from "./slack/safeSlackMessage";
+import { parseSlackMessageToMarkdown } from "@/lib/slack/parseSlackMessageToMarkdown";
+import { slackTsToISO } from "@/lib/slack/slackTsToISO";
+import { safeSlackPostMessage, safeSlackUpdateMessage } from "@/lib/slack/safeSlackMessage";
 import { tap } from "rambda";
 import { slackMessageUrlParse } from "@/app/tasks/gh-design/slackMessageUrlParse";
 import { execa } from "execa";
-import { TerminalTextRender } from 'terminal-render'
+import { TerminalTextRender } from "terminal-render";
 import minimist from "minimist";
 import path from "path";
 import { appendFile } from "fs/promises";
 import { existsSync } from "fs";
-import fsp from 'fs/promises'
+import fsp from "fs/promises";
 
-const SLACK_ORG_DOMAIN_NAME = 'comfy-organization'
+const SLACK_ORG_DOMAIN_NAME = "comfy-organization";
 // Configure winston logger
-const logDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+const logDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
+  level: process.env.LOG_LEVEL || "info",
   format: winston.format.combine(
     winston.format.timestamp(),
     winston.format.errors({ stack: true }),
     winston.format.printf(({ timestamp, level, message, ...meta }) => {
-      const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-      return `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr ? '\n' + metaStr : ''}`;
-    })
+      const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : "";
+      return `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr ? "\n" + metaStr : ""}`;
+    }),
   ),
   transports: [
     new winston.transports.Console({
       format: winston.format.combine(
         winston.format.colorize(),
         winston.format.printf(({ timestamp, level, message, ...meta }) => {
-          const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-          return `[${timestamp}] ${level}: ${message}${metaStr ? '\n' + metaStr : ''}`;
-        })
-      )
+          const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : "";
+          return `[${timestamp}] ${level}: ${message}${metaStr ? "\n" + metaStr : ""}`;
+        }),
+      ),
     }),
     new winston.transports.File({
       filename: `./.logs/bot-${logDate}.log`,
-      level: 'debug',
+      level: "debug",
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.printf(({ timestamp, level, message, ...meta }) => {
-          const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
-          return `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr ? '\n' + metaStr : ''}`;
-        })
-      )
-    })
-  ]
+          const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : "";
+          return `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr ? "\n" + metaStr : ""}`;
+        }),
+      ),
+    }),
+  ],
 });
 
 const State = new Keyv(
@@ -99,36 +99,36 @@ const zAppMentionEvent = z.object({
 
 // Helper functions to manage current working tasks
 async function addWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
-  const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+  const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
   const events = workingTasks.workingMessageEvents || [];
 
   // Check if event already exists (by ts and channel)
   const exists = events.some((e: any) => e.ts === event.ts && e.channel === event.channel);
   if (!exists) {
     events.push(event);
-    await State.set('current-working-tasks', { workingMessageEvents: events });
+    await State.set("current-working-tasks", { workingMessageEvents: events });
     logger.info(`Added task to working list: ${event.ts} (total: ${events.length})`);
   }
 }
 
 async function removeWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
-  const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+  const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
   const events = workingTasks.workingMessageEvents || [];
 
   // Remove event by ts and channel
   const filtered = events.filter((e: any) => !(e.ts === event.ts && e.channel === event.channel));
-  await State.set('current-working-tasks', { workingMessageEvents: filtered });
+  await State.set("current-working-tasks", { workingMessageEvents: filtered });
   logger.info(`Removed task from working list: ${event.ts} (remaining: ${filtered.length})`);
 }
-const g = globalThis as typeof globalThis & { instanceId?: string, hotId?: string }
-const now = new Date().toISOString()
-g.instanceId ??= now
-g.hotId = now
+const g = globalThis as typeof globalThis & { instanceId?: string; hotId?: string };
+const now = new Date().toISOString();
+g.instanceId ??= now;
+g.hotId = now;
 
 if (import.meta.main) {
   console.log("Starting ComfyPR Bot...");
   const argv = minimist(process.argv.slice(2));
-  const port = Number(process.env.PRBOT_PORT || DIE("missing env.PRBOT_PORT"))
+  const port = Number(process.env.PRBOT_PORT || DIE("missing env.PRBOT_PORT"));
 
   // Step 1: Health check (only for non-PTY launches)
   const isHumanLaunched = process.stdin.isTTY;
@@ -142,10 +142,10 @@ if (import.meta.main) {
     const startTime = Date.now();
     let healthyInstanceFound = false;
 
-    while ((Date.now() - startTime) < pollDuration) {
+    while (Date.now() - startTime < pollDuration) {
       try {
         const statusResp = await fetch(`http://localhost:${port}/status`, {
-          signal: AbortSignal.timeout(1000)
+          signal: AbortSignal.timeout(1000),
         });
 
         if (statusResp.ok) {
@@ -154,19 +154,23 @@ if (import.meta.main) {
           healthyInstanceFound = true;
 
           // Try to get PID of existing process
-          let existingPid = 'unknown';
+          let existingPid = "unknown";
           try {
             const lsofOutput = await Bun.$`lsof -ti:${port}`.text();
             existingPid = lsofOutput.trim();
-          } catch { }
+          } catch {}
 
-          logger.info(`Healthy instance detected (PID: ${existingPid}) - aborting launch to avoid conflict`);
+          logger.info(
+            `Healthy instance detected (PID: ${existingPid}) - aborting launch to avoid conflict`,
+          );
           logger.info(`Status: ${JSON.stringify(statusData)}`);
           process.exit(0);
         }
       } catch (err) {
         // Port is unhealthy/unreachable - this is expected
-        logger.debug(`Health check: port ${port} is unhealthy (${Date.now() - startTime}ms elapsed)`);
+        logger.debug(
+          `Health check: port ${port} is unhealthy (${Date.now() - startTime}ms elapsed)`,
+        );
       }
 
       await sleep(pollInterval);
@@ -189,53 +193,59 @@ if (import.meta.main) {
     fetch: async (req: Request) => {
       const url = new URL(req.url);
 
-      if (url.pathname === '/status') {
+      if (url.pathname === "/status") {
         // Get current working tasks from state
-        const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+        const workingTasks = (await State.get("current-working-tasks")) || {
+          workingMessageEvents: [],
+        };
         const events = workingTasks.workingMessageEvents || [];
 
         // Build message URLs from events
         const processing_message_urls = events.map((event: any) => {
-          const tsForUrl = event.ts.replace('.', '');
+          const tsForUrl = event.ts.replace(".", "");
           return `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${tsForUrl}`;
         });
 
         const status = {
-          status: TaskInputFlows.size === 0 ? 'idle' : 'busy',
+          status: TaskInputFlows.size === 0 ? "idle" : "busy",
           processing_message_urls,
-          processing_message_urls_count: processing_message_urls.length
+          processing_message_urls_count: processing_message_urls.length,
         };
 
         return new Response(JSON.stringify(status, null, 2), {
           status: 200,
-          headers: { 'Content-Type': 'application/json' }
+          headers: { "Content-Type": "application/json" },
         });
       }
 
-      return new Response('ComfyPR Bot is running.\n', { status: 200 });
-    }
-  })
+      return new Response("ComfyPR Bot is running.\n", { status: 200 });
+    },
+  });
 
   // const missedMsg = "https://comfy-organization.slack.com/archives/C09QKKXK8RX/p1767849032076329?thread_ts=1767838632.470639&cid=C09QKKXK8RX"
   // const missedMsg = "https://comfy-organization.slack.com/archives/C0A4XMHANP3/p1767893546609709?thread_ts=1767862331.962569&cid=C0A4XMHANP3"
   // spawnBotOnSlackMessageUrl(missedMsg)
 
-  const msgs = await fsp.readFile("./msgs.yaml", 'utf-8').then(s => yaml.parse(s)).then(e => z.object({ missed: z.string().array() }).parseAsync(e))
-  await fsp.writeFile('./msgs.yaml', 'missed: []')
+  const msgs = await fsp
+    .readFile("./msgs.yaml", "utf-8")
+    .then((s) => yaml.parse(s))
+    .then((e) => z.object({ missed: z.string().array() }).parseAsync(e));
+  await fsp.writeFile("./msgs.yaml", "missed: []");
 
   // clean the file
-  // 
+  //
   sflow(msgs.missed)
-    .forEach(url => spawnBotOnSlackMessageUrl(url))
-    .run()
-
+    .forEach((url) => spawnBotOnSlackMessageUrl(url))
+    .run();
 
   if (argv.continue) {
-    (async () => {
+    async () => {
       logger.info("BOT - --continue flag detected, resuming crashed tasks...");
 
       // Read current working tasks from state
-      const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+      const workingTasks = (await State.get("current-working-tasks")) || {
+        workingMessageEvents: [],
+      };
       const events = workingTasks.workingMessageEvents || [];
 
       if (events.length === 0) {
@@ -245,25 +255,27 @@ if (import.meta.main) {
 
         for await (const event of events) {
           if (event && event.ts) {
-            logger.info(`Resuming task for event ${event.ts} in channel ${event.channel}, text: ${event.text}`);
-            await spawnBotOnSlackMessageEvent(event).catch(err => {
+            logger.info(
+              `Resuming task for event ${event.ts} in channel ${event.channel}, text: ${event.text}`,
+            );
+            await spawnBotOnSlackMessageEvent(event).catch((err) => {
               logger.error(`Error resuming task for event ${event.ts}`, { err });
             });
           }
         }
       }
-    })
+    };
   }
 
   logger.info(`Starting ComfyPR Bot... id: ${g.instanceId}, hotId: ${g.hotId}`);
 
   // Setup smart restart manager (only restart when bot is idle)
-  if (!argv['no-watch']) {
+  if (!argv["no-watch"]) {
     const restartManager = new RestartManager({
-      watchPaths: ['bot', 'src', 'lib'],
+      watchPaths: ["bot", "src", "lib"],
       isIdle: () => TaskInputFlows.size === 0,
       onRestart: () => {
-        logger.warn('🔄 Restarting bot process...');
+        logger.warn("🔄 Restarting bot process...");
         process.exit(0);
       },
       idleCheckInterval: 5000,
@@ -271,20 +283,21 @@ if (import.meta.main) {
       logger: {
         info: (msg, meta) => logger.info(`[RestartManager] ${msg}`, meta),
         warn: (msg, meta) => logger.warn(`[RestartManager] ${msg}`, meta),
-      }
+      },
     });
     restartManager.start();
-    logger.info('Smart restart manager enabled (use --no-watch to disable)');
+    logger.info("Smart restart manager enabled (use --no-watch to disable)");
   }
 
   // Initialize Socket Mode client with app-level token
-  const socketModeClient = new SocketModeClient({ appToken: process.env.SLACK_SOCKET_TOKEN || DIE("missing env.SLACK_SOCKET_TOKEN"), });
+  const socketModeClient = new SocketModeClient({
+    appToken: process.env.SLACK_SOCKET_TOKEN || DIE("missing env.SLACK_SOCKET_TOKEN"),
+  });
 
   // Handle all events via events_api envelope, https://docs.slack.dev/reference/events/message
   socketModeClient
     .on("app_mention", async ({ event, body, ack }) => {
-      const parsedEvent = await zAppMentionEvent
-        .parseAsync(event)
+      const parsedEvent = await zAppMentionEvent.parseAsync(event);
 
       // Acknowledge the event as its parsed
       await ack();
@@ -294,8 +307,8 @@ if (import.meta.main) {
       // bot-1  | msg:  {"type":"message","user":"U04F3GHTG2X","ts":"1767100459.669809","client_msg_id":"2fed13c0-9739-4888-a4f6-b876c25f1407","text":"test","team":"T0462DJ9G3C","blocks":[{"type":"rich_text","block_id":"gB9fq","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"test"}]}]}],"channel":"C0A6Y4AU52L","event_ts":"1767100459.669809","channel_type":"channel"}
       // const zSlackMessage = ... // TODO
 
-      logger.debug('MESSAGE EVENT', { event });
-      logger.debug('parsed_text: ' + await parseSlackMessageToMarkdown(event.text || ""));
+      logger.debug("MESSAGE EVENT", { event });
+      logger.debug("parsed_text: " + (await parseSlackMessageToMarkdown(event.text || "")));
 
       await ack();
 
@@ -305,7 +318,7 @@ if (import.meta.main) {
       }
 
       // Get bot user ID
-      const botUsername = 'comfyprbot'
+      const botUsername = "comfyprbot";
       // TODO: fetch botUserId by botUsername or use slack api to "get my name"
       const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K"; // ComfyPR-Bot user ID
 
@@ -317,11 +330,11 @@ if (import.meta.main) {
       const isDM = (event as any).channel_type === "im";
 
       if ((isDM || hasBotMention) && (event as any).user && (event as any).text) {
-        const eventType = isDM ? 'DM' : 'BOT MENTION';
+        const eventType = isDM ? "DM" : "BOT MENTION";
         logger.debug(`${eventType} DETECTED - Processing message as app_mention`, {
           channel: (event as any).channel,
           ts: (event as any).ts,
-          text: text.substring(0, 100)
+          text: text.substring(0, 100),
         });
 
         const mentionEvent = {
@@ -341,19 +354,18 @@ if (import.meta.main) {
         };
         await spawnBotOnSlackMessageEvent(mentionEvent);
       }
-
     })
-    .on("error", (error) => { logger.error('Socket Mode error', { error }); })
-    .on('connect', () => logger.info('SOCKET - Slack connected'))
-    .on('disconnect', () => logger.info('SOCKET - Slack disconnected'))
-    .on('ready', () => logger.info('SOCKET - Ready to receive events'))
+    .on("error", (error) => {
+      logger.error("Socket Mode error", { error });
+    })
+    .on("connect", () => logger.info("SOCKET - Slack connected"))
+    .on("disconnect", () => logger.info("SOCKET - Slack disconnected"))
+    .on("ready", () => logger.info("SOCKET - Ready to receive events"));
 
-  logger.info('BOT - Connecting to Slack Socket Mode...')
+  logger.info("BOT - Connecting to Slack Socket Mode...");
   await socketModeClient.start();
-  logger.info('BOT - socketModeClient.start() returned')
-
+  logger.info("BOT - socketModeClient.start() returned");
 }
-
 
 async function spawnBotOnSlackMessageEvent(event: {
   type: "app_mention";
@@ -376,7 +388,9 @@ async function spawnBotOnSlackMessageEvent(event: {
   if (+new Date() - (eventProcessed?.touchedAt ?? 0) <= 10e3) return; // debounce for 10s
   await State.set(`msg-${event.ts}`, { touchedAt: +new Date(), content: event.text });
 
-  logger.info(`SPAWN - Received Slack app_mention event in channel ${event.channel} from user ${event.user}`);
+  logger.info(
+    `SPAWN - Received Slack app_mention event in channel ${event.channel} from user ${event.user}`,
+  );
 
   // whitelist channel name #comfypr-bot, for security reason, only runs agent against @mention messages in #comfypr-bot channel
   // you can forward other channel messages to #comfypr-bot if needed, and the bot will read the context from the original thread messages
@@ -384,15 +398,18 @@ async function spawnBotOnSlackMessageEvent(event: {
   const channelInfo = await slack.conversations.info({ channel: event.channel });
   const channelName = channelInfo.channel?.name;
   const isDM = channelInfo.channel?.is_im === true;
-  const isAgentChannel = isDM || channelName?.match(/^(comfypr-bot|pr-bot)\b/) //starts with comfypr-bot or pr-bot, will spawn agent without requireing @mention
+  const isAgentChannel = isDM || channelName?.match(/^(comfypr-bot|pr-bot)\b/); //starts with comfypr-bot or pr-bot, will spawn agent without requireing @mention
 
-  const username = await slack.users.info({ user: event.user }).then((res) => res.user?.name || "<@" + event.user + ">");
-
+  const username = await slack.users
+    .info({ user: event.user })
+    .then((res) => res.user?.name || "<@" + event.user + ">");
 
   // task state
   const workspaceId = event.thread_ts || event.ts;
-  const eventId = event.channel + '_' + event.ts
-  logger.info(`Processing Slack app_mention event in channel ${event.channel} (isAgentChannel: ${isAgentChannel}) with workspaceId: ${workspaceId}`);
+  const eventId = event.channel + "_" + event.ts;
+  logger.info(
+    `Processing Slack app_mention event in channel ${event.channel} (isAgentChannel: ${isAgentChannel}) with workspaceId: ${workspaceId}`,
+  );
   const botWorkingDir = `/bot/slack/${sanitized(channelName || username)}/${workspaceId.replace(".", "-")}`;
   const task = await State.get(`task-${workspaceId}`);
 
@@ -413,38 +430,42 @@ async function spawnBotOnSlackMessageEvent(event: {
         markdown: await parseSlackMessageToMarkdown(m.text || ""),
         ts: m.ts,
         iso: slackTsToISO(m.ts || DIE("missing ts")),
-        ...(m.files && m.files.length > 0 && {
-          files: m.files.map((f: any) => ({
-            name: f.name,
-            title: f.title,
-            mimetype: f.mimetype,
-            size: f.size,
-            url_private: f.url_private,
-            permalink: f.permalink,
-          })),
-        }),
-        ...(m.attachments && m.attachments.length > 0 && {
-          attachments: m.attachments.map((a: any) => ({
-            title: a.title,
-            title_link: a.title_link,
-            text: a.text,
-            fallback: a.fallback,
-            image_url: a.image_url,
-            from_url: a.from_url,
-          })),
-        }),
-        ...(m.reactions && m.reactions.length > 0 && {
-          reactions: m.reactions.map((r: any) => ({
-            name: r.name,
-            count: r.count,
-          })),
-        }),
+        ...(m.files &&
+          m.files.length > 0 && {
+            files: m.files.map((f: any) => ({
+              name: f.name,
+              title: f.title,
+              mimetype: f.mimetype,
+              size: f.size,
+              url_private: f.url_private,
+              permalink: f.permalink,
+            })),
+          }),
+        ...(m.attachments &&
+          m.attachments.length > 0 && {
+            attachments: m.attachments.map((a: any) => ({
+              title: a.title,
+              title_link: a.title_link,
+              text: a.text,
+              fallback: a.fallback,
+              image_url: a.image_url,
+              from_url: a.from_url,
+            })),
+          }),
+        ...(m.reactions &&
+          m.reactions.length > 0 && {
+            reactions: m.reactions.map((r: any) => ({
+              name: r.name,
+              count: r.count,
+            })),
+          }),
       }))
       .toArray()
   ).toSorted(compareBy((e) => +(e.ts || 0))); // sort by ts asc
 
   const existedTaskInputFlow = TaskInputFlows.get(workspaceId);
-  if (existedTaskInputFlow && false) { // disable for now, lets use --queue to serialize tasks
+  if (existedTaskInputFlow && false) {
+    // disable for now, lets use --queue to serialize tasks
     // while agent still running, user sent new message in the same thread very quickly
     // lets understand the user's intent and give a quick response, and then append the msg to the existing agent input flow
     // const threadMessages = await pageFlow(undefined as undefined | string, async (cursor, limit = 100) => {
@@ -477,15 +498,17 @@ async function spawnBotOnSlackMessageEvent(event: {
         stop_existing_task: z.boolean(),
         msg_to_append_to_agent: z.string(),
       }),
-      { model: "gpt-4o", },
+      { model: "gpt-4o" },
     )`
 The user sent a new message in a Slack thread where I am already assisting them with an ongoing task. The new message is as follows:
 ${event.text}
 
 The thread's recent messages are:
-${tap((data) => logger.debug('Thread messages:', { data }))(yaml.stringify(
-      nearbyMessages.toSorted(compareBy((e) => +(e.ts || 0))), // sort by ts asc
-    ))}
+${tap((data) => logger.debug("Thread messages:", { data }))(
+  yaml.stringify(
+    nearbyMessages.toSorted(compareBy((e) => +(e.ts || 0))), // sort by ts asc
+  ),
+)}
 
 Based on the new message and the thread context,
 
@@ -530,7 +553,10 @@ Respond in JSON format with the following fields:
           },
         ],
       });
-      await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "stopped_by_user" });
+      await State.set(`task-${workspaceId}`, {
+        ...(await State.get(`task-${workspaceId}`)),
+        status: "stopped_by_user",
+      });
 
       // Remove task from working list
       await removeWorkingTask(event);
@@ -540,7 +566,9 @@ Respond in JSON format with the following fields:
     if (action.msg_to_append_to_agent && action.msg_to_append_to_agent.trim()) {
       const w = existedTaskInputFlow.writable.getWriter();
       await w.write(
-        await parseSlackMessageToMarkdown(`New message from <@${(event.user)}> in the thread:\n${event.text}\n\nMy quick response to the user: ${action.my_quick_respond}\n\n`),
+        await parseSlackMessageToMarkdown(
+          `New message from <@${event.user}> in the thread:\n${event.text}\n\nMy quick response to the user: ${action.my_quick_respond}\n\n`,
+        ),
       );
       w.releaseLock();
       logger.info(`Appended new message to existing task ${workspaceId} input flow`);
@@ -553,8 +581,14 @@ Respond in JSON format with the following fields:
   TaskInputFlows.set(workspaceId, taskInputFlow); // able to append more inputs later
 
   // mark that msg as seeing
-  await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "checking", event });
-  await slack.reactions.add({ name: "eyes", channel: event.channel, timestamp: event.ts }).catch(() => { });
+  await State.set(`task-${workspaceId}`, {
+    ...(await State.get(`task-${workspaceId}`)),
+    status: "checking",
+    event,
+  });
+  await slack.reactions
+    .add({ name: "eyes", channel: event.channel, timestamp: event.ts })
+    .catch(() => {});
 
   // quick-intent-detect-respond by chatgpt, give quick plan/context responds before start heavy agent work
   const resp = await zChatCompletion(
@@ -596,72 +630,82 @@ Respond in JSON format with the following fields:
   logger.info("Intent detection response", JSON.stringify({ resp }));
 
   // upsert quick respond msg
-  const quickRespondMsg = await State.get(`task-quick-respond-msg-${eventId}`).then(async (existing: any) => {
-    if (existing) {
-      await slack.reactions.remove({ name: "x", channel: existing.channel, timestamp: existing.ts! }).catch(() => { });
+  const quickRespondMsg = await State.get(`task-quick-respond-msg-${eventId}`).then(
+    async (existing: any) => {
+      if (existing) {
+        await slack.reactions
+          .remove({ name: "x", channel: existing.channel, timestamp: existing.ts! })
+          .catch(() => {});
 
-      // if its a DM, always create a new message
-      // if (isDM) {
-      //   const newMsg = await slack.chat.postMessage({
-      //     channel: event.channel,
-      //     thread_ts: event.ts,
-      //     text: resp.my_respond_before_spawn_agent,
-      //     blocks: [
-      //       {
-      //         type: "markdown",
-      //         text: resp.my_respond_before_spawn_agent,
-      //       },
-      //     ],
-      //   });
-      //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-      //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
-      // }
-      // actually lets always post new msg for now.
-      // if (true) {
-      //   const newMsg = await slack.chat.postMessage({
-      //     channel: event.channel,
-      //     thread_ts: event.ts,
-      //     text: resp.my_respond_before_spawn_agent,
-      //     blocks: [
-      //       {
-      //         type: "markdown",
-      //         text: resp.my_respond_before_spawn_agent,
-      //       },
-      //     ],
-      //   });
-      //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-      //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
-      // }
+        // if its a DM, always create a new message
+        // if (isDM) {
+        //   const newMsg = await slack.chat.postMessage({
+        //     channel: event.channel,
+        //     thread_ts: event.ts,
+        //     text: resp.my_respond_before_spawn_agent,
+        //     blocks: [
+        //       {
+        //         type: "markdown",
+        //         text: resp.my_respond_before_spawn_agent,
+        //       },
+        //     ],
+        //   });
+        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
+        //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
+        // }
+        // actually lets always post new msg for now.
+        // if (true) {
+        //   const newMsg = await slack.chat.postMessage({
+        //     channel: event.channel,
+        //     thread_ts: event.ts,
+        //     text: resp.my_respond_before_spawn_agent,
+        //     blocks: [
+        //       {
+        //         type: "markdown",
+        //         text: resp.my_respond_before_spawn_agent,
+        //       },
+        //     ],
+        //   });
+        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
+        //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
+        // }
 
-      const msg = await safeSlackUpdateMessage(slack, {
-        channel: event.channel,
-        ts: existing.ts,
-        text: resp.my_respond_before_spawn_agent, // Fallback text for notifications
-        blocks: [
-          {
-            type: "markdown",
-            text: resp.my_respond_before_spawn_agent,
-          },
-        ],
-      });
-      await State.set(`task-quick-respond-msg-${eventId}`, { ts: existing.ts, text: resp.my_respond_before_spawn_agent });
-      return { ...msg, text: resp.my_respond_before_spawn_agent };
-    } else {
-      const newMsg = await safeSlackPostMessage(slack, {
-        channel: event.channel,
-        thread_ts: event.ts,
-        text: resp.my_respond_before_spawn_agent, // Fallback text for notifications
-        blocks: [
-          {
-            type: "markdown",
-            text: resp.my_respond_before_spawn_agent,
-          },
-        ],
-      });
-      await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-      return { ...newMsg, text: resp.my_respond_before_spawn_agent };
-    }
-  });
+        const msg = await safeSlackUpdateMessage(slack, {
+          channel: event.channel,
+          ts: existing.ts,
+          text: resp.my_respond_before_spawn_agent, // Fallback text for notifications
+          blocks: [
+            {
+              type: "markdown",
+              text: resp.my_respond_before_spawn_agent,
+            },
+          ],
+        });
+        await State.set(`task-quick-respond-msg-${eventId}`, {
+          ts: existing.ts,
+          text: resp.my_respond_before_spawn_agent,
+        });
+        return { ...msg, text: resp.my_respond_before_spawn_agent };
+      } else {
+        const newMsg = await safeSlackPostMessage(slack, {
+          channel: event.channel,
+          thread_ts: event.ts,
+          text: resp.my_respond_before_spawn_agent, // Fallback text for notifications
+          blocks: [
+            {
+              type: "markdown",
+              text: resp.my_respond_before_spawn_agent,
+            },
+          ],
+        });
+        await State.set(`task-quick-respond-msg-${eventId}`, {
+          ts: newMsg.ts!,
+          text: resp.my_respond_before_spawn_agent,
+        });
+        return { ...newMsg, text: resp.my_respond_before_spawn_agent };
+      }
+    },
+  );
 
   // and now, lets update quickRespondMsg freq until user is satisfied or agent finished its work
 
@@ -710,13 +754,21 @@ Respond in JSON format with the following fields:
   //   });
   // }
 
-  await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "thinking", event });
+  await State.set(`task-${workspaceId}`, {
+    ...(await State.get(`task-${workspaceId}`)),
+    status: "thinking",
+    event,
+  });
 
   // Add task to working list
   await addWorkingTask(event);
 
-  slack.reactions.remove({ name: "eyes", channel: event.channel, timestamp: event.ts }).catch(() => { });
-  slack.reactions.add({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
+  slack.reactions
+    .remove({ name: "eyes", channel: event.channel, timestamp: event.ts })
+    .catch(() => {});
+  slack.reactions
+    .add({ name: "thinking_face", channel: event.channel, timestamp: event.ts })
+    .catch(() => {});
 
   const CLAUDEMD = `
 # ComfyPR-Bot Instructions
@@ -821,7 +873,9 @@ Now, based on the user's intent, please do research and provide a detailed and h
   // clone https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot to ./repos/pr-bot (branch: sno-bot)
   const prBotRepoDir = `${botWorkingDir}/codes/Comfy-Org/pr-bot/tree/main`;
   await mkdir(prBotRepoDir, { recursive: true });
-  await Bun.$`git clone --branch sno-bot https://github.com/Comfy-Org/Comfy-PR ${prBotRepoDir}`
+  await Bun.$`git clone --branch main https://github.com/Comfy-Org/Comfy-PR ${prBotRepoDir}`.catch(
+    () => null,
+  );
 
   // await Bun.write(`${botWorkingDir}/PROMPT.txt`, agentPrompt);
 
@@ -1014,7 +1068,7 @@ When external information is needed:
 - Cross-check dates and versions; prefer recent sources.
 - Provide short quotes and links with clear attribution.
 - Use pr-bot github-issue search for searching GitHub issues.
-`
+`,
   };
 
   for (const [dir, content] of Object.entries(skills)) {
@@ -1024,7 +1078,9 @@ When external information is needed:
   }
 
   // Index file to make skills easy to discover alongside CLAUDE.md
-  await Bun.write(`${botWorkingDir}/SKILLS.txt`, `
+  await Bun.write(
+    `${botWorkingDir}/SKILLS.txt`,
+    `
 Available Skills (.claude/skills):
 - slack-messaging: Communicate in Slack threads using pr-bot slack commands.
 - slack-file-sharing: Upload and download files, share deliverables with users.
@@ -1037,10 +1093,12 @@ Available Skills (.claude/skills):
 - web-research: Pull in external context and cite sources.
 
 Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
-`);
+`,
+  );
 
-
-  await Bun.write(`${botWorkingDir}/TODO.md`, `
+  await Bun.write(
+    `${botWorkingDir}/TODO.md`,
+    `
 # Task TODOs
 
 - Analyze the user's request and gather necessary information.
@@ -1057,13 +1115,14 @@ Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
 - IMPORTANT: Remember to use the pr-bot CLI for any GitHub code changes:
   pr-bot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
 
-`);
-  await Bun.$`code ${botWorkingDir}`.catch(() => null) // open the working dir in vscode for debugging
+`,
+  );
+  await Bun.$`code ${botWorkingDir}`.catch(() => null); // open the working dir in vscode for debugging
 
   const agentPrompt = `
 @${username} intented to ${resp.user_intent}
 Please assist them with their request using all your resources available.
-`
+`;
   logger.info(`Spawning agent in ${botWorkingDir} with prompt: ${JSON.stringify(agentPrompt)}`);
   // todo: spawn in a worker user
 
@@ -1072,8 +1131,8 @@ Please assist them with their request using all your resources available.
   // create a user for task
   const exitCodePromise = Promise.withResolvers<number | null>();
   const p = (() => {
-    const cli = 'claude-yes'
-    const continueArgs = []
+    const cli = "claude-yes";
+    const continueArgs = [];
     // if (botworkingdir/.claude-yes have content)
     // then continueArgs.push('--continue')
     // TODO: maybe use smarter way to detect if need continue
@@ -1083,16 +1142,18 @@ Please assist them with their request using all your resources available.
     //   // }
     //   continueArgs.push('--continue')
     // }
-    logger.debug(`Spawning process: ${cli} ${['-i=60s', ...continueArgs, "--prompt", agentPrompt].join(" ")}`);
-    const p = spawn(cli, ['-i=60s', ...continueArgs, "--prompt", agentPrompt], {
+    logger.debug(
+      `Spawning process: ${cli} ${["-i=60s", ...continueArgs, "--prompt", agentPrompt].join(" ")}`,
+    );
+    const p = spawn(cli, ["-i=60s", ...continueArgs, "--prompt", agentPrompt], {
       cwd: botWorkingDir,
 
       // stdio: 'pipe'
       env: {
         ...process.env,
-        GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT
-      }
-    })
+        GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT,
+      },
+    });
 
     // check if p spawned successfully
     p.on("error", (err) => {
@@ -1104,7 +1165,7 @@ Please assist them with their request using all your resources available.
     });
 
     // Log stderr separately for debugging
-    p.stderr?.on('data', (data) => {
+    p.stderr?.on("data", (data) => {
       logger.warn(`[${cli} stderr]:`, { data: data.toString() });
     });
 
@@ -1116,8 +1177,8 @@ Please assist them with their request using all your resources available.
       logger.warn(`Process ${cli} has no stderr stream`);
     }
 
-    return p
-  })()
+    return p;
+  })();
 
   logger.info(`Spawned claude-yes process with PID ${p.pid} for task ${workspaceId}`);
   await sflow(
@@ -1134,7 +1195,7 @@ Please assist them with their request using all your resources available.
     .map(async (buffer) => {
       if (buffer === undefined || buffer === null) {
         logger.warn(`Received undefined/null buffer from process ${workspaceId}`);
-        return '';
+        return "";
       }
       return buffer.toString();
     })
@@ -1143,32 +1204,46 @@ Please assist them with their request using all your resources available.
     .forkTo(async (e) => {
       const logDate = new Date().toISOString().split("T")[0];
       await mkdir(path.resolve(`${botWorkingDir}/.logs`), { recursive: true });
-      await e.forEach(async chunk => await appendFile(`${botWorkingDir}/.logs/bot-${logDate}.log`, chunk))
+      await e.forEach(
+        async (chunk) => await appendFile(`${botWorkingDir}/.logs/bot-${logDate}.log`, chunk),
+      );
     })
     // show loading icon when any output activity, and remove the loading icon after idle for 5s
     .forkTo(async (e) => {
       const idleWaiter = new IdleWaiter();
       let isThinking = false;
-      return await e.forEach(async () => {
-        idleWaiter.ping();
-        if (!isThinking) {
-          isThinking = true;
-          await slack.reactions.add({ name: "loading", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! }).catch(() => { });
-          idleWaiter
-            .wait(5e3)
-            .finally(async () => {
-              await slack.reactions.remove({ name: "loading", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! }).catch(() => { });
+      return await e
+        .forEach(async () => {
+          idleWaiter.ping();
+          if (!isThinking) {
+            isThinking = true;
+            await slack.reactions
+              .add({
+                name: "loading",
+                channel: quickRespondMsg.channel,
+                timestamp: quickRespondMsg.ts!,
+              })
+              .catch(() => {});
+            idleWaiter.wait(5e3).finally(async () => {
+              await slack.reactions
+                .remove({
+                  name: "loading",
+                  channel: quickRespondMsg.channel,
+                  timestamp: quickRespondMsg.ts!,
+                })
+                .catch(() => {});
               isThinking = false;
             });
-        }
-      }).run();
+          }
+        })
+        .run();
     })
 
     // Render terminal text to plain text and show live updates in slack
-    .forkTo(async e => {
-      const tr = new TerminalTextRender()
-      let sent = ''
-      let lastOutputs = [] // keep 3 last outputs to detect stability
+    .forkTo(async (e) => {
+      const tr = new TerminalTextRender();
+      let sent = "";
+      let lastOutputs = []; // keep 3 last outputs to detect stability
 
       // logger.info('Rendered chunk size:', rendered.length, 'lines: ', rendered.split(/\r|\n/).length);
       const id = setInterval(async () => {
@@ -1180,25 +1255,29 @@ Please assist them with their request using all your resources available.
 
         if (newStable !== sent) {
           const news = newStable.slice(sent.length);
-          sent = newStable;// agent outputs have new lines to send
-          if (news)
-            logger.debug(JSON.stringify({ news }));
-          logger.info(`New stable output detected, length: ${newStable.length}, news length: ${news.length}`);
+          sent = newStable; // agent outputs have new lines to send
+          if (news) logger.debug(JSON.stringify({ news }));
+          logger.info(
+            `New stable output detected, length: ${newStable.length}, news length: ${news.length}`,
+          );
 
-          const my_internal_thoughts = tr.render().split('\n').slice(-80).join('\n')
-          logger.info('Unsent preview: ' + yaml.stringify({ preview: news.slice(0, 200), my_internal_thoughts }));
+          const my_internal_thoughts = tr.render().split("\n").slice(-80).join("\n");
+          logger.info(
+            "Unsent preview: " +
+              yaml.stringify({ preview: news.slice(0, 200), my_internal_thoughts }),
+          );
 
-          // send update to slack          
+          // send update to slack
           const updateText = sent || "_(no output yet)_";
-          const contexts = ({
+          const contexts = {
             my_internal_thoughts,
             news,
             user_original_intent: resp.user_intent,
-            my_response_md_original: quickRespondMsg.text || '',
-          })
-          const updateResponseResp = (await zChatCompletion(({
+            my_response_md_original: quickRespondMsg.text || "",
+          };
+          const updateResponseResp = await zChatCompletion({
             my_response_md_updated: z.string(),
-          }))`
+          })`
 TASK: Update my my_response_md_original based on agent's my_internal_thoughts findings, and give me my_response_md_updated to post in slack.
 
 RULES:
@@ -1232,12 +1311,17 @@ If all infomations from my_internal_thoughts are already contained in my_respons
 ${yaml.stringify(contexts)}
 </task-context-yaml>
 
-`)
-          const updated_response_full = updateResponseResp.my_response_md_updated.trim().replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || '')
+`;
+          const updated_response_full = updateResponseResp.my_response_md_updated
+            .trim()
+            .replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || "");
           // truncate to 4000 chars, from the middle, replace to '...TRUNCATED...'
-          const my_response_md_updated = updated_response_full.length > 4000
-            ? updated_response_full.slice(0, 2000) + '\n\n...TRUNCATED...\n\n' + updated_response_full.slice(-2000)
-            : updated_response_full;
+          const my_response_md_updated =
+            updated_response_full.length > 4000
+              ? updated_response_full.slice(0, 2000) +
+                "\n\n...TRUNCATED...\n\n" +
+                updated_response_full.slice(-2000)
+              : updated_response_full;
 
           await safeSlackUpdateMessage(slack, {
             channel: quickRespondMsg.channel,
@@ -1250,14 +1334,17 @@ ${yaml.stringify(contexts)}
               },
             ],
           });
-          logger.debug('Updated quick respond message in slack:', {
-            url: `https://${event.team}.slack.com/archives/${quickRespondMsg.channel}/p${quickRespondMsg.ts!.replace('.', '')}`,
-            my_response_md_updated
+          logger.debug("Updated quick respond message in slack:", {
+            url: `https://${event.team}.slack.com/archives/${quickRespondMsg.channel}/p${quickRespondMsg.ts!.replace(".", "")}`,
+            my_response_md_updated,
           });
 
           // update quickRespondMsg content
           quickRespondMsg.text = my_response_md_updated;
-          await State.set(`task-quick-respond-msg-${eventId}`, { ts: quickRespondMsg.ts!, text: quickRespondMsg.text });
+          await State.set(`task-quick-respond-msg-${eventId}`, {
+            ts: quickRespondMsg.ts!,
+            text: quickRespondMsg.text,
+          });
         }
 
         lastOutputs.push(renderedText);
@@ -1266,23 +1353,28 @@ ${yaml.stringify(contexts)}
         }
       }, 1e3);
 
-      await e.forEach(async chunk => {
-        if (chunk === undefined || chunk === null) {
-          logger.warn(`Terminal render received undefined/null chunk for task ${workspaceId}`);
-          return;
-        }
-        if (chunk === '') {
-          // Empty string is valid, just skip rendering
-          return;
-        }
-        try {
-          const rendered = tr.write(chunk);
-        } catch (err) {
-          logger.error(`Error writing chunk to terminal render for task ${workspaceId}:`, { err, chunkType: typeof chunk, chunkLength: chunk?.length });
-        }
-      })
+      await e
+        .forEach(async (chunk) => {
+          if (chunk === undefined || chunk === null) {
+            logger.warn(`Terminal render received undefined/null chunk for task ${workspaceId}`);
+            return;
+          }
+          if (chunk === "") {
+            // Empty string is valid, just skip rendering
+            return;
+          }
+          try {
+            const rendered = tr.write(chunk);
+          } catch (err) {
+            logger.error(`Error writing chunk to terminal render for task ${workspaceId}:`, {
+              err,
+              chunkType: typeof chunk,
+              chunkLength: chunk?.length,
+            });
+          }
+        })
         .onFlush(() => clearInterval(id))
-        .run()
+        .run();
     })
 
     // show contents in console
@@ -1299,9 +1391,15 @@ ${yaml.stringify(contexts)}
     logger.error(`claude-yes process for task ${workspaceId} exited with code ${exitCode}`);
     // those error tasks will got  retry after a restart
     // update my slack message reactions shows a cross mark and update it appending a error happened and say will retry later
-    await slack.reactions.remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
-    await slack.reactions.add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! }).catch(() => { });
-    const errorText = (quickRespondMsg.text || '') + `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`;
+    await slack.reactions
+      .remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts })
+      .catch(() => {});
+    await slack.reactions
+      .add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts! })
+      .catch(() => {});
+    const errorText =
+      (quickRespondMsg.text || "") +
+      `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`;
     await safeSlackUpdateMessage(slack, {
       channel: event.channel,
       ts: quickRespondMsg.ts!,
@@ -1316,9 +1414,16 @@ ${yaml.stringify(contexts)}
   }
 
   // claude exited as no more inputs/outputs for a while, update the status message
-  await slack.reactions.remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts }).catch(() => { });
-  await slack.reactions.add({ name: "white_check_mark", channel: event.channel, timestamp: event.ts }).catch(() => { });
-  await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "done" });
+  await slack.reactions
+    .remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts })
+    .catch(() => {});
+  await slack.reactions
+    .add({ name: "white_check_mark", channel: event.channel, timestamp: event.ts })
+    .catch(() => {});
+  await State.set(`task-${workspaceId}`, {
+    ...(await State.get(`task-${workspaceId}`)),
+    status: "done",
+  });
 
   // Remove task from working list
   await removeWorkingTask(event);
@@ -1329,13 +1434,18 @@ function sleep(ms: number) {
 }
 
 async function getSlackMessageFromUrl(url: string) {
-  const { ts, channel } = slackMessageUrlParse(url)
-  const page = await slack.conversations.history({ channel, limit: 1, inclusive: true, latest: ts })
-  return page.messages?.[0] || DIE('not found')
+  const { ts, channel } = slackMessageUrlParse(url);
+  const page = await slack.conversations.history({
+    channel,
+    limit: 1,
+    inclusive: true,
+    latest: ts,
+  });
+  return page.messages?.[0] || DIE("not found");
 }
 
 function commonPrefix(...args: string[]): string {
-  if (args.length === 0) return '';
+  if (args.length === 0) return "";
   let prefix = args[0];
   for (let i = 1; i < args.length; i++) {
     let j = 0;
@@ -1343,7 +1453,7 @@ function commonPrefix(...args: string[]): string {
       j++;
     }
     prefix = prefix.slice(0, j);
-    if (prefix === '') break;
+    if (prefix === "") break;
   }
   return prefix;
 }
@@ -1352,16 +1462,18 @@ function sanitized(name: string) {
 }
 
 async function spawnBotOnSlackMessageUrl(url: string) {
-  const { team, channel, ts } = (await slackMessageUrlParse(url))
-  const event = await slack.conversations.replies({
-    channel: channel,
-    ts: ts,
-    limit: 1,
-  }).then(res => res.messages?.[0] || DIE("failed to fetch message from slack"));
-  logger.info("Processing missed message " + JSON.stringify({ url, event }))
+  const { team, channel, ts } = await slackMessageUrlParse(url);
+  const event = await slack.conversations
+    .replies({
+      channel: channel,
+      ts: ts,
+      limit: 1,
+    })
+    .then((res) => res.messages?.[0] || DIE("failed to fetch message from slack"));
+  logger.info("Processing missed message " + JSON.stringify({ url, event }));
   await spawnBotOnSlackMessageEvent({
-    ...event, type: "app_mention",
+    ...event,
+    type: "app_mention",
     channel: channel,
-  })
-
+  });
 }

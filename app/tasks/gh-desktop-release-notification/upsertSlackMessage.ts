@@ -1,6 +1,6 @@
 #!/usr/bin/env bun --hot
-import { getSlack, isSlackAvailable } from "@/src/slack";
-import { getSlackChannel } from "@/src/slack/channels";
+import { getSlack, isSlackAvailable } from "@/lib/slack";
+import { getSlackChannel } from "@/lib/slack/channels";
 import KeyvSqlite from "@keyv/sqlite";
 import DIE from "@snomiao/die";
 import chalk from "chalk";
@@ -45,7 +45,9 @@ export async function upsertSlackMessage({
       (await SlackChannelIdsCache.get(channelName)) ||
       (await (async () => {
         const ch = await getSlackChannel(channelName);
-        const id = ch.id || DIE(`Got slack channel from ${channelName} but no id ` + JSON.stringify(channel));
+        const id =
+          ch.id ||
+          DIE(`Got slack channel from ${channelName} but no id ` + JSON.stringify(channel));
         await SlackChannelIdsCache.set(channelName, id);
         return id;
       })());

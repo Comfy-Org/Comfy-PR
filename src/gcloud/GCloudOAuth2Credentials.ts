@@ -19,7 +19,10 @@ if (import.meta.main) {
     .sflow(
       GCloudOAuth2Credentials.find({
         scopes: {
-          $all: ["https://www.googleapis.com/auth/gmail.compose", "https://www.googleapis.com/auth/userinfo.email"],
+          $all: [
+            "https://www.googleapis.com/auth/gmail.compose",
+            "https://www.googleapis.com/auth/userinfo.email",
+          ],
         },
       }),
     )
@@ -53,7 +56,11 @@ export async function getGCloudOAuth2Client({
   const auth = await getAuthenticatedClient({
     scope: scopes,
     authorize: async (authorizeUrl) => {
-      fromUrl && (await GCloudOAuth2Credentials.updateOne({ email, scopes: { $all: scopes } }, { $set: { fromUrl } }));
+      fromUrl &&
+        (await GCloudOAuth2Credentials.updateOne(
+          { email, scopes: { $all: scopes } },
+          { $set: { fromUrl } },
+        ));
       const cred = await GCloudOAuth2Credentials.findOne({
         email,
         scopes: { $all: scopes },

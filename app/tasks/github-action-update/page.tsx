@@ -18,7 +18,8 @@ import { ResetTaskButton } from "./ResetTaskButton";
 // export const referencePullRequestMessage = await readFile("./templates/tasks/GithubActionUpdatePR.md", "utf8");
 // export const referenceActionContentHash = sha256(referenceActionContent); // check if target publish.yaml already latest
 // console.log("referenceActionContentHash", referenceActionContentHash);
-const referenceActionContentHash = "e6de732024cf2b64488ec093818fc2e01707c9bc97d306a42b3c22d2ef834686";
+const referenceActionContentHash =
+  "e6de732024cf2b64488ec093818fc2e01707c9bc97d306a42b3c22d2ef834686";
 
 export const metadata: Metadata = {
   title: `GithubActionUpdateTaskPage - ComfyPR`,
@@ -55,7 +56,9 @@ export default async function GithubActionUpdateTaskPage() {
   ] = filterHopper(data, [
     (e) => e.error?.match("expected exactly 1 publish.yaml file, but got 0"),
     (e) => e.error,
-    (e) => e.upToDateHash === referenceActionContentHash || (e.branchVersionHash && !e.pullRequestMessage),
+    (e) =>
+      e.upToDateHash === referenceActionContentHash ||
+      (e.branchVersionHash && !e.pullRequestMessage),
     (e) => e.pullRequestStatus === "CLOSED", // got results
     (e) => e.pullRequestStatus === "MERGED", // got results
     (e) => e.pullRequestVersionHash === referenceActionContentHash, // opened
@@ -148,7 +151,10 @@ export default async function GithubActionUpdateTaskPage() {
               <div className="flex max-h-[70em] max-w-full overflow-auto gap-4">
                 <div className="flex flex-col flex-grow">
                   <h3>DRAFTED PULL REQUEST MESSAGE</h3>
-                  <Markdown className="overflow-auto markdown markdown-frame w-full" remarkPlugins={[remarkGfm]}>
+                  <Markdown
+                    className="overflow-auto markdown markdown-frame w-full"
+                    remarkPlugins={[remarkGfm]}
+                  >
                     {e.pullRequestMessage ?? ""}
                   </Markdown>
                 </div>
@@ -298,7 +304,9 @@ export default async function GithubActionUpdateTaskPage() {
                   </span>
                   <ResetTaskButton repo={e.repo} />
                 </div>
-                <pre className="whitespace-pre-wrap p-4 m-4 rounded-sm text-white bg-black ">{yaml.stringify(e)}</pre>
+                <pre className="whitespace-pre-wrap p-4 m-4 rounded-sm text-white bg-black ">
+                  {yaml.stringify(e)}
+                </pre>
               </li>
             );
           })}
@@ -322,7 +330,9 @@ export default async function GithubActionUpdateTaskPage() {
                   </span>
                   <ResetTaskButton repo={e.repo} />
                 </div>
-                <pre className="whitespace-pre-wrap p-4 m-4 rounded-sm text-white bg-black ">{yaml.stringify(e)}</pre>
+                <pre className="whitespace-pre-wrap p-4 m-4 rounded-sm text-white bg-black ">
+                  {yaml.stringify(e)}
+                </pre>
               </li>
             );
           })}

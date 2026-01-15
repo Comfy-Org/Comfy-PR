@@ -3,7 +3,7 @@ import md5 from "md5";
 import type { ObjectId } from "mongodb";
 import { db } from "./db";
 import { fetchCMNodes } from "./fetchCMNodes";
-import { type SlackMsg } from "./slack/SlackMsgs";
+import { type SlackMsg } from "@/lib/slack/SlackMsgs";
 import { updateCMNodesDuplicationWarnings } from "./updateCMNodesDuplicationWarnings";
 
 // Raw version maybe duplicated with id or reference

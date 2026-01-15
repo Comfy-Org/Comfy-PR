@@ -62,7 +62,9 @@ type AnyIsEqual<T1, T2> = T1 extends T2 ? (IsEqual<T1, T2> extends true ? true :
  *
  * See {@link AllPath}
  */
-type PathImpl<K extends string | number, V, TraversedTypes> = V extends Primitive | BrowserNativeObject
+type PathImpl<K extends string | number, V, TraversedTypes> = V extends
+  | Primitive
+  | BrowserNativeObject
   ? `${K}`
   : // Check so that we don't recurse into the same type
     // by ensuring that the types are mutually assignable

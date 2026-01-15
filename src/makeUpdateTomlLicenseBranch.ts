@@ -13,8 +13,8 @@ import { createGithubForkForRepoEx } from "./createGithubForkForRepo";
 import { createGithubPullRequest } from "./createGithubPullRequest";
 import { $flatten, $stale, db } from "./db";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
-import { gh } from "./gh";
-import type { GithubPull } from "./gh/GithubPull";
+import { gh } from "@/lib/github";
+import type { GithubPull } from "@/lib/github/GithubPull";
 import { GIT_USEREMAIL, GIT_USERNAME } from "./ghUser";
 import { parseGithubRepoUrl, stringifyGithubOrigin } from "./parseOwnerRepo";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
@@ -68,12 +68,18 @@ export async function updateTomlLicenseTasks() {
     .next();
 
   // reset retry-able errors with a cd interval
-  await LicenseTasks.updateMany($flatten({ prTask: { error: /was submitted too quickly/, mtime: $stale("5m") } }), {
-    $unset: { prTask: 1 },
-  });
-  await LicenseTasks.updateMany($flatten({ prTask: { error: /Missing env.GH_TOKEN_COMFY_PR/, mtime: $stale("1h") } }), {
-    $unset: { prTask: 1 },
-  });
+  await LicenseTasks.updateMany(
+    $flatten({ prTask: { error: /was submitted too quickly/, mtime: $stale("5m") } }),
+    {
+      $unset: { prTask: 1 },
+    },
+  );
+  await LicenseTasks.updateMany(
+    $flatten({ prTask: { error: /Missing env.GH_TOKEN_COMFY_PR/, mtime: $stale("1h") } }),
+    {
+      $unset: { prTask: 1 },
+    },
+  );
   console.log((await LicenseTasks.estimatedDocumentCount()) + " license tasks");
 
   // update tasks
@@ -104,7 +110,8 @@ async function _testMakeUpdateTomlLicenseBranch() {
   const testUpstreamRepo = "https://github.com/snomiao/comfy-malicious-node-test";
 
   const prTask = await createTomlLicensePR(testUpstreamRepo).then(TaskOK).catch(TaskError);
-  if (TaskErrorOrNull(prTask)?.match("Not matched outdated case")) console.log("not matched outdated case");
+  if (TaskErrorOrNull(prTask)?.match("Not matched outdated case"))
+    console.log("not matched outdated case");
   console.log(prTask);
   console.log("prs_updateTomlLicense PRs DONE");
 }
@@ -183,7 +190,8 @@ git push "${origin}" ${branch}:${branch}
 
 export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepoUrl: string) {
   const raw =
-    (await Bun.file(tomlFile).text().catch(nil)) || DIE(new Error("pyproject.toml file not existed or got empty file"));
+    (await Bun.file(tomlFile).text().catch(nil)) ||
+    DIE(new Error("pyproject.toml file not existed or got empty file"));
   const m = raw.match(/^license\s*=(.*)/im);
 
   const licenseLine = m?.[0];
@@ -191,7 +199,8 @@ export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepo
   const outdatedDesiredLicense = license?.match(/^"([^"\n\r]+)"$/i)?.[1];
   const isOutdated = !!outdatedDesiredLicense;
   // const isOutdated = !!raw.match(outdated);
-  license && (await LicenseTasks.updateOne({ repository: upstreamRepoUrl }, { $set: { license: license } }));
+  license &&
+    (await LicenseTasks.updateOne({ repository: upstreamRepoUrl }, { $set: { license: license } }));
   if (!licenseLine) throw new Error("no license line was found, please check toml file");
   if (!isOutdated) return { updated: false }; // not outdated
 
@@ -223,7 +232,8 @@ export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepo
     );
 
   const replaced = raw.replace(licenseLine, () => updated);
-  if (replaced === raw) DIE(new Error("licenseLine not matched", { cause: { raw, licenseLine, updated } }));
+  if (replaced === raw)
+    DIE(new Error("licenseLine not matched", { cause: { raw, licenseLine, updated } }));
   await LicenseTasks.updateOne({ repository: upstreamRepoUrl }, { $set: { updateLine: updated } });
   await Bun.write(tomlFile, replaced);
   return { updated: true, license: replaced.match(/^license\s*=(.*)/i)?.[1]?.trim() };

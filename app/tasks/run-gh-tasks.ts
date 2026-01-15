@@ -129,7 +129,9 @@ async function runAllTasks() {
   failed.forEach((result) => {
     if (result.status === "rejected") {
       const error = result.reason;
-      console.error(`  L ${error.name}: ${error.duration}ms - ${error.error?.message || error.error}`);
+      console.error(
+        `  L ${error.name}: ${error.duration}ms - ${error.error?.message || error.error}`,
+      );
     }
   });
 
@@ -140,7 +142,9 @@ async function runAllTasks() {
     failed.forEach((result) => {
       if (result.status === "rejected") {
         const error = result.reason;
-        console.error(`  L ${error.name}: ${error.duration}ms - ${error.error?.message || error.error}`);
+        console.error(
+          `  L ${error.name}: ${error.duration}ms - ${error.error?.message || error.error}`,
+        );
       }
     });
     if (isCI) {

@@ -34,7 +34,8 @@ export async function sendEmailAction({
           e.replace(
             /{{\$([_A-Za-z0-9]+)}}/g,
             (_, key: string) =>
-              (payload as any)[key] || DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
+              (payload as any)[key] ||
+              DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
           ),
         )
         .map((e) => yaml.parse(e))
@@ -45,9 +46,12 @@ export async function sendEmailAction({
       if (runAction) {
         const task = await enqueueEmailTask(loadedAction);
         console.log(rule.name + " email enqueued :" + yaml.stringify(loadedAction));
-        await CNRepos.updateOne($flatten({ crPulls: { data: $elemMatch({ pull: { html_url: payload.url } }) } }), {
-          $set: { "crPulls.data.$.emailTask_id": task._id },
-        });
+        await CNRepos.updateOne(
+          $flatten({ crPulls: { data: $elemMatch({ pull: { html_url: payload.url } }) } }),
+          {
+            $set: { "crPulls.data.$.emailTask_id": task._id },
+          },
+        );
       }
       return loadedAction;
     },

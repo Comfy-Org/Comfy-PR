@@ -4,7 +4,10 @@ export async function tLog<T, F extends () => Awaitable<T>>(fn: F): Promise<T>;
 export async function tLog<T, F extends () => Awaitable<T[]>>(fn: F): Promise<T[]>;
 export async function tLog<T>(msg: string, fn: () => Awaitable<T[]>): Promise<T[]>;
 export async function tLog<T>(msg: string, fn: () => Awaitable<T>): Promise<T>;
-export async function tLog<T, F extends () => Awaitable<T[]>>(arg1: string | F, fn?: F): Promise<T[]> {
+export async function tLog<T, F extends () => Awaitable<T[]>>(
+  arg1: string | F,
+  fn?: F,
+): Promise<T[]> {
   const _fn = typeof arg1 === "string" ? fn : arg1;
   const msg = typeof arg1 === "string" ? arg1 : (fn?.name ?? "tLog");
   const s = +Date.now();

@@ -8,7 +8,9 @@ const trackingMockDb = {
   collection: () => ({
     createIndex: async () => ({}),
     findOne: async (filter: any) => {
-      const op = dbOperations.find((op) => op.filter?.sourceIssueNumber === filter?.sourceIssueNumber);
+      const op = dbOperations.find(
+        (op) => op.filter?.sourceIssueNumber === filter?.sourceIssueNumber,
+      );
       return op?.data || null;
     },
     findOneAndUpdate: async (filter: any, update: any) => {
@@ -120,25 +122,31 @@ describe("GithubFrontendIssueTransferTask", () => {
         ]);
       }),
       // Mock creating issue in target repo
-      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues", async ({ request }) => {
-        createdIssue = await request.json();
-        return HttpResponse.json({
-          number: 456,
-          html_url: "https://github.com/Comfy-Org/ComfyUI_frontend/issues/456",
-          ...createdIssue,
-        });
-      }),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues",
+        async ({ request }) => {
+          createdIssue = await request.json();
+          return HttpResponse.json({
+            number: 456,
+            html_url: "https://github.com/Comfy-Org/ComfyUI_frontend/issues/456",
+            ...createdIssue,
+          });
+        },
+      ),
       // Mock creating comment on source issue
-      http.post("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments", async ({ request }) => {
-        createdComment = await request.json();
-        return HttpResponse.json({
-          id: 999,
-          body: createdComment.body,
-          user: { login: "test-user", id: 1 },
-          html_url: "https://github.com/comfyanonymous/ComfyUI/issues/123#issuecomment-999",
-          created_at: new Date().toISOString(),
-        });
-      }),
+      http.post(
+        "https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments",
+        async ({ request }) => {
+          createdComment = await request.json();
+          return HttpResponse.json({
+            id: 999,
+            body: createdComment.body,
+            user: { login: "test-user", id: 1 },
+            html_url: "https://github.com/comfyanonymous/ComfyUI/issues/123#issuecomment-999",
+            created_at: new Date().toISOString(),
+          });
+        },
+      ),
       // Mock closing the issue
       http.patch("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123", () => {
         return HttpResponse.json({});
@@ -160,7 +168,9 @@ describe("GithubFrontendIssueTransferTask", () => {
     // Verify comment was posted
     expect(createdComment).toBeTruthy();
     expect(createdComment.body).toContain("transferred to the frontend repository");
-    expect(createdComment.body).toContain("https://github.com/Comfy-Org/ComfyUI_frontend/issues/456");
+    expect(createdComment.body).toContain(
+      "https://github.com/Comfy-Org/ComfyUI_frontend/issues/456",
+    );
 
     // Verify database was updated
     const lastOp = dbOperations[dbOperations.length - 1];
@@ -380,25 +390,34 @@ describe("GithubFrontendIssueTransferTask", () => {
         }
         return HttpResponse.json([]);
       }),
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number/comments", () => {
-        return HttpResponse.json([]);
-      }),
-      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues", async ({ request }) => {
-        const body: any = await request.json();
-        issuesCreated++;
-        const issueNumber = parseInt(body.title.split(" ")[1]);
-        return HttpResponse.json({
-          number: issueNumber + 10000,
-          html_url: `https://github.com/Comfy-Org/ComfyUI_frontend/issues/${issueNumber + 10000}`,
-        });
-      }),
-      http.post("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number/comments", () => {
-        commentsCreated++;
-        return HttpResponse.json({
-          id: commentsCreated,
-          html_url: "https://github.com/comfyanonymous/ComfyUI/issues/comment",
-        });
-      }),
+      http.get(
+        "https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number/comments",
+        () => {
+          return HttpResponse.json([]);
+        },
+      ),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues",
+        async ({ request }) => {
+          const body: any = await request.json();
+          issuesCreated++;
+          const issueNumber = parseInt(body.title.split(" ")[1]);
+          return HttpResponse.json({
+            number: issueNumber + 10000,
+            html_url: `https://github.com/Comfy-Org/ComfyUI_frontend/issues/${issueNumber + 10000}`,
+          });
+        },
+      ),
+      http.post(
+        "https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number/comments",
+        () => {
+          commentsCreated++;
+          return HttpResponse.json({
+            id: commentsCreated,
+            html_url: "https://github.com/comfyanonymous/ComfyUI/issues/comment",
+          });
+        },
+      ),
       http.patch("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number", () => {
         return HttpResponse.json({});
       }),

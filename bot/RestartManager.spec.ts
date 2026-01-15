@@ -161,4 +161,3 @@ describe("RestartManager", () => {
     expect(true).toBe(true);
   });
 });
-

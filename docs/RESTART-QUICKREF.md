@@ -45,16 +45,17 @@ Look for these log messages:
 
 ## Configuration Cheat Sheet
 
-| Setting | Default | What it does |
-|---------|---------|--------------|
-| `watchPaths` | `['bot', 'src', 'lib']` | Directories to watch |
-| `isIdle` | `TaskInputFlows.size === 0` | When bot is idle |
-| `idleCheckInterval` | `5000` (5s) | How often to check idle |
-| `debounceDelay` | `1000` (1s) | Wait after file change |
+| Setting             | Default                     | What it does            |
+| ------------------- | --------------------------- | ----------------------- |
+| `watchPaths`        | `['bot', 'src', 'lib']`     | Directories to watch    |
+| `isIdle`            | `TaskInputFlows.size === 0` | When bot is idle        |
+| `idleCheckInterval` | `5000` (5s)                 | How often to check idle |
+| `debounceDelay`     | `1000` (1s)                 | Wait after file change  |
 
 ## Ignored Files
 
 Won't trigger restart:
+
 - `*.md` (documentation)
 - `*.log` (logs)
 - `.cache/`, `.logs/`, `.git/`
@@ -95,7 +96,7 @@ Edit `bot/index.ts`:
 
 ```typescript
 const restartManager = new RestartManager({
-  watchPaths: ['bot', 'src', 'lib', 'my-new-dir'], // Add here
+  watchPaths: ["bot", "src", "lib", "my-new-dir"], // Add here
   // ...
 });
 ```
@@ -132,16 +133,16 @@ private shouldIgnoreFile(filename: string): boolean {
 
 ## Files Reference
 
-| File | Purpose |
-|------|---------|
-| `bot/RestartManager.ts` | Core implementation |
-| `bot/RestartManager.spec.ts` | Tests |
-| `bot/restart-example.ts` | Interactive demo |
-| `docs/RESTART.md` | Full documentation |
-| `docs/RESTART-SUMMARY.md` | Implementation summary |
-| `docs/RESTART-FLOW.md` | Flow diagrams |
-| `docs/RESTART-QUICKREF.md` | This file |
-| `bot/up.sh` | Production startup script |
+| File                         | Purpose                   |
+| ---------------------------- | ------------------------- |
+| `bot/RestartManager.ts`      | Core implementation       |
+| `bot/RestartManager.spec.ts` | Tests                     |
+| `bot/restart-example.ts`     | Interactive demo          |
+| `docs/RESTART.md`            | Full documentation        |
+| `docs/RESTART-SUMMARY.md`    | Implementation summary    |
+| `docs/RESTART-FLOW.md`       | Flow diagrams             |
+| `docs/RESTART-QUICKREF.md`   | This file                 |
+| `bot/up.sh`                  | Production startup script |
 
 ## Common Scenarios
 
@@ -188,11 +189,13 @@ Watch these in production:
 ## Best Practices
 
 ✅ **DO:**
+
 - Let the bot restart automatically
 - Edit files freely during development
 - Trust the idle detection
 
 ❌ **DON'T:**
+
 - Use `--watch` flag anymore
 - Manually restart unless necessary
 - Edit files in `node_modules/`
@@ -230,4 +233,3 @@ bun bot/index.ts --continue
 - Flow diagrams: `docs/RESTART-FLOW.md`
 - Implementation: `docs/RESTART-SUMMARY.md`
 - Code: `bot/RestartManager.ts`
-

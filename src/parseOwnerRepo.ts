@@ -16,7 +16,10 @@ export function stringifyOwnerRepo({ owner, repo }: ReturnType<typeof parseGithu
 export function stringifyGithubRepoUrl({ owner, repo }: ReturnType<typeof parseGithubRepoUrl>) {
   return "https://github.com/" + owner + "/" + repo;
 }
-export async function stringifyGithubOrigin({ owner, repo }: ReturnType<typeof parseGithubRepoUrl>) {
+export async function stringifyGithubOrigin({
+  owner,
+  repo,
+}: ReturnType<typeof parseGithubRepoUrl>) {
   const PR_TOKEN = process.env.GH_TOKEN_COMFY_PR;
   if (PR_TOKEN) {
     // fails: maybe permission issue

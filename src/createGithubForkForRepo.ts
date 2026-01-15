@@ -4,15 +4,19 @@ import minimist from "minimist";
 import { db } from "./db";
 import { FORK_OWNER } from "./FORK_OWNER";
 import { FORK_PREFIX } from "./FORK_PREFIX";
-import { createGithubFork } from "./gh/createGithubFork";
+import { createGithubFork } from "@/lib/github/createGithubFork";
 import { ghUser } from "./ghUser";
 import { parseGithubRepoUrl } from "./parseOwnerRepo";
 
 /** for cache */
-const ForkedRepo = db.collection<{ repo: string; forkedRepo: string; updatedAt: Date }>("ForkedRepo");
+const ForkedRepo = db.collection<{ repo: string; forkedRepo: string; updatedAt: Date }>(
+  "ForkedRepo",
+);
 
 if (import.meta.main) {
-  console.log(await createGithubForkForRepoEx("https://github.com/comfyanonymous/ComfyUI_TensorRT"));
+  console.log(
+    await createGithubForkForRepoEx("https://github.com/comfyanonymous/ComfyUI_TensorRT"),
+  );
 }
 
 /**
@@ -64,8 +68,11 @@ export async function createGithubForkUrlForRepo(upstreamRepoUrl: string) {
   const upstream = parseGithubRepoUrl(upstreamRepoUrl);
   const argv = minimist(process.argv.slice(2));
   const salt = argv.salt || process.env.SALT || "m3KMgZ2AeZGWYh7W";
-  const repo_hash = md5(`${salt}-${(await ghUser()).name}-${upstream.owner}/${upstream.repo}`).slice(0, 8);
-  const forkRepoName = (FORK_PREFIX && `${FORK_PREFIX}${upstream.repo}-${repo_hash}`) || upstream.repo;
+  const repo_hash = md5(
+    `${salt}-${(await ghUser()).name}-${upstream.owner}/${upstream.repo}`,
+  ).slice(0, 8);
+  const forkRepoName =
+    (FORK_PREFIX && `${FORK_PREFIX}${upstream.repo}-${repo_hash}`) || upstream.repo;
   const forkDst = `${FORK_OWNER}/${forkRepoName}`;
   const forkUrl = `https://github.com/${forkDst}`;
   return forkUrl;

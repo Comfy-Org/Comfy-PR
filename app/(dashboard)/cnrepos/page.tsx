@@ -70,7 +70,9 @@ export default async function CNReposPage({ searchParams }: CNReposPageProps) {
           <CardDescription>Recent repositories and their integration status</CardDescription>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={<div className="flex justify-center p-8">⏳ Loading repositories...</div>}>
+          <Suspense
+            fallback={<div className="flex justify-center p-8">⏳ Loading repositories...</div>}
+          >
             <CNReposTable page={page} />
           </Suspense>
         </CardContent>
@@ -102,7 +104,13 @@ async function CNReposTable({ page }: { page: number }) {
   );
 }
 
-function CNReposPagination({ currentPage, totalPages }: { currentPage: number; totalPages: number }) {
+function CNReposPagination({
+  currentPage,
+  totalPages,
+}: {
+  currentPage: number;
+  totalPages: number;
+}) {
   const maxVisiblePages = 5;
 
   let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));

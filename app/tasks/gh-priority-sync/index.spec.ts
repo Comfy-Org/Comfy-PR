@@ -186,11 +186,14 @@ describe("GithubIssuePrioritiesLabeler", () => {
         ]);
       }),
       // Mock adding labels
-      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues/100/labels", async ({ request }) => {
-        const body: any = await request.json();
-        labelsAdded = body.labels || [];
-        return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
-      }),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues/100/labels",
+        async ({ request }) => {
+          const body: any = await request.json();
+          labelsAdded = body.labels || [];
+          return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
+        },
+      ),
     );
 
     await GithubIssuePrioritiesLabler();
@@ -235,16 +238,22 @@ describe("GithubIssuePrioritiesLabeler", () => {
         ]);
       }),
       // Mock removing label
-      http.delete("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/200/labels/:name", ({ params }) => {
-        labelsRemoved.push(params.name as string);
-        return HttpResponse.json({});
-      }),
+      http.delete(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/200/labels/:name",
+        ({ params }) => {
+          labelsRemoved.push(params.name as string);
+          return HttpResponse.json({});
+        },
+      ),
       // Mock adding labels
-      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/200/labels", async ({ request }) => {
-        const body: any = await request.json();
-        labelsAdded = body.labels || [];
-        return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
-      }),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/200/labels",
+        async ({ request }) => {
+          const body: any = await request.json();
+          labelsAdded = body.labels || [];
+          return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
+        },
+      ),
     );
 
     await GithubIssuePrioritiesLabler();
@@ -347,11 +356,14 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/400/labels", () => {
         return HttpResponse.json([]);
       }),
-      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/400/labels", async ({ request }) => {
-        const body: any = await request.json();
-        labelsAdded = body.labels || [];
-        return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
-      }),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/400/labels",
+        async ({ request }) => {
+          const body: any = await request.json();
+          labelsAdded = body.labels || [];
+          return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
+        },
+      ),
     );
 
     await GithubIssuePrioritiesLabler();
@@ -439,11 +451,14 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.delete("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/600/labels/:name", () => {
         return HttpResponse.json({ message: "Label not found" }, { status: 404 });
       }),
-      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/600/labels", async ({ request }) => {
-        const body: any = await request.json();
-        labelsAdded = body.labels || [];
-        return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
-      }),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/600/labels",
+        async ({ request }) => {
+          const body: any = await request.json();
+          labelsAdded = body.labels || [];
+          return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
+        },
+      ),
     );
 
     await GithubIssuePrioritiesLabler();
@@ -489,12 +504,15 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/:number/labels", () => {
         return HttpResponse.json([]);
       }),
-      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/:number/labels", async ({ request, params }) => {
-        const body: any = await request.json();
-        const issueNumber = parseInt(params.number as string);
-        labelsAddedByIssue[issueNumber] = body.labels || [];
-        return HttpResponse.json(body.labels.map((name: string) => ({ name, color: "000000" })));
-      }),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/:number/labels",
+        async ({ request, params }) => {
+          const body: any = await request.json();
+          const issueNumber = parseInt(params.number as string);
+          labelsAddedByIssue[issueNumber] = body.labels || [];
+          return HttpResponse.json(body.labels.map((name: string) => ({ name, color: "000000" })));
+        },
+      ),
     );
 
     await GithubIssuePrioritiesLabler();
@@ -539,11 +557,14 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/:number/labels", () => {
         return HttpResponse.json([]);
       }),
-      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/:number/labels", async ({ params }) => {
-        const issueNumber = parseInt(params.number as string);
-        processedIssues.push(issueNumber);
-        return HttpResponse.json([]);
-      }),
+      http.post(
+        "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/:number/labels",
+        async ({ params }) => {
+          const issueNumber = parseInt(params.number as string);
+          processedIssues.push(issueNumber);
+          return HttpResponse.json([]);
+        },
+      ),
     );
 
     await GithubIssuePrioritiesLabler();

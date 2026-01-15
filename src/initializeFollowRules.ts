@@ -7,7 +7,8 @@ const logger = createLogger("initializeFollowRules");
 
 if (import.meta.main) {
   const followRules = await initializeFollowRules();
-  const ruleset = (await FollowRuleSets.findOne({ name: "default" })) ?? DIE("default ruleset not found");
+  const ruleset =
+    (await FollowRuleSets.findOne({ name: "default" })) ?? DIE("default ruleset not found");
   if (!ruleset?.enabled) DIE("default ruleset not enabled");
 
   logger.info("initialized follow rules");
@@ -17,7 +18,10 @@ if (import.meta.main) {
  * @author: snomiao <snomiao@gmail.com>
  */
 export async function initializeFollowRules() {
-  return await updateFollowRules("default", await readFile("./templates/follow-rules.yaml", "utf8"));
+  return await updateFollowRules(
+    "default",
+    await readFile("./templates/follow-rules.yaml", "utf8"),
+  );
 }
 
 export async function updateFollowRules(name: string, rawRuleYaml: string) {

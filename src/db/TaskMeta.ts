@@ -10,7 +10,10 @@ await _TaskMeta.createIndex({ coll: 1 }, { unique: true }); // Ensure unique col
 /**
  * @deprecated Use MetaCollection for not repeating yourself on collection name
  */
-export const TaskMetaCollection = <S extends z.ZodObject<any>, const COLLECTION_NAME extends string = string>(
+export const TaskMetaCollection = <
+  S extends z.ZodObject<any>,
+  const COLLECTION_NAME extends string = string,
+>(
   coll: COLLECTION_NAME,
   schema: S,
 ) => {
@@ -30,8 +33,11 @@ export const TaskMetaCollection = <S extends z.ZodObject<any>, const COLLECTION_
       }
 
       return (
-        (await c.findOneAndUpdate({ coll }, { $set: omit("coll", data) }, { upsert: true, returnDocument: "after" })) ||
-        DIE("never")
+        (await c.findOneAndUpdate(
+          { coll },
+          { $set: omit("coll", data) },
+          { upsert: true, returnDocument: "after" },
+        )) || DIE("never")
       );
     },
     save: async (data: z.infer<S>) => {
@@ -48,8 +54,11 @@ export const TaskMetaCollection = <S extends z.ZodObject<any>, const COLLECTION_
       }
 
       return (
-        (await c.findOneAndUpdate({ coll }, { $set: omit("coll", data) }, { upsert: true, returnDocument: "after" })) ||
-        DIE("never")
+        (await c.findOneAndUpdate(
+          { coll },
+          { $set: omit("coll", data) },
+          { upsert: true, returnDocument: "after" },
+        )) || DIE("never")
       );
     },
   });
@@ -65,7 +74,10 @@ type CollectionWithName<NAME extends string> = {
  * const Meta = MetaCollection(GithubIssueLabelOps, z.object({ ... }));
  * const meta = await Meta.save({ ... });
  */
-export const MetaCollection = <S extends z.ZodObject<any>, const COLLECTION_NAME extends string = string>(
+export const MetaCollection = <
+  S extends z.ZodObject<any>,
+  const COLLECTION_NAME extends string = string,
+>(
   coll: CollectionWithName<COLLECTION_NAME>,
   schema: S,
 ) => TaskMetaCollection(coll.collectionName, schema);

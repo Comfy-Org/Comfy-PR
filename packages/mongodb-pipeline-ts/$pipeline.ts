@@ -83,7 +83,8 @@ export const $pipeline: PipelineLauncher = function $pipeline<S extends Document
     },
   );
 };
-export type Pipeline<S extends Document | null = Document> = BasePipeline<S> & (S extends Document ? Stages<S> : {});
+export type Pipeline<S extends Document | null = Document> = BasePipeline<S> &
+  (S extends Document ? Stages<S> : {});
 type BasePipeline<S extends Document | null = Document> = {
   aggregate(): AggregationCursor<S>;
   as<R extends Document>(): Pipeline<R>;

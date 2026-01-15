@@ -8,10 +8,10 @@ import { type Task } from "../packages/mongodb-pipeline-ts/Task";
 import { type CMNode } from "./CMNodes";
 import { type CRNode } from "./CRNodes";
 import { db } from "./db";
-import { gh } from "./gh";
+import { gh } from "@/lib/github";
 import { type RelatedPull } from "./matchRelatedPulls";
 import type { GithubPullParsed } from "./parsePullsState";
-import { type SlackMsg } from "./slack/SlackMsgs";
+import { type SlackMsg } from "@/lib/slack/SlackMsgs";
 
 type Email = {
   from?: string;

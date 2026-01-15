@@ -3,7 +3,7 @@ import { match } from "ts-pattern";
 import { $OK } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos } from "./CNRepos";
 import { $flatten, $fresh } from "./db";
-import { gh } from "./gh";
+import { gh } from "@/lib/github";
 import { ghUser } from "./ghUser";
 import { parseGithubRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
 
@@ -11,7 +11,9 @@ export async function updateCNRepoPullsDashboard() {
   if ((await ghUser()).login !== "snomiao") return [];
   const dashBoardIssue = process.env.DASHBOARD_ISSUE_URL || DIE("DASHBOARD_ISSUE_URL not found");
   const dashBoardRepo = dashBoardIssue.replace(/\/issues\/\d+$/, "");
-  const dashBoardIssueNumber = Number(dashBoardIssue.match(/\/issues\/(\d+)$/)?.[1] || DIE("Issue number not found"));
+  const dashBoardIssueNumber = Number(
+    dashBoardIssue.match(/\/issues\/(\d+)$/)?.[1] || DIE("Issue number not found"),
+  );
   // update dashboard issue if run by @snomiao
   const repos = await CNRepos.find($flatten({ crPulls: { mtime: $fresh("1d") } })).toArray();
   const result = repos

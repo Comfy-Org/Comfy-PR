@@ -1,6 +1,6 @@
 import type { Task } from "@/packages/mongodb-pipeline-ts/Task";
 import DIE from "@snomiao/die";
-import { gh } from "./gh";
+import { gh } from "@/lib/github";
 import type { AwaitedReturnType } from "./types/AwaitedReturnType";
 
 const g = globalThis as typeof globalThis & {
@@ -21,9 +21,13 @@ export const ghUser = async () =>
 export type GHUser = Task<AwaitedReturnType<typeof gh.users.getByUsername>["data"]>;
 
 export const GIT_USEREMAIL = async () =>
-  process.env.GIT_USEREMAIL || ((await ghUser()).email && (await ghUser()).email) || DIE("Missing env.GIT_USEREMAIL");
+  process.env.GIT_USEREMAIL ||
+  ((await ghUser()).email && (await ghUser()).email) ||
+  DIE("Missing env.GIT_USEREMAIL");
 export const GIT_USERNAME = async () =>
-  process.env.GIT_USERNAME || ((await ghUser()).email && (await ghUser()).name) || DIE("Missing env.GIT_USERNAME");
+  process.env.GIT_USERNAME ||
+  ((await ghUser()).email && (await ghUser()).name) ||
+  DIE("Missing env.GIT_USERNAME");
 
 // read env/parameters
 console.log(`GIT COMMIT USER: ${await GIT_USERNAME()} <${await GIT_USEREMAIL()}>`);

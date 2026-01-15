@@ -4,7 +4,7 @@ import { match } from "ts-pattern";
 import { $OK, TaskError, TaskOK } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos } from "./CNRepos";
 import { $flatten, $stale } from "./db";
-import { fetchGithubPulls } from "./gh/fetchGithubPulls";
+import { fetchGithubPulls } from "@/lib/github/fetchGithubPulls";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   console.log(await tLog("Update CNRepos for Github Pulls", updateCNReposPulls));
@@ -21,7 +21,9 @@ export async function updateCNReposPulls() {
       async ({ repository }) => {
         const pulls = await fetchGithubPulls(repository).then(TaskOK).catch(TaskError);
         match(pulls)
-          .with($OK, ({ data }) => console.debug(`[DEBUG] fetched ${data.length} Pulls from ${repository}`))
+          .with($OK, ({ data }) =>
+            console.debug(`[DEBUG] fetched ${data.length} Pulls from ${repository}`),
+          )
           .otherwise(() => {});
         return await CNRepos.updateOne({ repository }, { $set: { pulls } });
       },

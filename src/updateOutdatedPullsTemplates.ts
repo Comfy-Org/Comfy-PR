@@ -10,12 +10,12 @@ import { glob } from "zx";
 import { $OK, TaskError, TaskOK, tsmatch } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos, type CRPull } from "./CNRepos";
 import { $flatten, $stale } from "./db";
-import { gh } from "./gh";
-import { parsePull } from "./gh/parsePull";
+import { gh } from "@/lib/github";
+import { parsePull } from "@/lib/github/parsePull";
 import { ghUser } from "./ghUser";
 import { parseGithubRepoUrl } from "./parseOwnerRepo";
 import { readTemplate } from "./readTemplateTitle";
-import { notifySlackLinks } from "./slack/notifySlackLinks";
+import { notifySlackLinks } from "@/lib/slack/notifySlackLinks";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   await tLog("updateOutdatedPullsTemplates", updateOutdatedPullsTemplates);
@@ -29,7 +29,9 @@ export async function updateOutdatedPullsTemplates() {
   const toml = await readTemplate("./templates/update-toml-license.md");
   const outdated_toml = await readTemplate("./templates/outdated/update-toml-license.md");
   // publishcr
-  const outdated_publishcr_templates = await sflow(await glob("./templates/outdated/add-action*.md"))
+  const outdated_publishcr_templates = await sflow(
+    await glob("./templates/outdated/add-action*.md"),
+  )
     .map((file) => readTemplate(file))
     .toArray();
   // pyproject
@@ -149,7 +151,10 @@ export async function updateOutdatedPullsTemplates() {
               pull_number: number,
             })
           ).data;
-          await CNRepos.updateOne({ repository }, { $set: { [`crPulls.data.${pullIndex}.edited`]: edited } });
+          await CNRepos.updateOne(
+            { repository },
+            { $set: { [`crPulls.data.${pullIndex}.edited`]: edited } },
+          );
           return { pull: parsePull(updatedPull), type, edited };
         },
         { concurrency: 2 },

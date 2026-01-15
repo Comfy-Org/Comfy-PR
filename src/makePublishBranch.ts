@@ -2,9 +2,13 @@ import { readFile } from "fs/promises";
 import { dirname } from "path";
 import { $ } from "./cli/echoBunShell";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
-import { gh } from "./gh";
+import { gh } from "@/lib/github";
 import { GIT_USEREMAIL, GIT_USERNAME } from "./ghUser";
-import { parseGithubRepoUrl, stringifyGithubOrigin, stringifyGithubRepoUrl } from "./parseOwnerRepo";
+import {
+  parseGithubRepoUrl,
+  stringifyGithubOrigin,
+  stringifyGithubRepoUrl,
+} from "./parseOwnerRepo";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 
 /**

@@ -11,7 +11,9 @@ export function SaveButton({
   children: ReactNode;
   content: string;
   filename: string;
-} & PropsWithChildren<React.DetailedHTMLProps<React.ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>>) {
+} & PropsWithChildren<
+  React.DetailedHTMLProps<React.ButtonHTMLAttributes<HTMLButtonElement>, HTMLButtonElement>
+>) {
   return (
     <button
       onClick={async () => {

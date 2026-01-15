@@ -5,7 +5,7 @@ import fs from "fs/promises";
 import stableStringify from "json-stable-stringify";
 import Keyv from "keyv";
 import path from "path";
-import { createOctokit } from "../../src/createOctokit";
+import { createOctokit } from "@/lib/github/createOctokit";
 
 const GH_TOKEN =
   process.env.GH_TOKEN_COMFY_PR ||
@@ -61,7 +61,10 @@ function createCacheKey(basePath: string[], prop: string | symbol, args: any[]):
   return cacheKey;
 }
 
-function createCachedProxy<T extends object>(target: T, basePath: string[] = []): DeepAsyncWrapper<T> {
+function createCachedProxy<T extends object>(
+  target: T,
+  basePath: string[] = [],
+): DeepAsyncWrapper<T> {
   return new Proxy(target as any, {
     get(obj: any, prop: string | symbol) {
       const value = obj[prop];

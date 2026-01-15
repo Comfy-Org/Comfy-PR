@@ -1,5 +1,5 @@
-import { gh } from "@/src/gh";
-import { getSlackChannel } from "@/src/slack/channels";
+import { gh } from "@/lib/github";
+import { getSlackChannel } from "@/lib/slack/channels";
 import { afterEach, beforeEach, describe, expect, it, jest } from "bun:test";
 import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
 
@@ -24,12 +24,16 @@ import runGithubCoreTagNotificationTask from "./index";
 describe("GithubCoreTagNotificationTask", () => {
   const mockGh = gh as jest.Mocked<typeof gh>;
   const mockGetSlackChannel = getSlackChannel as jest.MockedFunction<typeof getSlackChannel>;
-  const mockUpsertSlackMessage = upsertSlackMessage as jest.MockedFunction<typeof upsertSlackMessage>;
+  const mockUpsertSlackMessage = upsertSlackMessage as jest.MockedFunction<
+    typeof upsertSlackMessage
+  >;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockCollection.findOne.mockResolvedValue(null);
-    mockCollection.findOneAndUpdate.mockImplementation((_filter, update) => Promise.resolve(update.$set));
+    mockCollection.findOneAndUpdate.mockImplementation((_filter, update) =>
+      Promise.resolve(update.$set),
+    );
     mockGetSlackChannel.mockImplementation((channelName: string) =>
       Promise.resolve({
         id: channelName === "desktop" ? "test-channel-desktop" : "test-channel-live-ops",

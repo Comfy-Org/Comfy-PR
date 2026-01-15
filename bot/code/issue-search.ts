@@ -38,7 +38,9 @@ export async function searchGitHubIssues(query: string, limit: number = 10) {
       created_at: item.created_at,
       updated_at: item.updated_at,
       user: item.user?.login,
-      labels: item.labels.map((label) => (typeof label === "string" ? label : label.name)).filter(Boolean),
+      labels: item.labels
+        .map((label) => (typeof label === "string" ? label : label.name))
+        .filter(Boolean),
       is_pull_request: !!item.pull_request,
     }));
   } catch (error: any) {

@@ -46,10 +46,7 @@ export async function POST(request: NextRequest) {
     // Verify signature
     const signature = request.headers.get("x-hub-signature-256");
     if (!verifySignature(rawBody, signature)) {
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     // Parse the JSON payload
@@ -57,10 +54,7 @@ export async function POST(request: NextRequest) {
     try {
       payload = JSON.parse(rawBody);
     } catch (error) {
-      return NextResponse.json(
-        { error: "Invalid JSON payload" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
     }
 
     // Extract GitHub webhook headers
@@ -68,7 +62,9 @@ export async function POST(request: NextRequest) {
     const deliveryId = request.headers.get("x-github-delivery");
     const hookId = request.headers.get("x-github-hook-id");
     const hookInstallationTargetId = request.headers.get("x-github-hook-installation-target-id");
-    const hookInstallationTargetType = request.headers.get("x-github-hook-installation-target-type");
+    const hookInstallationTargetType = request.headers.get(
+      "x-github-hook-installation-target-type",
+    );
 
     // Create event document
     const eventDocument = {
@@ -96,7 +92,9 @@ export async function POST(request: NextRequest) {
     const collection = db.collection("GithubWebhookEvents");
     const result = await collection.insertOne(eventDocument);
 
-    console.log(`Stored GitHub webhook event: ${eventType} (delivery: ${deliveryId}, _id: ${result.insertedId})`);
+    console.log(
+      `Stored GitHub webhook event: ${eventType} (delivery: ${deliveryId}, _id: ${result.insertedId})`,
+    );
 
     // Return success response
     return NextResponse.json(

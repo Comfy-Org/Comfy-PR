@@ -3,14 +3,20 @@ import { getAuthUser } from "@/app/api/auth/[...nextauth]/getAuthUser";
 import { GithubActionUpdateTask } from "@/src/GithubActionUpdateTask/GithubActionUpdateTask";
 import { z } from "zod";
 
-export async function resetGithubActionUpdateTaskAction(prevState: { ok: boolean }, formData: FormData) {
+export async function resetGithubActionUpdateTaskAction(
+  prevState: { ok: boolean },
+  formData: FormData,
+) {
   "use server";
   await getAuthUser();
   const e = z.object({ repo: z.string() }).parse(Object.fromEntries(formData.entries()));
   await resetErrorForGithubActionUpdateTask(e.repo);
   return { ok: true };
 }
-export async function approveGithubActionUpdateTaskAction(prevState: { ok: boolean }, formData: FormData) {
+export async function approveGithubActionUpdateTaskAction(
+  prevState: { ok: boolean },
+  formData: FormData,
+) {
   "use server";
   await getAuthUser();
   const e = z

@@ -1,5 +1,5 @@
 import DIE from "@snomiao/die";
-import { gh } from "./gh";
+import { gh } from "@/lib/github";
 import { ghUser } from "./ghUser";
 import { parseIssueUrl } from "./parseIssueUrl";
 

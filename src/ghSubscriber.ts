@@ -1,5 +1,5 @@
 import sflow from "sflow";
-import { createOctokit } from "./createOctokit";
+import { createOctokit } from "@/lib/github/createOctokit";
 import { parseGithubRepoUrl } from "./parseOwnerRepo";
 
 const tokens = process.env.GH_SUBSCRIBER_TOKENS?.split(",") || [];

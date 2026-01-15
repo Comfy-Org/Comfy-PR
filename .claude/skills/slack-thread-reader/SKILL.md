@@ -12,11 +12,13 @@ This skill reads all messages from a Slack thread and outputs them as structured
 ## Usage
 
 **Option 1: Using Slack URL**
+
 ```bash
 pr-bot slack read-thread -u "<SLACK_MESSAGE_URL>" [-l <NUMBER>]
 ```
 
 **Option 2: Using Channel ID and Timestamp**
+
 ```bash
 pr-bot slack read-thread -c <CHANNEL_ID> -t <THREAD_TS> [-l <NUMBER>]
 ```
@@ -24,10 +26,12 @@ pr-bot slack read-thread -c <CHANNEL_ID> -t <THREAD_TS> [-l <NUMBER>]
 ## Parameters
 
 ### URL Format
+
 - `-u, --url` (required if not using channel+ts): Slack message URL
 - `-l, --limit` (optional): Maximum number of messages to retrieve (default: 100)
 
 ### Channel/Timestamp Format
+
 - `-c, --channel` (required if not using url): Slack channel ID (e.g., `C123456789`)
 - `-t, --ts` (required if not using url): Thread timestamp (parent message timestamp)
 - `-l, --limit` (optional): Maximum number of messages to retrieve (default: 100)
@@ -37,6 +41,7 @@ pr-bot slack read-thread -c <CHANNEL_ID> -t <THREAD_TS> [-l <NUMBER>]
 ## Output Format
 
 Returns JSON array with each message containing:
+
 - `username`: Display name of the message author
 - `text`: Original Slack-formatted text
 - `markdown`: Converted markdown text (with user mentions, formatting, etc.)
@@ -60,6 +65,7 @@ pr-bot slack read-thread -c C07V123ABC -t 1234567890.123456 -l 20
 ## Supported URL Formats
 
 The tool automatically parses various Slack URL formats:
+
 - `https://WORKSPACE.slack.com/archives/CHANNEL/pTIMESTAMP`
 - `https://WORKSPACE.slack.com/archives/CHANNEL/pTIMESTAMP?thread_ts=THREAD_TS`
 - `https://app.slack.com/client/TEAM/CHANNEL/TIMESTAMP`

@@ -3,15 +3,14 @@ import { confirm } from "@/lib/utils";
 import { tsmatch } from "@/packages/mongodb-pipeline-ts/Task";
 import { db } from "@/src/db";
 import { MetaCollection } from "@/src/db/TaskMeta";
-import { type GH } from "@/src/gh";
-import { ghc } from "@/src/ghc";
-import { ghData } from "@/src/ghData";
+import { type GH } from "@/lib/github";
+import { ghc } from "@/lib/github/githubCached";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import { parsePullUrl } from "@/src/parsePullUrl";
-import { slack } from "@/src/slack";
-import { slackCached } from "@/src/slack/slackCached";
+import { slack } from "@/lib/slack";
+import { slackCached } from "@/lib/slack/slackCached";
 import { yaml } from "@/src/utils/yaml";
 import DIE from "@snomiao/die";
 import chalk from "chalk";
@@ -170,7 +169,8 @@ function reviewStatusExplained(status: ReviewStatus) {
     .with("OPEN", () => "The PR is open and ready for review, but no reviews or responses yet.")
     .with(
       "REVIEW_REQUESTED",
-      () => "The PR has requested reviews from specific reviewers, but none have reviewed or commented yet.",
+      () =>
+        "The PR has requested reviews from specific reviewers, but none have reviewed or commented yet.",
     )
     .with("AUTHOR_COMMENTED", () => "The PR has been responed by the author.")
     .with("COMMITTED", () => "The PR has new commits pushed to it.")
@@ -211,12 +211,18 @@ async function determinePullRequestReviewStatus(
     }))
     .with({ draft: true }, () => ({ status: "DRAFT" as const, statusAt: new Date(pr.created_at) }))
     .otherwise(async () => {
-      const latestEvent = (await getTimelineReviewStatuses(pr)).flatMap((e) => (e.PR_STATUS ? [e] : [])).at(-1);
-      if (!latestEvent?.PR_STATUS) return { statusAt: new Date(pr.created_at), status: "OPEN" as const };
-      const latestEventAt = latestEvent.committed_at || latestEvent.submitted_at || latestEvent.created_at;
+      const latestEvent = (await getTimelineReviewStatuses(pr))
+        .flatMap((e) => (e.PR_STATUS ? [e] : []))
+        .at(-1);
+      if (!latestEvent?.PR_STATUS)
+        return { statusAt: new Date(pr.created_at), status: "OPEN" as const };
+      const latestEventAt =
+        latestEvent.committed_at || latestEvent.submitted_at || latestEvent.created_at;
 
       if (!latestEventAt)
-        throw new Error(`Failed to determine statusAt: no timestamp found in latest event for PR ${pr.html_url}`);
+        throw new Error(
+          `Failed to determine statusAt: no timestamp found in latest event for PR ${pr.html_url}`,
+        );
 
       return { statusAt: new Date(latestEventAt), status: latestEvent.PR_STATUS };
     });
@@ -282,8 +288,12 @@ async function getTimelineReviewStatuses(pr: GH["pull-request-simple"] | GH["pul
       label: e.label?.name,
 
       reactions: e.reactions?.total_count,
-      body: e.body?.replace(/\s+/g, " ").replace(/(?<=.{30})[\s\S]+/g, (e) => `...[${e.length} more chars]`),
-      message: e.message?.replace(/\s+/g, " ").replace(/(?<=.{30})[\s\S]+/g, (e) => `...[${e.length} more chars]`),
+      body: e.body
+        ?.replace(/\s+/g, " ")
+        .replace(/(?<=.{30})[\s\S]+/g, (e) => `...[${e.length} more chars]`),
+      message: e.message
+        ?.replace(/\s+/g, " ")
+        .replace(/(?<=.{30})[\s\S]+/g, (e) => `...[${e.length} more chars]`),
     }));
   return timeline_statuses;
 }
@@ -302,7 +312,10 @@ function deduplicatePRTasks<T extends { url: string }>(tasks: T[]): T[] {
       seenPRNumbers.set(prNumber, task);
     } else {
       // Prefer Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
-      if (task.url.includes("Comfy-Org/ComfyUI") && !existingTask.url.includes("Comfy-Org/ComfyUI")) {
+      if (
+        task.url.includes("Comfy-Org/ComfyUI") &&
+        !existingTask.url.includes("Comfy-Org/ComfyUI")
+      ) {
         seenPRNumbers.set(prNumber, task);
       }
     }
@@ -334,7 +347,10 @@ async function runCorePingTaskFull() {
       seenPRNumbers.set(pr.number, pr);
     } else {
       // Prefer Comfy-Org/ComfyUI URLs over comfyanonymous/ComfyUI
-      if (pr.html_url.includes("Comfy-Org/ComfyUI") && !existingPR.html_url.includes("Comfy-Org/ComfyUI")) {
+      if (
+        pr.html_url.includes("Comfy-Org/ComfyUI") &&
+        !existingPR.html_url.includes("Comfy-Org/ComfyUI")
+      ) {
         seenPRNumbers.set(pr.number, pr);
       }
     }
@@ -358,7 +374,7 @@ async function runCorePingTaskFull() {
     }),
   )
     .filter((task) => !processedTasks.some((t) => t.url === task.url))
-    .map((task) => ghData(ghc.pulls.get)({ ...parsePullUrl(task.url) }))
+    .map((task) => ghc.pulls.get({ ...parsePullUrl(task.url) }).then((e) => e.data))
     .filter()
     .map((e, i) => processPullRequestCorePingTask(e, i))
     .toArray();
@@ -390,7 +406,7 @@ async function runCorePingTaskFull() {
     .filter(async (e) => {
       const prUrl = e.url;
       // revalidate if it is still open, calls gh.pulls.get
-      const pr = await ghData(ghc.pulls.get)({ ...parsePullUrl(prUrl) });
+      const pr = await ghc.pulls.get({ ...parsePullUrl(prUrl) }).then((e) => e.data);
       // update to db if state changed
       if (pr.state !== e.state) {
         await saveTask({ url: prUrl, state: pr.state });
@@ -424,7 +440,10 @@ async function runCorePingTaskFull() {
       ? `\n\nAdditionally, there ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} ${remainingOpeningCorePRs.length} other open Core/Important ${remainingOpeningCorePRs.length === 1 ? "PR" : "PRs"} that ${remainingOpeningCorePRs.length === 1 ? "is" : "are"} pending for author's change/update, lets wait for them.
 - ${remainingOpeningCorePRs
           .toSorted(compareBy((e) => e.created_at))
-          .map((pr) => `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`)
+          .map(
+            (pr) =>
+              `@${pr.author}: <${pr.url}|${pr.title}> is ${pr.status} ${forDuration(pr.statusAt)}`,
+          )
           .join("\n- ")}`
       : "";
   const tail = `\n\nSent from <https://github.com/Comfy-Org/Comfy-PR/blob/main/app/tasks/coreping/coreping.ts|CorePing.ts> by <@snomiao>`;
@@ -463,7 +482,8 @@ async function runCorePingTaskFull() {
     Date.now() - new Date(meta.lastSlackMessage.sendAt).getTime() <= 23.9 * 60 * 60 * 1000;
 
   // if <24 h since last sent (not edit), update that msg
-  const msgUpdateUrl = canUpdateExistingMessage && !canPostNewMessage ? meta.lastSlackMessage?.url : undefined;
+  const msgUpdateUrl =
+    canUpdateExistingMessage && !canPostNewMessage ? meta.lastSlackMessage?.url : undefined;
 
   // DIE(
   // 	yaml.stringify({
@@ -598,14 +618,17 @@ async function _cleanSpammyMessages20251117() {
   // slack.history.list(getslackchannel)
   const channel = await pageFlow(undefined as string | undefined, async (cursor, limit = 3) => {
     const resp = await slackCached.conversations.list({ cursor, limit, types: "public_channel" });
-    console.log(`+${resp.channels?.length} channels: ${resp.channels?.map((c) => c.name).join(", ")}`);
+    console.log(
+      `+${resp.channels?.length} channels: ${resp.channels?.map((c) => c.name).join(", ")}`,
+    );
     return { next: resp.response_metadata?.next_cursor || undefined, data: resp.channels };
   })
     .flat()
     .find((e) => e.name === "develop")
     .toAtLeastOne();
 
-  const channelId = channel.id || DIE(`no channel id was found in channel: ${yaml.stringify(channel)}`);
+  const channelId =
+    channel.id || DIE(`no channel id was found in channel: ${yaml.stringify(channel)}`);
   // console.log(channel);
   // slackCached.conversations.join({channel: channel.id}) ;
   // console.log( ) ; //(channels.id)
@@ -619,26 +642,29 @@ async function _cleanSpammyMessages20251117() {
     .toAtLeastOne();
 
   console.log("checking messages sent by ComfyPR-Bot:", comfyPrBot.id, comfyPrBot.name);
-  const myspammessages = await pageFlow(undefined as string | undefined, async (cursor, limit = 100) => {
-    const resp = await slackCached.conversations.history({
-      channel: channelId,
-      cursor,
-      limit,
-      inclusive: true,
-      oldest: String(+st / 1000),
-      latest: String(+et / 1000),
-    });
-    console.log(resp.messages?.length);
-    // console.log(`+${resp.messages?.length} messages by ${await sflow(resp.messages || [])
-    // 	?.mapMixin(async e => ({ info: await slackCached.users.info({ user: e.user || undefined }).then(u => u.user) }))
-    // 	?.map(m => String(m.username || m.info?.real_name || m.user || ''))
-    // 	.filter()
-    // 	.join(", ")
-    // 	.text()
-    // 	}`);
+  const myspammessages = await pageFlow(
+    undefined as string | undefined,
+    async (cursor, limit = 100) => {
+      const resp = await slackCached.conversations.history({
+        channel: channelId,
+        cursor,
+        limit,
+        inclusive: true,
+        oldest: String(+st / 1000),
+        latest: String(+et / 1000),
+      });
+      console.log(resp.messages?.length);
+      // console.log(`+${resp.messages?.length} messages by ${await sflow(resp.messages || [])
+      // 	?.mapMixin(async e => ({ info: await slackCached.users.info({ user: e.user || undefined }).then(u => u.user) }))
+      // 	?.map(m => String(m.username || m.info?.real_name || m.user || ''))
+      // 	.filter()
+      // 	.join(", ")
+      // 	.text()
+      // 	}`);
 
-    return { next: resp.response_metadata?.next_cursor || undefined, data: resp.messages || [] };
-  })
+      return { next: resp.response_metadata?.next_cursor || undefined, data: resp.messages || [] };
+    },
+  )
     .flat()
     // .mapMixin(async e => ({ profile: (await slackCached.users.profile.get({ user: e.user || undefined }).then(e => e.profile)) }))
     .mapMixin(async (e) => ({

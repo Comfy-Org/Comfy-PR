@@ -1,5 +1,13 @@
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import Link from "next/link";
 import { GithubDesignTask } from "./gh-design";
 import { GithubDesignTaskMetaEditor } from "./GithubDesignTaskMetaEditor";
@@ -101,7 +109,9 @@ export default async function GithubDesignTaskPage() {
                         <Badge className="w-16 text-center justify-center">
                           {{ pull_request: "PR", issue: "Issue" }[task.type] || "Task"}
                         </Badge>
-                        <span className="text-sm text-muted-foreground">{getIssueNumber(task.url)}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {getIssueNumber(task.url)}
+                        </span>
                         <h3>{task.title}</h3>
                       </div>
                     </Link>

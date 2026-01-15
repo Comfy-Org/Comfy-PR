@@ -169,7 +169,12 @@ describe("GithubFrontendBackportCheckerTask", () => {
 
       // Find the order of status emojis
       const emojiOrder = lines
-        .filter((line) => line.trim().startsWith("❌") || line.trim().startsWith("🔄") || line.trim().startsWith("✅"))
+        .filter(
+          (line) =>
+            line.trim().startsWith("❌") ||
+            line.trim().startsWith("🔄") ||
+            line.trim().startsWith("✅"),
+        )
         .map((line) => line.trim()[0]);
 
       // Should be ordered: needed (❌), in-progress (🔄), completed (✅)

@@ -1,4 +1,4 @@
-import { gh } from "./gh";
+import { gh } from "@/lib/github";
 
 console.log(
   await gh.pulls.list({

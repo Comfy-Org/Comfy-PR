@@ -4,7 +4,7 @@ import toml from "toml";
 import { $ } from "./cli/echoBunShell";
 import { fetchRepoDescriptionMap } from "./fetchRepoDescriptionMap";
 import { getBranchWorkingDir } from "./getBranchWorkingDir";
-import { gh } from "./gh";
+import { gh } from "@/lib/github";
 import { GIT_USEREMAIL, GIT_USERNAME } from "./ghUser";
 import { parseGithubRepoUrl, stringifyGithubOrigin } from "./parseOwnerRepo";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
@@ -75,7 +75,8 @@ git push ${existingBranch ? "--force" : ""} "${origin}" ${branch}:${branch}
 async function tomlFillDescription(referenceUrl: string, pyprojectToml: string) {
   const repoDescriptionMap = await fetchRepoDescriptionMap();
   const matchedDescription =
-    repoDescriptionMap[referenceUrl]?.toString() || DIE("Warn: missing description for " + referenceUrl);
+    repoDescriptionMap[referenceUrl]?.toString() ||
+    DIE("Warn: missing description for " + referenceUrl);
   const replaced = (await readFile(pyprojectToml, "utf8")).replace(
     `description = ""`,
     `description = ${JSON.stringify(matchedDescription)}`,

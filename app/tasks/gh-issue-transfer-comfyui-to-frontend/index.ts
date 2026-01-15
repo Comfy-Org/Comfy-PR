@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
 import { $ } from "bun";
@@ -44,7 +44,9 @@ export const GithubFrontendIssueTransferTask = db.collection<GithubFrontendIssue
 
 await GithubFrontendIssueTransferTask.createIndex({ sourceIssueNumber: 1 }, { unique: true });
 
-const save = async (task: { sourceIssueNumber: number } & Partial<GithubFrontendIssueTransferTask>) =>
+const save = async (
+  task: { sourceIssueNumber: number } & Partial<GithubFrontendIssueTransferTask>,
+) =>
   (await GithubFrontendIssueTransferTask.findOneAndUpdate(
     { sourceIssueNumber: task.sourceIssueNumber },
     { $set: task },
@@ -75,7 +77,9 @@ async function runGithubFrontendIssueTransferTask() {
       per_page,
     });
 
-    console.log(`Found ${sourceIssues.data.length} open frontend issues (page ${page}) in ${config.srcRepoUrl}`);
+    console.log(
+      `Found ${sourceIssues.data.length} open frontend issues (page ${page}) in ${config.srcRepoUrl}`,
+    );
 
     return {
       data: sourceIssues.data,
@@ -146,11 +150,15 @@ ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : "
               .map((label) => (typeof label === "string" ? label : label.name))
               .filter((name): name is string => !!name)
               .filter((name) => name.toLowerCase() !== "frontend"),
-            assignees: issue.assignees?.map((assignee) => assignee.login).filter((login): login is string => !!login),
+            assignees: issue.assignees
+              ?.map((assignee) => assignee.login)
+              .filter((login): login is string => !!login),
           })
           .catch((e) => {
             // try move the assignee to body when "assignees huchenlei cannot be assigned to this issue" matched
-            const failedAssignee = e.message.match(/assignees (\w+) cannot be assigned to this issue/)?.[1];
+            const failedAssignee = e.message.match(
+              /assignees (\w+) cannot be assigned to this issue/,
+            )?.[1];
             if (failedAssignee) {
               const newBody =
                 body +
@@ -174,7 +182,9 @@ ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : "
             throw e;
           });
 
-        console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
+        console.log(
+          `Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`,
+        );
         if (!isCI && process.platform === "darwin") {
           await $`open ${newIssue.data.html_url}`;
         }

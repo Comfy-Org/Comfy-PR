@@ -4,7 +4,10 @@ import * as d3 from "d3";
 import isCI from "is-ci";
 import { groupBy, sum, uniq, uniqBy } from "rambda";
 import sflow from "sflow";
-import { GithubContributorAnalyzeTask, GithubContributorAnalyzeTaskFilter } from "./GithubContributorAnalyzeTask";
+import {
+  GithubContributorAnalyzeTask,
+  GithubContributorAnalyzeTaskFilter,
+} from "./GithubContributorAnalyzeTask";
 
 if (import.meta.main) {
   // analyze
@@ -19,9 +22,13 @@ export async function summaryGithubContributorAnalyzeTask() {
   //     { contributors: { $exists: true } },
   //     { $unset: { error: 1, errorAt: 1 } },
   //   );
-  const remains = await GithubContributorAnalyzeTask.countDocuments(GithubContributorAnalyzeTaskFilter);
+  const remains = await GithubContributorAnalyzeTask.countDocuments(
+    GithubContributorAnalyzeTaskFilter,
+  );
   const data = await sflow(GithubContributorAnalyzeTask.find({})).toArray();
-  const flat = data.map((e) => e.contributors?.map((y) => ({ ...y, repoUrl: e.repoUrl })) ?? []).flat();
+  const flat = data
+    .map((e) => e.contributors?.map((y) => ({ ...y, repoUrl: e.repoUrl })) ?? [])
+    .flat();
   const byEmails = groupBy((e) => e.email?.toLowerCase() ?? "", flat);
   const json = Object.entries(byEmails)
     .map(([email, e]) => ({
@@ -55,7 +62,10 @@ export async function summaryGithubContributorAnalyzeTask() {
   await globalThis.Bun?.write(`./report/uniq-contributor-emails.csv`, d3.csvFormat(json));
   await globalThis.Bun?.write(`./report/uniq-contributor-emails-total.yaml`, yaml.stringify(total));
   await globalThis.Bun?.write(`./report/${date}-uniq-contributor-emails.csv`, d3.csvFormat(json));
-  await globalThis.Bun?.write(`./report/${date}-uniq-contributor-emails-total.yaml`, yaml.stringify(total));
+  await globalThis.Bun?.write(
+    `./report/${date}-uniq-contributor-emails-total.yaml`,
+    yaml.stringify(total),
+  );
   console.log("done");
   return { json, total };
 }

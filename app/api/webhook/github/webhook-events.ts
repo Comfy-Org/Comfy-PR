@@ -158,10 +158,7 @@ export async function getIssueEvents(
 /**
  * Mark a webhook event as processed
  */
-export async function markEventAsProcessed(
-  deliveryId: string,
-  error?: string,
-): Promise<boolean> {
+export async function markEventAsProcessed(deliveryId: string, error?: string): Promise<boolean> {
   const collection = getWebhookEventsCollection();
 
   const result = await collection.updateOne(
@@ -189,10 +186,7 @@ export async function getWebhookStats() {
     collection.countDocuments({ processed: true }),
     collection.countDocuments({ processed: false }),
     collection
-      .aggregate([
-        { $group: { _id: "$eventType", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-      ])
+      .aggregate([{ $group: { _id: "$eventType", count: { $sum: 1 } } }, { $sort: { count: -1 } }])
       .toArray(),
   ]);
 

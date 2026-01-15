@@ -18,7 +18,9 @@ import type { UnwrapArrayDeep } from "./UnwrapArrayDeep";
  * // but not { a: { b: 1, c: 2 } } or { a: { b: 2 } }
  * ```
  */
-export function $flatten<TSchema extends Document>(filter: UnwrapArrayDeep<Filter<TSchema>>): Filter<TSchema> {
+export function $flatten<TSchema extends Document>(
+  filter: UnwrapArrayDeep<Filter<TSchema>>,
+): Filter<TSchema> {
   const v = filter as any;
   if (typeof v !== "object" || !(v instanceof Object)) return v;
   if (v instanceof Date) return v;

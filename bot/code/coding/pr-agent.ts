@@ -64,7 +64,7 @@ export async function spawnSubAgent(options: SpawnSubAgentOptions) {
       GH_TOKEN_COMFY_PR_BOT: ghToken,
     };
 
-    const claudeProcess = spawn("claude-yes", ['-i=3min', "--prompt", prompt], {
+    const claudeProcess = spawn("claude-yes", ["-i=3min", "--prompt", prompt], {
       cwd: repoDir,
       stdio: "inherit", // Pass through stdin/stdout/stderr to parent process
       env, // Pass environment variables including the GitHub token

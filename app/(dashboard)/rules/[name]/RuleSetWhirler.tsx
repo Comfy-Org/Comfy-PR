@@ -1,6 +1,12 @@
 "use client";
 import CodeEditor from "@/components/CodeEditor";
-import { $ERROR, $OK, TaskDataOrNull, tsmatch, type Task } from "@/packages/mongodb-pipeline-ts/Task";
+import {
+  $ERROR,
+  $OK,
+  TaskDataOrNull,
+  tsmatch,
+  type Task,
+} from "@/packages/mongodb-pipeline-ts/Task";
 import type { PullStatus, PullsStatus } from "@/src/analyzePullsStatus";
 import type { updateFollowRuleSet } from "@/src/updateFollowRuleSet";
 import { yaml } from "@/src/utils/yaml";
@@ -33,7 +39,9 @@ export default function RuleSetWhirler({
   enabled?: boolean;
 }) {
   const [code, setCode] = useState<string>(defaultYaml);
-  const [matchResults, setMatchResults] = useState<MatchAllResults | null>(TaskDataOrNull(defaultMatchResults));
+  const [matchResults, setMatchResults] = useState<MatchAllResults | null>(
+    TaskDataOrNull(defaultMatchResults),
+  );
   const [error, setError] = useState<string | null>(defaultError ?? null);
   const defaultLanguage = "yaml";
   const onChange = useCallback(

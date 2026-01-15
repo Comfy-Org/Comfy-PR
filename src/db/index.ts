@@ -11,7 +11,10 @@ if (!process.env.MONGODB_URI)
   console.warn("MONGODB_URI is not set, using default value. This may cause issues in production.");
 const MONGODB_URI = process.env.MONGODB_URI ?? "mongodb://PLEASE_SET_MONGODB_URI:27017";
 
-export const mongo = await hotResource(async () => [new MongoClient(MONGODB_URI), (conn) => conn.close()]);
+export const mongo = await hotResource(async () => [
+  new MongoClient(MONGODB_URI),
+  (conn) => conn.close(),
+]);
 export const db = Object.assign(mongo.db(), {
   close: async () => await mongo.close(),
 });

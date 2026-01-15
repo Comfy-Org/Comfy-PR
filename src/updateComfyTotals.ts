@@ -4,7 +4,7 @@ import { $OK, TaskError, TaskOK, tsmatch } from "../packages/mongodb-pipeline-ts
 import { Totals } from "./Totals";
 import { analyzeTotals } from "./analyzeTotals";
 import { $flatten, $fresh } from "./db";
-import { notifySlack } from "./slack/notifySlack";
+import { notifySlack } from "@/lib/slack/notifySlack";
 
 if (import.meta.main) {
   await updateComfyTotals();
@@ -13,7 +13,9 @@ if (import.meta.main) {
 export async function updateComfyTotals({ notify = true, fresh = "30m" } = {}) {
   await Totals.createIndex({ today: 1, "totals.mtime": 1, "totals.state": 1 });
   const today = new Date().toISOString().split("T")[0];
-  const cached = await Totals.findOne($flatten({ today, totals: { mtime: $fresh(fresh), ...$OK } }));
+  const cached = await Totals.findOne(
+    $flatten({ today, totals: { mtime: $fresh(fresh), ...$OK } }),
+  );
   if (cached?.totals?.state === "ok")
     return [
       tsmatch(cached.totals)

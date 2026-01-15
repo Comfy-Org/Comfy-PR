@@ -1,5 +1,5 @@
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { ghUser } from "@/src/ghUser";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import console from "console";

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun --watch
 import { db } from "@/src/db";
 import { TaskMetaCollection } from "@/src/db/TaskMeta";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
@@ -27,7 +27,10 @@ const tlog = createTimeLogger();
  */
 
 // 1. scan these repos
-const REPOURLS = ["https://github.com/Comfy-Org/ComfyUI_frontend", "https://github.com/Comfy-Org/desktop"];
+const REPOURLS = [
+  "https://github.com/Comfy-Org/ComfyUI_frontend",
+  "https://github.com/Comfy-Org/desktop",
+];
 
 // 2. match these labels
 const MATCH_LABELS = ["Design"];
@@ -91,8 +94,11 @@ await GithubDesignTask.createIndex({ url: 1 }, { unique: true }); // ensure url 
 // Helper function to save/update GithubDesignTask
 async function saveGithubDesignTask(url: string, $set: Partial<GithubDesignTask>) {
   return (
-    (await GithubDesignTask.findOneAndUpdate({ url }, { $set }, { upsert: true, returnDocument: "after" })) ||
-    DIE("NEVER")
+    (await GithubDesignTask.findOneAndUpdate(
+      { url },
+      { $set },
+      { upsert: true, returnDocument: "after" },
+    )) || DIE("NEVER")
   );
 }
 
@@ -155,7 +161,9 @@ export async function runGithubDesignTask() {
       body: issue.body,
       user: issue.user?.login,
       type: issue.pull_request ? ("pull_request" as const) : ("issue" as const),
-      state: issue.pull_request?.merged_at ? ("merged" as const) : (issue.state as "open" | "closed"),
+      state: issue.pull_request?.merged_at
+        ? ("merged" as const)
+        : (issue.state as "open" | "closed"),
       stateAt: issue.pull_request?.merged_at || issue.closed_at || issue.created_at,
       labels: issue.labels.flatMap((e) => (typeof e === "string" ? [] : [e])).map((l) => l.name),
       comments: issue.comments,
@@ -181,7 +189,10 @@ export async function runGithubDesignTask() {
       });
 
       if (task.state === "open") {
-        if (task.type === "pull_request" && REQUEST_REVIEWERS.some((e) => !task.reviewers?.includes(e))) {
+        if (
+          task.type === "pull_request" &&
+          REQUEST_REVIEWERS.some((e) => !task.reviewers?.includes(e))
+        ) {
           const requestReviewers = REQUEST_REVIEWERS;
           const newReviewers = requestReviewers.filter((e) => !task.reviewers?.includes(e));
           tlog(`Requesting reviewers: ${newReviewers.join(", ")}`);

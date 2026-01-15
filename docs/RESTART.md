@@ -36,6 +36,7 @@ The `bot-start.sh` script includes an auto-restart loop:
 ```
 
 This ensures the bot automatically restarts:
+
 - After clean exits (code 0) - waits 2 seconds
 - After crashes (non-zero exit) - waits 5 seconds
 
@@ -45,17 +46,18 @@ The restart manager can be configured in `bot/index.ts`:
 
 ```typescript
 const restartManager = new RestartManager({
-  watchPaths: ['bot', 'src', 'lib'],           // Directories to watch
-  isIdle: () => TaskInputFlows.size === 0,     // Idle detection function
-  onRestart: () => process.exit(0),            // Restart action
-  idleCheckInterval: 5000,                     // Check idle every 5s
-  debounceDelay: 1000,                         // Debounce changes by 1s
+  watchPaths: ["bot", "src", "lib"], // Directories to watch
+  isIdle: () => TaskInputFlows.size === 0, // Idle detection function
+  onRestart: () => process.exit(0), // Restart action
+  idleCheckInterval: 5000, // Check idle every 5s
+  debounceDelay: 1000, // Debounce changes by 1s
 });
 ```
 
 ## Ignored Files
 
 The following patterns are automatically ignored:
+
 - `node_modules/`
 - `.cache/`
 - `.logs/`
@@ -103,13 +105,13 @@ The following patterns are automatically ignored:
 
 ## Comparison with `--watch`
 
-| Feature | `--watch` | Smart Restart |
-|---------|-----------|---------------|
-| Detects changes | ✅ | ✅ |
-| Restarts immediately | ✅ | ❌ |
-| Waits for idle | ❌ | ✅ |
-| Interrupts tasks | ✅ | ❌ |
-| Configurable | ❌ | ✅ |
+| Feature              | `--watch` | Smart Restart |
+| -------------------- | --------- | ------------- |
+| Detects changes      | ✅        | ✅            |
+| Restarts immediately | ✅        | ❌            |
+| Waits for idle       | ❌        | ✅            |
+| Interrupts tasks     | ✅        | ❌            |
+| Configurable         | ❌        | ✅            |
 
 ## Troubleshooting
 
@@ -133,4 +135,3 @@ The following patterns are automatically ignored:
 ## Implementation Details
 
 See `bot/RestartManager.ts` for the full implementation.
-

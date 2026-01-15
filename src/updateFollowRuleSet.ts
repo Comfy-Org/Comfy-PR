@@ -10,7 +10,7 @@ import { addCommentAction } from "./addCommentAction";
 import { analyzePullsStatus, analyzePullsStatusPipeline } from "./analyzePullsStatus";
 import { $flatten } from "./db";
 import { zAddCommentAction, zFollowUpRules, zSendEmailAction } from "./followRuleSchema";
-import { fetchIssueComments } from "./gh/fetchIssueComments";
+import { fetchIssueComments } from "@/lib/github/fetchIssueComments";
 import { stringifyGithubRepoUrl } from "./parseOwnerRepo";
 import { parsePullUrl } from "./parsePullUrl";
 import { sendEmailAction } from "./sendEmailAction";
@@ -87,9 +87,12 @@ export async function updateFollowRuleSet({
               .then(TaskOK)
               .catch(TaskError);
             (
-              await CNRepos.updateOne($flatten({ repository, crPulls: { data: { pull: { html_url } } } }), {
-                $set: { "crPulls.data.$.comments": comments },
-              })
+              await CNRepos.updateOne(
+                $flatten({ repository, crPulls: { data: { pull: { html_url } } } }),
+                {
+                  $set: { "crPulls.data.$.comments": comments },
+                },
+              )
             ).matchedCount ?? DIE("pre-matched comments is not found");
           });
         }

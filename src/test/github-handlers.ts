@@ -400,24 +400,27 @@ export const githubHandlers = [
   }),
 
   // PATCH /repos/:owner/:repo/pulls/:pull_number - Update a pull request
-  http.patch(`${GITHUB_API_BASE}/repos/:owner/:repo/pulls/:pull_number`, async ({ params, request }) => {
-    const { owner, repo, pull_number } = params;
-    const body = (await request.json()) as any;
+  http.patch(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/pulls/:pull_number`,
+    async ({ params, request }) => {
+      const { owner, repo, pull_number } = params;
+      const body = (await request.json()) as any;
 
-    return HttpResponse.json({
-      id: 1,
-      number: pull_number,
-      state: body.state || "open",
-      title: body.title || "Updated Pull Request",
-      body: body.body || "Updated body",
-      user: {
-        login: "test-user",
+      return HttpResponse.json({
         id: 1,
-      },
-      html_url: `https://github.com/${owner}/${repo}/pull/${pull_number}`,
-      updated_at: new Date().toISOString(),
-    });
-  }),
+        number: pull_number,
+        state: body.state || "open",
+        title: body.title || "Updated Pull Request",
+        body: body.body || "Updated body",
+        user: {
+          login: "test-user",
+          id: 1,
+        },
+        html_url: `https://github.com/${owner}/${repo}/pull/${pull_number}`,
+        updated_at: new Date().toISOString(),
+      });
+    },
+  ),
 
   // POST /repos/:owner/:repo/pulls/:pull_number/requested_reviewers - Request reviewers
   http.post(
@@ -572,93 +575,105 @@ export const githubHandlers = [
   }),
 
   // PATCH /repos/:owner/:repo/issues/:issue_number - Update an issue
-  http.patch(`${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number`, async ({ params, request }) => {
-    const { owner, repo, issue_number } = params;
-    const body = (await request.json()) as any;
+  http.patch(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number`,
+    async ({ params, request }) => {
+      const { owner, repo, issue_number } = params;
+      const body = (await request.json()) as any;
 
-    return HttpResponse.json({
-      id: 1,
-      number: issue_number,
-      state: body.state || "open",
-      title: body.title || "Updated Issue",
-      body: body.body || "Updated body",
-      user: {
-        login: "test-user",
+      return HttpResponse.json({
         id: 1,
-      },
-      html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
-      updated_at: new Date().toISOString(),
-    });
-  }),
-
-  // GET /repos/:owner/:repo/issues/:issue_number/comments - List issue comments
-  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/comments`, ({ params, request }) => {
-    const { owner, repo, issue_number } = params;
-    const url = new URL(request.url);
-    const direction = url.searchParams.get("direction") || "asc";
-
-    const comments = [
-      {
-        id: 1,
-        body: "First comment",
+        number: issue_number,
+        state: body.state || "open",
+        title: body.title || "Updated Issue",
+        body: body.body || "Updated body",
         user: {
           login: "test-user",
           id: 1,
         },
-        created_at: "2025-01-10T10:00:00Z",
-        updated_at: "2025-01-10T10:00:00Z",
-        html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}#issuecomment-1`,
-      },
-      {
-        id: 2,
-        body: "Second comment",
-        user: {
-          login: "test-user-2",
-          id: 2,
-        },
-        created_at: "2025-01-11T10:00:00Z",
-        updated_at: "2025-01-11T10:00:00Z",
-        html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}#issuecomment-2`,
-      },
-    ];
+        html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+        updated_at: new Date().toISOString(),
+      });
+    },
+  ),
 
-    return HttpResponse.json(direction === "desc" ? comments.reverse() : comments);
-  }),
+  // GET /repos/:owner/:repo/issues/:issue_number/comments - List issue comments
+  http.get(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/comments`,
+    ({ params, request }) => {
+      const { owner, repo, issue_number } = params;
+      const url = new URL(request.url);
+      const direction = url.searchParams.get("direction") || "asc";
+
+      const comments = [
+        {
+          id: 1,
+          body: "First comment",
+          user: {
+            login: "test-user",
+            id: 1,
+          },
+          created_at: "2025-01-10T10:00:00Z",
+          updated_at: "2025-01-10T10:00:00Z",
+          html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}#issuecomment-1`,
+        },
+        {
+          id: 2,
+          body: "Second comment",
+          user: {
+            login: "test-user-2",
+            id: 2,
+          },
+          created_at: "2025-01-11T10:00:00Z",
+          updated_at: "2025-01-11T10:00:00Z",
+          html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}#issuecomment-2`,
+        },
+      ];
+
+      return HttpResponse.json(direction === "desc" ? comments.reverse() : comments);
+    },
+  ),
 
   // POST /repos/:owner/:repo/issues/:issue_number/comments - Create a comment
-  http.post(`${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/comments`, async ({ params, request }) => {
-    const { owner, repo, issue_number } = params;
-    const body = (await request.json()) as any;
+  http.post(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/comments`,
+    async ({ params, request }) => {
+      const { owner, repo, issue_number } = params;
+      const body = (await request.json()) as any;
 
-    return HttpResponse.json({
-      id: 999,
-      body: body.body,
-      user: {
-        login: "test-user",
-        id: 1,
-      },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}#issuecomment-999`,
-    });
-  }),
+      return HttpResponse.json({
+        id: 999,
+        body: body.body,
+        user: {
+          login: "test-user",
+          id: 1,
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}#issuecomment-999`,
+      });
+    },
+  ),
 
   // PATCH /repos/:owner/:repo/issues/comments/:comment_id - Update a comment
-  http.patch(`${GITHUB_API_BASE}/repos/:owner/:repo/issues/comments/:comment_id`, async ({ params, request }) => {
-    const { owner, repo, comment_id } = params;
-    const body = (await request.json()) as any;
+  http.patch(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/comments/:comment_id`,
+    async ({ params, request }) => {
+      const { owner, repo, comment_id } = params;
+      const body = (await request.json()) as any;
 
-    return HttpResponse.json({
-      id: comment_id,
-      body: body.body,
-      user: {
-        login: "test-user",
-        id: 1,
-      },
-      updated_at: new Date().toISOString(),
-      html_url: `https://github.com/${owner}/${repo}/issues/1#issuecomment-${comment_id}`,
-    });
-  }),
+      return HttpResponse.json({
+        id: comment_id,
+        body: body.body,
+        user: {
+          login: "test-user",
+          id: 1,
+        },
+        updated_at: new Date().toISOString(),
+        html_url: `https://github.com/${owner}/${repo}/issues/1#issuecomment-${comment_id}`,
+      });
+    },
+  ),
 
   // GET /repos/:owner/:repo/issues/comments/:comment_id - Get a comment
   http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/issues/comments/:comment_id`, ({ params }) => {
@@ -677,64 +692,70 @@ export const githubHandlers = [
   }),
 
   // POST /repos/:owner/:repo/issues/:issue_number/labels - Add labels
-  http.post(`${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/labels`, async ({ params, request }) => {
-    const { owner, repo, issue_number } = params;
-    const body = (await request.json()) as any;
+  http.post(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/labels`,
+    async ({ params, request }) => {
+      const { owner, repo, issue_number } = params;
+      const body = (await request.json()) as any;
 
-    return HttpResponse.json(
-      body.labels?.map((name: string) => ({
-        name,
-        color: "ededed",
-      })) || [],
-    );
-  }),
+      return HttpResponse.json(
+        body.labels?.map((name: string) => ({
+          name,
+          color: "ededed",
+        })) || [],
+      );
+    },
+  ),
 
   // GET /repos/:owner/:repo/issues/:issue_number/timeline - List timeline events
-  http.get(`${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/timeline`, ({ params, request }) => {
-    const { owner, repo, issue_number } = params;
-    const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const perPage = parseInt(url.searchParams.get("per_page") || "100");
+  http.get(
+    `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/timeline`,
+    ({ params, request }) => {
+      const { owner, repo, issue_number } = params;
+      const url = new URL(request.url);
+      const page = parseInt(url.searchParams.get("page") || "1");
+      const perPage = parseInt(url.searchParams.get("per_page") || "100");
 
-    const events = [
-      {
-        id: 1,
-        event: "labeled",
-        label: {
-          name: "bug",
-        },
-        created_at: "2025-01-10T10:00:00Z",
-        actor: {
-          login: "test-user",
+      const events = [
+        {
           id: 1,
+          event: "labeled",
+          label: {
+            name: "bug",
+          },
+          created_at: "2025-01-10T10:00:00Z",
+          actor: {
+            login: "test-user",
+            id: 1,
+          },
         },
-      },
-      {
-        id: 2,
-        event: "commented",
-        body: "This is a comment",
-        created_at: "2025-01-11T10:00:00Z",
-        actor: {
-          login: "test-user-2",
+        {
           id: 2,
+          event: "commented",
+          body: "This is a comment",
+          created_at: "2025-01-11T10:00:00Z",
+          actor: {
+            login: "test-user-2",
+            id: 2,
+          },
+          author_association: "COLLABORATOR",
         },
-        author_association: "COLLABORATOR",
-      },
-      {
-        id: 3,
-        event: "reviewed",
-        submitted_at: "2025-01-12T10:00:00Z",
-        state: "approved",
-        user: {
-          login: "test-reviewer",
+        {
           id: 3,
+          event: "reviewed",
+          submitted_at: "2025-01-12T10:00:00Z",
+          state: "approved",
+          user: {
+            login: "test-reviewer",
+            id: 3,
+          },
+          author_association: "MEMBER",
         },
-        author_association: "MEMBER",
-      },
-    ];
+      ];
 
-    return HttpResponse.json(events.slice((page - 1) * perPage, page * perPage));
-  }),
+      return HttpResponse.json(events.slice((page - 1) * perPage, page * perPage));
+    },
+  ),
 
   // ==================== GIT ====================
 

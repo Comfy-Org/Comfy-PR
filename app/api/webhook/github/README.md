@@ -5,6 +5,7 @@ This directory contains the GitHub webhook endpoint that receives and stores all
 ## Overview
 
 The webhook handler:
+
 - ✅ Receives GitHub webhook events via POST requests
 - ✅ Verifies webhook signatures for security
 - ✅ Stores all events to MongoDB collection `GithubWebhookEvents`
@@ -44,6 +45,7 @@ bun app/api/webhook/github/setup-indexes.ts
 ```
 
 This creates indexes for:
+
 - `deliveryId` (unique)
 - `eventType`
 - `receivedAt`
@@ -69,6 +71,7 @@ This creates indexes for:
 Receives GitHub webhook events and stores them to MongoDB.
 
 **Headers:**
+
 - `x-github-event` - Event type (e.g., "push", "pull_request", "issues")
 - `x-github-delivery` - Unique delivery ID
 - `x-github-hook-id` - Webhook configuration ID
@@ -78,6 +81,7 @@ Receives GitHub webhook events and stores them to MongoDB.
 GitHub event payload (JSON)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -88,6 +92,7 @@ GitHub event payload (JSON)
 ```
 
 **Error Responses:**
+
 - `401` - Invalid signature
 - `400` - Invalid JSON payload
 - `500` - Internal server error
@@ -97,6 +102,7 @@ GitHub event payload (JSON)
 Health check endpoint.
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -145,7 +151,7 @@ import {
   getRepositoryEvents,
   getPullRequestEvents,
   markEventAsProcessed,
-  getWebhookStats
+  getWebhookStats,
 } from "./app/api/webhook/github/webhook-events";
 
 // Get unprocessed events
@@ -180,7 +186,7 @@ const events = await queryWebhookEvents({
   processed: false,
   repository: "Comfy-Org/ComfyUI_frontend",
   fromDate: new Date("2025-01-01"),
-  limit: 100
+  limit: 100,
 });
 ```
 
@@ -192,20 +198,27 @@ import { db } from "@/src/db";
 const collection = db.collection("GithubWebhookEvents");
 
 // Find all pull request events
-const prEvents = await collection.find({
-  eventType: "pull_request"
-}).toArray();
+const prEvents = await collection
+  .find({
+    eventType: "pull_request",
+  })
+  .toArray();
 
 // Find events from last 24 hours
-const recent = await collection.find({
-  receivedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-}).sort({ receivedAt: -1 }).toArray();
+const recent = await collection
+  .find({
+    receivedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+  })
+  .sort({ receivedAt: -1 })
+  .toArray();
 
 // Find unprocessed push events
-const unprocessedPushes = await collection.find({
-  eventType: "push",
-  processed: false
-}).toArray();
+const unprocessedPushes = await collection
+  .find({
+    eventType: "push",
+    processed: false,
+  })
+  .toArray();
 ```
 
 ### Process Webhook Events
@@ -213,7 +226,10 @@ const unprocessedPushes = await collection.find({
 Example event processor:
 
 ```typescript
-import { getUnprocessedEvents, markEventAsProcessed } from "./app/api/webhook/github/webhook-events";
+import {
+  getUnprocessedEvents,
+  markEventAsProcessed,
+} from "./app/api/webhook/github/webhook-events";
 
 async function processWebhookEvents() {
   const events = await getUnprocessedEvents("pull_request", 10);
@@ -254,6 +270,7 @@ bun test --watch app/api/webhook/github/route.spec.ts
 ```
 
 Test coverage includes:
+
 - ✅ Valid webhook event storage
 - ✅ Signature verification (valid & invalid)
 - ✅ Invalid JSON payload handling
@@ -276,6 +293,7 @@ The webhook handler verifies GitHub's HMAC signature using SHA-256:
 ### Development Mode
 
 If `GITHUB_WEBHOOK_SECRET` is not set:
+
 - A warning is logged
 - Signature verification is skipped
 - All webhooks are accepted (for local testing)
@@ -365,7 +383,7 @@ async function notifyPullRequests() {
       const pr = event.payload.pull_request;
       await slack.chat.postMessage({
         channel: "#pull-requests",
-        text: `New PR: ${pr.title}\n${pr.html_url}`
+        text: `New PR: ${pr.title}\n${pr.html_url}`,
       });
     }
     await markEventAsProcessed(event.deliveryId);
@@ -392,7 +410,7 @@ async function autoLabel() {
           owner: event.payload.repository.owner.login,
           repo: event.payload.repository.name,
           issue_number: pr.number,
-          labels: ["large-pr"]
+          labels: ["large-pr"],
         });
       }
     }

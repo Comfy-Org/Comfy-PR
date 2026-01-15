@@ -6,7 +6,7 @@ import { CNRepos } from "./CNRepos";
 import { createComfyRegistryPullRequests } from "./createComfyRegistryPullRequests";
 import { $flatten, $stale } from "./db";
 import { parseGithubRepoUrl, stringifyOwnerRepo } from "./parseOwnerRepo";
-import { notifySlackLinks } from "./slack/notifySlackLinks";
+import { notifySlackLinks } from "@/lib/slack/notifySlackLinks";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   await tLog("createComfyRegistryPRsFromCandidates", createComfyRegistryPRsFromCandidates);
@@ -32,19 +32,27 @@ export async function createComfyRegistryPRsFromCandidates() {
     async (repo) => {
       const { repository } = repo;
       console.log("Making PRs for " + repository);
-      const createdPulls = await createComfyRegistryPullRequests(repository).then(TaskOK).catch(TaskError);
+      const createdPulls = await createComfyRegistryPullRequests(repository)
+        .then(TaskOK)
+        .catch(TaskError);
       match(createdPulls).with($OK, async ({ data }) => {
         const links = data.map((e) => ({
           href: e.html_url,
-          name: stringifyOwnerRepo(parseGithubRepoUrl(e.html_url.replace(/\/pull\/.*$/, ""))) + " #" + e.title,
+          name:
+            stringifyOwnerRepo(parseGithubRepoUrl(e.html_url.replace(/\/pull\/.*$/, ""))) +
+            " #" +
+            e.title,
         }));
         await notifySlackLinks("PR Created", links);
         await pMap(data, async (pull) => {
           const { html_url } = pull;
           // also update to crPulls
-          await CNRepos.updateOne($flatten({ repository, crPulls: { data: { pull: { html_url } } } }), {
-            $set: { "crPulls.data.$.pull": pull },
-          });
+          await CNRepos.updateOne(
+            $flatten({ repository, crPulls: { data: { pull: { html_url } } } }),
+            {
+              $set: { "crPulls.data.$.pull": pull },
+            },
+          );
         });
       });
 

@@ -3,7 +3,11 @@
 import { EChart } from "@kbox-labs/react-echarts";
 import { omit, uniq } from "rambda";
 
-export function TotalsChart({ totalsData }: { totalsData: ({ date: string } & Record<string, number>)[] }) {
+export function TotalsChart({
+  totalsData,
+}: {
+  totalsData: ({ date: string } & Record<string, number>)[];
+}) {
   return (
     <EChart
       style={{

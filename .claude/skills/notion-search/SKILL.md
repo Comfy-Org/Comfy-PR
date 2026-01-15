@@ -23,6 +23,7 @@ pr-bot notion search -q "<SEARCH_TERMS>" [-l <NUMBER>]
 ## Output Format
 
 Returns results with:
+
 - **Title**: Page title
 - **URL**: Direct link to Notion page
 - **Last edited**: When the page was last modified

@@ -13,7 +13,7 @@ export function slackMessageUrlParse(url: string) {
     channel: match[1],
     ts,
     timestamp: ts,
-    team: u.hostname.split('.')[0],
+    team: u.hostname.split(".")[0],
     thread_ts: u.searchParams.get("thread_ts") || undefined,
   };
 }

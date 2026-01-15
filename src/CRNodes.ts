@@ -5,7 +5,7 @@ import { sf } from "sflow";
 import { CNRepos } from "./CNRepos";
 import { db } from "./db";
 import { fetchCRNodes } from "./fetchComfyRegistryNodes";
-import { type SlackMsg } from "./slack/SlackMsgs";
+import { type SlackMsg } from "@/lib/slack/SlackMsgs";
 
 export type CRNode = Awaited<ReturnType<typeof fetchCRNodes>>[number] & {
   sent?: { slack?: SlackMsg };

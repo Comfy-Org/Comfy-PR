@@ -7,7 +7,7 @@ import { CNRepos } from "./CNRepos";
 import { UNCLAIMED_ADMIN_PUBLISHER_ID } from "./constants";
 import { CRNodes } from "./CRNodes";
 import { fetchCRNodes } from "./fetchComfyRegistryNodes";
-import { notifySlack } from "./slack/notifySlack";
+import { notifySlack } from "@/lib/slack/notifySlack";
 import { tLog } from "./utils/tLog";
 
 if (import.meta.main) {
@@ -15,7 +15,11 @@ if (import.meta.main) {
   console.log("CRNodes updated");
 
   peekYaml(
-    await $pipeline(CNRepos).project({ repository: 1, on_registry: 1 }).sample({ size: 8 }).aggregate().toArray(),
+    await $pipeline(CNRepos)
+      .project({ repository: 1, on_registry: 1 })
+      .sample({ size: 8 })
+      .aggregate()
+      .toArray(),
   );
 }
 export async function updateCRNodes() {
@@ -26,7 +30,10 @@ export async function updateCRNodes() {
   const duplicates = filter((e) => (e?.length ?? 0) > 1, group);
   if (values(duplicates).length) {
     const msg =
-      "[WARN] Same repo but different ids found in comfyregistry:\n" + "```\n" + YAML.stringify(duplicates) + "\n```";
+      "[WARN] Same repo but different ids found in comfyregistry:\n" +
+      "```\n" +
+      YAML.stringify(duplicates) +
+      "\n```";
     await notifySlack(msg, { unique: true });
   }
 

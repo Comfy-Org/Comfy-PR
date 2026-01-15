@@ -48,10 +48,10 @@ When the bot starts with `--continue` flag:
 
 ```typescript
 // Add event to working tasks list
-async function addWorkingTask(event: z.infer<typeof zAppMentionEvent>)
+async function addWorkingTask(event: z.infer<typeof zAppMentionEvent>);
 
 // Remove event from working tasks list
-async function removeWorkingTask(event: z.infer<typeof zAppMentionEvent>)
+async function removeWorkingTask(event: z.infer<typeof zAppMentionEvent>);
 ```
 
 ### Integration Points
@@ -66,12 +66,14 @@ async function removeWorkingTask(event: z.infer<typeof zAppMentionEvent>)
 ## Benefits
 
 ### Before (Old Approach)
+
 - ❌ Queried entire MongoDB collection for incomplete tasks
 - ❌ Fallback to parsing NEDB YAML file
 - ❌ Complex filtering logic for task statuses
 - ❌ Slower startup on `--continue`
 
 ### After (New Approach)
+
 - ✅ Single state key lookup (`current-working-tasks`)
 - ✅ Only stores actively running tasks
 - ✅ Automatic cleanup when tasks complete
@@ -87,6 +89,7 @@ bun test bot/WorkingTasksManager.spec.ts
 ```
 
 Tests cover:
+
 - Adding tasks to working list
 - Preventing duplicate tasks
 - Removing tasks from working list
@@ -106,9 +109,9 @@ await addWorkingTask(event);
 await removeWorkingTask(event);
 
 // Resume on restart
-const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
 for (const event of workingTasks.workingMessageEvents) {
-  processSlackAppMentionEvent(event).catch(err => {
+  processSlackAppMentionEvent(event).catch((err) => {
     logger.error(`Error resuming task`, { err });
   });
 }
@@ -119,6 +122,7 @@ for (const event of workingTasks.workingMessageEvents) {
 ### Tasks not resuming on restart
 
 Check the state:
+
 ```bash
 # In bot working directory
 cat ./.cache/ComfyPRBotState.nedb.yaml | grep current-working-tasks
@@ -127,11 +131,13 @@ cat ./.cache/ComfyPRBotState.nedb.yaml | grep current-working-tasks
 ### Tasks stuck in working list
 
 Manually clear the state:
+
 ```typescript
-await State.set('current-working-tasks', { workingMessageEvents: [] });
+await State.set("current-working-tasks", { workingMessageEvents: [] });
 ```
 
 Or delete the state file:
+
 ```bash
 rm ./.cache/ComfyPRBotState.nedb.yaml
 ```
@@ -142,4 +148,3 @@ rm ./.cache/ComfyPRBotState.nedb.yaml
 - Add health check endpoint to view current working tasks
 - Add admin command to manually clear stuck tasks
 - Add metrics for task duration and success rate
-

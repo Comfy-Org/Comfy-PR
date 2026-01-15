@@ -145,7 +145,8 @@ describe("GitHub Webhook Route", () => {
       const requests = Array.from({ length: 5 }, (_, i) => {
         const payload = { action: "test", number: i };
         const rawBody = JSON.stringify(payload);
-        const signature = "sha256=" + createHmac("sha256", TEST_SECRET).update(rawBody).digest("hex");
+        const signature =
+          "sha256=" + createHmac("sha256", TEST_SECRET).update(rawBody).digest("hex");
 
         return new Request("http://localhost:3000/api/webhook/github", {
           method: "POST",

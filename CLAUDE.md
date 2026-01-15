@@ -102,9 +102,9 @@ await addWorkingTask(event);
 await removeWorkingTask(event);
 
 // Resume on restart (--continue flag)
-const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
 for (const event of workingTasks.workingMessageEvents) {
-  processSlackAppMentionEvent(event).catch(err => logger.error('Resume error', { err }));
+  processSlackAppMentionEvent(event).catch((err) => logger.error("Resume error", { err }));
 }
 ```
 
@@ -136,7 +136,7 @@ The bot includes a smart restart mechanism that watches for file changes and aut
 import { RestartManager } from "./RestartManager";
 
 const restartManager = new RestartManager({
-  watchPaths: ['bot', 'src', 'lib'],
+  watchPaths: ["bot", "src", "lib"],
   isIdle: () => TaskInputFlows.size === 0,
   onRestart: () => process.exit(0),
   idleCheckInterval: 5000,
@@ -144,7 +144,7 @@ const restartManager = new RestartManager({
   logger: {
     info: (msg, meta) => logger.info(`[RestartManager] ${msg}`, meta),
     warn: (msg, meta) => logger.warn(`[RestartManager] ${msg}`, meta),
-  }
+  },
 });
 restartManager.start();
 ```
@@ -167,13 +167,13 @@ done
 
 ### Benefits vs `--watch`
 
-| Feature | `--watch` | Smart Restart |
-|---------|-----------|---------------|
-| Detects changes | ✅ | ✅ |
-| Restarts immediately | ✅ | ❌ |
-| Waits for idle | ❌ | ✅ |
-| Interrupts tasks | ✅ | ❌ |
-| Configurable | ❌ | ✅ |
+| Feature              | `--watch` | Smart Restart |
+| -------------------- | --------- | ------------- |
+| Detects changes      | ✅        | ✅            |
+| Restarts immediately | ✅        | ❌            |
+| Waits for idle       | ❌        | ✅            |
+| Interrupts tasks     | ✅        | ❌            |
+| Configurable         | ❌        | ✅            |
 
 ### Testing
 
@@ -284,6 +284,7 @@ The bot system uses a two-tier architecture:
    - Works independently in isolated environment
 
 This separation ensures:
+
 - Clear separation of concerns (research vs. execution)
 - Better isolation and safety for code modifications
 - Ability to spawn multiple coding agents in parallel
@@ -359,11 +360,13 @@ bun bot/github/pr-bot.ts --repo=<owner/repo> [--branch=<branch>] --prompt="<your
 ```
 
 **Arguments:**
+
 - `--repo` (required): GitHub repository in format `owner/repo`
 - `--branch` (optional): Branch to work on (defaults to `main`)
 - `--prompt` (required): The coding task for the agent
 
 **Examples:**
+
 ```bash
 # Fix a bug in ComfyUI
 bun bot/github/pr-bot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix authentication bug in login module"
@@ -424,46 +427,55 @@ grep -ri "TODO" --include="*.ts" --include="*.tsx" --include="*.js" --include="*
 ### Priority TODOs (This Project)
 
 **Bot Implementation (`bot/index.ts`)**
+
 - Line 145: Define `zSlackMessage` schema
 - Line 527: Create a Linux user for task isolation
 - Line 660: Spawn tasks in a worker user for security
 - Line 755: Implement periodic screen + TODO.md + REPORT.md checking (every 10s) with Slack updates
 
 **Registry Search (`bot/registry/search.ts`)** ✅ COMPLETED
+
 - ~~Line 1: Call api.comfy.org to search custom nodes~~ - Implemented in `searchRegistryNodes()` function
 
 **GitHub Action Updates**
+
 - `src/GithubActionUpdateTask/updateGithubActionPrepareBranch.ts:96`: GPT review implementation
 - `src/createGithubPullRequest.ts:80`: Implement lock mechanism with repo+branch
 - `src/createGithubPullRequest.ts:103`: Fix head_repo bugs
 
 **Performance Optimizations**
+
 - `src/CNRepos.ts:28,39`: Refactor into interface to improve performance
 - `src/analyzeTotals.ts:19`: Split heavy function into smaller chunks
 - `src/updateFollowRuleSet.ts:67`: Enhance performance
 - `packages/mongodb-pipeline-ts/$flatten.ts:31`: Optimize implementation
 
 **Tasks**
+
 - `app/tasks/gh-priority-sync/index.ts:452`: Fix sorting by updatedAt when combining results
 - `app/tasks/gh-design/gh-design.ts:59`: Find way to record approved state
 - `app/tasks/coreping/coreping.ts:360`: Update message with delete line when reviewed
 - `app/tasks/github-contributor-analyze/GithubContributorAnalyzeTask.ts:21`: Rename GithubContributorAnalzyeTask => GithubContributorAnalyzeTask (typo fix)
 
 **Type Safety**
+
 - `packages/mongodb-pipeline-ts/$pipeline.ts:163,166`: Fix replaceRoot/replaceWith types
 
 **Deprecations**
+
 - `src/CNRepos.ts:65,72`: Remove deprecated methods
 - `src/CRPulls.ts:5`: Utilize CRPulls collection (@sno)
 - `src/updateAuthorsFromCNRepo.ts:18`: Get totals open/closed/merged
 
 **Configuration**
+
 - `docker-compose.yml:47`: Use .override.yml to enable testing dmongodb
 - `app/api/auth/[...nextauth]/getAuthUser.tsx:10`: Move auth config to .env file
 
 ### External Project TODOs (Reference Only)
 
 **comfy-api** (codes/Comfy-Org/comfy-api/)
+
 - Multiple proxy endpoints need user filtering implementation (7 occurrences)
 - Service account setup for dev environment
 - Machine image creation logic conflicts between dreamboothy-dev and dreamboothy

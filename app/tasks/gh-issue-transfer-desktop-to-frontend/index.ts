@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
 import { $ } from "bun";
@@ -44,7 +44,9 @@ export const GithubDesktopIssueTransferTask = db.collection<GithubDesktopIssueTr
 
 await GithubDesktopIssueTransferTask.createIndex({ sourceIssueNumber: 1 }, { unique: true });
 
-const save = async (task: { sourceIssueNumber: number } & Partial<GithubDesktopIssueTransferTask>) =>
+const save = async (
+  task: { sourceIssueNumber: number } & Partial<GithubDesktopIssueTransferTask>,
+) =>
   (await GithubDesktopIssueTransferTask.findOneAndUpdate(
     { sourceIssueNumber: task.sourceIssueNumber },
     { $set: task },
@@ -75,7 +77,9 @@ async function runGithubDesktopIssueTransferTask() {
       per_page,
     });
 
-    console.log(`Found ${sourceIssues.data.length} open frontend issues (page ${page}) in ${config.srcRepoUrl}`);
+    console.log(
+      `Found ${sourceIssues.data.length} open frontend issues (page ${page}) in ${config.srcRepoUrl}`,
+    );
 
     return {
       data: sourceIssues.data,
@@ -146,10 +150,14 @@ ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : "
             .map((label) => (typeof label === "string" ? label : label.name))
             .filter((name): name is string => !!name)
             .filter((name) => name.toLowerCase() !== "frontend"),
-          assignees: issue.assignees?.map((assignee) => assignee.login).filter((login): login is string => !!login),
+          assignees: issue.assignees
+            ?.map((assignee) => assignee.login)
+            .filter((login): login is string => !!login),
         });
 
-        console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
+        console.log(
+          `Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`,
+        );
         if (!isCI && process.platform === "darwin") {
           await $`open ${newIssue.data.html_url}`;
         }

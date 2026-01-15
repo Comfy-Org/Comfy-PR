@@ -10,8 +10,14 @@ export const zGithubDesignTaskMeta = z.object({
       (template) => template.includes("{{ITEM_TYPE}}"),
       "Slack message template must include {{ITEM_TYPE}} placeholder",
     )
-    .refine((template) => template.includes("{{URL}}"), "Slack message template must include {{URL}} placeholder")
-    .refine((template) => template.includes("{{TITLE}}"), "Slack message template must include {{TITLE}} placeholder"),
+    .refine(
+      (template) => template.includes("{{URL}}"),
+      "Slack message template must include {{URL}} placeholder",
+    )
+    .refine(
+      (template) => template.includes("{{TITLE}}"),
+      "Slack message template must include {{TITLE}} placeholder",
+    ),
   requestReviewers: z.array(
     z.object({
       value: z.string().min(1, "Reviewer username cannot be empty"),
@@ -22,7 +28,10 @@ export const zGithubDesignTaskMeta = z.object({
       value: z
         .string()
         .url("Repository URL must be a valid URL")
-        .refine((url) => url.startsWith("https://github.com"), "Repository URL must start with https://github.com"),
+        .refine(
+          (url) => url.startsWith("https://github.com"),
+          "Repository URL must start with https://github.com",
+        ),
     }),
   ),
 });

@@ -2,8 +2,8 @@
 import { tsmatch } from "@/packages/mongodb-pipeline-ts/Task";
 import { db } from "@/src/db";
 import { MetaCollection } from "@/src/db/TaskMeta";
-import { gh, type GH } from "@/src/gh";
-import { ghc } from "@/src/ghc";
+import { gh, type GH } from "@/lib/github";
+import { ghc } from "@/lib/github/githubCached";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
@@ -94,7 +94,12 @@ async function runLabelOpPolling() {
   });
   // every 5s, check recent new comments for repo for 1min
   while (true) {
-    console.log(chalk.blue("Checking new issue comments since ", checkpoint?.toISOString() ?? "the beginning"));
+    console.log(
+      chalk.blue(
+        "Checking new issue comments since ",
+        checkpoint?.toISOString() ?? "the beginning",
+      ),
+    );
     await sflow(cfg.REPOLIST)
       .map((repoUrl) =>
         pageFlow(1, async (page, per_page = 100) => {
@@ -116,7 +121,9 @@ async function runLabelOpPolling() {
         const issue = await ghc.issues.get({ ...parseIssueUrl(comment.html_url) });
         await processIssueCommentForLableops({ issue: issue.data, comment });
         await Meta.$upsert({
-          checkpoint: issue.data.updated_at ? new Date(issue.data.updated_at) : DIE("missing updated_at in issue"),
+          checkpoint: issue.data.updated_at
+            ? new Date(issue.data.updated_at)
+            : DIE("missing updated_at in issue"),
         });
       })
       .run();
@@ -208,7 +215,11 @@ export async function processIssueCommentForLableops({
   if (task?.processed_at && +new Date(target.updated_at) <= +task.processed_at) return null; // skip if processed
   if (!labelOps.length) return saveTask({ target_url: target.html_url, processed_at: new Date() });
 
-  console.log("Found a matched Target URL:", target.html_url, labelOps.map((e) => e.op + e.name).join(", "));
+  console.log(
+    "Found a matched Target URL:",
+    target.html_url,
+    labelOps.map((e) => e.op + e.name).join(", "),
+  );
 
   // return task;
   console.log(chalk.blue("Adding reaction"));
@@ -227,8 +238,15 @@ export async function processIssueCommentForLableops({
     .forEach(async ({ op, name }) => {
       console.log(chalk.bgBlue(`${op} label: ${name}`));
       return await tsmatch(op)
-        .with("+", async () => await gh.issues.addLabels({ ...parseIssueUrl(issue.html_url), labels: [name] })) // todo: merge multiple addLabels for performance
-        .with("-", async () => await gh.issues.removeLabel({ ...parseIssueUrl(issue.html_url), name }))
+        .with(
+          "+",
+          async () =>
+            await gh.issues.addLabels({ ...parseIssueUrl(issue.html_url), labels: [name] }),
+        ) // todo: merge multiple addLabels for performance
+        .with(
+          "-",
+          async () => await gh.issues.removeLabel({ ...parseIssueUrl(issue.html_url), name }),
+        )
         .otherwise(() => DIE(`Unknown label op ${op}, should never happen`));
     })
     .run();

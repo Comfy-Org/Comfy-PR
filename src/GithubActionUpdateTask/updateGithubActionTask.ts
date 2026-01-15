@@ -3,7 +3,7 @@ import fastDiff from "fast-diff";
 import { readFile } from "fs/promises";
 import sha256 from "sha256";
 import { createPR } from "../createGithubPullRequest";
-import { gh } from "../gh";
+import { gh } from "@/lib/github";
 import { createLogger } from "../logger";
 import { parsePullUrl } from "../parsePullUrl";
 import { GithubActionUpdateTask } from "./GithubActionUpdateTask";
@@ -12,12 +12,18 @@ import { updateGithubActionPrepareBranch } from "./updateGithubActionPrepareBran
 const logger = createLogger("updateGithubActionTask");
 
 export const referenceActionContent = await readFile("./templates/publish.yaml", "utf8");
-export const referencePullRequestMessage = await readFile("./templates/tasks/GithubActionUpdatePR.md", "utf8");
+export const referencePullRequestMessage = await readFile(
+  "./templates/tasks/GithubActionUpdatePR.md",
+  "utf8",
+);
 export const referenceActionContentHash = sha256(referenceActionContent); // check if target publish.yaml already latest
 logger.debug("referenceActionContentHash", { referenceActionContentHash });
 
 // for debug only
-export const testUpdatedPublishYaml = await readFile(import.meta.dir + "/test-updated-publish.yml", "utf8");
+export const testUpdatedPublishYaml = await readFile(
+  import.meta.dir + "/test-updated-publish.yml",
+  "utf8",
+);
 
 if (import.meta.main) {
   // const repo = "https://github.com/aigc-apps/VideoX-Fun";
@@ -165,7 +171,12 @@ export async function updateGithubActionTask(repoUrl: string) {
           pullRequestComments,
           pullRequestCommentsCount,
           updatedAt: new Date(),
-          status: pullRequestStatus === "MERGED" ? "merged" : pullRequestStatus === "CLOSED" ? "closed" : "opened",
+          status:
+            pullRequestStatus === "MERGED"
+              ? "merged"
+              : pullRequestStatus === "CLOSED"
+                ? "closed"
+                : "opened",
         },
       },
       { upsert: true, returnDocument: "after" },

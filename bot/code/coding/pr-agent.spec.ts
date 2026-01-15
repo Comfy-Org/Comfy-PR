@@ -43,11 +43,13 @@ describe("pr-agent", () => {
     delete process.env.GH_TOKEN_COMFY_PR_BOT;
     delete process.env.GH_TOKEN;
 
-    await expect(spawnSubAgent({
-      repo: "test-owner/test-repo",
-      branch: "main",
-      prompt: "test",
-    })).rejects.toThrow("Missing GH_TOKEN_COMFY_PR_BOT or GH_TOKEN environment variable");
+    await expect(
+      spawnSubAgent({
+        repo: "test-owner/test-repo",
+        branch: "main",
+        prompt: "test",
+      }),
+    ).rejects.toThrow("Missing GH_TOKEN_COMFY_PR_BOT or GH_TOKEN environment variable");
 
     // Restore token for other tests
     process.env.GH_TOKEN_COMFY_PR_BOT = "test-token-for-pr-agent";

@@ -1,7 +1,7 @@
 import { updateCMNodes } from "./CMNodes";
 import { getWorkerInstance } from "./WorkerInstances";
 import { createComfyRegistryPRsFromCandidates } from "./createComfyRegistryPRsFromCandidates";
-import { notifySlack } from "./slack/notifySlack";
+import { notifySlack } from "@/lib/slack/notifySlack";
 import { updateCMRepos } from "./updateCMRepos";
 import { updateCNReposCRPullsComments } from "./updateCNReposCRPullsComments";
 import { updateCNReposInfo } from "./updateCNReposInfo";

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
-import { ghc } from "@/src/ghc";
+import { gh } from "@/lib/github";
+import { ghc } from "@/lib/github/githubCached";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
@@ -38,13 +38,19 @@ export type GithubFrontendToComfyuiIssueTransferTask = {
   error?: string;
 };
 
-export const GithubFrontendToComfyuiIssueTransferTask = db.collection<GithubFrontendToComfyuiIssueTransferTask>(
-  "GithubFrontendToComfyuiIssueTransferTask",
+export const GithubFrontendToComfyuiIssueTransferTask =
+  db.collection<GithubFrontendToComfyuiIssueTransferTask>(
+    "GithubFrontendToComfyuiIssueTransferTask",
+  );
+
+await GithubFrontendToComfyuiIssueTransferTask.createIndex(
+  { sourceIssueNumber: 1 },
+  { unique: true },
 );
 
-await GithubFrontendToComfyuiIssueTransferTask.createIndex({ sourceIssueNumber: 1 }, { unique: true });
-
-const save = async (task: { sourceIssueNumber: number } & Partial<GithubFrontendToComfyuiIssueTransferTask>) =>
+const save = async (
+  task: { sourceIssueNumber: number } & Partial<GithubFrontendToComfyuiIssueTransferTask>,
+) =>
   (await GithubFrontendToComfyuiIssueTransferTask.findOneAndUpdate(
     { sourceIssueNumber: task.sourceIssueNumber },
     { $set: task },
@@ -130,10 +136,14 @@ ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : "
             .map((label) => (typeof label === "string" ? label : label.name))
             .filter((name): name is string => !!name)
             .filter((name) => name.toLowerCase() !== "comfyui-core"),
-          assignees: issue.assignees?.map((assignee) => assignee.login).filter((login): login is string => !!login),
+          assignees: issue.assignees
+            ?.map((assignee) => assignee.login)
+            .filter((login): login is string => !!login),
         });
 
-        console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
+        console.log(
+          `Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`,
+        );
 
         task = await save({
           sourceIssueNumber: issue.number,

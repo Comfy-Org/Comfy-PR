@@ -56,7 +56,8 @@ function GithubDesignTaskMetaEditorComponent() {
     if (data?.meta) {
       const metaData = data.meta;
       form.reset({
-        slackMessageTemplate: metaData.slackMessageTemplate ?? "🎨 *New Design {{ITEM_TYPE}}*: <{{URL}}|{{TITLE}}>",
+        slackMessageTemplate:
+          metaData.slackMessageTemplate ?? "🎨 *New Design {{ITEM_TYPE}}*: <{{URL}}|{{TITLE}}>",
         requestReviewers: (metaData.requestReviewers ?? []).map((reviewer: string) => ({
           value: reviewer,
         })),
@@ -136,10 +137,13 @@ function GithubDesignTaskMetaEditorComponent() {
                 rows={3}
               />
               {form.formState.errors.slackMessageTemplate && (
-                <p className="text-sm text-red-500">{form.formState.errors.slackMessageTemplate.message}</p>
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.slackMessageTemplate.message}
+                </p>
               )}
               <p className="text-sm text-muted-foreground">
-                Use {`{{USERNAME}}`}, {`{{ITEM_TYPE}}`}, {`{{URL}}`}, and {`{{TITLE}}`} as placeholders
+                Use {`{{USERNAME}}`}, {`{{ITEM_TYPE}}`}, {`{{URL}}`}, and {`{{TITLE}}`} as
+                placeholders
               </p>
             </div>
 
@@ -170,7 +174,9 @@ function GithubDesignTaskMetaEditorComponent() {
                 ))}
               </div>
               {form.formState.errors.requestReviewers && (
-                <p className="text-sm text-red-500">{form.formState.errors.requestReviewers.message}</p>
+                <p className="text-sm text-red-500">
+                  {form.formState.errors.requestReviewers.message}
+                </p>
               )}
             </div>
 
@@ -190,9 +196,17 @@ function GithubDesignTaskMetaEditorComponent() {
               </div>
               <div className="space-y-2">
                 {repoFields.map((field, index) => (
-                  <div key={field.id} className="flex items-center justify-between p-2 border rounded text-sm">
+                  <div
+                    key={field.id}
+                    className="flex items-center justify-between p-2 border rounded text-sm"
+                  >
                     <span>{field.value}</span>
-                    <Button type="button" size="sm" variant="outline" onClick={() => removeRepo(index)}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => removeRepo(index)}
+                    >
                       Remove
                     </Button>
                   </div>
@@ -204,8 +218,14 @@ function GithubDesignTaskMetaEditorComponent() {
             </div>
 
             {/* Save Button */}
-            <Button type="submit" disabled={form.formState.isSubmitting || updateMutation.isPending} className="w-full">
-              {form.formState.isSubmitting || updateMutation.isPending ? "Saving..." : "Save Configuration"}
+            <Button
+              type="submit"
+              disabled={form.formState.isSubmitting || updateMutation.isPending}
+              className="w-full"
+            >
+              {form.formState.isSubmitting || updateMutation.isPending
+                ? "Saving..."
+                : "Save Configuration"}
             </Button>
           </form>
         </CardContent>

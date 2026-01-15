@@ -39,11 +39,13 @@ bun bot/github/pr-bot.ts --repo=Comfy-Org/docs --prompt="Update the installation
 ## Repository Storage
 
 Cloned repositories are stored in the absolute system path:
+
 ```
 /repos/[owner]/[repo]/tree/[branch]/
 ```
 
 For example:
+
 ```
 /repos/Comfy-Org/ComfyUI/tree/main/
 /repos/Comfy-Org/ComfyUI_frontend/tree/develop/

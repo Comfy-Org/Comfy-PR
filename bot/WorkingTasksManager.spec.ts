@@ -11,22 +11,22 @@ describe("Working Tasks Manager", () => {
 
   // Helper functions (same as in bot/index.ts)
   async function addWorkingTask(event: any) {
-    const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+    const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
     const events = workingTasks.workingMessageEvents || [];
-    
+
     const exists = events.some((e: any) => e.ts === event.ts && e.channel === event.channel);
     if (!exists) {
       events.push(event);
-      await State.set('current-working-tasks', { workingMessageEvents: events });
+      await State.set("current-working-tasks", { workingMessageEvents: events });
     }
   }
 
   async function removeWorkingTask(event: any) {
-    const workingTasks = await State.get('current-working-tasks') || { workingMessageEvents: [] };
+    const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
     const events = workingTasks.workingMessageEvents || [];
-    
+
     const filtered = events.filter((e: any) => !(e.ts === event.ts && e.channel === event.channel));
-    await State.set('current-working-tasks', { workingMessageEvents: filtered });
+    await State.set("current-working-tasks", { workingMessageEvents: filtered });
   }
 
   test("should add task to working list", async () => {
@@ -43,7 +43,7 @@ describe("Working Tasks Manager", () => {
 
     await addWorkingTask(event);
 
-    const workingTasks = await State.get('current-working-tasks');
+    const workingTasks = await State.get("current-working-tasks");
     expect(workingTasks).toBeDefined();
     expect(workingTasks.workingMessageEvents).toHaveLength(1);
     expect(workingTasks.workingMessageEvents[0].ts).toBe(event.ts);
@@ -64,7 +64,7 @@ describe("Working Tasks Manager", () => {
     await addWorkingTask(event);
     await addWorkingTask(event); // Add same event again
 
-    const workingTasks = await State.get('current-working-tasks');
+    const workingTasks = await State.get("current-working-tasks");
     expect(workingTasks.workingMessageEvents).toHaveLength(1);
   });
 
@@ -83,7 +83,7 @@ describe("Working Tasks Manager", () => {
     await addWorkingTask(event);
     await removeWorkingTask(event);
 
-    const workingTasks = await State.get('current-working-tasks');
+    const workingTasks = await State.get("current-working-tasks");
     expect(workingTasks.workingMessageEvents).toHaveLength(0);
   });
 
@@ -113,19 +113,18 @@ describe("Working Tasks Manager", () => {
     await addWorkingTask(event1);
     await addWorkingTask(event2);
 
-    let workingTasks = await State.get('current-working-tasks');
+    let workingTasks = await State.get("current-working-tasks");
     expect(workingTasks.workingMessageEvents).toHaveLength(2);
 
     await removeWorkingTask(event1);
 
-    workingTasks = await State.get('current-working-tasks');
+    workingTasks = await State.get("current-working-tasks");
     expect(workingTasks.workingMessageEvents).toHaveLength(1);
     expect(workingTasks.workingMessageEvents[0].ts).toBe(event2.ts);
   });
 
   test("should handle empty state on first access", async () => {
-    const workingTasks = await State.get('current-working-tasks');
+    const workingTasks = await State.get("current-working-tasks");
     expect(workingTasks).toBeUndefined();
   });
 });
-

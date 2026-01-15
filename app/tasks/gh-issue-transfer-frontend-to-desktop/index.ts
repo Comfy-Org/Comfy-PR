@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { db } from "@/src/db";
-import { gh } from "@/src/gh";
+import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
 import { $ } from "bun";
@@ -38,13 +38,19 @@ export type GithubFrontendToDesktopIssueTransferTask = {
   error?: string;
 };
 
-export const GithubFrontendToDesktopIssueTransferTask = db.collection<GithubFrontendToDesktopIssueTransferTask>(
-  "GithubFrontendToDesktopIssueTransferTask",
+export const GithubFrontendToDesktopIssueTransferTask =
+  db.collection<GithubFrontendToDesktopIssueTransferTask>(
+    "GithubFrontendToDesktopIssueTransferTask",
+  );
+
+await GithubFrontendToDesktopIssueTransferTask.createIndex(
+  { sourceIssueNumber: 1 },
+  { unique: true },
 );
 
-await GithubFrontendToDesktopIssueTransferTask.createIndex({ sourceIssueNumber: 1 }, { unique: true });
-
-const save = async (task: { sourceIssueNumber: number } & Partial<GithubFrontendToDesktopIssueTransferTask>) =>
+const save = async (
+  task: { sourceIssueNumber: number } & Partial<GithubFrontendToDesktopIssueTransferTask>,
+) =>
   (await GithubFrontendToDesktopIssueTransferTask.findOneAndUpdate(
     { sourceIssueNumber: task.sourceIssueNumber },
     { $set: task },
@@ -75,7 +81,9 @@ async function runGithubFrontendToDesktopIssueTransferTask() {
       per_page,
     });
 
-    console.log(`Found ${sourceIssues.data.length} open desktop issues (page ${page}) in ${config.srcRepoUrl}`);
+    console.log(
+      `Found ${sourceIssues.data.length} open desktop issues (page ${page}) in ${config.srcRepoUrl}`,
+    );
 
     return {
       data: sourceIssues.data,
@@ -146,10 +154,14 @@ ${comments.length ? `\n\n**Original Comments:**\n\n${comments.join("\n\n")}` : "
             .map((label) => (typeof label === "string" ? label : label.name))
             .filter((name): name is string => !!name)
             .filter((name) => name.toLowerCase() !== "desktop"),
-          assignees: issue.assignees?.map((assignee) => assignee.login).filter((login): login is string => !!login),
+          assignees: issue.assignees
+            ?.map((assignee) => assignee.login)
+            .filter((login): login is string => !!login),
         });
 
-        console.log(`Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`);
+        console.log(
+          `Created issue #${newIssue.data.number} in ${targetRepo.owner}/${targetRepo.repo}`,
+        );
         if (!isCI && process.platform === "darwin") {
           await $`open ${newIssue.data.html_url}`;
         }

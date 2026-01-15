@@ -2,7 +2,7 @@ import minimist from "minimist";
 import pMap from "p-map";
 import { createGithubForkForRepoEx } from "./createGithubForkForRepo";
 import { createGithubPullRequest } from "./createGithubPullRequest";
-import type { GithubPull } from "./gh/GithubPull";
+import type { GithubPull } from "@/lib/github/GithubPull";
 import { makePublishcrBranch } from "./makePublishBranch";
 import { makePyprojectBranch } from "./makeTomlBranch";
 import { parsePulls } from "./parsePullsState";
@@ -20,7 +20,10 @@ export async function createComfyRegistryPullRequests(upstreamRepoUrl: string) {
 
   console.log("modifing " + forkedRepo.html_url);
   const PR_REQUESTS = await clone_modify_push_Branches(upstreamRepoUrl, forkedRepo.html_url);
-  const prs = await pMap(PR_REQUESTS, async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }));
+  const prs = await pMap(
+    PR_REQUESTS,
+    async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }),
+  );
 
   console.log("Registry PRs DONE");
 
@@ -39,12 +42,14 @@ export async function createComfyRegistryPullRequests(upstreamRepoUrl: string) {
 export async function clone_modify_push_Branches(upstreamUrl: string, forkUrl: string) {
   const pyprojectBranchInfo = makePyprojectBranch(upstreamUrl, forkUrl);
   const publishcrBranchInfo = makePublishcrBranch(upstreamUrl, forkUrl);
-  return (await Promise.all([pyprojectBranchInfo, publishcrBranchInfo])).map(({ body, branch, title, type }) => ({
-    body,
-    branch,
-    title,
-    type,
-    srcUrl: forkUrl,
-    dstUrl: upstreamUrl,
-  }));
+  return (await Promise.all([pyprojectBranchInfo, publishcrBranchInfo])).map(
+    ({ body, branch, title, type }) => ({
+      body,
+      branch,
+      title,
+      type,
+      srcUrl: forkUrl,
+      dstUrl: upstreamUrl,
+    }),
+  );
 }

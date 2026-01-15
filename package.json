@@ -5,24 +5,24 @@
   "keywords": [],
   "license": "ISC",
   "author": "snomiao <snomiao@gmail.com>",
-  "type": "module",
-  "exports": {
-    "types": "./src/index.ts",
-    "import": "./src/index.ts"
-  },
-  "main": "index.ts",
-  "module": "index.ts",
-  "types": "./src/index.ts",
   "bin": {
     "comfy-pr": "./src/cli.ts",
     "pr-bot": "./bot/cli.ts"
   },
-  "files": [
-    "*.ts"
-  ],
   "workspaces": [
     "packages/*"
   ],
+  "files": [
+    "*.ts"
+  ],
+  "type": "module",
+  "main": "index.ts",
+  "module": "index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    "types": "./src/index.ts",
+    "import": "./src/index.ts"
+  },
   "scripts": {
     "_postinstall": "bun ./src/muteInstances.ts",
     "build": "next build",
@@ -31,9 +31,11 @@
     "dev": "next dev",
     "dev:bot": "bun --watch ./bot/index.ts",
     "dev:tsc": "tsc -w",
-    "fmt": "bunx oxlint && bunx oxfmt",
     "gh-service": "bun run/index.ts",
+    "fmt": "bunx oxlint && bunx oxfmt",
+    "check": "tsgo && oxlint && oxfmt",
     "lint": "oxlint --fix && oxfmt",
+    "typecheck": "tsgo",
     "prepare": "husky",
     "preview:pyproject": "bun scripts/preview-pyproject-minimal.ts",
     "preview:pyproject-repo": "bun scripts/preview-pyproject-toml.ts",
@@ -42,22 +44,8 @@
     "start": "next start",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "typecheck": "tsgo",
     "vercel:build": "vercel build",
     "vercel:dev": "vercel dev"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "oxlint --fix",
-      "oxfmt --write"
-    ],
-    "*": [
-      "oxfmt --write"
-    ]
-  },
-  "overrides": {
-    "@types/react": "19.0.4",
-    "@types/react-dom": "19.0.2"
   },
   "dependencies": {
     "@auth/mongodb-adapter": "^3.4.2",
@@ -145,6 +133,7 @@
     "pm2": "^6.0.14",
     "polyfill-text-decoder-stream": "^0.0.9",
     "polyfill-text-encoder-stream": "^0.0.8",
+    "prettier": "^3.7.4",
     "pretty-ms": "^9.1.0",
     "promise-all-properties": "^4.0.4",
     "rambda": "^9.2.1",
@@ -171,6 +160,7 @@
     "trpc-to-openapi": "^2.3.2",
     "ts-pattern": "^5.2.0",
     "unwind-array": "^1.1.4",
+    "url-regex-safe": "^4.0.0",
     "use-async-effect": "^2.2.7",
     "use-swr-component": "^0.0.7",
     "vercel": "^34.4.0",
@@ -200,6 +190,7 @@
     "@types/open": "^6.2.1",
     "@types/react": "19.0.4",
     "@types/react-dom": "19.0.2",
+    "@types/url-regex-safe": "^1.0.2",
     "@typescript/native-preview": "^7.0.0-dev.20260113.1",
     "and": "^0.0.3",
     "husky": "^9.1.7",
@@ -223,6 +214,19 @@
   },
   "peerDependencies": {
     "typescript": "^5.4.5"
+  },
+  "overrides": {
+    "@types/react": "19.0.4",
+    "@types/react-dom": "19.0.2"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "oxlint --fix",
+      "oxfmt --write"
+    ],
+    "*": [
+      "oxfmt --write"
+    ]
   },
   "patchedDependencies": {
     "trpc-to-openapi@2.3.2": "patches/trpc-to-openapi@2.3.2.patch"

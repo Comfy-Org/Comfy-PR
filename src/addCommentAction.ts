@@ -12,7 +12,7 @@ import { $flatten } from "./db";
 import type { zAddCommentAction } from "./followRuleSchema";
 import { ghUser } from "./ghUser";
 import type { GithubIssueComment } from "./GithubIssueComments";
-import { notifySlackLinks } from "./slack/notifySlackLinks";
+import { notifySlackLinks } from "@/lib/slack/notifySlackLinks";
 
 export async function addCommentAction({
   matched,
@@ -35,7 +35,8 @@ export async function addCommentAction({
         body: action.body.replace(
           /{{\$([_A-Za-z0-9]+)}}/g,
           (_, key: string) =>
-            (payload as any)[key] || DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
+            (payload as any)[key] ||
+            DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
         ),
       };
 
@@ -48,7 +49,8 @@ export async function addCommentAction({
             .replaceRoot({ newRoot: "$crPulls.data.comments" })
             .as<Task<GithubIssueComment[]>>()
             .aggregate()
-            .next()) ?? DIE("comments is not fetched before, plz check " + loadedAction.url + " in CNRepos");
+            .next()) ??
+          DIE("comments is not fetched before, plz check " + loadedAction.url + " in CNRepos");
 
         const existedComments =
           TaskDataOrNull(existedCommentsTask) ??
@@ -56,13 +58,19 @@ export async function addCommentAction({
         const existedComment = existedComments.find((e) => e.body === loadedAction.body);
 
         if (!existedComment) {
-          const { comments, comment } = await createIssueComment(loadedAction.url, loadedAction.body, loadedAction.by);
+          const { comments, comment } = await createIssueComment(
+            loadedAction.url,
+            loadedAction.body,
+            loadedAction.by,
+          );
           const updateResult = await CNRepos.updateOne(
             $flatten({ crPulls: { data: $elemMatch({ pull: { html_url: loadedAction.url } }) } }),
             { $set: { "crPulls.data.$.comments": comments } },
           );
           if (!updateResult.matchedCount) DIE("created issue not matched");
-          await notifySlackLinks("A New issue comment are created from rule " + rule.name, [comment.html_url]);
+          await notifySlackLinks("A New issue comment are created from rule " + rule.name, [
+            comment.html_url,
+          ]);
         }
       }
 

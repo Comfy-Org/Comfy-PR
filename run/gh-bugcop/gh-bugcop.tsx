@@ -9,9 +9,9 @@
 import { github } from "@/lib";
 import { db } from "@/src/db";
 import { MetaCollection } from "@/src/db/TaskMeta";
-import { type GH } from "@/src/gh";
+import { type GH } from "@/lib/github";
 import { ghPageFlow } from "@/src/ghPageFlow";
-import { ghc } from "@/src/ghc";
+import { ghc } from "@/lib/github/githubCached";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import KeyvSqlite from "@keyv/sqlite";
@@ -37,7 +37,10 @@ export const REPOLIST = [
 ];
 await mkdir("./.cache", { recursive: true });
 const kv = new Keyv({ store: new KeyvSqlite("sqlite://.cache/bugcop-cache.sqlite") });
-function createKeyvCachedFn<FN extends (...args: any[]) => Promise<unknown>>(key: string, fn: FN): FN {
+function createKeyvCachedFn<FN extends (...args: any[]) => Promise<unknown>>(
+  key: string,
+  fn: FN,
+): FN {
   return (async (...args) => {
     const mixedKey = key + "(" + JSON.stringify(args) + ")";
     if (await kv.has(mixedKey)) return await kv.get(mixedKey);
@@ -69,10 +72,11 @@ export const GithubBugcopTaskDefaultMeta = {
 export type GithubBugcopTask = {
   url: string; // the issue URL
 
-  status?: // | "ask-for-info" // deprecated, use "askForInfo" instead, this may still in db
-  // | "answered"  // deprecated, use "responseReceived" instead, this may still in db
+  status?:
+    // | "ask-for-info" // deprecated, use "askForInfo" instead, this may still in db
+    // | "answered"  // deprecated, use "responseReceived" instead, this may still in db
 
-  | "askForInfo" // user has not answered yet, but we have ask-for-info label
+    | "askForInfo" // user has not answered yet, but we have ask-for-info label
     | "responseReceived" // user has answered the issue, so we can remove the askForInfo
     | "closed"; // issue is closed, so we can remove all bug-cop labels
   statusReason?: string; // reason for the status, for example, "no new comments" or "body updated"
@@ -83,7 +87,11 @@ export type GithubBugcopTask = {
   // caches
   user?: string; // the user who created the issue
   labels?: string[]; // labels of the issue, just cache
-  timeline?: (GH["labeled-issue-event"] | GH["timeline-comment-event"] | GH["unlabeled-issue-event"])[]; // timeline events of the issue, just cache
+  timeline?: (
+    | GH["labeled-issue-event"]
+    | GH["timeline-comment-event"]
+    | GH["unlabeled-issue-event"]
+  )[]; // timeline events of the issue, just cache
 
   // task status for task scheduler
   taskStatus?: "processing" | "ok" | "error";
@@ -111,7 +119,10 @@ if (import.meta.main) {
  * Fetch issues from a repo using GraphQL with checkpoint-based pagination
  * This is much more efficient than REST API as it fetches labels, timeline, and comments in a single query
  */
-async function fetchRepoIssuesWithGraphQL(repoUrl: string, matchingLabels: string[]): Promise<GH["issue"][]> {
+async function fetchRepoIssuesWithGraphQL(
+  repoUrl: string,
+  matchingLabels: string[],
+): Promise<GH["issue"][]> {
   const { owner, repo } = parseGithubRepoUrl(repoUrl);
   const checkpointKey = CheckpointPrefix + repoUrl;
   const checkpoint = await State.get<string>(checkpointKey);
@@ -201,7 +212,10 @@ async function fetchRepoIssuesWithGraphQL(repoUrl: string, matchingLabels: strin
       }`.replace(/ +/g, " "),
           ),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("GraphQL query timeout after 30s - likely rate limited")), 30000),
+            setTimeout(
+              () => reject(new Error("GraphQL query timeout after 30s - likely rate limited")),
+              30000,
+            ),
           ),
         ])) as {
           search: {
@@ -280,8 +294,14 @@ async function fetchRepoIssuesWithGraphQL(repoUrl: string, matchingLabels: strin
           await State.set(checkpointKey, lastIssue.updated_at);
         }
 
-        const nextEndCursor = resp.search.pageInfo.hasNextPage ? resp.search.pageInfo.endCursor : null;
-        const nextUpdatedGt = nextEndCursor ? updatedGt : issues.length ? issues[issues.length - 1].updated_at : "";
+        const nextEndCursor = resp.search.pageInfo.hasNextPage
+          ? resp.search.pageInfo.endCursor
+          : null;
+        const nextUpdatedGt = nextEndCursor
+          ? updatedGt
+          : issues.length
+            ? issues[issues.length - 1].updated_at
+            : "";
         const next =
           !nextUpdatedGt && !nextEndCursor
             ? null
@@ -298,7 +318,9 @@ async function fetchRepoIssuesWithGraphQL(repoUrl: string, matchingLabels: strin
   }
 
   // Deduplicate issues by URL
-  const uniqueIssues = Array.from(new Map(allIssues.map((issue) => [issue.html_url, issue])).values());
+  const uniqueIssues = Array.from(
+    new Map(allIssues.map((issue) => [issue.html_url, issue])).values(),
+  );
 
   return uniqueIssues;
 }
@@ -383,11 +405,17 @@ export default async function runGithubBugcopTask() {
     }),
   )
     .map((task) => task.url)
-    .map(async (issueUrl) => await ghc.issues.get({ ...parseIssueUrl(issueUrl) }).then((e) => e.data))
+    .map(
+      async (issueUrl) => await ghc.issues.get({ ...parseIssueUrl(issueUrl) }).then((e) => e.data),
+    )
     .forEach(processIssue)
     .toArray();
 
-  tlog(chalk.green("Processed " + existingTasks.length + " existing tasks that are not openning/labeled anymore"));
+  tlog(
+    chalk.green(
+      "Processed " + existingTasks.length + " existing tasks that are not openning/labeled anymore",
+    ),
+  );
 
   tlog(chalk.green("All Github Bugcop Task completed successfully!"));
 }
@@ -404,7 +432,9 @@ async function processIssue(issue: GH["issue"]) {
         { returnDocument: "after", upsert: true },
       )) || DIE("never"));
 
-  const issueLabels = issue.labels.map((l) => (typeof l === "string" ? l : (l.name ?? ""))).filter(Boolean);
+  const issueLabels = issue.labels
+    .map((l) => (typeof l === "string" ? l : (l.name ?? "")))
+    .filter(Boolean);
   task = await saveTask({
     taskStatus: "processing",
     user: issue.user?.login,
@@ -425,7 +455,8 @@ async function processIssue(issue: GH["issue"]) {
     issue.body &&
     task.body &&
     issue.body !== task.body &&
-    fastDiff(task.body ?? "", issue.body ?? "").filter(([op, val]) => op === fastDiff.INSERT).length > 0; // check if the issue body has added new content after the label added time
+    fastDiff(task.body ?? "", issue.body ?? "").filter(([op, val]) => op === fastDiff.INSERT)
+      .length > 0; // check if the issue body has added new content after the label added time
 
   tlog(chalk.bgBlackBright("Processing Issue: " + issue.html_url));
   tlog(chalk.bgBlue("Labels: " + JSON.stringify(issueLabels)));
@@ -439,7 +470,10 @@ async function processIssue(issue: GH["issue"]) {
   const labelEvents = await sflow([...timeline])
     .map((_e) => {
       return _e.event === "labeled" || _e.event === "unlabeled" || _e.event === "commented"
-        ? (_e as GH["labeled-issue-event"] | GH["unlabeled-issue-event"] | GH["timeline-comment-event"])
+        ? (_e as
+            | GH["labeled-issue-event"]
+            | GH["unlabeled-issue-event"]
+            | GH["timeline-comment-event"])
         : null;
     })
     .filter((e): e is NonNullable<typeof e> => e !== null)
@@ -475,11 +509,17 @@ async function processIssue(issue: GH["issue"]) {
       .filter((e) => e.user) // filter out comments without user
       .filter((e) => !e.user?.login.match(/\[bot\]$|-bot/)) // no bots
       .filter((e) => +new Date(e.updated_at) > +new Date(labelLastAddedTime)) // only comments that is updated later than the label added time
-      .filter((e) => !["COLLABORATOR", "CONTRIBUTOR", "MEMBER", "OWNER"].includes(e.author_association)) // not by collaborators, usually askForInfo for more info
+      .filter(
+        (e) => !["COLLABORATOR", "CONTRIBUTOR", "MEMBER", "OWNER"].includes(e.author_association),
+      ) // not by collaborators, usually askForInfo for more info
       .filter((e) => e.user?.login !== latestLabeledEvent.actor.login); // ignore the user who added the label
 
     commentEvents.length &&
-      tlog(chalk.bgGreen("Found " + commentEvents.length + " comments after last added time for " + issue.html_url));
+      tlog(
+        chalk.bgGreen(
+          "Found " + commentEvents.length + " comments after last added time for " + issue.html_url,
+        ),
+      );
     return !!commentEvents.length;
   })();
 
@@ -507,7 +547,9 @@ async function processIssue(issue: GH["issue"]) {
     .run();
   await sflow(removeLabels)
     .forEach((label) => tlog(`Removing label ${label} from ${issue.html_url}`))
-    .map((label) => github.rest.issues.removeLabel({ ...issueId, name: label }).catch(console.error))
+    .map((label) =>
+      github.rest.issues.removeLabel({ ...issueId, name: label }).catch(console.error),
+    )
     .run();
 
   return await saveTask({

@@ -26,7 +26,7 @@
  *
  * @author snomiao <snomiao@gmail.com>
  */
-export function lazyProxy<T>(fn: () => T): T {
+export function lazyInstantiate<T>(fn: () => T): T {
   let cached: T | null = null;
   return new Proxy(
     {},

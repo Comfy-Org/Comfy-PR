@@ -1,5 +1,5 @@
 import pMap from "p-map";
-import { fetchIssueComments } from "./gh/fetchIssueComments";
+import { fetchIssueComments } from "@/lib/github/fetchIssueComments";
 import { matchRelatedPulls } from "./matchRelatedPulls";
 import type { GithubPullParsed } from "./parsePullsState";
 import { summaryLastPullComment } from "./summaryLastPullComment";

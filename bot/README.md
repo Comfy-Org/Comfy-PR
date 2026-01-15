@@ -6,7 +6,7 @@ This directory contains the skills/utilities used by the ComfyPR Bot to interact
 
 A consolidated CLI is available at `bot/cli.ts` using yargs. It exposes GitHub PR-bot actions and Slack/Notion utilities via a single entry point.
 
-Run with Bun:
+Run with Bun: 
 
 ```bash
 bun bot/cli.ts --help

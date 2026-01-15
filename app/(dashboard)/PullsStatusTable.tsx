@@ -4,7 +4,13 @@ import Link from "next/link";
 import { keys } from "rambda";
 import { SaveButton } from "./SaveButton";
 
-export function PullsStatusTable({ name, pullsStatus }: { name?: string; pullsStatus: PullsStatus }) {
+export function PullsStatusTable({
+  name,
+  pullsStatus,
+}: {
+  name?: string;
+  pullsStatus: PullsStatus;
+}) {
   const csv = csvFormat(pullsStatus);
   const rows = csvParse(csv);
   const first = rows[0] ?? {};

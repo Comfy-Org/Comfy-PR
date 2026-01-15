@@ -3,9 +3,9 @@ import "git-diff";
 import { pickAll } from "rambda";
 import sflow from "sflow";
 import { isRepoBypassed } from "./bypassRepos";
-import { createOctokit } from "./createOctokit";
-import { gh } from "./gh";
-import type { GithubPull } from "./gh/GithubPull";
+import { createOctokit } from "@/lib/github/createOctokit";
+import { gh } from "@/lib/github";
+import type { GithubPull } from "@/lib/github/GithubPull";
 import { parseGithubRepoUrl } from "./parseOwnerRepo";
 import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 if (import.meta.main) {
@@ -194,7 +194,9 @@ export async function createGithubPullRequest({
     ).data!;
     const updatedPRStillMismatch = updated.title !== title || updated.body !== body;
     if (updatedPRStillMismatch) DIE(new Error("updatedPRStillMismatch", { cause: arguments }));
-    console.warn(`PR content updated ${owner}/${repo} / \n<< ${pr_result.title}\n>> ${updated.title}`);
+    console.warn(
+      `PR content updated ${owner}/${repo} / \n<< ${pr_result.title}\n>> ${updated.title}`,
+    );
   }
   return pr_result as GithubPull;
 }

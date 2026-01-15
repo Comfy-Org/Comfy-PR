@@ -1,11 +1,16 @@
-import type { GH } from "@/src/gh";
+import type { GH } from "@/lib/github";
 import { Box, render, Text } from "ink";
 import type { WithId } from "mongodb";
 import prettyMilliseconds from "pretty-ms";
 import { useEffect, useState } from "react";
 import sflow from "sflow";
 import useAsyncEffect from "use-async-effect";
-import { BUGCOP_ANSWERED, BUGCOP_ASKING_FOR_INFO, BUGCOP_RESPONSE_RECEIVED, GithubBugcopTask } from "./gh-bugcop";
+import {
+  BUGCOP_ANSWERED,
+  BUGCOP_ASKING_FOR_INFO,
+  BUGCOP_RESPONSE_RECEIVED,
+  GithubBugcopTask,
+} from "./gh-bugcop";
 
 if (import.meta.main) render(<GithubBugcopTaskStatus />);
 
@@ -57,7 +62,9 @@ export default function GithubBugcopTaskStatus({}) {
       .abort(ac.signal)
       .filter(
         (change) =>
-          change.operationType === "insert" || change.operationType === "update" || change.operationType === "delete",
+          change.operationType === "insert" ||
+          change.operationType === "update" ||
+          change.operationType === "delete",
       )
       .forEach(async (change) => {
         if (change.operationType === "insert" || change.operationType === "update") {

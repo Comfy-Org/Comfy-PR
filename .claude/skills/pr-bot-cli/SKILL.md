@@ -19,6 +19,7 @@ pr-bot pr -r <OWNER/REPO> [-b <BRANCH>] -p "<PROMPT>"  # Short alias
 ```
 
 **Options:**
+
 - `-r, --repo`: Repository in format `owner/repo` (required)
 - `-b, --branch`: Target branch (default: `main`)
 - `-p, --prompt`: Coding task description (required)
@@ -30,6 +31,7 @@ pr-bot code search -q "<QUERY>" [--repo <REPO>] [--path <PATH>]
 ```
 
 **Options:**
+
 - `-q, --query`: Search query (required)
 - `--repo`: Filter by repository (optional)
 - `--path`: Filter by file path pattern (optional)
@@ -41,6 +43,7 @@ pr-bot github-issue search -q "<QUERY>" [-l <LIMIT>]
 ```
 
 **Options:**
+
 - `-q, --query`: Search query (required)
 - `-l, --limit`: Maximum number of results (default: 10)
 
@@ -51,6 +54,7 @@ pr-bot slack update -c <CHANNEL_ID> -t <TIMESTAMP> -m "<MESSAGE>"
 ```
 
 **Options:**
+
 - `-c, --channel`: Slack channel ID (required)
 - `-t, --ts`: Message timestamp (required)
 - `-m, --text`: New message text (required)
@@ -62,6 +66,7 @@ pr-bot slack read-thread -c <CHANNEL_ID> -t <TIMESTAMP> [-l <LIMIT>]
 ```
 
 **Options:**
+
 - `-c, --channel`: Slack channel ID (required)
 - `-t, --ts`: Thread timestamp (required)
 - `-l, --limit`: Max messages to retrieve (default: 100)
@@ -73,6 +78,7 @@ pr-bot notion search -q "<QUERY>" [-l <LIMIT>]
 ```
 
 **Options:**
+
 - `-q, --query`: Search terms (required)
 - `-l, --limit`: Max results (default: 10)
 
@@ -83,6 +89,7 @@ pr-bot registry search -q "<QUERY>" [-l <LIMIT>] [--include-deprecated]
 ```
 
 **Options:**
+
 - `-q, --query`: Search query for custom nodes (required)
 - `-l, --limit`: Maximum number of results (default: 10)
 - `--include-deprecated`: Include deprecated nodes (default: false)

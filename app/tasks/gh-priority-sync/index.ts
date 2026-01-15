@@ -35,7 +35,7 @@
  */
 import { github, notion } from "@/lib";
 import { db } from "@/src/db";
-import type { GH } from "@/src/gh";
+import type { GH } from "@/lib/github";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseIssueUrl, stringifyIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
@@ -93,7 +93,8 @@ const notionPriorityToGithubLabelsMap = {
 };
 const PRIORITY_LABELS = Object.values(notionPriorityToGithubLabelsMap);
 const mapNotionPriorityToGithubLabel = (priority: string) =>
-  (notionPriorityToGithubLabelsMap as Record<string, string>)[priority] || DIE(`Unknown priority: ${priority}`);
+  (notionPriorityToGithubLabelsMap as Record<string, string>)[priority] ||
+  DIE(`Unknown priority: ${priority}`);
 
 const notionComfyTasks = "https://www.notion.so/bf086637f74c4292ae588ab84ff18550";
 if (import.meta.main) {
@@ -115,7 +116,10 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
   const st = Date.now() / 1000;
 
   // prefetch all issues' labels + timeline into IssuesState cache, to reduce github api calls during sync
-  const repoUrls = ["https://github.com/Comfy-Org/ComfyUI_frontend", "https://github.com/Comfy-Org/desktop"];
+  const repoUrls = [
+    "https://github.com/Comfy-Org/ComfyUI_frontend",
+    "https://github.com/Comfy-Org/desktop",
+  ];
   const searchedIssues = await sflow(repoUrls)
     .flatMap(async (repoUrl) => [
       await repoIssueLabelsFlow(repoUrl, { isClosed: false }),
@@ -143,21 +147,24 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
   console.log("[notion] comfy-task scan resuming from checkpoint:", checkpoint);
 
   // Sync Recent edited Comfy Tasks to GitHub Issues/PRs
-  const tasks = await pageFlow(checkpoint?.id ?? (undefined as string | undefined), async (cursor, page_size = 100) => {
-    // console.log(`Querying Notion data source ${data_source_id} with cursor=${cursor} page_size=${page_size}...`);
-    const ret = await notion.dataSources.query({
-      data_source_id,
-      result_type: "page",
-      filter: {
-        and: [{ property: "[GH🤖] Link", url: { is_not_empty: true } }],
-      },
-      sorts: [{ direction: "ascending", timestamp: "last_edited_time" }],
-      page_size,
-      start_cursor: cursor,
-    });
-    // ret.next_cursor && await State.set(CHECKPOINT, ret.next_cursor);
-    return { next: ret.next_cursor, data: ret.results };
-  })
+  const tasks = await pageFlow(
+    checkpoint?.id ?? (undefined as string | undefined),
+    async (cursor, page_size = 100) => {
+      // console.log(`Querying Notion data source ${data_source_id} with cursor=${cursor} page_size=${page_size}...`);
+      const ret = await notion.dataSources.query({
+        data_source_id,
+        result_type: "page",
+        filter: {
+          and: [{ property: "[GH🤖] Link", url: { is_not_empty: true } }],
+        },
+        sorts: [{ direction: "ascending", timestamp: "last_edited_time" }],
+        page_size,
+        start_cursor: cursor,
+      });
+      // ret.next_cursor && await State.set(CHECKPOINT, ret.next_cursor);
+      return { next: ret.next_cursor, data: ret.results };
+    },
+  )
     .flat()
     .map((e) => e as Notion.PageObjectResponse)
     .filter((e) => e.id !== checkpoint?.id) // skip checkpoint entry as it's already processed
@@ -188,7 +195,10 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
       tryCatcher(
         (error, fn, e) => {
           console.error(
-            chalk.red(`Error processing task ${e.id} - ${e.issueUrl}:`, error instanceof Error ? error.message : error),
+            chalk.red(
+              `Error processing task ${e.id} - ${e.issueUrl}:`,
+              error instanceof Error ? error.message : error,
+            ),
           );
         },
         async (e) => {
@@ -239,7 +249,8 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
     }
   )?.title?.[0]?.plain_text as string | undefined;
 
-  const Priority = (e.properties.Priority as Notion.SelectPropertyItemObjectResponse)?.select?.name || null;
+  const Priority =
+    (e.properties.Priority as Notion.SelectPropertyItemObjectResponse)?.select?.name || null;
   const issueUrl =
     (e.properties["[GH🤖] Link"] as Notion.UrlPropertyItemObjectResponse)?.url?.trim() ||
     DIE(`no issue Url defined in page ${e.id} - ${Title}`);
@@ -249,18 +260,28 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
 
   const issueLabels: string[] =
     issueCache?.labels ||
-    (await github.rest.issues.listLabelsOnIssue({ ...parseIssueUrl(issueUrl) }).then((e) => e.data.map((l) => l.name)));
+    (await github.rest.issues
+      .listLabelsOnIssue({ ...parseIssueUrl(issueUrl) })
+      .then((e) => e.data.map((l) => l.name)));
   const currentPriorityLabels = issueLabels.filter((l) => PRIORITY_LABELS.includes(l));
   const timeline =
     issueCache?.timeline?.map((ev) => ({
-      event: ev.event === "LabeledEvent" ? "labeled" : ev.event === "UnlabeledEvent" ? "unlabeled" : ev.event,
+      event:
+        ev.event === "LabeledEvent"
+          ? "labeled"
+          : ev.event === "UnlabeledEvent"
+            ? "unlabeled"
+            : ev.event,
       created_at: ev.createdAt,
       label: ev.label,
     })) ||
     (await ghPageFlow(github.rest.issues.listEventsForTimeline)({ ...parseIssueUrl(issueUrl) })
       .toArray()
       .catch((error) => {
-        console.warn(`Failed to fetch timeline for ${issueUrl}:`, error instanceof Error ? error.message : error);
+        console.warn(
+          `Failed to fetch timeline for ${issueUrl}:`,
+          error instanceof Error ? error.message : error,
+        );
         return [];
       }));
   const labelEvents = timeline
@@ -276,18 +297,28 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
       .map((ev) => ({ name: ev.label.name, created_at: ev.created_at }))
       ?.at(-1)?.created_at || null;
   const desiredNotionPriority =
-    Object.entries(notionPriorityToGithubLabelsMap).find(([k, v]) => currentPriorityLabels.includes(v))?.[0] || null; // when multiple exists, pick highest priority
+    Object.entries(notionPriorityToGithubLabelsMap).find(([k, v]) =>
+      currentPriorityLabels.includes(v),
+    )?.[0] || null; // when multiple exists, pick highest priority
   const desiredPriorityLabels = Priority ? [mapNotionPriorityToGithubLabel(Priority)] : [];
 
   const notionEditedAt = e.last_edited_time || null;
 
   console.log(`+Task: ${e.id} \t IssueUrl: ${issueUrl || " ".repeat(30)} \t Title: ${Title}`);
-  console.log(`       Notion edited at: ${notionEditedAt}, Issue priority label edited at: ${issuePriorityEditedAt}`);
-  console.log(`       Notion Priority: ${Priority || "_".repeat(10)},  GH labels:`, currentPriorityLabels);
+  console.log(
+    `       Notion edited at: ${notionEditedAt}, Issue priority label edited at: ${issuePriorityEditedAt}`,
+  );
+  console.log(
+    `       Notion Priority: ${Priority || "_".repeat(10)},  GH labels:`,
+    currentPriorityLabels,
+  );
   // console.log(`       DesiredNotionPriority: ${desiredNotionPriority || "_".repeat(10)},  Desired Github labels:`, desiredPriorityLabels);
 
   // detect sync direction
-  if (notionEditedAt && (!issuePriorityEditedAt || new Date(notionEditedAt) > new Date(issuePriorityEditedAt))) {
+  if (
+    notionEditedAt &&
+    (!issuePriorityEditedAt || new Date(notionEditedAt) > new Date(issuePriorityEditedAt))
+  ) {
     // notion is newer, sync to github
     const addLabels = desiredPriorityLabels.filter((l) => !currentPriorityLabels.includes(l));
     const removeLabels = PRIORITY_LABELS.filter(
@@ -301,14 +332,21 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
       );
 
       // labels op
-      addLabels.length && (await github.rest.issues.addLabels({ ...parseIssueUrl(issueUrl), labels: addLabels }));
+      addLabels.length &&
+        (await github.rest.issues.addLabels({ ...parseIssueUrl(issueUrl), labels: addLabels }));
       await sflow(removeLabels)
         .map((l) => github.rest.issues.removeLabel({ ...parseIssueUrl(issueUrl), name: l }))
         .run();
 
-      console.log(`       [Notion->GitHub] Labeled issue/pr ${issueUrl} with labels:`, desiredPriorityLabels);
+      console.log(
+        `       [Notion->GitHub] Labeled issue/pr ${issueUrl} with labels:`,
+        desiredPriorityLabels,
+      );
     }
-  } else if (issuePriorityEditedAt && (!notionEditedAt || new Date(issuePriorityEditedAt) > new Date(notionEditedAt))) {
+  } else if (
+    issuePriorityEditedAt &&
+    (!notionEditedAt || new Date(issuePriorityEditedAt) > new Date(notionEditedAt))
+  ) {
     // github priority is newer, sync to notion
     if (desiredNotionPriority !== Priority) {
       console.log(
@@ -328,7 +366,10 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
   }
 }
 
-async function repoIssueLabelsFlow(repoUrl: string, { isClosed = false }: { isClosed?: boolean } = {}) {
+async function repoIssueLabelsFlow(
+  repoUrl: string,
+  { isClosed = false }: { isClosed?: boolean } = {},
+) {
   const { owner, repo } = parseGithubRepoUrl(repoUrl);
   const checkpointKey = GithubCheckpointPrefix + (isClosed ? "closed-" : "open-") + repoUrl;
   const checkpoint = await State.get<string>(checkpointKey);
@@ -454,8 +495,14 @@ async function repoIssueLabelsFlow(repoUrl: string, { isClosed = false }: { isCl
         // 2. loop over updatedGt from '' to no next page
         // 3. loop over isClosed from false to true
         // 4. combine 1,2,3 to cover all issues, note: results not strictly sorted by updatedAt asc, TODO: solve it
-        const nextEndCursor = resp.search.pageInfo.hasNextPage ? resp.search.pageInfo.endCursor : null;
-        const nextUpdatedGt = nextEndCursor ? updatedGt : data.length ? data[data.length - 1].updatedAt : "";
+        const nextEndCursor = resp.search.pageInfo.hasNextPage
+          ? resp.search.pageInfo.endCursor
+          : null;
+        const nextUpdatedGt = nextEndCursor
+          ? updatedGt
+          : data.length
+            ? data[data.length - 1].updatedAt
+            : "";
         // const nextIsClosed = nextEndCursor || nextUpdatedGt ? cursor.isClosed : cursor.isClosed === false ? true : null;
         const next = !nextUpdatedGt
           ? null
