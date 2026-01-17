@@ -31,7 +31,6 @@ async function downloadAvatar(url: string): Promise<string> {
 }
 
 async function setSlackBotAvatar(imagePath: string): Promise<void> {
-
   console.log("Uploading avatar to Slack...");
 
   try {
@@ -41,7 +40,9 @@ async function setSlackBotAvatar(imagePath: string): Promise<void> {
     // Upload using users.setPhoto API
     console.log("Setting bot avatar via Slack API...");
     console.log(slackApp.users);
-    const result = await slackApp.apps.setPhoto({
+    // TODO: Fix API - setPhoto doesn't exist on slackApp.apps
+    // Need to use correct Slack API method for setting bot avatar
+    const result = await (slackApp as any).users.setPhoto({
       image: Buffer.from(imageBuffer),
     });
 

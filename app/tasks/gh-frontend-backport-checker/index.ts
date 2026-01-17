@@ -29,22 +29,12 @@ import { match as tsmatch } from "ts-pattern";
  * 5. Check PR comments for backport mentions
  * 6. Track status and send Slack summary (to channel #frontend-releases)
  *
- * Slack Message Format:
- *
- * @example
- * ```md
- * ## Release v${version} Backport Status:
- *
- * | Commit | From | To | Status | Notes | Actions |
- * | ------ | ------------------------ | ---- | -- | ------ | ----- | ------- |
- * | ${commitMessage} | ${from} | ${to} | ${status} | ${notes} | ${actions} |
- * ```
  */
 
 const config = {
   // 1. monitor releases from this repo
   repo: "https://github.com/Comfy-Org/ComfyUI_frontend",
-  maxReleasesToCheck: 5,
+  maxReleasesToCheck: 3,
   processSince: new Date("2026-01-06T00:00:00Z").toISOString(), // only process releases since this date, to avoid posting too msgs in old releases
 
   // 2. identify bugfix commits
@@ -176,7 +166,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
         taskStatus: "checking",
         checkedAt: new Date(),
       });
-      console.log(`\nProcessing release: ${task.releaseTag}`);
+      logger.info(`\nProcessing release: ${task.releaseTag}`);
 
       // 1. find full changelog link in release body, e.g. https://github.com/Comfy-Org/ComfyUI_frontend/compare/v1.38.0...v1.38.1
       return await save({ ...task, compareLink });
@@ -198,7 +188,7 @@ function getBackportStatusEmoji(status: BackportStatus): string {
     case "in-progress":
       return ":pr-open:";
     case "needed":
-      return ":exclamation:";
+      return "**:exclamation: Need backport**";
     case "not-needed":
       return "➖";
     case "unknown":
@@ -222,7 +212,7 @@ async function processTask(
   // 2. get commits from the compare link API
   const { owner, repo, base, head } =
     compareLink.match(
-      /github\.com\/(?<owner>[^\/]+)\/(?<repo>[^\/]+)\/compare\/(?<base>\S+)\.\.\.(?<head>\S+)/,
+      /github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/compare\/(?<base>\S+)\.\.\.(?<head>\S+)/,
     )?.groups || DIE(`Failed to parse compare link: ${compareLink}`);
   logger.debug(`  Comparing to head: ${head}`);
   // const compareApiUrl = compareLink
@@ -445,32 +435,84 @@ async function processTask(
     return await save({ ...task, bugfixCommits, taskStatus: "completed" });
   }
 
+  const statuses = bugfixCommits.map((e) => ({
+    ...e,
+    status: !e.backportTargetStatus.length
+      ? ("not-mentioned" as const)
+      : e.backportTargetStatus.some((e) => e.status !== "completed")
+        ? ("in-progress" as const)
+        : ("completed" as const),
+  }));
   // - generate report based on commits, note: slack's markdown not support table
-  const rawReport = `## Release [${task.releaseTag}](${task.releaseUrl}) Backport Status: 
+  const rawReport = `**Release [${task.releaseTag}](${task.releaseUrl}) Backport Status:${
+    statuses.filter((e) => e.status !== "completed").length ? "" : " Completed"
+  }** _by [backport-checker.ts](https://github.com/Comfy-Org/Comfy-PR/tree/HEAD/app/tasks/gh-frontend-backport-checker/index.ts)_
 
-${bugfixCommits
-  .map((bf) => {
-    // const notes = bf.prLabels?.length
-    //   ? ``
-    //   : bf.backportMentioned
-    //     ? "**Mentioned**"
-    //     : "";
-    const targetsStatuses = bf.backportTargetStatus
-      .map((ts) => {
-        const prStatus = ts.prs
-          .map((pr) =>
-            pr.prUrl ? `[:pr-${pr.prStatus?.toLowerCase()}: #${pr.prNumber}](${pr.prUrl})` : "",
-          )
-          .filter(Boolean)
-          .join(", ");
-        // show pr status if exists
-        return `${ts.branch}: ${prStatus || getBackportStatusEmoji(ts.status)}`;
-      })
-      .join(", ");
-    return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) -- ${targetsStatuses || "_not mentioned_"}`;
-  })
-  .join("\n")}
+${
+  // not mentioned, show might need
+  statuses
+    .filter((e) => !e.backportTargetStatus.length)
+    .map(
+      (bf) => `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ _❗ Might need backport_`,
+    )
+    .join("\n")
+}
+${
+  // in-progress, show detailed status
+  bugfixCommits
+    .filter(
+      (e) =>
+        e.backportTargetStatus?.length &&
+        e.backportTargetStatus.some((e) => e.status !== "completed"),
+    )
+    .map((bf) => {
+      const targetsStatuses = bf.backportTargetStatus
+        .map((ts) => {
+          const prStatus = ts.prs
+            .map((pr) =>
+              pr.prUrl ? `[:pr-${pr.prStatus?.toLowerCase()}: #${pr.prNumber}](${pr.prUrl})` : "",
+            )
+            .filter(Boolean)
+            .join(", ");
+          // show pr status if exists
+          return `${ts.branch}: ${prStatus || getBackportStatusEmoji(ts.status)}`;
+        })
+        .join(", ");
+      return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ ${targetsStatuses}`;
+    })
+    .join("\n")
+}
+
+${
+  // finished, show pr numbers inline and
+  bugfixCommits
+    .filter(
+      (e) =>
+        e.backportTargetStatus?.length &&
+        e.backportTargetStatus.every((e) => e.status === "completed"),
+    )
+    .filter((e) => false)
+    // .filter((e) => false) // show nothing for now
+    .map((bf) => {
+      const targetsStatuses = bf.backportTargetStatus
+        .map((ts) => {
+          const prStatus = ts.prs
+            .map((pr) =>
+              pr.prUrl ? `[:pr-${pr.prStatus?.toLowerCase()}: #${pr.prNumber}](${pr.prUrl})` : "",
+            )
+            .filter(Boolean)
+            .join(", ");
+          // show pr status if exists
+          return `${ts.branch}: ${prStatus || getBackportStatusEmoji(ts.status)}`;
+        })
+        .join(", ");
+      return `[#${bf.prNumber}](${bf.prUrl}) ➡️ ${targetsStatuses}`;
+    })
+    .join(", ")
+}
+
 `;
+  // _by [backport-checker](https://github.com/Comfy-Org/Comfy-PR/tree/HEAD/app/tasks/gh-frontend-backport-checker/index.ts)_
 
   const formattedReport = await prettier.format(rawReport, { parser: "markdown" });
   logger.info(formattedReport);
