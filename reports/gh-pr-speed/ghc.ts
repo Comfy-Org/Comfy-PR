@@ -64,7 +64,7 @@ function createCacheKey(basePath: string[], prop: string | symbol, args: any[]):
 function createCachedProxy<T extends object>(
   target: T,
   basePath: string[] = [],
-): DeepAsyncWrapper<T> {
+): any {
   return new Proxy(target as any, {
     get(obj: any, prop: string | symbol) {
       const value = obj[prop];
@@ -96,18 +96,8 @@ function createCachedProxy<T extends object>(
 
       return value;
     },
-  }) as DeepAsyncWrapper<T>;
+  });
 }
-
-type DeepAsyncWrapper<T> = {
-  [K in keyof T]: T[K] extends (...args: any[]) => Promise<any>
-    ? T[K]
-    : T[K] extends (...args: any[]) => any
-      ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
-      : T[K] extends object
-        ? DeepAsyncWrapper<T[K]>
-        : T[K];
-};
 
 // More flexible types that work with GitHub API
 type GitHubPaginatedFunction = (...args: any[]) => Promise<{ data: any[] }>;

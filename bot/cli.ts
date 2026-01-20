@@ -78,18 +78,16 @@ async function handlePrCommand(args: {
       }),
       {
         model: "gpt-4o-mini",
-        system: `Generate a git branch name following conventions:
+      },
+    )`Generate a git branch name following conventions:
 - Format: <type>/<description>
 - Types: feature/, fix/, refactor/, docs/, test/, chore/
-- Description: kebab-case, short and descriptive`,
-        messages: [
-          {
-            role: "user",
-            content: `Base: ${finalBase}\nTask: ${prompt}\n\nGenerate branch name.`,
-          },
-        ],
-      },
-    ) as unknown) as { base: string; head: string };
+- Description: kebab-case, short and descriptive
+
+Base: ${finalBase}
+Task: ${prompt}
+
+Generate branch name.`) as { base: string; head: string };
     finalBase = branchInfo.base;
     finalHead = branchInfo.head;
     console.log(`Generated head branch: ${finalHead}`);

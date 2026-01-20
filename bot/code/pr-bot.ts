@@ -21,7 +21,7 @@ async function main() {
     );
     console.log("\nExample:");
     console.log(
-      '  bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=feature/fix-auth --prompt="Fix the authentication bug"',
+      '  bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=prbot-fix-auth --prompt="Fix the authentication bug"',
     );
     console.log("\nIf --head is not provided, it will be auto-generated based on the prompt.");
     process.exit(1);
@@ -34,7 +34,7 @@ async function main() {
     );
     console.log("\nExample:");
     console.log(
-      '  bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=feature/fix-auth --prompt="Fix the authentication bug"',
+      '  bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=prbot-fix-auth --prompt="Fix the authentication bug"',
     );
     console.log("\nIf --head is not provided, it will be auto-generated based on the prompt.");
     process.exit(1);
@@ -45,25 +45,23 @@ async function main() {
     console.log("Generating head branch name from prompt...");
     const branchInfo = (await zChatCompletion(
       z.object({
-        base: z.string().describe("The base branch to merge into (should match the provided base)"),
-        head: z.string().describe("A descriptive branch name for the feature/fix (e.g., 'feature/fix-auth-bug', 'fix/update-deps')"),
+        base: z.string().describe("The base branch to make draft PR into (should match the specified base)"),
+        head: z.string().describe("A descriptive branch name for the feat/fix (e.g., 'prbot-fix-auth-bug', 'prbot-fix-update-deps')"),
       }),
       {
         model: "gpt-4o-mini",
-        system: `You are a helpful assistant that generates git branch names.
-Given a task description and base branch, generate an appropriate head branch name following these conventions:
-- Use format: <type>/<description>
-- Types: feature/, fix/, refactor/, docs/, test/, chore/
-- Description: kebab-case, short and descriptive
-- Example: "feature/add-dark-mode", "fix/login-timeout", "refactor/simplify-api"`,
-        messages: [
-          {
-            role: "user",
-            content: `Base branch: ${base}\nTask: ${prompt}\n\nGenerate an appropriate head branch name.`,
-          },
-        ],
       },
-    ) as unknown) as { base: string; head: string };
+    )`You are a helpful assistant that generates git branch names.
+Given a task description and base branch, generate an appropriate head branch name following these conventions:
+- Use format: prbot-<type>-<description>
+- Types: feature-, fix-, refactor-, docs-, test-, chore-
+- Description: kebab-case, super short and descriptive
+- Example: "prbot-feat-add-dark-mode", "prbot-fix-login-timeout", "prbot-refactor-simplify-api"
+
+Base branch: ${base}
+Task: ${prompt}
+
+Generate an appropriate head branch name, starts with.`) as { base: string; head: string };
 
     base = branchInfo.base;
     head = branchInfo.head;

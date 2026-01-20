@@ -32,6 +32,7 @@ import path from "path";
 import { appendFile } from "fs/promises";
 import { existsSync } from "fs";
 import fsp from "fs/promises";
+import { mdFmt } from "@/app/tasks/gh-desktop-release-notification/upsertSlackMessage";
 
 const SLACK_ORG_DOMAIN_NAME = "comfy-organization";
 // Configure winston logger
@@ -630,6 +631,8 @@ Respond in JSON format with the following fields:
 - my_respond_before_spawn_agent: A short message I can send to the user right away. e.g. "Got it, let me look into that for you."
 - should_spawn_agent: true if further research needed
 `;
+
+  const myResponseMessage = await mdFmt(resp.my_respond_before_spawn_agent)
   // - spawn_agent?: true or false, indicating whether an agent is needed to handle this request. e.g. if the user is asking for complex tasks like searching the web, managing repositories, or interacting with other services, or need to check original thread, set this to true.
   logger.info("Intent detection response", JSON.stringify({ resp }));
 
@@ -646,67 +649,67 @@ Respond in JSON format with the following fields:
         //   const newMsg = await slack.chat.postMessage({
         //     channel: event.channel,
         //     thread_ts: event.ts,
-        //     text: resp.my_respond_before_spawn_agent,
+        //     text: myResponseMessage,
         //     blocks: [
         //       {
         //         type: "markdown",
-        //         text: resp.my_respond_before_spawn_agent,
+        //         text: myResponseMessage,
         //       },
         //     ],
         //   });
-        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-        //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
+        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: myResponseMessage });
+        //   return { ...newMsg, text: myResponseMessage };
         // }
         // actually lets always post new msg for now.
         // if (true) {
         //   const newMsg = await slack.chat.postMessage({
         //     channel: event.channel,
         //     thread_ts: event.ts,
-        //     text: resp.my_respond_before_spawn_agent,
+        //     text: myResponseMessage,
         //     blocks: [
         //       {
         //         type: "markdown",
-        //         text: resp.my_respond_before_spawn_agent,
+        //         text: myResponseMessage,
         //       },
         //     ],
         //   });
-        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: resp.my_respond_before_spawn_agent });
-        //   return { ...newMsg, text: resp.my_respond_before_spawn_agent };
+        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: myResponseMessage });
+        //   return { ...newMsg, text: myResponseMessage };
         // }
 
         const msg = await safeSlackUpdateMessage(slack, {
           channel: event.channel,
           ts: existing.ts,
-          text: resp.my_respond_before_spawn_agent, // Fallback text for notifications
+          text: myResponseMessage, // Fallback text for notifications
           blocks: [
             {
               type: "markdown",
-              text: resp.my_respond_before_spawn_agent,
+              text: myResponseMessage,
             },
           ],
         });
         await State.set(`task-quick-respond-msg-${eventId}`, {
           ts: existing.ts,
-          text: resp.my_respond_before_spawn_agent,
+          text: myResponseMessage,
         });
-        return { ...msg, text: resp.my_respond_before_spawn_agent };
+        return { ...msg, text: myResponseMessage };
       } else {
         const newMsg = await safeSlackPostMessage(slack, {
           channel: event.channel,
           thread_ts: event.ts,
-          text: resp.my_respond_before_spawn_agent, // Fallback text for notifications
+          text: myResponseMessage, // Fallback text for notifications
           blocks: [
             {
               type: "markdown",
-              text: resp.my_respond_before_spawn_agent,
+              text: myResponseMessage,
             },
           ],
         });
         await State.set(`task-quick-respond-msg-${eventId}`, {
           ts: newMsg.ts!,
-          text: resp.my_respond_before_spawn_agent,
+          text: myResponseMessage,
         });
-        return { ...newMsg, text: resp.my_respond_before_spawn_agent };
+        return { ...newMsg, text: myResponseMessage };
       }
     },
   );
@@ -744,7 +747,7 @@ Respond in JSON format with the following fields:
   //   await slack.chat.update({
   //     channel: event.channel,
   //     ts: quickRespondMsg.ts!,
-  //     markdown_text: `${resp.my_respond_before_spawn_agent}\n\nI have forwarded your message to <#${agentChannelId}>. I will continue the research there.`,
+  //     markdown_text: `${myResponseMessage}\n\nI have forwarded your message to <#${agentChannelId}>. I will continue the research there.`,
   //   });
   //   await State.set(`task-${workspaceId}`, { ...(await State.get(`task-${workspaceId}`)), status: "forward_to_pr_bot_channel" });
 
@@ -816,7 +819,7 @@ You are AI assistant integrated with Comfy-Org's many internal services includin
 - registry: Search ComfyUI custom nodes registry using 'pr-bot registry search --query="<search terms>" --limit=5'
 - Local file system: Your working directory are temp, make sure commit your work to external services like slack/github/notion where user can see it, before your ./ dir get cleaned up
   - TODO.md: You can utilize TODO.md file in your working directory to track tasks and progress.
-  - TOOLS_ERRORS.md: You must log any errors encountered while using tools to TOOLS_ERRORS.md in your working directory for later review.
+  - TOOLS_ERRORS.md: You must log any errors encountered while using tools to TOOLS_ERRORS.md with super detailed contexts in your working directory for later review.
 
 ## Improve your self
 
@@ -837,7 +840,7 @@ You have already determined the user's intent as follows:
 IMPORTANT: YOU MUST ASSIST THE USER INTENT: ${resp.user_intent}
 
 -- Your preliminary response to the user is:
-@YOU: ${JSON.stringify(resp.my_respond_before_spawn_agent)}
+@YOU: ${JSON.stringify(myResponseMessage)}
 
 Now, based on the user's intent, please do research and provide a detailed and helpful response to assist the user with their request.
 
@@ -1249,6 +1252,19 @@ Please assist them with their request using all your resources available.
             });
           }
         })
+        .onFlush(async () => {
+          // remove loading icon
+          if (isThinking && quickRespondMsg.ts && quickRespondMsg.channel) {
+            isThinking = false;
+            await slack.reactions
+              .remove({
+                name: "loading",
+                channel: quickRespondMsg.channel,
+                timestamp: quickRespondMsg.ts,
+              })
+              .catch(() => {});
+          }
+        })
         .run();
     })
 
@@ -1325,9 +1341,10 @@ ${yaml.stringify(contexts)}
 </task-context-yaml>
 
 `) as { my_response_md_updated: string };
-          const updated_response_full = updateResponseResp.my_response_md_updated
+          const updated_response_full = await mdFmt(updateResponseResp.my_response_md_updated
             .trim()
-            .replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || "");
+            .replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || ""));
+
           // truncate to 4000 chars, from the middle, replace to '...TRUNCATED...'
           const my_response_md_updated =
             updated_response_full.length > 4000
@@ -1413,8 +1430,10 @@ ${yaml.stringify(contexts)}
         .add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts })
         .catch(() => {});
       const errorText =
-        (quickRespondMsg.text || "") +
-        `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`;
+       await mdFmt( (quickRespondMsg.text || "") +
+        `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`)
+        
+
       await safeSlackUpdateMessage(slack, {
         channel: event.channel,
         ts: quickRespondMsg.ts,

@@ -1,4 +1,5 @@
 import { WebClient } from "@slack/web-api";
+import { truncateFromMiddle } from "../utils";
 
 /**
  * Slack message length limits
@@ -8,22 +9,6 @@ import { WebClient } from "@slack/web-api";
  */
 const SLACK_TEXT_LIMIT = 35000; // Conservative limit for text parameter
 const SLACK_MARKDOWN_BLOCK_LIMIT = 11000; // Conservative limit for markdown blocks
-
-/**
- * Truncate text from the middle, preserving start and end
- * TODO: also calculate truncate marker length and make the whole msg not longer than maxLength after marker added
- */
-function truncateFromMiddle(text: string, maxLength: number): string {
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  const truncationMarker = "\n\n...TRUNCATED...\n\n";
-  const markerLength = truncationMarker.length;
-  const halfLength = Math.floor((maxLength - markerLength) / 2);
-
-  return text.slice(0, halfLength) + truncationMarker + text.slice(-halfLength);
-}
 
 /**
  * Safely post a message to Slack with automatic truncation on msg_too_long error

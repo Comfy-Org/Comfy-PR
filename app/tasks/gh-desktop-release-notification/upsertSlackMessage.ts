@@ -7,6 +7,8 @@ import chalk from "chalk";
 import Keyv from "keyv";
 import { slackMessageUrlParse, slackMessageUrlStringify } from "../gh-design/slackMessageUrlParse";
 import { COMFY_PR_CACHE_DIR } from "./COMFY_PR_CACHE_DIR";
+import * as prettier from "prettier";
+import { slack } from "@/lib";
 
 const SlackChannelIdsCache = new Keyv<string>({
   store: new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackChannelIdCache.sqlite"),
@@ -14,6 +16,30 @@ const SlackChannelIdsCache = new Keyv<string>({
 const SlackUserIdsCache = new Keyv<string>({
   store: new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackUserIdCache.sqlite"),
 });
+
+/**
+ * Slack message length limits
+ * - Text in messages: 40,000 characters
+ * - Text in markdown blocks: 12,000 characters cumulative
+ * - We use conservative limits to be safe
+ */
+const SLACK_TEXT_LIMIT = 35000; // Conservative limit for text parameter
+const SLACK_MARKDOWN_BLOCK_LIMIT = 11000; // Conservative limit for markdown blocks
+
+/**
+ * Truncate text from the middle, preserving start and end
+ */
+function truncateFromMiddle(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  const truncationMarker = "\n\n...TRUNCATED...\n\n";
+  const markerLength = truncationMarker.length;
+  const halfLength = Math.floor((maxLength - markerLength) / 2);
+
+  return text.slice(0, halfLength) + truncationMarker + text.slice(-halfLength);
+}
 
 /**
  * Create or update existing slack message
@@ -106,7 +132,8 @@ export async function upsertSlackMarkdownMessage({
   replyUrl?: string;
   reply_broadcast?: boolean;
 }) {
-  const slack = getSlack();
+  // format the md before send
+  markdown = await mdFmt(markdown)
 
   if (channelName) {
     channel ||=
@@ -131,12 +158,12 @@ export async function upsertSlackMarkdownMessage({
     const thread_ts = !replyUrl ? undefined : slackMessageUrlParse(replyUrl).ts;
     const msg = !thread_ts
       ? await slack.chat.postMessage({
-          // text: markdown,
+          text: markdown,
           channel,
           blocks: [{ type: "markdown", text: markdown }],
         })
       : await slack.chat.postMessage({
-          // text: markdown,
+          text: markdown,
           blocks: [{ type: "markdown", text: markdown }],
           channel,
           thread_ts,
@@ -153,7 +180,7 @@ export async function upsertSlackMarkdownMessage({
   }
   const ts = slackMessageUrlParse(url).ts;
   const msg = await slack.chat.update({
-    // text: markdown,
+    text: markdown,
     channel,
     ts,
     blocks: [{ type: "markdown", text: markdown }],
@@ -191,4 +218,7 @@ if (import.meta.main) {
     // });
     // console.log(msgReplied)
   }
+}
+export async function mdFmt(md: string) {
+  return await prettier.format(md, { parser: "markdown" });
 }

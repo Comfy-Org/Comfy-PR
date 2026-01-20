@@ -29,3 +29,18 @@ export async function confirm(question: string) {
     });
   });
 }
+
+/**
+ * Truncate text from the middle, preserving start and end
+ */
+export function truncateFromMiddle(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  const truncationMarker = "\n\n...TRUNCATED...\n\n";
+  const markerLength = truncationMarker.length;
+  const halfLength = Math.floor((maxLength - markerLength) / 2);
+
+  return text.slice(0, halfLength) + truncationMarker + text.slice(-halfLength);
+}

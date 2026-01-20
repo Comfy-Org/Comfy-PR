@@ -102,9 +102,9 @@ export async function spawnSubAgent(options: SpawnSubAgentOptions) {
   // Enhance the prompt with branch context
   const enhancedPrompt = `${prompt}
 
-IMPORTANT: You are working on branch '${head}' which will be merged into '${base}'.
+IMPORTANT: You are working on branch '${head}' which will make a draft PR into '${base}'.
 - Make your changes on the '${head}' branch
-- When you're done, create a pull request to merge '${head}' into '${base}'
+- When you're done, create a draft pull request to merge '${head}' into '${base}'
 - DON'T STOP UNTIL YOU HAVE COMPLETED THE TASK IN FULL AND A PULL REQUEST IS CREATED
 `;
 

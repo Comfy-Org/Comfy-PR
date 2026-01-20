@@ -1,5 +1,5 @@
 # Use Debian base image
-FROM debian:bookworm-slim
+FROM debian:latest
 
 # Set SHELL to use bash for RUN commands
 SHELL ["/bin/bash", "-c"]

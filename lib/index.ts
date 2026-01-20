@@ -50,6 +50,7 @@ export const notion = KeyvCacheProxy({
 export const slack = lazyInstantiate(
   () => new WebClient(process.env.SLACK_BOT_TOKEN?.trim() || DIE("missing env.SLACK_BOT_TOKEN")),
 );
+
 export const slackCached = KeyvCacheProxy({
   store: globalThisCached(
     "slack",
