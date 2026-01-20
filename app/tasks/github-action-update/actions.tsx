@@ -1,5 +1,5 @@
 "use server";
-import { getAuthUser } from "@/app/api/auth/[...nextauth]/getAuthUser";
+import { getAuthUser } from "@/lib/getAuthUser";
 import { GithubActionUpdateTask } from "@/src/GithubActionUpdateTask/GithubActionUpdateTask";
 import { z } from "zod";
 

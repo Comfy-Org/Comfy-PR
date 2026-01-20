@@ -1,6 +1,6 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/auth-client";
 import { FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 
@@ -24,18 +24,16 @@ export default function LoginPage() {
         <div className="space-y-4">
           {/* Google OAuth Button */}
           <button
-            onClick={() => signIn("google")}
+            onClick={() => signIn.social({ provider: "google" })}
             className="flex items-center justify-center w-full py-3 px-4 border-2 border-gray-200 rounded-lg bg-white hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 shadow-sm hover:shadow-md group"
           >
             <FcGoogle className="w-6 h-6 mr-3" />
-            <span className="font-medium text-gray-700 group-hover:text-gray-900">
-              Continue with Google
-            </span>
+            <span className="font-medium text-gray-700 group-hover:text-gray-900">Continue with Google</span>
           </button>
 
           {/* GitHub OAuth Button */}
           <button
-            onClick={() => signIn("github")}
+            onClick={() => signIn.social({ provider: "github" })}
             className="flex items-center justify-center w-full py-3 px-4 border-2 border-gray-800 bg-gray-900 hover:bg-gray-800 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md group"
           >
             <FaGithub className="w-6 h-6 mr-3 text-white" />
