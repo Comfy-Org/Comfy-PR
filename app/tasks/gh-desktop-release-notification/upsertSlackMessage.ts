@@ -10,12 +10,12 @@ import { COMFY_PR_CACHE_DIR } from "./COMFY_PR_CACHE_DIR";
 import * as prettier from "prettier";
 import { slack } from "@/lib";
 
-const SlackChannelIdsCache = new Keyv<string>({
-  store: new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackChannelIdCache.sqlite"),
-});
-const SlackUserIdsCache = new Keyv<string>({
-  store: new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackUserIdCache.sqlite"),
-});
+const SlackChannelIdsCache = new Keyv<string>(
+  new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackChannelIdCache.sqlite"),
+);
+const SlackUserIdsCache = new Keyv<string>(
+  new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackUserIdCache.sqlite"),
+);
 
 /**
  * Slack message length limits
@@ -133,7 +133,7 @@ export async function upsertSlackMarkdownMessage({
   reply_broadcast?: boolean;
 }) {
   // format the md before send
-  markdown = await mdFmt(markdown)
+  markdown = await mdFmt(markdown);
 
   if (channelName) {
     channel ||=

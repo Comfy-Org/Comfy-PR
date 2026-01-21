@@ -31,7 +31,7 @@ export const slackApp = lazyInstantiation(
     ),
 );
 /** @deprecated use slack.api.test  */
-export const isSlackAvailable =()=> Boolean(process.env.SLACK_BOT_TOKEN?.trim());
+export const isSlackAvailable = () => Boolean(process.env.SLACK_BOT_TOKEN?.trim());
 
 if (import.meta.main) {
   await slack.api.test({}); // test token

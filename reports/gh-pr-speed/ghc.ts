@@ -61,10 +61,7 @@ function createCacheKey(basePath: string[], prop: string | symbol, args: any[]):
   return cacheKey;
 }
 
-function createCachedProxy<T extends object>(
-  target: T,
-  basePath: string[] = [],
-): any {
+function createCachedProxy<T extends object>(target: T, basePath: string[] = []): any {
   return new Proxy(target as any, {
     get(obj: any, prop: string | symbol) {
       const value = obj[prop];

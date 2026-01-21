@@ -269,228 +269,247 @@ async function main() {
         });
       },
     )
-    .command(
-      "slack update",
-      "Update a Slack message",
-      (y) =>
-        y
-          .option("channel", { alias: "c", type: "string", demandOption: true })
-          .option("ts", { alias: "t", type: "string", demandOption: true })
-          .option("text", { alias: "m", type: "string", demandOption: true }),
-      async (args) => {
-        await loadEnvLocal();
-        await updateSlackMessage(args.channel as string, args.ts as string, args.text as string);
-      },
-    )
-    .command(
-      "slack read-thread",
-      "Read and print a Slack thread (JSON)",
-      (y) =>
-        y
-          .option("url", { alias: "u", type: "string", describe: "Slack message URL" })
-          .option("channel", { alias: "c", type: "string", describe: "Slack channel ID" })
-          .option("ts", { alias: "t", type: "string", describe: "Thread timestamp" })
-          .option("limit", { alias: "l", type: "number", default: 100, describe: "Max messages" })
-          .check((argv) => {
-            // Require either URL or (channel + ts)
-            if (!argv.url && (!argv.channel || !argv.ts)) {
-              throw new Error("Either --url or both --channel and --ts are required");
+    .command("slack", "Slack integration commands", (yargs) => {
+      return yargs
+        .command(
+          "update",
+          "Update a Slack message",
+          (y) =>
+            y
+              .option("channel", { alias: "c", type: "string", demandOption: true })
+              .option("ts", { alias: "t", type: "string", demandOption: true })
+              .option("text", { alias: "m", type: "string", demandOption: true }),
+          async (args) => {
+            await loadEnvLocal();
+            await updateSlackMessage(
+              args.channel as string,
+              args.ts as string,
+              args.text as string,
+            );
+          },
+        )
+        .command(
+          "read-thread",
+          "Read and print a Slack thread (JSON)",
+          (y) =>
+            y
+              .option("url", { alias: "u", type: "string", describe: "Slack message URL" })
+              .option("channel", { alias: "c", type: "string", describe: "Slack channel ID" })
+              .option("ts", { alias: "t", type: "string", describe: "Thread timestamp" })
+              .option("limit", {
+                alias: "l",
+                type: "number",
+                default: 100,
+                describe: "Max messages",
+              })
+              .check((argv) => {
+                // Require either URL or (channel + ts)
+                if (!argv.url && (!argv.channel || !argv.ts)) {
+                  throw new Error("Either --url or both --channel and --ts are required");
+                }
+                if (argv.url && (argv.channel || argv.ts)) {
+                  throw new Error("Cannot use --url with --channel or --ts");
+                }
+                return true;
+              }),
+          async (args) => {
+            await loadEnvLocal();
+
+            let channel: string;
+            let ts: string;
+
+            // Parse from URL if provided
+            if (args.url) {
+              const parsed = parseSlackUrl(args.url as string);
+              if (!parsed) {
+                console.error("Failed to parse Slack URL. Please check the format.");
+                process.exit(1);
+              }
+              channel = parsed.channel;
+              ts = parsed.ts;
+            } else {
+              // Use channel and ts directly
+              channel = args.channel as string;
+              ts = args.ts as string;
             }
-            if (argv.url && (argv.channel || argv.ts)) {
-              throw new Error("Cannot use --url with --channel or --ts");
+
+            const items = await readSlackThread(channel, ts, (args.limit as number) ?? 100);
+            console.log(JSON.stringify(items, null, 2));
+          },
+        )
+        .command(
+          "read-nearby",
+          "Read nearby messages around a specific timestamp in a Slack channel",
+          (y) =>
+            y
+              .option("url", { alias: "u", type: "string", describe: "Slack message URL" })
+              .option("channel", { alias: "c", type: "string", describe: "Slack channel ID" })
+              .option("ts", { alias: "t", type: "string", describe: "Message timestamp" })
+              .option("before", {
+                alias: "b",
+                type: "number",
+                default: 10,
+                describe: "Messages before",
+              })
+              .option("after", {
+                alias: "a",
+                type: "number",
+                default: 10,
+                describe: "Messages after",
+              })
+              .check((argv) => {
+                // Require either URL or (channel + ts)
+                if (!argv.url && (!argv.channel || !argv.ts)) {
+                  throw new Error("Either --url or both --channel and --ts are required");
+                }
+                if (argv.url && (argv.channel || argv.ts)) {
+                  throw new Error("Cannot use --url with --channel or --ts");
+                }
+                return true;
+              }),
+          async (args) => {
+            await loadEnvLocal();
+
+            let channel: string;
+            let ts: string;
+
+            // Parse from URL if provided
+            if (args.url) {
+              const parsed = parseSlackUrl(args.url as string);
+              if (!parsed) {
+                console.error("Failed to parse Slack URL. Please check the format.");
+                process.exit(1);
+              }
+              channel = parsed.channel;
+              ts = parsed.ts;
+            } else {
+              // Use channel and ts directly
+              channel = args.channel as string;
+              ts = args.ts as string;
             }
-            return true;
-          }),
-      async (args) => {
-        await loadEnvLocal();
 
-        let channel: string;
-        let ts: string;
-
-        // Parse from URL if provided
-        if (args.url) {
-          const parsed = parseSlackUrl(args.url as string);
-          if (!parsed) {
-            console.error("Failed to parse Slack URL. Please check the format.");
-            process.exit(1);
-          }
-          channel = parsed.channel;
-          ts = parsed.ts;
-        } else {
-          // Use channel and ts directly
-          channel = args.channel as string;
-          ts = args.ts as string;
-        }
-
-        const items = await readSlackThread(channel, ts, (args.limit as number) ?? 100);
-        console.log(JSON.stringify(items, null, 2));
-      },
-    )
-    .command(
-      "slack read-nearby",
-      "Read nearby messages around a specific timestamp in a Slack channel",
-      (y) =>
-        y
-          .option("url", { alias: "u", type: "string", describe: "Slack message URL" })
-          .option("channel", { alias: "c", type: "string", describe: "Slack channel ID" })
-          .option("ts", { alias: "t", type: "string", describe: "Message timestamp" })
-          .option("before", {
-            alias: "b",
-            type: "number",
-            default: 10,
-            describe: "Messages before",
-          })
-          .option("after", { alias: "a", type: "number", default: 10, describe: "Messages after" })
-          .check((argv) => {
-            // Require either URL or (channel + ts)
-            if (!argv.url && (!argv.channel || !argv.ts)) {
-              throw new Error("Either --url or both --channel and --ts are required");
-            }
-            if (argv.url && (argv.channel || argv.ts)) {
-              throw new Error("Cannot use --url with --channel or --ts");
-            }
-            return true;
-          }),
-      async (args) => {
-        await loadEnvLocal();
-
-        let channel: string;
-        let ts: string;
-
-        // Parse from URL if provided
-        if (args.url) {
-          const parsed = parseSlackUrl(args.url as string);
-          if (!parsed) {
-            console.error("Failed to parse Slack URL. Please check the format.");
-            process.exit(1);
-          }
-          channel = parsed.channel;
-          ts = parsed.ts;
-        } else {
-          // Use channel and ts directly
-          channel = args.channel as string;
-          ts = args.ts as string;
-        }
-
-        const items = await readNearbyMessages(
-          channel,
-          ts,
-          (args.before as number) ?? 10,
-          (args.after as number) ?? 10,
-        );
-        console.log(JSON.stringify(items, null, 2));
-      },
-    )
-    .command(
-      "slack download-file",
-      "Download a file from Slack",
-      (y) =>
-        y
-          .option("fileId", {
-            alias: "f",
-            type: "string",
-            demandOption: true,
-            describe: "Slack file ID",
-          })
-          .option("output", {
-            alias: "o",
-            type: "string",
-            demandOption: true,
-            describe: "Output file path",
-          }),
-      async (args) => {
-        await loadEnvLocal();
-        await downloadSlackFile(args.fileId as string, args.output as string);
-      },
-    )
-    .command(
-      "slack file-info",
-      "Get information about a Slack file",
-      (y) =>
-        y.option("fileId", {
-          alias: "f",
-          type: "string",
-          demandOption: true,
-          describe: "Slack file ID",
-        }),
-      async (args) => {
-        await loadEnvLocal();
-        const info = await getSlackFileInfo(args.fileId as string);
-        console.log(JSON.stringify(info, null, 2));
-      },
-    )
-    .command(
-      "slack post-with-files",
-      "Post a message with file attachments",
-      (y) =>
-        y
-          .option("channel", {
-            alias: "c",
-            type: "string",
-            demandOption: true,
-            describe: "Channel ID",
-          })
-          .option("text", {
-            alias: "m",
-            type: "string",
-            demandOption: true,
-            describe: "Message text",
-          })
-          .option("file", {
-            alias: "f",
-            type: "array",
-            demandOption: true,
-            describe: "File path(s) to attach",
-          })
-          .option("thread", {
-            alias: "t",
-            type: "string",
-            describe: "Thread timestamp to reply in",
-          }),
-      async (args) => {
-        await loadEnvLocal();
-        const files = (args.file as string[]).filter((f) => typeof f === "string");
-        await postMessageWithFiles(
-          args.channel as string,
-          args.text as string,
-          files,
-          args.thread as string | undefined,
-        );
-      },
-    )
-    .command(
-      ["slack upload-file", "slack upload"],
-      "Upload a file to Slack",
-      (y) =>
-        y
-          .option("channel", {
-            alias: "c",
-            type: "string",
-            demandOption: true,
-            describe: "Channel ID",
-          })
-          .option("file", {
-            alias: "f",
-            type: "string",
-            demandOption: true,
-            describe: "File path to upload",
-          })
-          .option("title", { type: "string", describe: "File title" })
-          .option("comment", { alias: "m", type: "string", describe: "Initial comment" })
-          .option("thread", {
-            alias: "t",
-            type: "string",
-            describe: "Thread timestamp to reply in",
-          }),
-      async (args) => {
-        await loadEnvLocal();
-        await uploadSlackFile(args.channel as string, args.file as string, {
-          title: args.title as string | undefined,
-          initialComment: args.comment as string | undefined,
-          threadTs: args.thread as string | undefined,
-        });
-      },
-    )
+            const items = await readNearbyMessages(
+              channel,
+              ts,
+              (args.before as number) ?? 10,
+              (args.after as number) ?? 10,
+            );
+            console.log(JSON.stringify(items, null, 2));
+          },
+        )
+        .command(
+          "download-file",
+          "Download a file from Slack",
+          (y) =>
+            y
+              .option("fileId", {
+                alias: "f",
+                type: "string",
+                demandOption: true,
+                describe: "Slack file ID",
+              })
+              .option("output", {
+                alias: "o",
+                type: "string",
+                demandOption: true,
+                describe: "Output file path",
+              }),
+          async (args) => {
+            await loadEnvLocal();
+            await downloadSlackFile(args.fileId as string, args.output as string);
+          },
+        )
+        .command(
+          "file-info",
+          "Get information about a Slack file",
+          (y) =>
+            y.option("fileId", {
+              alias: "f",
+              type: "string",
+              demandOption: true,
+              describe: "Slack file ID",
+            }),
+          async (args) => {
+            await loadEnvLocal();
+            const info = await getSlackFileInfo(args.fileId as string);
+            console.log(JSON.stringify(info, null, 2));
+          },
+        )
+        .command(
+          "post-with-files",
+          "Post a message with file attachments",
+          (y) =>
+            y
+              .option("channel", {
+                alias: "c",
+                type: "string",
+                demandOption: true,
+                describe: "Channel ID",
+              })
+              .option("text", {
+                alias: "m",
+                type: "string",
+                demandOption: true,
+                describe: "Message text",
+              })
+              .option("file", {
+                alias: "f",
+                type: "array",
+                demandOption: true,
+                describe: "File path(s) to attach",
+              })
+              .option("thread", {
+                alias: "t",
+                type: "string",
+                describe: "Thread timestamp to reply in",
+              }),
+          async (args) => {
+            await loadEnvLocal();
+            const files = (args.file as string[]).filter((f) => typeof f === "string");
+            await postMessageWithFiles(
+              args.channel as string,
+              args.text as string,
+              files,
+              args.thread as string | undefined,
+            );
+          },
+        )
+        .command(
+          "upload-file",
+          "Upload a file to Slack",
+          (y) =>
+            y
+              .option("channel", {
+                alias: "c",
+                type: "string",
+                demandOption: true,
+                describe: "Channel ID",
+              })
+              .option("file", {
+                alias: "f",
+                type: "string",
+                demandOption: true,
+                describe: "File path to upload",
+              })
+              .option("title", { type: "string", describe: "File title" })
+              .option("comment", { alias: "m", type: "string", describe: "Initial comment" })
+              .option("thread", {
+                alias: "t",
+                type: "string",
+                describe: "Thread timestamp to reply in",
+              }),
+          async (args) => {
+            await loadEnvLocal();
+            await uploadSlackFile(args.channel as string, args.file as string, {
+              title: args.title as string | undefined,
+              initialComment: args.comment as string | undefined,
+              threadTs: args.thread as string | undefined,
+            });
+          },
+        )
+        .demandCommand(1, "Please specify a slack subcommand")
+        .help();
+    })
     .command(
       "notion search",
       "Search Notion workspace pages",

@@ -100,9 +100,8 @@ export const router = t.router({
       ),
     )
     .query(async () => {
-      const { GithubContributorAnalyzeTask } = await import(
-        "../tasks/github-contributor-analyze/GithubContributorAnalyzeTask"
-      );
+      const { GithubContributorAnalyzeTask } =
+        await import("../tasks/github-contributor-analyze/GithubContributorAnalyzeTask");
       return await GithubContributorAnalyzeTask.find({}).toArray();
     }),
 

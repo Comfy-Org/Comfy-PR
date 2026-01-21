@@ -12,19 +12,25 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  */
 export default async function TasksIndexPage() {
   // Dynamic imports to avoid build-time execution
-  const { GithubActionUpdateTask } = await import("@/src/GithubActionUpdateTask/GithubActionUpdateTask");
+  const { GithubActionUpdateTask } =
+    await import("@/src/GithubActionUpdateTask/GithubActionUpdateTask");
   const { GithubBugcopTask } = await import("../../run/gh-bugcop/gh-bugcop");
   const { GithubBountyTask } = await import("./gh-bounty/gh-bounty");
   const { GithubDesignTask } = await import("./gh-design/gh-design");
-  const { GithubContributorAnalyzeTask, GithubContributorAnalyzeTaskFilter } = await import(
-    "./github-contributor-analyze/GithubContributorAnalyzeTask"
-  );
+  const { GithubContributorAnalyzeTask, GithubContributorAnalyzeTaskFilter } =
+    await import("./github-contributor-analyze/GithubContributorAnalyzeTask");
 
   const Counts = {
-    GithubActionUpdateTask: () => <Suspense>{GithubActionUpdateTask.estimatedDocumentCount()}</Suspense>,
-    GithubContributorAnalyzeTask: () => <Suspense>{GithubContributorAnalyzeTask.estimatedDocumentCount()}</Suspense>,
+    GithubActionUpdateTask: () => (
+      <Suspense>{GithubActionUpdateTask.estimatedDocumentCount()}</Suspense>
+    ),
+    GithubContributorAnalyzeTask: () => (
+      <Suspense>{GithubContributorAnalyzeTask.estimatedDocumentCount()}</Suspense>
+    ),
     GithubContributorAnalyzeTaskRemain: () => (
-      <Suspense>{GithubContributorAnalyzeTask.countDocuments(GithubContributorAnalyzeTaskFilter)}</Suspense>
+      <Suspense>
+        {GithubContributorAnalyzeTask.countDocuments(GithubContributorAnalyzeTaskFilter)}
+      </Suspense>
     ),
     GithubBountyTask: () => <Suspense>{GithubBountyTask.estimatedDocumentCount()}</Suspense>,
     GithubDesignTask: () => <Suspense>{GithubDesignTask.estimatedDocumentCount()}</Suspense>,

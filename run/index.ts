@@ -164,7 +164,10 @@ class RepoEventMonitor {
     const timestamp = this.formatTimestamp();
     match(eventMap)
       .with({ issue_comment: P.select() }, async ({ issue, comment }) =>
-        processIssueCommentForLableops({ issue: issue as GH["issue"], comment: comment as GH["issue-comment"] }),
+        processIssueCommentForLableops({
+          issue: issue as GH["issue"],
+          comment: comment as GH["issue-comment"],
+        }),
       )
       .otherwise(() => null);
 
@@ -346,7 +349,9 @@ class RepoEventMonitor {
     console.log(`[${this.formatTimestamp()}] Monitoring repos: ${REPOLIST.join(", ")}`);
 
     // Start comment polling for all repos (5 second interval)
-    console.log(`[${this.formatTimestamp()}] Starting comment polling (5s interval) for recent comments...`);
+    console.log(
+      `[${this.formatTimestamp()}] Starting comment polling (5s interval) for recent comments...`,
+    );
     setInterval(() => {
       this.pollRecentComments();
     }, this.commentPollInterval);
@@ -423,14 +428,27 @@ class RepoEventMonitor {
             const issueNumber = parseInt(comment.issue_url?.split("/").pop() || "0");
             if (issueNumber) {
               try {
-                const { data: issue } = await gh.issues.get({ owner, repo, issue_number: issueNumber });
+                const { data: issue } = await gh.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
 
                 // Create and handle the mock webhook event
-                const mockEvent = this.createMockIssueCommentEvent("created", owner, repo, issue, comment);
+                const mockEvent = this.createMockIssueCommentEvent(
+                  "created",
+                  owner,
+                  repo,
+                  issue,
+                  comment,
+                );
                 console.log("mocked-webhook-event", mockEvent);
                 await this.handleWebhookEvent(mockEvent);
               } catch (error) {
-                console.error(`[${this.formatTimestamp()}] Error fetching issue for comment:`, error);
+                console.error(
+                  `[${this.formatTimestamp()}] Error fetching issue for comment:`,
+                  error,
+                );
               }
             }
           } else if (previousUpdatedAt !== comment.updated_at) {
@@ -444,15 +462,29 @@ class RepoEventMonitor {
 
             if (issueNumber) {
               try {
-                const { data: issue } = await gh.issues.get({ owner, repo, issue_number: issueNumber });
-                // Create and handle the mock webhook event
-                const mockEvent = this.createMockIssueCommentEvent("edited", owner, repo, issue, comment, {
-                  body: { from: RepoEventMonitor.UNKNOWN_PREVIOUS_CONTENT },
+                const { data: issue } = await gh.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
                 });
+                // Create and handle the mock webhook event
+                const mockEvent = this.createMockIssueCommentEvent(
+                  "edited",
+                  owner,
+                  repo,
+                  issue,
+                  comment,
+                  {
+                    body: { from: RepoEventMonitor.UNKNOWN_PREVIOUS_CONTENT },
+                  },
+                );
                 console.debug(mockEvent);
                 await this.handleWebhookEvent(mockEvent);
               } catch (error) {
-                console.error(`[${this.formatTimestamp()}] Error fetching issue for comment:`, error);
+                console.error(
+                  `[${this.formatTimestamp()}] Error fetching issue for comment:`,
+                  error,
+                );
               }
             }
           }

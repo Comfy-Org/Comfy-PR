@@ -632,7 +632,7 @@ Respond in JSON format with the following fields:
 - should_spawn_agent: true if further research needed
 `;
 
-  const myResponseMessage = await mdFmt(resp.my_respond_before_spawn_agent)
+  const myResponseMessage = await mdFmt(resp.my_respond_before_spawn_agent);
   // - spawn_agent?: true or false, indicating whether an agent is needed to handle this request. e.g. if the user is asking for complex tasks like searching the web, managing repositories, or interacting with other services, or need to check original thread, set this to true.
   logger.info("Intent detection response", JSON.stringify({ resp }));
 
@@ -1341,9 +1341,11 @@ ${yaml.stringify(contexts)}
 </task-context-yaml>
 
 `) as { my_response_md_updated: string };
-          const updated_response_full = await mdFmt(updateResponseResp.my_response_md_updated
-            .trim()
-            .replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || ""));
+          const updated_response_full = await mdFmt(
+            updateResponseResp.my_response_md_updated
+              .trim()
+              .replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || ""),
+          );
 
           // truncate to 4000 chars, from the middle, replace to '...TRUNCATED...'
           const my_response_md_updated =
@@ -1429,9 +1431,10 @@ ${yaml.stringify(contexts)}
       await slack.reactions
         .add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts })
         .catch(() => {});
-      const errorText =
-       await mdFmt( (quickRespondMsg.text || "") +
-        `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`)
+      const errorText = await mdFmt(
+        (quickRespondMsg.text || "") +
+          `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`,
+      );
       await safeSlackUpdateMessage(slack, {
         channel: event.channel,
         ts: quickRespondMsg.ts,

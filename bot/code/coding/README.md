@@ -82,6 +82,7 @@ For example:
 ```
 
 This ensures:
+
 - Consistent paths across different working directories
 - Isolated development environments per feature branch
 - Easy identification of what branch you're working on

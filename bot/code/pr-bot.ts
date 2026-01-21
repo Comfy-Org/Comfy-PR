@@ -45,8 +45,14 @@ async function main() {
     console.log("Generating head branch name from prompt...");
     const branchInfo = (await zChatCompletion(
       z.object({
-        base: z.string().describe("The base branch to make draft PR into (should match the specified base)"),
-        head: z.string().describe("A descriptive branch name for the feat/fix (e.g., 'prbot-fix-auth-bug', 'prbot-fix-update-deps')"),
+        base: z
+          .string()
+          .describe("The base branch to make draft PR into (should match the specified base)"),
+        head: z
+          .string()
+          .describe(
+            "A descriptive branch name for the feat/fix (e.g., 'prbot-fix-auth-bug', 'prbot-fix-update-deps')",
+          ),
       }),
       {
         model: "gpt-4o-mini",

@@ -28,7 +28,7 @@ All changes address the feedback from @cbyrne and automated review tools.`;
       channel: "C09EM82R2HL",
       thread_ts: "1768466981.470589",
       text: message,
-      mrkdwn: true
+      mrkdwn: true,
     });
 
     if (result.ok) {

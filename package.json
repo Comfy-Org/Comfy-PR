@@ -63,6 +63,7 @@
     "@slack/socket-mode": "^2.0.5",
     "@slack/web-api": "^7.13.0",
     "@snomiao/die": "^1.7.0",
+    "@sourcegraph/amp": "^0.0.1769026071-gf9f5b8",
     "@tanstack/react-query": "^5",
     "@tanstack/react-query-devtools": "^5",
     "@trpc/client": "^11",

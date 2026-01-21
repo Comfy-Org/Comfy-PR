@@ -28,6 +28,7 @@ import { union } from "rambda";
 import sflow, { pageFlow } from "sflow";
 import z from "zod";
 import { createTimeLogger } from "../../app/tasks/gh-design/createTimeLogger";
+import type { WebhookEventMap } from "@octokit/webhooks-types";
 
 export const REPOLIST = [
   "https://github.com/comfyanonymous/ComfyUI",
@@ -471,13 +472,17 @@ async function processIssue(issue: GH["issue"]) {
     .map((_e) => {
       return _e.event === "labeled" || _e.event === "unlabeled" || _e.event === "commented"
         ? (_e as
-            | GH["labeled-issue-event"]
-            | GH["unlabeled-issue-event"]
-            | GH["timeline-comment-event"])
+            | WebhookEventMap["labeled-issue-event"]
+            | WebhookEventMap["unlabeled-issue-event"]
+            | WebhookEventMap["timeline-comment-event"])
         : null;
     })
     .filter((e): e is NonNullable<typeof e> => e !== null)
-    .toArray()) as (GH["labeled-issue-event"] | GH["timeline-comment-event"] | GH["unlabeled-issue-event"])[];
+    .toArray()) as (
+    | WebhookEventMap["labeled-issue-event"]
+    | WebhookEventMap["timeline-comment-event"]
+    | WebhookEventMap["unlabeled-issue-event"]
+  )[];
   tlog("Found " + labelEvents.length + " unlabeled/labeled/commented events");
   await saveTask({ timeline: labelEvents });
 
