@@ -55,7 +55,7 @@ The TypeScript server was experiencing severe performance issues causing slowdow
 
 - **`src/`**: Core utilities and shared functionality
 - **`app/tasks/`**: Specific task implementations
-- **`bot/code/`**: GitHub integration tools including pr-bot for spawning AI agents on repositories
+- **`bot/code/`**: GitHub integration tools including prbot for spawning AI agents on repositories
 - **`gh-service/`**: GitHub webhook service components
 - **`run/`**: Executable scripts and services
 - **Tests**: Co-located with source files using `.spec.ts` suffix
@@ -277,7 +277,7 @@ The bot system uses a two-tier architecture:
    - Must delegate all coding tasks to PR-Bot sub-agents
 
 2. **Worker Agents (PR-Bot Sub-Agents)** - Code Modification
-   - Spawned by master agent via `bun bot/code/pr-bot.ts`
+   - Spawned by master agent via `bun bot/code/prbot.ts`
    - Clones repositories to isolated directories (`/repos/`)
    - Has full write access to make code changes
    - Creates commits, branches, and pull requests
@@ -302,7 +302,7 @@ The bot agent prompt (lines 390-396 in `bot/index.ts`) includes the following sk
    - Clone any repositories from https://github.com/Comfy-Org
    - Inspect codebases at `./codes/Comfy-Org/[repo]/tree/[branch]`
    - Read and analyze source code
-   - **Note**: Master bot CANNOT make direct code changes - must use pr-bot tool
+   - **Note**: Master bot CANNOT make direct code changes - must use prbot tool
 
 3. **Slack Integration**
    - **Update messages**: `bun ../bot/slack/msg-update.ts --channel ${event.channel} --ts ${quickRespondMsg.ts} --text "<response>"`
@@ -314,10 +314,10 @@ The bot agent prompt (lines 390-396 in `bot/index.ts`) includes the following sk
    - Access internal documentation and knowledge base
 
 5. **Code Modification via PR-Bot (REQUIRED for GitHub changes)**
-   - To make any code changes to GitHub repositories, use: `bun ../bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<detailed coding task>"`
+   - To make any code changes to GitHub repositories, use: `bun ../bot/code/prbot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<detailed coding task>"`
    - If `--head` is not provided, the branch name will be auto-generated based on the prompt
    - Master bot is a RESEARCH and COORDINATION agent only
-   - All actual coding work must be delegated to pr-bot sub-agents
+   - All actual coding work must be delegated to prbot sub-agents
    - Master bot CANNOT create commits, branches, or PRs directly
 
 ### Context Repositories
@@ -336,7 +336,7 @@ The bot has knowledge of these Comfy-Org repositories:
 The bot is automatically spawned when:
 
 1. A user mentions the bot in a Slack channel
-2. The message is in an authorized channel (`#comfypr-bot` or `#pr-bot`)
+2. The message is in an authorized channel (`#comfyprbot` or `#prbot`)
 3. The bot determines that agent assistance is needed
 
 See `bot/README.md` for documentation on the individual skill scripts.
@@ -349,7 +349,7 @@ The coding sub-agent system (`bot/code/coding/`) allows you to spawn AI coding a
 
 ### Implementation
 
-- **Main Script**: `bot/code/pr-bot.ts`
+- **Main Script**: `bot/code/prbot.ts`
 - **Core Logic**: `bot/code/coding/pr-agent.ts`
 - **Tests**: `bot/code/coding/pr-agent.spec.ts`
 - **Repository Storage**: `/repos/[owner]/[repo]/tree/[head]/`
@@ -357,7 +357,7 @@ The coding sub-agent system (`bot/code/coding/`) allows you to spawn AI coding a
 ### Usage
 
 ```bash
-bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<your prompt>"
+bun bot/code/prbot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<your prompt>"
 ```
 
 **Arguments:**
@@ -371,13 +371,13 @@ bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-
 
 ```bash
 # Auto-generate head branch name from prompt
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix authentication bug in login module"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix authentication bug in login module"
 
 # Specify both base and head branches explicitly
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=fix/auth-bug --prompt="Fix authentication bug"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI --base=main --head=fix/auth-bug --prompt="Fix authentication bug"
 
 # Work on a feature branch to merge into develop
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=feature/dark-mode --prompt="Add dark mode support"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=feature/dark-mode --prompt="Add dark mode support"
 ```
 
 ### How It Works
@@ -427,8 +427,8 @@ SFlow is a powerful functional stream processing library used throughout the cod
 To search for all TODO comments across the project:
 
 ```bash
-# Search for TODO comments using pr-bot
-pr-bot code search -q "TODO"
+# Search for TODO comments using prbot
+prbot code search -q "TODO"
 
 # Or use grep locally
 grep -ri "TODO" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.go" .
@@ -499,7 +499,7 @@ grep -ri "TODO" --include="*.ts" --include="*.tsx" --include="*.js" --include="*
 
 When working on TODOs:
 
-1. **Search**: Use `pr-bot code search -q "TODO"` or `grep -ri "TODO"`
+1. **Search**: Use `prbot code search -q "TODO"` or `grep -ri "TODO"`
 2. **Prioritize**: Focus on TODOs in active development areas first
 3. **Context**: Read surrounding code to understand the TODO context
 4. **Implement**: Create a branch and implement the solution
@@ -517,16 +517,16 @@ When adding new TODOs, use this format:
 // TODO(priority): <description> - for urgent items
 ```
 
-### Auto-Solving TODOs with pr-bot
+### Auto-Solving TODOs with prbot
 
-You can use pr-bot to automatically work on TODOs:
+You can use prbot to automatically work on TODOs:
 
 ```bash
 # Search for specific TODO
-pr-bot code search -q "TODO performance"
+prbot code search -q "TODO performance"
 
 # Create a PR to fix a TODO
-pr-bot code pr -r Comfy-Org/Comfy-PR -p "Fix TODO in bot/index.ts line 145: Define zSlackMessage schema"
+prbot code pr -r Comfy-Org/Comfy-PR -p "Fix TODO in bot/index.ts line 145: Define zSlackMessage schema"
 ```
 
 ### Process Cleaning
