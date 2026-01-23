@@ -311,7 +311,7 @@ function generateShortSummary(
   summary += `Sent ${botMessages.length} messages across ${Object.keys(messagesByChannel).length} channels (${channelList})\n\n`;
 
   // Highlight key activities
-  const keyChannels = ["comfypr-bot", "pr-bot", "develop", "desktop"];
+  const keyChannels = ["comfyprbot", "prbot", "develop", "desktop"];
   const keyActivities = keyChannels
     .filter((ch) => messagesByChannel[ch])
     .map((ch) => `- #${ch}: ${messagesByChannel[ch].length} updates`)
