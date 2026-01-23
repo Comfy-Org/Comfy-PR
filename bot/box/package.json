@@ -1,0 +1,25 @@
+{
+  "name": "prbotx",
+  "bin": {
+    "prbotx": "./cli.ts"
+  },
+  "main": "index.ts",
+  "scripts": {
+    "pulumi": "source .env.local && PULUMI_CONFIG_PASSPHRASE=${PULUMI_CONFIG_PASSPHRASE} pulumi",
+    "fmt": "oxfmt && oxlint",
+    "kube": "KUBECONFIG=$(pwd)/out/kubeconfig.yaml kubectl",
+    "debug": "bash examples/debug-pod.sh",
+    "setup": "bash examples/setup-claude.sh"
+  },
+  "dependencies": {
+    "@pulumi/gcp": "^9.0.0",
+    "@pulumi/pulumi": "^3.113.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18",
+    "cross-env": "^10.1.0",
+    "oxfmt": "^0.26.0",
+    "oxlint": "^1.41.0",
+    "typescript": "^5.0.0"
+  }
+}
