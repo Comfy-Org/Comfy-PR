@@ -14,13 +14,13 @@ This skill reads all messages from a Slack thread and outputs them as structured
 **Option 1: Using Slack URL**
 
 ```bash
-pr-bot slack read-thread -u "<SLACK_MESSAGE_URL>" [-l <NUMBER>]
+prbot slack read-thread -u "<SLACK_MESSAGE_URL>" [-l <NUMBER>]
 ```
 
 **Option 2: Using Channel ID and Timestamp**
 
 ```bash
-pr-bot slack read-thread -c <CHANNEL_ID> -t <THREAD_TS> [-l <NUMBER>]
+prbot slack read-thread -c <CHANNEL_ID> -t <THREAD_TS> [-l <NUMBER>]
 ```
 
 ## Parameters
@@ -50,16 +50,16 @@ Returns JSON array with each message containing:
 
 ```bash
 # Read thread using Slack URL (easiest)
-pr-bot slack read-thread -u "https://workspace.slack.com/archives/C123/p1234567890"
+prbot slack read-thread -u "https://workspace.slack.com/archives/C123/p1234567890"
 
 # Read thread using Slack URL with thread_ts parameter
-pr-bot slack read-thread -u "https://workspace.slack.com/archives/C123/p1234567890?thread_ts=1234567890.123456"
+prbot slack read-thread -u "https://workspace.slack.com/archives/C123/p1234567890?thread_ts=1234567890.123456"
 
 # Read thread using channel ID and timestamp
-pr-bot slack read-thread -c C07V123ABC -t 1234567890.123456
+prbot slack read-thread -c C07V123ABC -t 1234567890.123456
 
 # Read first 20 messages only
-pr-bot slack read-thread -c C07V123ABC -t 1234567890.123456 -l 20
+prbot slack read-thread -c C07V123ABC -t 1234567890.123456 -l 20
 ```
 
 ## Supported URL Formats

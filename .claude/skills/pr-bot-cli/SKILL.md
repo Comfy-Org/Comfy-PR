@@ -13,9 +13,9 @@ This skill provides a unified command-line interface for all ComfyPR bot capabil
 ### Code PR Creation (Automatic)
 
 ```bash
-pr-bot code pr -r <OWNER/REPO> [-b <BRANCH>] -p "<PROMPT>"
-pr-bot github pr -r <OWNER/REPO> [-b <BRANCH>] -p "<PROMPT>"  # Alias
-pr-bot pr -r <OWNER/REPO> [-b <BRANCH>] -p "<PROMPT>"  # Short alias
+prbot code pr -r <OWNER/REPO> [-b <BRANCH>] -p "<PROMPT>"
+prbot github pr -r <OWNER/REPO> [-b <BRANCH>] -p "<PROMPT>"  # Alias
+prbot pr -r <OWNER/REPO> [-b <BRANCH>] -p "<PROMPT>"  # Short alias
 ```
 
 **Options:**
@@ -27,7 +27,7 @@ pr-bot pr -r <OWNER/REPO> [-b <BRANCH>] -p "<PROMPT>"  # Short alias
 ### Code Search
 
 ```bash
-pr-bot code search -q "<QUERY>" [--repo <REPO>] [--path <PATH>]
+prbot code search -q "<QUERY>" [--repo <REPO>] [--path <PATH>]
 ```
 
 **Options:**
@@ -39,7 +39,7 @@ pr-bot code search -q "<QUERY>" [--repo <REPO>] [--path <PATH>]
 ### GitHub Issue Search
 
 ```bash
-pr-bot github-issue search -q "<QUERY>" [-l <LIMIT>]
+prbot github-issue search -q "<QUERY>" [-l <LIMIT>]
 ```
 
 **Options:**
@@ -50,7 +50,7 @@ pr-bot github-issue search -q "<QUERY>" [-l <LIMIT>]
 ### Slack Message Update
 
 ```bash
-pr-bot slack update -c <CHANNEL_ID> -t <TIMESTAMP> -m "<MESSAGE>"
+prbot slack update -c <CHANNEL_ID> -t <TIMESTAMP> -m "<MESSAGE>"
 ```
 
 **Options:**
@@ -62,7 +62,7 @@ pr-bot slack update -c <CHANNEL_ID> -t <TIMESTAMP> -m "<MESSAGE>"
 ### Slack Thread Reader
 
 ```bash
-pr-bot slack read-thread -c <CHANNEL_ID> -t <TIMESTAMP> [-l <LIMIT>]
+prbot slack read-thread -c <CHANNEL_ID> -t <TIMESTAMP> [-l <LIMIT>]
 ```
 
 **Options:**
@@ -74,7 +74,7 @@ pr-bot slack read-thread -c <CHANNEL_ID> -t <TIMESTAMP> [-l <LIMIT>]
 ### Notion Search
 
 ```bash
-pr-bot notion search -q "<QUERY>" [-l <LIMIT>]
+prbot notion search -q "<QUERY>" [-l <LIMIT>]
 ```
 
 **Options:**
@@ -85,7 +85,7 @@ pr-bot notion search -q "<QUERY>" [-l <LIMIT>]
 ### Registry Search
 
 ```bash
-pr-bot registry search -q "<QUERY>" [-l <LIMIT>] [--include-deprecated]
+prbot registry search -q "<QUERY>" [-l <LIMIT>] [--include-deprecated]
 ```
 
 **Options:**
@@ -98,30 +98,30 @@ pr-bot registry search -q "<QUERY>" [-l <LIMIT>] [--include-deprecated]
 
 ```bash
 # Create automatic PR for bug fix
-pr-bot code pr -r Comfy-Org/ComfyUI -b main -p "Fix auth bug in login"
+prbot code pr -r Comfy-Org/ComfyUI -b main -p "Fix auth bug in login"
 
 # Search ComfyUI code
-pr-bot code search -q "binarization" --repo Comfy-Org/ComfyUI
+prbot code search -q "binarization" --repo Comfy-Org/ComfyUI
 
 # Search GitHub issues
-pr-bot github-issue search -q "is:open label:bug" -l 5
+prbot github-issue search -q "is:open label:bug" -l 5
 
 # Search ComfyUI custom nodes registry
-pr-bot registry search -q "video" -l 5
+prbot registry search -q "video" -l 5
 
 # Update Slack message
-pr-bot slack update -c C123 -t 1234567890.123456 -m "Working on it"
+prbot slack update -c C123 -t 1234567890.123456 -m "Working on it"
 
 # Read Slack thread
-pr-bot slack read-thread -c C123 -t 1234567890.123456
+prbot slack read-thread -c C123 -t 1234567890.123456
 
 # Search Notion docs
-pr-bot notion search -q "ComfyUI setup" -l 5
+prbot notion search -q "ComfyUI setup" -l 5
 ```
 
 ## Notes
 
 - This is the recommended way to access all bot functionality
 - Globally linked as `pr-bot` command
-- Run `pr-bot --help` for full command documentation
+- Run `prbot --help` for full command documentation
 - Each subcommand has its own `--help` option

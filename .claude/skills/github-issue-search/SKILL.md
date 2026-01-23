@@ -12,7 +12,7 @@ This skill searches for issues and pull requests across all Comfy-Org repositori
 ## Usage
 
 ```bash
-pr-bot github-issue search -q "<SEARCH_QUERY>" [-l <LIMIT>]
+prbot github-issue search -q "<SEARCH_QUERY>" [-l <LIMIT>]
 ```
 
 ## Parameters
@@ -35,19 +35,19 @@ The search supports GitHub's issue search syntax:
 
 ```bash
 # Search for open bugs
-pr-bot github-issue search -q "is:open label:bug" -l 10
+prbot github-issue search -q "is:open label:bug" -l 10
 
 # Find authentication-related issues
-pr-bot github-issue search -q "authentication bug"
+prbot github-issue search -q "authentication bug"
 
 # Search for closed pull requests
-pr-bot github-issue search -q "is:pr is:closed" -l 5
+prbot github-issue search -q "is:pr is:closed" -l 5
 
 # Find issues by author
-pr-bot github-issue search -q "author:snomiao is:open"
+prbot github-issue search -q "author:snomiao is:open"
 
 # Search with date filter
-pr-bot github-issue search -q "created:>2024-12-01 is:open"
+prbot github-issue search -q "created:>2024-12-01 is:open"
 ```
 
 ## Output Format

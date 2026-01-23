@@ -12,7 +12,7 @@ This skill searches the official ComfyUI custom nodes registry (api.comfy.org) f
 ## Usage
 
 ```bash
-pr-bot registry search -q "<SEARCH_QUERY>" [-l <LIMIT>] [--include-deprecated]
+prbot registry search -q "<SEARCH_QUERY>" [-l <LIMIT>] [--include-deprecated]
 ```
 
 ## Parameters
@@ -37,16 +37,16 @@ The search looks across multiple fields:
 
 ```bash
 # Search for video-related nodes
-pr-bot registry search -q "video" -l 5
+prbot registry search -q "video" -l 5
 
 # Find image processing nodes
-pr-bot registry search -q "image enhance"
+prbot registry search -q "image enhance"
 
 # Search for specific functionality
-pr-bot registry search -q "background removal"
+prbot registry search -q "background removal"
 
 # Include deprecated nodes
-pr-bot registry search -q "upscale" --include-deprecated -l 10
+prbot registry search -q "upscale" --include-deprecated -l 10
 ```
 
 ## Output Format
