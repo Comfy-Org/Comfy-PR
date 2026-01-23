@@ -12,7 +12,7 @@ This skill updates existing Slack messages in channels or threads.
 ## Usage
 
 ```bash
-pr-bot slack update -c <CHANNEL_ID> -t <MESSAGE_TS> -m "<NEW_TEXT>"
+prbot slack update -c <CHANNEL_ID> -t <MESSAGE_TS> -m "<NEW_TEXT>"
 ```
 
 ## Parameters
@@ -25,10 +25,10 @@ pr-bot slack update -c <CHANNEL_ID> -t <MESSAGE_TS> -m "<NEW_TEXT>"
 
 ```bash
 # Update a message with new status
-pr-bot slack update -c C07V123ABC -t 1234567890.123456 -m "Task completed successfully!"
+prbot slack update -c C07V123ABC -t 1234567890.123456 -m "Task completed successfully!"
 
 # Update with markdown formatting
-pr-bot slack update -c C07V123ABC -t 1234567890.123456 -m "*Bold text* and _italic text_"
+prbot slack update -c C07V123ABC -t 1234567890.123456 -m "*Bold text* and _italic text_"
 ```
 
 ## Notes
