@@ -1,4 +1,4 @@
-#!bun
+#!/usr/bin/env bun
 import DIE from "@snomiao/die";
 import { readFile } from "fs/promises";
 import { argv, $ as zx } from "zx";

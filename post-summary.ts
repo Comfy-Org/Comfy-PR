@@ -19,7 +19,7 @@ I've uploaded all 4 analysis documents for <https://github.com/Comfy-Org/ComfyUI
 • Fixed markdown linting (MD031)
 
 *Next Steps:*
-The TROUBLESHOOTING_UPDATED.md file is ready to replace the current version in the PR. I can create a new commit with these fixes using the \`pr-bot pr\` command if needed!
+The TROUBLESHOOTING_UPDATED.md file is ready to replace the current version in the PR. I can create a new commit with these fixes using the \`prbot pr\` command if needed!
 
 All changes address the feedback from @cbyrne and automated review tools.`;
 
