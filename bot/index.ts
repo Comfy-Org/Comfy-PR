@@ -28,6 +28,7 @@ import { slackMessageUrlParse } from "@/app/tasks/gh-design/slackMessageUrlParse
 import { execa } from "execa";
 import { TerminalTextRender } from "terminal-render";
 import minimist from "minimist";
+import { loadClaudeMd, loadSkills } from "./templateLoader";
 import path from "path";
 import { appendFile } from "fs/promises";
 import { existsSync } from "fs";
@@ -159,7 +160,7 @@ if (import.meta.main) {
           try {
             const lsofOutput = await Bun.$`lsof -ti:${port}`.text();
             existingPid = lsofOutput.trim();
-          } catch {}
+          } catch { }
 
           logger.info(
             `Healthy instance detected (PID: ${existingPid}) - aborting launch to avoid conflict`,
@@ -317,8 +318,9 @@ if (import.meta.main) {
       if ((event as any).bot_id) {
         return;
       }
+      
 
-      // Get bot user ID
+      // Get my bot user ID
       const botUsername = "comfyprbot";
       // TODO: fetch botUserId by botUsername or use slack api to "get my name"
       const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K"; // ComfyPR-Bot user ID
@@ -393,17 +395,23 @@ async function spawnBotOnSlackMessageEvent(event: {
     `SPAWN - Received Slack app_mention event in channel ${event.channel} from user ${event.user}`,
   );
 
-  // whitelist channel name #comfypr-bot, for security reason, only runs agent against @mention messages in #comfypr-bot channel
-  // you can forward other channel messages to #comfypr-bot if needed, and the bot will read the context from the original thread messages
+  
+  // whitelist channel name #comfypr-bot, for security reason, only runs agent against @mention messages in #comfyprbot channel
+  // you can forward other channel messages to #comfyprbot if needed, and the bot will read the context from the original thread messages
   // DMs are also allowed to spawn agents directly
   const channelInfo = await slack.conversations.info({ channel: event.channel });
   const channelName = channelInfo.channel?.name;
   const isDM = channelInfo.channel?.is_im === true;
-  const isAgentChannel = isDM || channelName?.match(/^(comfypr-bot|pr-bot)\b/); //starts with comfypr-bot or pr-bot, will spawn agent without requireing @mention
+  const isAgentChannel = isDM || channelName?.match(/^(comfypr-bot|pr-bot)\b/); //starts with comfyprbot or pr-bot, will spawn agent without requireing @mention
 
-  const username = await slack.users
-    .info({ user: event.user })
-    .then((res) => res.user?.name || "<@" + event.user + ">");
+  const user = (await slack.users
+    .info({ user: event.user })).user || DIE('failed to fetch user info of <@' + event.user + '>');
+  if (user?.is_restricted || user?.is_ultra_restricted) {
+    logger.info(`User ${event.user} is a guest user, skipping processing.`);
+    return;
+  }
+
+  const username = user.name || user.id?.replace(/(.*)/, "<@$1>") || DIE('failed to get username of <@' + event.user + '>');
 
   // task state
   const workspaceId = event.thread_ts || event.ts;
@@ -433,33 +441,33 @@ async function spawnBotOnSlackMessageEvent(event: {
         iso: slackTsToISO(m.ts || DIE("missing ts")),
         ...(m.files &&
           m.files.length > 0 && {
-            files: m.files.map((f: any) => ({
-              name: f.name,
-              title: f.title,
-              mimetype: f.mimetype,
-              size: f.size,
-              url_private: f.url_private,
-              permalink: f.permalink,
-            })),
-          }),
+          files: m.files.map((f: any) => ({
+            name: f.name,
+            title: f.title,
+            mimetype: f.mimetype,
+            size: f.size,
+            url_private: f.url_private,
+            permalink: f.permalink,
+          })),
+        }),
         ...(m.attachments &&
           m.attachments.length > 0 && {
-            attachments: m.attachments.map((a: any) => ({
-              title: a.title,
-              title_link: a.title_link,
-              text: a.text,
-              fallback: a.fallback,
-              image_url: a.image_url,
-              from_url: a.from_url,
-            })),
-          }),
+          attachments: m.attachments.map((a: any) => ({
+            title: a.title,
+            title_link: a.title_link,
+            text: a.text,
+            fallback: a.fallback,
+            image_url: a.image_url,
+            from_url: a.from_url,
+          })),
+        }),
         ...(m.reactions &&
           m.reactions.length > 0 && {
-            reactions: m.reactions.map((r: any) => ({
-              name: r.name,
-              count: r.count,
-            })),
-          }),
+          reactions: m.reactions.map((r: any) => ({
+            name: r.name,
+            count: r.count,
+          })),
+        }),
       }))
       .toArray()
   ).toSorted(compareBy((e) => +(e.ts || 0))); // sort by ts asc
@@ -506,10 +514,10 @@ ${event.text}
 
 The thread's recent messages are:
 ${tap((data) => logger.debug("Thread messages:", { data }))(
-  yaml.stringify(
-    nearbyMessages.toSorted(compareBy((e) => +(e.ts || 0))), // sort by ts asc
-  ),
-)}
+      yaml.stringify(
+        nearbyMessages.toSorted(compareBy((e) => +(e.ts || 0))), // sort by ts asc
+      ),
+    )}
 
 Based on the new message and the thread context,
 
@@ -593,7 +601,7 @@ Respond in JSON format with the following fields:
   });
   await slack.reactions
     .add({ name: "eyes", channel: event.channel, timestamp: event.ts })
-    .catch(() => {});
+    .catch(() => { });
 
   // quick-intent-detect-respond by chatgpt, give quick plan/context responds before start heavy agent work
   const resp = await zChatCompletion(
@@ -642,7 +650,7 @@ Respond in JSON format with the following fields:
       if (existing) {
         await slack.reactions
           .remove({ name: "x", channel: existing.channel, timestamp: existing.ts! })
-          .catch(() => {});
+          .catch(() => { });
 
         // if its a DM, always create a new message
         // if (isDM) {
@@ -725,17 +733,17 @@ Respond in JSON format with the following fields:
   //   return 'no agent spawned'
   // }
 
-  // The problem not easy to solve in original thread, lets forward this message to #pr-bot channel, and then spawn agent using that message.
+  // The problem not easy to solve in original thread, lets forward this message to #prbot channel, and then spawn agent using that message.
   // if (!isAgentChannel) {
   //   // update status, remove eye, add forwarding reaction
   //   await slack.reactions.remove({ name: "eyes", channel: event.channel, timestamp: event.ts }).catch(() => { });
   //   await slack.reactions.add({ name: "arrow_right", channel: event.channel, timestamp: event.ts }).catch(() => { });
 
   //   const originalMessageUrl = `https://${event.team}.slack.com/archives/${event.channel}/p${event.ts.replace(".", "")}`;
-  //   // forward msg to #pr-bot channel, mention original msg user:content, and the original msg url for agent to read
+  //   // forward msg to #prbot channel, mention original msg user:content, and the original msg url for agent to read
   //   const agentChannelId =
   //     (await slack.conversations.list({ types: "public_channel" })).channels?.find((c) => c.name === "pr-bot")?.id ||
-  //     DIE("failed to find #pr-bot channel id");
+  //     DIE("failed to find #prbot channel id");
   //   // this is a user facing msg to tell user we are forwarding the msg
   //   const text = `Forwarded message from <@${event.user}> in <#${event.channel}>:\n${await parseSlackMessageToMarkdown(event.text)}\n\nYou can view the original message here: ${originalMessageUrl}`;
   //   const forwardedMsg = await slack.chat.postMessage({
@@ -772,108 +780,21 @@ Respond in JSON format with the following fields:
 
   slack.reactions
     .remove({ name: "eyes", channel: event.channel, timestamp: event.ts })
-    .catch(() => {});
+    .catch(() => { });
   slack.reactions
     .add({ name: "thinking_face", channel: event.channel, timestamp: event.ts })
-    .catch(() => {});
+    .catch(() => { });
 
-  const CLAUDEMD = `
-# ComfyPR-Bot Instructions
-
-Act as @ComfyPR-Bot, belongs to @Comfy-Org made by @snomiao.
-You are AI assistant integrated with Comfy-Org's many internal services including Slack, Notion, Github, CustomNode Registry.
-
-## About Your self
-
-- You are ComfyPR-Bot, an AI assistant specialized in helping users with ComfyUI and Comfy-Org related questions and tasks.
-- You are integrated with Comfy-Org's internal services including Slack, Notion, Github, and CustomNode Registry.
-- Your primary goal is to assist users effectively by leveraging your skills and resources.
-- Made by @snomiao, the member of Comfy-Org.
-- Your code are located at: https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot, To Improve Your self or check what you can do, please read the code there.
-
-## Repos You already know about:
-
-- https://github.com/comfyanonymous/ComfyUI: The main ComfyUI repository containing the core application logic and features. Its a python backend to run any machine learning models and solves various machine learning tasks.
-- https://github.com/Comfy-Org/ComfyUI_frontend: The frontend codebase for ComfyUI, built with Vue and TypeScript.
-- https://github.com/Comfy-Org/docs: Documentation for ComfyUI, including setup guides, tutorials, and API references.
-- https://github.com/Comfy-Org/desktop: The desktop application for ComfyUI, providing a user-friendly interface and additional functionalities.
-- https://github.com/Comfy-Org/registry: The registry.comfy.org, where users can share and discover ComfyUI custom-nodes, and extensions.
-- https://github.com/Comfy-Org/workflow_templates: A collection of official shared workflow templates for ComfyUI to help users get started quickly.
-- https://github.com/Comfy-Org/comfy-api: A RESTful API service for comfy-registry, it stores custom-node metadatas and user profile/billings informations.
-- https://github.com/Comfy-Org/team-dash: Team Dashboard for Comfy-Org, managing team projects, tasks, and collaboration.
-- https://github.com/Comfy-Org/Comfy-PR: Your own codebase, the ComfyPR Bot repository containing the bot's logic and integrations. Which is already cloned to your ./codes/pr-bot/tree/main for reference.
-- https://github.com/Comfy-Org/*: And also other repos under Comfy-Org organization on GitHub.
-
-## Skills you have:
-
-- Search the web for relevant information.
-- github: Clone any repositories from https://github.com/Comfy-Org to ${botWorkingDir}/codes/Comfy-Org/[repo]/tree/[branch] to inspect codebases for READ-ONLY researching purposes.
-- github: Search code across All CustomNodes/ComfyUI/ComfyOrg repositories using 'pr-bot code search --query="<search terms>" [--repo=<owner/repo>]' (NO --limit support)
-- github: Search for issues and PRs using 'pr-bot github-issue search --query="<search terms>" --limit=10'
-- github: To make code changes to any GitHub repository, you MUST use the pr-bot CLI: 'pr-bot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"'
-- slack: Read thread messages for context using 'pr-bot slack read-thread --channel=${event.channel} --ts=[ts] --limit=100'
-- slack: Update your response message using 'pr-bot slack update --channel ${event.channel} --ts ${quickRespondMsg.ts!} --text "<your response here>"'
-- slack: Upload files to share results using 'pr-bot slack upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
-- notion: Search Notion docs from Comfy-Org team using 'pr-bot notion search --query="<search terms>" --limit=5'
-- notion: Update notion docs by @Fennic-bot in slack channel and asking it to make the changes.
-- registry: Search ComfyUI custom nodes registry using 'pr-bot registry search --query="<search terms>" --limit=5'
-- Local file system: Your working directory are temp, make sure commit your work to external services like slack/github/notion where user can see it, before your ./ dir get cleaned up
-  - TODO.md: You can utilize TODO.md file in your working directory to track tasks and progress.
-  - TOOLS_ERRORS.md: You must log any errors encountered while using tools to TOOLS_ERRORS.md with super detailed contexts in your working directory for later review.
-
-## Improve your self
-
-- To improve your self, you can READ your own codebase at ./codes/Comfy-Org/Comfy-PR/tree/sno-bot (READONLY)
-- When you need to make code changes to your own codebase, you MUST use the pr-bot CLI: 'pr-bot pr --repo=Comfy-Org/Comfy-PR [--branch=<branch>] --prompt="<detailed coding task>"'
-
-## The User Request
-
-for context, the thread context messages is:
-
-${yaml.stringify(nearbyMessages)}
-
-THIS TIME, THE user mentioned you with the following message:
-
-@${username} (user): ${JSON.stringify(await parseSlackMessageToMarkdown(event.text))}
-
-You have already determined the user's intent as follows:
-IMPORTANT: YOU MUST ASSIST THE USER INTENT: ${resp.user_intent}
-
--- Your preliminary response to the user is:
-@YOU: ${JSON.stringify(myResponseMessage)}
-
-Now, based on the user's intent, please do research and provide a detailed and helpful response to assist the user with their request.
-
-## Response Guidelines
-
-- Use markdown format for all your responses.
-- Provide rich references and citations for your information. If you reference code, repos, or documents, MUST provide links to them.
-- Always prioritize user privacy and data security, dont show any token contents, local paths, secrets.
-- If there are errors in tools, just record them to ./TOOLS_ERRORS.md and try to workaround by your self, don't show any error info with end-user.
-
-## Communication
-
-- YOU MUST: Use your slack messaging skills to post all deliverables before exit, your local workspace will be cleaned after you exit.
-
-## IMPORTANT: File Sharing with Users
-
-- When generating reports, code files, diagrams, or any deliverables, ALWAYS upload them to Slack.
-- Use: 'pr-bot slack upload --channel=${event.channel} --file=<path> --comment="<message>" --thread=${quickRespondMsg.ts!}'
-- Upload files to the same thread where the user asked the question using --thread parameter
-- Common file types to share: .md (reports), .pdf (documents), .png/.jpg (diagrams/screenshots), .txt (logs), .json (data), .py/.ts/.js (code samples)
-- Example: 'pr-bot slack upload --channel=${event.channel} --file=./report.md --comment="Analysis complete" --thread=${quickRespondMsg.ts!}'
-
-## IMPORTANT Constraints:
-- DO NOT make any direct code changes to GitHub repositories yourself
-- DO NOT create commits, branches, or pull requests directly
-- ONLY use the pr-bot CLI ('pr-bot pr --repo=<owner/repo> --prompt="..."') to spawn a coding sub-agent for any GitHub modifications
-- You are a RESEARCH and COORDINATION agent - delegate actual coding work to pr-bot sub-agents
-- When user asks for code changes, analyze the request, then spawn a pr-bot with clear, specific instructions
-- IMPORTANT: Remember to use the pr-bot CLI for any GitHub code changes.
-- IMPORTANT: DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION USING ALL YOUR TOOLS and RESOURCES AND SHOW YOUR BEST UNDERSTANDING.
-- DO NOT INCLUDE ANY internal-only info or debugging contexts, system info, any tokens, passwords, credentials.
-- DO NOT INCLUDE ANY local paths in your report to users! You have to sanitize them into github url before sharing.
-`;
+  const CLAUDEMD = loadClaudeMd({
+    EVENT_CHANNEL: event.channel,
+    QUICK_RESPOND_MSG_TS: quickRespondMsg.ts!,
+    USERNAME: username,
+    NEARBY_MESSAGES_YAML: yaml.stringify(nearbyMessages),
+    EVENT_TEXT_JSON: JSON.stringify(await parseSlackMessageToMarkdown(event.text)),
+    USER_INTENT: resp.user_intent,
+    MY_RESPONSE_MESSAGE_JSON: JSON.stringify(myResponseMessage),
+    EVENT_THREAD_TS: event.thread_ts || event.ts,
+  });
 
   // const taskUser = `bot-user-${workspaceId.replace(".", "-")}`;
   // const taskUser = `bot-user-${workspaceId.replace(".", "-")}`;
@@ -884,7 +805,7 @@ Now, based on the user's intent, please do research and provide a detailed and h
 
   await Bun.write(`${botWorkingDir}/CLAUDE.md`, CLAUDEMD);
 
-  // clone https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot to ./repos/pr-bot (branch: sno-bot)
+  // clone https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot to ./repos/prbot (branch: sno-bot)
   const prBotRepoDir = `${botWorkingDir}/codes/Comfy-Org/pr-bot/tree/main`;
   await mkdir(prBotRepoDir, { recursive: true });
   await Bun.$`git clone --branch main https://github.com/Comfy-Org/Comfy-PR ${prBotRepoDir}`.catch(
@@ -897,193 +818,11 @@ Now, based on the user's intent, please do research and provide a detailed and h
   // Reference: https://docs.claude.ai/en/claude-code/skills
   const skillsBase = `${botWorkingDir}/.claude/skills`;
   await mkdir(skillsBase, { recursive: true });
-  const skills: Record<string, string> = {
-    "slack-messaging": `---
-name: Slack Thread Messaging
-description: Update or append messages in Slack threads for progress updates, clarifications, and final answers.
----
-
-# Slack Thread Messaging
-
-Use these commands to communicate in the current Slack thread:
-
-- Update an existing message in the thread:
-  pr-bot slack update --channel <channel_id> --ts <message_ts> --text "<message_text>"
-
-- Read the latest context from a thread root (useful before replying):
-  pr-bot slack read-thread --channel <channel_id> --ts <root_ts> --limit 100
-
-Examples:
-  pr-bot slack update --channel ${event.channel} --ts ${quickRespondMsg.ts!} --text "Working on it..."
-  pr-bot slack read-thread --channel ${event.channel} --ts ${event.thread_ts || event.ts} --limit 50
-
-Guidelines:
-- Acknowledge quickly; post iterative, concise updates.
-- Prefer editing your last progress message instead of spamming.
-- Quote or link to relevant messages for clarity.
-`,
-    "slack-file-sharing": `---
-name: Slack File Sharing
-description: Upload files and share deliverables with users in Slack threads.
----
-
-# Slack File Sharing
-
-Use this command to upload files in Slack:
-
-## Upload a file to thread:
-  pr-bot slack upload --channel <channel_id> --file <file_path> --comment "<message>" --thread <thread_ts>
-
-Examples:
-  pr-bot slack upload --channel ${event.channel} --file ./report.md --comment "Analysis complete" --thread ${quickRespondMsg.ts!}
-  pr-bot slack upload --channel ${event.channel} --file ./data.json --comment "Here is the data" --thread ${quickRespondMsg.ts!}
-
-## When to upload files:
-- Reports, analysis results, or documentation (.md, .pdf, .txt)
-- Code samples or scripts (.py, .ts, .js, .sh)
-- Diagrams, screenshots, or visualizations (.png, .jpg, .svg)
-- Data exports or logs (.json, .csv, .log)
-- Any deliverable the user requested
-
-## Best practices:
-- ALWAYS upload files to the thread where the user asked the question using --thread parameter
-- Use descriptive file names that indicate the content
-- Include a meaningful comment explaining what the file contains
-- Upload files as soon as they're ready, don't wait until the end
-`,
-    "github-pr-bot": `---
-name: GitHub Changes via pr-bot
-description: Safely make code changes by spawning a coding sub-agent that opens a PR.
----
-
-# GitHub Changes via pr-bot
-
-All repository modifications must be delegated to the PR bot using the pr-bot CLI.
-
-Commands:
-  pr-bot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
-  pr-bot code pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
-  pr-bot github pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
-
-Prompt tips:
-- Describe the desired outcome and acceptance criteria.
-- Specify target files/paths when known and include examples.
-- Mention tests/docs to update.
-`,
-    "code-search": `---
-name: ComfyUI Code Search
-description: Search code across ComfyUI repositories using comfy-codesearch service. Including all Comfy-Org repos and Community made Custom Node Repos on GitHub.
----
-
-# ComfyUI Code Search
-
-Search for code patterns, functions, and implementations:
-  pr-bot code search --query "<search terms>"
-
-NOTE: Does NOT support --limit parameter. Results are automatically paginated.
-
-Examples:
-  pr-bot code search --query "binarization" --repo Comfy-Org/ComfyUI
-  pr-bot code search --query "authentication function"
-  pr-bot code search --query "video transcription whisper"
-
-Best practices:
-- Use specific function names or patterns for better results.
-- Specify repo when you know which repository to search.
-- Review results and cite file paths and line numbers.
-`,
-    "github-issue-search": `---
-name: GitHub Issue Search
-description: Search for issues and pull requests across Comfy-Org repositories.
----
-
-# GitHub Issue Search
-
-Search issues and PRs across all Comfy-Org repositories:
-  pr-bot github-issue search --query "<search terms>" [--limit=5]
-
-Examples:
-  pr-bot github-issue search --query "authentication bug" --limit 5
-  pr-bot github-issue search --query "dark mode feature"
-
-Best practices:
-- Search for known bugs or feature requests before starting work.
-- Reference issue numbers in your responses.
-- Link to relevant discussions and PRs.
-`,
-    "notion-search": `---
-name: Notion Docs Search
-description: Find and cite relevant Notion pages from the Comfy-Org workspace.
----
-
-# Notion Docs Search
-
-Search internal docs, RFCs, and meeting notes using pr-bot CLI:
-  pr-bot notion search --query "<search term>" [--limit=5]
-
-Examples:
-  pr-bot notion search --query "ComfyUI setup" --limit 5
-  pr-bot notion search --query "architecture decisions"
-
-Best practices:
-- Skim titles and last-edited times; open the most recent first.
-- Cite page titles and URLs in your response.
-- Check for updated information before making recommendations.
-`,
-    "registry-search": `---
-name: ComfyUI Registry Search
-description: Search for custom nodes and extensions in the ComfyUI registry.
----
-
-# ComfyUI Registry Search
-
-Search for custom nodes and plugins:
-  pr-bot registry search --query "<search terms>" [--limit=5]
-
-Examples:
-  pr-bot registry search --query "video" --limit 5
-  pr-bot registry search --query "upscaling models"
-
-Best practices:
-- Search for existing custom nodes before recommending new implementations.
-- Provide registry URLs for discovered nodes.
-- Check compatibility and maintenance status.
-`,
-    "repo-reading": `---
-name: Comfy-Org Repo Reading (Read-Only)
-description: Clone and inspect Comfy-Org repositories for analysis and citations (no direct pushing).
----
-
-# Comfy-Org Repo Reading (Read-Only)
-
-Clone repositories locally for analysis (read-only):
-  mkdir -p \${PROJECT_ROOT}/codes/Comfy-Org
-  git clone --depth=1 https://github.com/Comfy-Org/<repo>.git \${PROJECT_ROOT}/codes/Comfy-Org/<repo>
-  cd \${PROJECT_ROOT}/codes/Comfy-Org/<repo> && git checkout <branch>
-
-Or use pr-bot code search for faster results:
-  pr-bot code search --query "<search terms>" --repo Comfy-Org/<repo>
-
-Guidelines:
-- Use code search first for specific queries.
-- Clone only when you need to browse full repository structure.
-- Do not commit/push directly; use the PR bot for changes.
-- When citing code, include file paths and line spans where helpful.
-`,
-    "web-research": `---
-name: Web Research and Citation
-description: Search public docs and issues; summarize findings concisely with citations.
----
-
-# Web Research and Citation
-
-When external information is needed:
-- Prefer official docs, READMEs, CHANGELOGs, and issues/PRs.
-- Cross-check dates and versions; prefer recent sources.
-- Provide short quotes and links with clear attribution.
-- Use pr-bot github-issue search for searching GitHub issues.
-`,
-  };
+  const skills = loadSkills({
+    EVENT_CHANNEL: event.channel,
+    QUICK_RESPOND_MSG_TS: quickRespondMsg.ts!,
+    EVENT_THREAD_TS: event.thread_ts || event.ts,
+  });
 
   for (const [dir, content] of Object.entries(skills)) {
     const p = `${skillsBase}/${dir}`;
@@ -1096,14 +835,14 @@ When external information is needed:
     `${botWorkingDir}/SKILLS.txt`,
     `
 Available Skills (.claude/skills):
-- slack-messaging: Communicate in Slack threads using pr-bot slack commands.
+- slack-messaging: Communicate in Slack threads using prbot slack commands.
 - slack-file-sharing: Upload and download files, share deliverables with users.
-- github-pr-bot: Delegate all code changes via pr-bot pr command.
-- code-search: Search ComfyUI code using pr-bot code search.
-- github-issue-search: Search issues and PRs using pr-bot github-issue search.
-- notion-search: Discover and cite internal Notion pages using pr-bot notion search.
-- registry-search: Search custom nodes using pr-bot registry search.
-- repo-reading: Clone and inspect Comfy-Org repos read-only, or use pr-bot code search.
+- github-pr-bot: Delegate all code changes via prbot pr command.
+- code-search: Search ComfyUI code using prbot code search.
+- github-issue-search: Search issues and PRs using prbot github-issue search.
+- notion-search: Discover and cite internal Notion pages using prbot notion search.
+- registry-search: Search custom nodes using prbot registry search.
+- repo-reading: Clone and inspect Comfy-Org repos read-only, or use prbot code search.
 - web-research: Pull in external context and cite sources.
 
 Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
@@ -1116,18 +855,18 @@ Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
 # Task TODOs
 
 - Analyze the user's request and gather necessary information.
-- Search relevant documents, codebases, and resources using pr-bot CLI:
-  - Code search: pr-bot code search --query="<search terms>" [--repo=<owner/repo>]
-  - Issue search: pr-bot github-issue search --query="<search terms>"
-  - Notion search: pr-bot notion search --query="<search terms>"
-  - Registry search: pr-bot registry search --query="<search terms>"
-- Coordinate with pr-bot agents for any coding tasks:
-  - pr-bot pr --repo=<owner/repo> --prompt="<detailed coding task>"
+- Search relevant documents, codebases, and resources using prbot CLI:
+  - Code search: prbot code search --query="<search terms>" [--repo=<owner/repo>]
+  - Issue search: prbot github-issue search --query="<search terms>"
+  - Notion search: prbot notion search --query="<search terms>"
+  - Registry search: prbot registry search --query="<search terms>"
+- Coordinate with prbot agents for any coding tasks:
+  - prbot pr --repo=<owner/repo> --prompt="<detailed coding task>"
 - Compile findings and provide a comprehensive response to the user.
 
 ## GitHub Changes
-- IMPORTANT: Remember to use the pr-bot CLI for any GitHub code changes:
-  pr-bot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
+- IMPORTANT: Remember to use the prbot CLI for any GitHub code changes:
+  prbot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
 
 `,
   );
@@ -1239,7 +978,7 @@ Please assist them with their request using all your resources available.
                 channel: msgChannel,
                 timestamp: msgTs,
               })
-              .catch(() => {});
+              .catch(() => { });
             idleWaiter.wait(5e3).finally(async () => {
               await slack.reactions
                 .remove({
@@ -1247,7 +986,7 @@ Please assist them with their request using all your resources available.
                   channel: msgChannel,
                   timestamp: msgTs,
                 })
-                .catch(() => {});
+                .catch(() => { });
               isThinking = false;
             });
           }
@@ -1262,7 +1001,7 @@ Please assist them with their request using all your resources available.
                 channel: quickRespondMsg.channel,
                 timestamp: quickRespondMsg.ts,
               })
-              .catch(() => {});
+              .catch(() => { });
           }
         })
         .run();
@@ -1293,7 +1032,7 @@ Please assist them with their request using all your resources available.
           const my_internal_thoughts = tr.render().split("\n").slice(-80).join("\n");
           logger.info(
             "Unsent preview: " +
-              yaml.stringify({ preview: news.slice(0, 200), my_internal_thoughts }),
+            yaml.stringify({ preview: news.slice(0, 200), my_internal_thoughts }),
           );
 
           // send update to slack
@@ -1351,8 +1090,8 @@ ${yaml.stringify(contexts)}
           const my_response_md_updated =
             updated_response_full.length > 4000
               ? updated_response_full.slice(0, 2000) +
-                "\n\n...TRUNCATED...\n\n" +
-                updated_response_full.slice(-2000)
+              "\n\n...TRUNCATED...\n\n" +
+              updated_response_full.slice(-2000)
               : updated_response_full;
 
           if (quickRespondMsg.ts && quickRespondMsg.channel) {
@@ -1426,14 +1165,14 @@ ${yaml.stringify(contexts)}
     // update my slack message reactions shows a cross mark and update it appending a error happened and say will retry later
     await slack.reactions
       .remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts })
-      .catch(() => {});
+      .catch(() => { });
     if (quickRespondMsg.ts && quickRespondMsg.channel) {
       await slack.reactions
         .add({ name: "x", channel: quickRespondMsg.channel, timestamp: quickRespondMsg.ts })
-        .catch(() => {});
+        .catch(() => { });
       const errorText = await mdFmt(
         (quickRespondMsg.text || "") +
-          `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`,
+        `\n\n:warning: An error occurred while processing this request <@snomiao>, I will try it again later`,
       );
       await safeSlackUpdateMessage(slack, {
         channel: event.channel,
@@ -1452,10 +1191,10 @@ ${yaml.stringify(contexts)}
   // claude exited as no more inputs/outputs for a while, update the status message
   await slack.reactions
     .remove({ name: "thinking_face", channel: event.channel, timestamp: event.ts })
-    .catch(() => {});
+    .catch(() => { });
   await slack.reactions
     .add({ name: "white_check_mark", channel: event.channel, timestamp: event.ts })
-    .catch(() => {});
+    .catch(() => { });
   await State.set(`task-${workspaceId}`, {
     ...(await State.get(`task-${workspaceId}`)),
     status: "done",
