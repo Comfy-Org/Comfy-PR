@@ -5,7 +5,7 @@ import { hideBin } from "yargs/helpers";
 import yargs from "yargs/yargs";
 
 // GitHub abilities
-import { spawnSubAgent } from "./code/coding/pr-agent";
+import { spawnSubAgent } from "./code/pr-agent";
 import { searchGitHubIssues } from "./code/issue-search";
 
 // Registry ability
