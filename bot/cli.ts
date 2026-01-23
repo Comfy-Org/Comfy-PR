@@ -28,7 +28,7 @@ import { searchNotion } from "@/lib/notion/search";
 
 /**
  * Load environment variables from .env.local in the project root
- * This allows pr-bot to work from any directory
+ * This allows prbot to work from any directory
  */
 async function loadEnvLocal() {
   const envPath = path.join(import.meta.dir, "../.env.local");
@@ -103,7 +103,7 @@ Generate branch name.`) as { base: string; head: string };
 
 async function main() {
   const argv = yargs(hideBin(process.argv))
-    .scriptName("pr-bot")
+    .scriptName("prbot")
     .usage("$0 <command> [options]")
     .command(
       "code pr",
@@ -252,7 +252,7 @@ async function main() {
       },
     )
     .command(
-      ["pr", "pr-bot"],
+      ["pr", "prbot"],
       "Alias of code pr",
       (y) =>
         y
@@ -569,20 +569,20 @@ async function main() {
     .epilog(
       [
         "Examples:",
-        "  pr-bot code pr -r Comfy-Org/ComfyUI -b main -p 'Fix auth bug'",
-        "  pr-bot code search -q 'binarization' --repo Comfy-Org/ComfyUI",
-        "  pr-bot github-issue search -q 'authentication bug' -l 5",
-        "  pr-bot registry search -q 'video' -l 5",
-        "  pr-bot pr -r Comfy-Org/desktop -p 'Add spellcheck to editor'",
-        "  pr-bot slack update -c C123 -t 1234567890.123456 -m 'Working on it'",
-        "  pr-bot slack read-thread -c C123 -t 1234567890.123456",
-        "  pr-bot slack read-thread -u 'https://workspace.slack.com/archives/C123/p1234567890'",
-        "  pr-bot slack read-nearby -u 'https://workspace.slack.com/archives/C123/p1234567890' -b 20 -a 20",
-        "  pr-bot slack upload -c C123 -f ./report.pdf -m 'Here is the report'",
-        "  pr-bot slack post-with-files -c C123 -m 'Check these files' -f file1.pdf -f file2.png",
-        "  pr-bot slack download-file -f F123ABC -o ./downloaded.pdf",
-        "  pr-bot slack file-info -f F123ABC",
-        "  pr-bot notion search -q 'ComfyUI setup' -l 5",
+        "  prbot code pr -r Comfy-Org/ComfyUI -b main -p 'Fix auth bug'",
+        "  prbot code search -q 'binarization' --repo Comfy-Org/ComfyUI",
+        "  prbot github-issue search -q 'authentication bug' -l 5",
+        "  prbot registry search -q 'video' -l 5",
+        "  prbot pr -r Comfy-Org/desktop -p 'Add spellcheck to editor'",
+        "  prbot slack update -c C123 -t 1234567890.123456 -m 'Working on it'",
+        "  prbot slack read-thread -c C123 -t 1234567890.123456",
+        "  prbot slack read-thread -u 'https://workspace.slack.com/archives/C123/p1234567890'",
+        "  prbot slack read-nearby -u 'https://workspace.slack.com/archives/C123/p1234567890' -b 20 -a 20",
+        "  prbot slack upload -c C123 -f ./report.pdf -m 'Here is the report'",
+        "  prbot slack post-with-files -c C123 -m 'Check these files' -f file1.pdf -f file2.png",
+        "  prbot slack download-file -f F123ABC -o ./downloaded.pdf",
+        "  prbot slack file-info -f F123ABC",
+        "  prbot notion search -q 'ComfyUI setup' -l 5",
       ].join("\n"),
     ).argv;
 
