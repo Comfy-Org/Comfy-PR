@@ -17,11 +17,11 @@ async function main() {
   if (!repo) {
     console.error("Error: --repo is required");
     console.log(
-      "\nUsage: bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt=<prompt>",
+      "\nUsage: bun bot/code/prbot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt=<prompt>",
     );
     console.log("\nExample:");
     console.log(
-      '  bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=prbot-fix-auth --prompt="Fix the authentication bug"',
+      '  bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI --base=main --head=prbot-fix-auth --prompt="Fix the authentication bug"',
     );
     console.log("\nIf --head is not provided, it will be auto-generated based on the prompt.");
     process.exit(1);
@@ -30,11 +30,11 @@ async function main() {
   if (!prompt) {
     console.error("Error: --prompt is required");
     console.log(
-      "\nUsage: bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt=<prompt>",
+      "\nUsage: bun bot/code/prbot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt=<prompt>",
     );
     console.log("\nExample:");
     console.log(
-      '  bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=prbot-fix-auth --prompt="Fix the authentication bug"',
+      '  bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI --base=main --head=prbot-fix-auth --prompt="Fix the authentication bug"',
     );
     console.log("\nIf --head is not provided, it will be auto-generated based on the prompt.");
     process.exit(1);
