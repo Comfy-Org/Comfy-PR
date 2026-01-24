@@ -19,9 +19,21 @@ import {
   uploadSlackFile,
 } from "@/lib/slack/file";
 import { readNearbyMessages } from "@/lib/slack/msg-read-nearby";
+import { readRecentMessages } from "@/lib/slack/msg-read-recent";
 import { readSlackThread } from "@/lib/slack/msg-read-thread";
 import { updateSlackMessage } from "@/lib/slack/msg-update";
 import { parseSlackUrl } from "@/lib/slack/parseSlackUrl";
+import { parseSlackUrlSmart } from "@/lib/slack/parseSlackUrlSmart";
+import { getMessageReactions } from "@/lib/slack/reactions";
+import { searchMessages, searchFiles } from "@/lib/slack/search";
+import { listPinnedMessages } from "@/lib/slack/pins";
+import { listChannelBookmarks } from "@/lib/slack/bookmarks";
+import { getMessagePermalink } from "@/lib/slack/permalink";
+import { getChannelInfo } from "@/lib/slack/channel-info";
+import { listChannelMembers } from "@/lib/slack/members";
+import { getUserPresence, getBulkUserPresence } from "@/lib/slack/presence";
+import { getCompleteMessageContext } from "@/lib/slack/context";
+import yaml from "yaml";
 
 // Notion ability
 import { searchNotion } from "@/lib/notion/search";
@@ -272,6 +284,76 @@ async function main() {
     .command("slack", "Slack integration commands", (yargs) => {
       return yargs
         .command(
+          "read <url>",
+          "Smart read: Auto-detect URL type (message/file/channel) and read appropriately (YAML output)",
+          (y) =>
+            y.positional("url", {
+              type: "string",
+              describe: "Slack URL (message, file, or channel)",
+              demandOption: true,
+            }),
+          async (args) => {
+            await loadEnvLocal();
+
+            const url = args.url as string;
+            const parsed = parseSlackUrlSmart(url);
+
+            switch (parsed.type) {
+              case "message": {
+                // Read nearby messages with target highlighted
+                const messages = await readNearbyMessages(
+                  parsed.channel!,
+                  parsed.ts!,
+                  20, // 20 before
+                  20, // 20 after
+                );
+                console.log(yaml.stringify(messages));
+                break;
+              }
+
+              case "channel": {
+                // Read recent 10 messages
+                const messages = await readRecentMessages(parsed.channel!, 10);
+                console.log(yaml.stringify(messages));
+                break;
+              }
+
+              case "file": {
+                // Download file to current directory
+                if (!parsed.fileId) {
+                  console.error("Could not extract file ID from URL");
+                  process.exit(1);
+                }
+
+                const fileInfo = await getSlackFileInfo(parsed.fileId);
+                const fileName = fileInfo.name || `file-${parsed.fileId}`;
+                const outputPath = `./${fileName}`;
+
+                await downloadSlackFile(parsed.fileId, outputPath);
+
+                console.log(
+                  yaml.stringify({
+                    type: "file_downloaded",
+                    file_id: parsed.fileId,
+                    file_name: fileName,
+                    file_size: fileInfo.size,
+                    downloaded_to: outputPath,
+                  }),
+                );
+                break;
+              }
+
+              default:
+                console.error(`Unknown or unsupported Slack URL type: ${url}`);
+                console.error("Supported formats:");
+                console.error("  - Message: https://workspace.slack.com/archives/C123/p1234567890");
+                console.error("  - Channel: https://workspace.slack.com/archives/C123");
+                console.error("  - File: https://files.slack.com/files-pri/T123-F456/file.pdf");
+                process.exit(1);
+            }
+          },
+        )
+        .command(
           "update",
           "Update a Slack message",
           (y) =>
@@ -290,7 +372,7 @@ async function main() {
         )
         .command(
           "read-thread",
-          "Read and print a Slack thread (JSON)",
+          "Read and print a Slack thread (YAML)",
           (y) =>
             y
               .option("url", { alias: "u", type: "string", describe: "Slack message URL" })
@@ -334,7 +416,7 @@ async function main() {
             }
 
             const items = await readSlackThread(channel, ts, (args.limit as number) ?? 100);
-            console.log(JSON.stringify(items, null, 2));
+            console.log(yaml.stringify(items));
           },
         )
         .command(
@@ -394,7 +476,7 @@ async function main() {
               (args.before as number) ?? 10,
               (args.after as number) ?? 10,
             );
-            console.log(JSON.stringify(items, null, 2));
+            console.log(yaml.stringify(items));
           },
         )
         .command(
@@ -421,7 +503,7 @@ async function main() {
         )
         .command(
           "file-info",
-          "Get information about a Slack file",
+          "Get information about a Slack file (YAML)",
           (y) =>
             y.option("fileId", {
               alias: "f",
@@ -432,7 +514,7 @@ async function main() {
           async (args) => {
             await loadEnvLocal();
             const info = await getSlackFileInfo(args.fileId as string);
-            console.log(JSON.stringify(info, null, 2));
+            console.log(yaml.stringify(info));
           },
         )
         .command(
@@ -505,6 +587,225 @@ async function main() {
               initialComment: args.comment as string | undefined,
               threadTs: args.thread as string | undefined,
             });
+          },
+        )
+        .command(
+          "reactions <url>",
+          "Get reactions for a message",
+          (y) =>
+            y.positional("url", {
+              type: "string",
+              describe: "Slack message URL",
+              demandOption: true,
+            }),
+          async (args) => {
+            await loadEnvLocal();
+            const parsed = parseSlackUrl(args.url as string);
+            if (!parsed) {
+              console.error("Invalid Slack message URL");
+              process.exit(1);
+            }
+            const reactions = await getMessageReactions(parsed.channel, parsed.ts);
+            console.log(yaml.stringify(reactions));
+          },
+        )
+        .command(
+          "search",
+          "Search messages or files across workspace",
+          (y) =>
+            y
+              .option("query", {
+                alias: "q",
+                type: "string",
+                demandOption: true,
+                describe: "Search query",
+              })
+              .option("channel", {
+                alias: "c",
+                type: "string",
+                describe: "Filter by channel ID",
+              })
+              .option("limit", {
+                alias: "l",
+                type: "number",
+                default: 20,
+                describe: "Max results",
+              })
+              .option("type", {
+                type: "string",
+                default: "messages",
+                describe: "Search type: messages|files",
+              })
+              .option("sort", {
+                type: "string",
+                default: "timestamp",
+                describe: "Sort by: score|timestamp",
+              }),
+          async (args) => {
+            await loadEnvLocal();
+            const searchType = args.type === "files" ? "files" : "messages";
+            let results;
+            if (searchType === "files") {
+              results = await searchFiles(args.query as string, {
+                limit: args.limit as number,
+                sort: args.sort as any,
+              });
+            } else {
+              results = await searchMessages(args.query as string, {
+                channel: args.channel as string | undefined,
+                limit: args.limit as number,
+                sort: args.sort as any,
+              });
+            }
+            console.log(yaml.stringify(results));
+          },
+        )
+        .command(
+          "pins <url>",
+          "List pinned messages in a channel",
+          (y) =>
+            y.positional("url", {
+              type: "string",
+              describe: "Slack channel URL or message URL",
+              demandOption: true,
+            }),
+          async (args) => {
+            await loadEnvLocal();
+            const parsed = parseSlackUrlSmart(args.url as string);
+            if (!parsed.channel) {
+              console.error("Invalid Slack URL - must be a channel or message URL");
+              process.exit(1);
+            }
+            const pins = await listPinnedMessages(parsed.channel);
+            console.log(yaml.stringify(pins));
+          },
+        )
+        .command(
+          "bookmarks <url>",
+          "List bookmarks in a channel",
+          (y) =>
+            y.positional("url", {
+              type: "string",
+              describe: "Slack channel URL or message URL",
+              demandOption: true,
+            }),
+          async (args) => {
+            await loadEnvLocal();
+            const parsed = parseSlackUrlSmart(args.url as string);
+            if (!parsed.channel) {
+              console.error("Invalid Slack URL - must be a channel or message URL");
+              process.exit(1);
+            }
+            const bookmarks = await listChannelBookmarks(parsed.channel);
+            console.log(yaml.stringify(bookmarks));
+          },
+        )
+        .command(
+          "permalink <url>",
+          "Get permalink for a message",
+          (y) =>
+            y.positional("url", {
+              type: "string",
+              describe: "Slack message URL",
+              demandOption: true,
+            }),
+          async (args) => {
+            await loadEnvLocal();
+            const parsed = parseSlackUrl(args.url as string);
+            if (!parsed) {
+              console.error("Invalid Slack message URL");
+              process.exit(1);
+            }
+            const permalink = await getMessagePermalink(parsed.channel, parsed.ts);
+            console.log(yaml.stringify(permalink));
+          },
+        )
+        .command(
+          "channel-info <url>",
+          "Get detailed channel information",
+          (y) =>
+            y.positional("url", {
+              type: "string",
+              describe: "Slack channel URL or message URL",
+              demandOption: true,
+            }),
+          async (args) => {
+            await loadEnvLocal();
+            const parsed = parseSlackUrlSmart(args.url as string);
+            if (!parsed.channel) {
+              console.error("Invalid Slack URL - must be a channel or message URL");
+              process.exit(1);
+            }
+            const info = await getChannelInfo(parsed.channel);
+            console.log(yaml.stringify(info));
+          },
+        )
+        .command(
+          "members <url>",
+          "List channel members",
+          (y) =>
+            y
+              .positional("url", {
+                type: "string",
+                describe: "Slack channel URL or message URL",
+                demandOption: true,
+              })
+              .option("limit", {
+                alias: "l",
+                type: "number",
+                default: 100,
+                describe: "Max members",
+              }),
+          async (args) => {
+            await loadEnvLocal();
+            const parsed = parseSlackUrlSmart(args.url as string);
+            if (!parsed.channel) {
+              console.error("Invalid Slack URL - must be a channel or message URL");
+              process.exit(1);
+            }
+            const members = await listChannelMembers(parsed.channel, args.limit as number);
+            console.log(yaml.stringify(members));
+          },
+        )
+        .command(
+          "presence <user_id...>",
+          "Get user presence status",
+          (y) =>
+            y.positional("user_id", {
+              type: "string",
+              describe: "User ID(s)",
+              demandOption: true,
+            }),
+          async (args) => {
+            await loadEnvLocal();
+            const userIds = args.user_id as string[];
+            let result;
+            if (userIds.length === 1) {
+              result = await getUserPresence(userIds[0]);
+            } else {
+              result = await getBulkUserPresence(userIds);
+            }
+            console.log(yaml.stringify(result));
+          },
+        )
+        .command(
+          "context <url>",
+          "Get complete message context (composite: message + reactions + thread + channel + user + permalink + pins)",
+          (y) =>
+            y.positional("url", {
+              type: "string",
+              describe: "Slack message URL",
+              demandOption: true,
+            }),
+          async (args) => {
+            await loadEnvLocal();
+            const parsed = parseSlackUrl(args.url as string);
+            if (!parsed) {
+              console.error("Invalid Slack message URL");
+              process.exit(1);
+            }
+            const context = await getCompleteMessageContext(parsed.channel, parsed.ts);
+            console.log(yaml.stringify(context));
           },
         )
         .demandCommand(1, "Please specify a slack subcommand")

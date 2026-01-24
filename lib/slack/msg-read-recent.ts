@@ -3,12 +3,13 @@ import { slack } from "@/lib";
 import DIE from "@snomiao/die";
 import sflow from "sflow";
 import { parseArgs } from "util";
+import yaml from "yaml";
 import { parseSlackMessageToMarkdown } from "./parseSlackMessageToMarkdown";
 import { slackTsToISO } from "./slackTsToISO";
-import yaml from "yaml";
+
 /**
- * Read messages from a Slack thread
- * Usage: bun bot/slack/msg-read-thread.ts --channel C123 --ts 1234567890.123456
+ * Read recent messages from a Slack channel
+ * Usage: bun lib/slack/msg-read-recent.ts --channel C123 --limit 10
  */
 
 if (import.meta.main) {
@@ -19,52 +20,53 @@ if (import.meta.main) {
         type: "string",
         short: "c",
       },
-      ts: {
-        type: "string",
-        short: "t",
-      },
       limit: {
         type: "string",
         short: "l",
-        default: "100",
+        default: "10",
       },
     },
     strict: true,
     allowPositionals: false,
   });
 
-  if (!values.channel || !values.ts) {
-    console.error(
-      "Usage: bun bot/slack/msg-read-thread.ts --channel <channel_id> --ts <thread_ts> [--limit <number>]",
-    );
-    console.error(
-      "Example: bun bot/slack/msg-read-thread.ts --channel C123ABC --ts 1234567890.123456 --limit 50",
-    );
+  if (!values.channel) {
+    console.error("Usage: bun lib/slack/msg-read-recent.ts --channel <channel_id> [--limit <number>]");
+    console.error("Example: bun lib/slack/msg-read-recent.ts --channel C123ABC --limit 10");
     process.exit(1);
   }
 
-  const messages = await readSlackThread(
-    values.channel,
-    values.ts,
-    parseInt(values.limit || "100"),
-  );
+  const channel = values.channel;
+  const limit = parseInt(values.limit || "10");
+
+  const messages = await readRecentMessages(channel, limit);
 
   console.log(yaml.stringify(messages));
 }
 
-export async function  readSlackThread(channel: string, ts: string, limit: number = 100) {
+export async function readRecentMessages(channel: string, limit: number = 10) {
   try {
-    const result = await slack.conversations.replies({
+    // Read recent messages from the channel
+    const result = await slack.conversations.history({
       channel,
-      ts,
       limit,
     });
 
     if (!result.ok) {
-      throw new Error(`Failed to read thread: ${result.error}`);
+      throw new Error(`Failed to read messages: ${result.error || "unknown error"}`);
     }
 
-    const messages = await sflow(result.messages || [])
+    const messages = result.messages || [];
+
+    // Sort by timestamp (most recent first)
+    const sortedMessages = messages.sort((a, b) => {
+      const tsA = parseFloat(a.ts || "0");
+      const tsB = parseFloat(b.ts || "0");
+      return tsB - tsA; // Descending order (newest first)
+    });
+
+    // Format messages
+    const formattedMessages = await sflow(sortedMessages)
       .map(async (m) => {
         const user = m.user
           ? await slack.users
@@ -79,9 +81,11 @@ export async function  readSlackThread(channel: string, ts: string, limit: numbe
           username: user,
           text: m.text || "",
           markdown: await parseSlackMessageToMarkdown(m.text || ""),
+          ...(m.thread_ts && { thread_ts: m.thread_ts }),
           ...(m.files &&
             m.files.length > 0 && {
               files: m.files.map((f: any) => ({
+                id: f.id,
                 name: f.name,
                 title: f.title,
                 mimetype: f.mimetype,
@@ -112,9 +116,9 @@ export async function  readSlackThread(channel: string, ts: string, limit: numbe
       })
       .toArray();
 
-    return messages;
+    return formattedMessages;
   } catch (error) {
-    console.error("Error reading Slack thread:", error);
+    console.error("Error reading recent Slack messages:", error);
     throw error;
   }
 }
