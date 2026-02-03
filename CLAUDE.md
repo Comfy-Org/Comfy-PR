@@ -416,6 +416,7 @@ The prbot CLI (`bot/cli.ts`) is a unified command-line interface built with yarg
 ### Installation & Usage
 
 Available via package.json bin entries:
+
 - `prbot <command>` (primary)
 - `pr-bot <command>` (alias)
 - `bun bot/cli.ts <command>` (direct execution)
@@ -440,6 +441,7 @@ prbot pr -r Comfy-Org/ComfyUI_frontend -b develop -p "Add dark mode"
 ```
 
 **Options:**
+
 - `-r, --repo` (required): Repository in format `owner/repo`
 - `-b, --base`: Base branch (default: `main`)
 - `--head`: Head branch (auto-generated if not provided using GPT-4o-mini)
@@ -459,6 +461,7 @@ prbot code search -q "useAuth" --path "src/hooks/**"
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query (supports `repo:` and `path:` filters)
 - `--repo`: Filter by repository
 - `--path`: Filter by file path pattern
@@ -476,6 +479,7 @@ prbot github-issue search -q "dark mode feature" -l 10
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query
 - `-l, --limit`: Max results (default: 10)
 
@@ -494,6 +498,7 @@ prbot registry search -q "animation" --include-deprecated
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query
 - `-l, --limit`: Max results (default: 10)
 - `--include-deprecated`: Include deprecated nodes
@@ -503,6 +508,7 @@ prbot registry search -q "animation" --include-deprecated
 #### 5. Slack Commands
 
 **Smart Read (Recommended - NEW!):**
+
 ```bash
 # Auto-detect URL type (message/file/channel) and read appropriately
 prbot slack read "<slack_url>"
@@ -516,6 +522,7 @@ prbot slack read "https://files.slack.com/files-pri/T123-F456/file.pdf"  # downl
 **Output:** YAML format with structured data.
 
 **Update Message:**
+
 ```bash
 prbot slack update -c <channel_id> -t <timestamp> -m "<text>"
 
@@ -524,6 +531,7 @@ prbot slack update -c C123ABC -t 1234567890.123456 -m "Task completed!"
 ```
 
 **Read Thread (two methods):**
+
 ```bash
 # Method 1: Channel + Timestamp
 prbot slack read-thread -c <channel_id> -t <thread_ts> [-l <limit>]
@@ -537,6 +545,7 @@ prbot slack read-thread -u "https://workspace.slack.com/archives/C123/p123456789
 ```
 
 **Read Nearby Messages:**
+
 ```bash
 # Method 1: Channel + Timestamp
 prbot slack read-nearby -c <channel_id> -t <ts> [-b <before>] [-a <after>]
@@ -550,6 +559,7 @@ prbot slack read-nearby -u "https://workspace.slack.com/archives/C123/p123456789
 ```
 
 **File Operations:**
+
 ```bash
 # Upload file
 prbot slack upload-file -c <channel> -f <file> [--title] [-m <comment>] [-t <thread>]
@@ -571,6 +581,7 @@ prbot slack file-info -f F123ABC
 ```
 
 **Research & Context Commands:**
+
 ```bash
 # Get reactions for a message
 prbot slack reactions "<message_url>"
@@ -615,6 +626,7 @@ prbot notion search -q "sprint planning"
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query
 - `-l, --limit`: Max results (default: 10)
 
@@ -661,6 +673,7 @@ OPENAI_API_KEY=sk-...
 ### Sub-Agent Documentation
 
 Sub-agents (PR bots) spawned by prbot have access to comprehensive documentation in:
+
 - `.bot/AGENT.md` - Complete command reference and usage guide
 - `.bot/README.md` - Symlink to AGENT.md
 
@@ -669,6 +682,7 @@ These files are in the `.bot/` workspace directory accessible to spawned agents.
 ### Usage Patterns
 
 **Research then PR:**
+
 ```bash
 prbot github-issue search -q "auth timeout" -l 5
 prbot code search -q "authentication timeout" --repo Comfy-Org/ComfyUI
@@ -677,6 +691,7 @@ prbot pr -r Comfy-Org/ComfyUI -p "Fix auth timeout by increasing session TTL"
 ```
 
 **Slack Thread Investigation:**
+
 ```bash
 # Quick context check with smart read
 prbot slack read "<slack_url>"
@@ -691,6 +706,7 @@ prbot slack update -c C123 -t 1234567890.123456 -m "Investigated root cause..."
 ```
 
 **Channel Research:**
+
 ```bash
 # Understand a channel
 prbot slack channel-info "<channel_url>"  # Get topic, purpose, member count
@@ -700,6 +716,7 @@ prbot slack members "<channel_url>"  # See who's in the channel
 ```
 
 **Registry Research:**
+
 ```bash
 prbot registry search -q "video processing" -l 10
 prbot code search -q "VideoProcessNode" --repo Comfy-Org/ComfyUI

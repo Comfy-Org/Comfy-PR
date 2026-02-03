@@ -150,6 +150,7 @@ prbot prbot -r <owner/repo> -p "<task>"
 ```
 
 **Options:**
+
 - `-r, --repo` (required): Repository in format `owner/repo`
 - `-b, --base`: Base branch to merge into (default: `main`)
 - `--head`: Head branch to develop on (auto-generated if not provided)
@@ -169,6 +170,7 @@ prbot pr -r Comfy-Org/ComfyUI_frontend -b develop -p "Add dark mode toggle"
 ```
 
 **How it works:**
+
 1. Auto-generates a branch name if `--head` not provided (e.g., `fix/auth-timeout`)
 2. Clones repo to `/repos/[owner]/[repo]/tree/[head]/`
 3. Spawns an AI coding agent with full repository access
@@ -185,6 +187,7 @@ prbot code search -q "<query>" [--repo <owner/repo>] [--path <pattern>]
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query (supports filters)
 - `--repo`: Filter results by repository
 - `--path`: Filter by file path pattern
@@ -216,6 +219,7 @@ prbot github-issue search -q "<query>" [-l <limit>]
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query
 - `-l, --limit`: Maximum results (default: 10)
 
@@ -230,6 +234,7 @@ prbot github-issue search -q "dark mode feature" -l 10
 ```
 
 **Output includes:**
+
 - Issue/PR number and title
 - Repository name
 - State (open/closed)
@@ -248,6 +253,7 @@ prbot registry search -q "<query>" [-l <limit>] [--include-deprecated]
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query
 - `-l, --limit`: Maximum results (default: 10)
 - `--include-deprecated`: Include deprecated nodes in results
@@ -263,6 +269,7 @@ prbot registry search -q "animation" --include-deprecated
 ```
 
 **Output includes:**
+
 - Node name, ID, description
 - Publisher name
 - Latest version
@@ -283,6 +290,7 @@ prbot slack read "<slack_url>"
 ```
 
 **Supports:**
+
 - **Message URLs**: Reads nearby messages (20 before + 20 after) with target message highlighted
 - **Channel URLs**: Reads recent 10 messages from the channel
 - **File URLs**: Downloads file to current directory and returns path
@@ -313,6 +321,7 @@ prbot slack update -c <channel_id> -t <timestamp> -m "<new_text>"
 ```
 
 **Options:**
+
 - `-c, --channel` (required): Slack channel ID
 - `-t, --ts` (required): Message timestamp
 - `-m, --text` (required): New message text
@@ -338,6 +347,7 @@ prbot slack read-thread -u "<slack_message_url>" [-l <limit>]
 ```
 
 **Options:**
+
 - `-c, --channel`: Slack channel ID
 - `-t, --ts`: Thread timestamp
 - `-u, --url`: Slack message URL (alternative to channel + ts)
@@ -370,6 +380,7 @@ prbot slack read-nearby -u "<slack_message_url>" [-b <before>] [-a <after>]
 ```
 
 **Options:**
+
 - `-c, --channel`: Slack channel ID
 - `-t, --ts`: Message timestamp
 - `-u, --url`: Slack message URL (alternative to channel + ts)
@@ -399,6 +410,7 @@ prbot slack upload-file -c <channel_id> -f <file_path> [--title "<title>"] [-m "
 ```
 
 **Options:**
+
 - `-c, --channel` (required): Channel ID
 - `-f, --file` (required): File path to upload
 - `--title`: File title
@@ -422,6 +434,7 @@ prbot slack post-with-files -c <channel_id> -m "<message>" -f <file1> [-f <file2
 ```
 
 **Options:**
+
 - `-c, --channel` (required): Channel ID
 - `-m, --text` (required): Message text
 - `-f, --file` (required, multiple): File paths to attach
@@ -444,6 +457,7 @@ prbot slack download-file -f <file_id> -o <output_path>
 ```
 
 **Options:**
+
 - `-f, --fileId` (required): Slack file ID
 - `-o, --output` (required): Output file path
 
@@ -464,6 +478,7 @@ prbot slack file-info -f <file_id>
 ```
 
 **Options:**
+
 - `-f, --fileId` (required): Slack file ID
 
 **Example:**
@@ -503,6 +518,7 @@ prbot slack search -q "<query>" [-c <channel>] [-l <limit>] [--type messages|fil
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query
 - `-c, --channel`: Filter by channel ID
 - `-l, --limit`: Max results (default: 20)
@@ -607,6 +623,7 @@ prbot slack members "<slack_channel_url>" [-l <limit>]
 ```
 
 **Options:**
+
 - `-l, --limit`: Max members (default: 100)
 
 **Example:**
@@ -668,6 +685,7 @@ prbot notion search -q "<query>" [-l <limit>]
 ```
 
 **Options:**
+
 - `-q, --query` (required): Search query
 - `-l, --limit`: Maximum results (default: 10)
 
@@ -682,6 +700,7 @@ prbot notion search -q "sprint planning"
 ```
 
 **Output includes:**
+
 - Page title
 - Notion URL
 - Last edited timestamp
@@ -738,9 +757,9 @@ prbot pr -r Comfy-Org/ComfyUI -p "Integrate VideoProcessNode into main pipeline"
 
 ## Command Aliases
 
-| Full Command | Aliases |
-|-------------|---------|
-| `prbot code pr` | `prbot github pr`, `prbot pr`, `prbot prbot` |
+| Full Command              | Aliases                                         |
+| ------------------------- | ----------------------------------------------- |
+| `prbot code pr`           | `prbot github pr`, `prbot pr`, `prbot prbot`    |
 | `prbot slack read-thread` | Can use `--url` instead of `--channel` + `--ts` |
 | `prbot slack read-nearby` | Can use `--url` instead of `--channel` + `--ts` |
 
@@ -816,6 +835,7 @@ To add new commands:
 4. Update this documentation
 
 Follow the standard development pattern from CLAUDE.md:
+
 - Use TypeScript with full type safety
 - Export functions for library use
 - Support both CLI and programmatic usage

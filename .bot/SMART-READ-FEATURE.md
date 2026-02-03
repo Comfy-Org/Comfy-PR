@@ -30,6 +30,7 @@ All Slack commands now output YAML format (instead of JSON) for better readabili
 ## Examples
 
 ### Message URL
+
 ```bash
 $ prbot slack read "https://workspace.slack.com/archives/C123/p1234567890"
 ```
@@ -37,6 +38,7 @@ $ prbot slack read "https://workspace.slack.com/archives/C123/p1234567890"
 **Output:** YAML with 40 messages (20 before + 20 after), target message has `is_target: true`
 
 ### Channel URL
+
 ```bash
 $ prbot slack read "https://workspace.slack.com/archives/C123"
 ```
@@ -44,11 +46,13 @@ $ prbot slack read "https://workspace.slack.com/archives/C123"
 **Output:** YAML with 10 most recent messages from the channel
 
 ### File URL
+
 ```bash
 $ prbot slack read "https://files.slack.com/files-pri/T123-F456/report.pdf"
 ```
 
 **Output:** YAML with download info:
+
 ```yaml
 type: file_downloaded
 file_id: F456
@@ -89,11 +93,13 @@ downloaded_to: ./report.pdf
 ## Benefits
 
 ### For Humans
+
 - **Easier to type**: Just paste the Slack URL, no need to extract channel/timestamp
 - **One command to remember**: Instead of `read-thread`, `read-nearby`, `download-file`, etc.
 - **Better readability**: YAML output is more human-friendly than JSON
 
 ### For AI Agents
+
 - **Simpler integration**: Single command interface for all Slack read operations
 - **Better parsing**: YAML is easier to parse and work with than JSON
 - **Consistent output**: All commands follow the same format
