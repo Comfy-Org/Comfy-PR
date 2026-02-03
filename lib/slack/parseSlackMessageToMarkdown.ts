@@ -51,8 +51,38 @@ export async function parseSlackMessageToMarkdown(text: string): Promise<string>
   });
 
   // Convert channel mentions <#C123|channel-name> or <#C123>
+  // First handle channels with names already in the mention
   markdown = markdown.replace(/<#([A-Z0-9]+)\|([^>]+)>/g, "#$2");
-  markdown = markdown.replace(/<#([A-Z0-9]+)>/g, "#$1");
+
+  // For channels without names, fetch from Slack API
+  const channelIdMatches = [...markdown.matchAll(/<#([A-Z0-9]+)>/g)];
+  const channelIds = [...new Set(channelIdMatches.map((match) => match[1]))];
+
+  const channelInfoMap = new Map<string, string>();
+
+  if (isSlackAvailable() && channelIds.length > 0) {
+    const slack = getSlackCached();
+    await Promise.all(
+      channelIds.map(async (channelId) => {
+        try {
+          const channelInfo = await slack.conversations.info({ channel: channelId });
+          if (channelInfo.ok && channelInfo.channel) {
+            const channelName = channelInfo.channel.name || channelId;
+            channelInfoMap.set(channelId, `#${channelName}`);
+          } else {
+            channelInfoMap.set(channelId, `#${channelId}`);
+          }
+        } catch (error) {
+          channelInfoMap.set(channelId, `#${channelId}`);
+        }
+      }),
+    );
+  }
+
+  // Replace channel mentions with fetched info
+  markdown = markdown.replace(/<#([A-Z0-9]+)>/g, (match, channelId) => {
+    return channelInfoMap.get(channelId) || `#${channelId}`;
+  });
 
   // Convert links <https://example.com|link text> to [link text](https://example.com)
   markdown = markdown.replace(/<(https?:\/\/[^|>]+)\|([^>]+)>/g, "[$2]($1)");
@@ -98,6 +128,8 @@ if (import.meta.main) {
     "Mixed <@U123> with *bold* and <https://example.com>",
     // Real user ID test (if Slack token is available)
     "<@U078499LK5K> explain why this issue happened cc. <@U04F3GHTG2X>",
+    // Real channel ID test (if Slack token is available)
+    "Check <#C0A6Y4AU52L> for details",
   ];
 
   console.log(`Slack available: ${isSlackAvailable()}`);

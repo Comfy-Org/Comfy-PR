@@ -112,9 +112,7 @@ if (import.meta.main) {
       console.error("\nExamples:");
       console.error("  bun lib/slack/members.ts --channel C123ABC");
       console.error("  bun lib/slack/members.ts --channel C123ABC --limit 50");
-      console.error(
-        "  bun lib/slack/members.ts --url 'https://workspace.slack.com/archives/C123'",
-      );
+      console.error("  bun lib/slack/members.ts --url 'https://workspace.slack.com/archives/C123'");
       process.exit(1);
     }
     channel = values.channel;
