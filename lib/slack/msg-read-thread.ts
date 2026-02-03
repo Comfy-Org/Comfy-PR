@@ -52,7 +52,7 @@ if (import.meta.main) {
   console.log(yaml.stringify(messages));
 }
 
-export async function  readSlackThread(channel: string, ts: string, limit: number = 100) {
+export async function readSlackThread(channel: string, ts: string, limit: number = 100) {
   try {
     const result = await slack.conversations.replies({
       channel,

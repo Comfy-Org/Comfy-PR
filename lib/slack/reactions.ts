@@ -103,9 +103,7 @@ if (import.meta.main) {
     ts = parsed.ts;
   } else {
     if (!values.channel || !values.ts) {
-      console.error(
-        "Usage: bun lib/slack/reactions.ts --channel <channel_id> --ts <timestamp>",
-      );
+      console.error("Usage: bun lib/slack/reactions.ts --channel <channel_id> --ts <timestamp>");
       console.error("   or: bun lib/slack/reactions.ts --url <slack_url>");
       console.error(
         "Example: bun lib/slack/reactions.ts --url 'https://workspace.slack.com/archives/C123/p1234567890'",
