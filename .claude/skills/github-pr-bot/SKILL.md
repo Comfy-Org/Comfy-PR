@@ -11,10 +11,10 @@ This skill spawns an interactive AI coding agent that can modify code in GitHub 
 ## Usage
 
 ```bash
-pr-bot code pr -r <OWNER/REPO> [-b <BRANCH>] -p "<TASK_DESCRIPTION>"
+prbot code pr -r <OWNER/REPO> [-b <BRANCH>] -p "<TASK_DESCRIPTION>"
 # Or use aliases:
-pr-bot github pr -r <OWNER/REPO> [-b <BRANCH>] -p "<TASK_DESCRIPTION>"
-pr-bot pr -r <OWNER/REPO> [-b <BRANCH>] -p "<TASK_DESCRIPTION>"
+prbot github pr -r <OWNER/REPO> [-b <BRANCH>] -p "<TASK_DESCRIPTION>"
+prbot pr -r <OWNER/REPO> [-b <BRANCH>] -p "<TASK_DESCRIPTION>"
 ```
 
 ## Parameters
@@ -34,13 +34,13 @@ pr-bot pr -r <OWNER/REPO> [-b <BRANCH>] -p "<TASK_DESCRIPTION>"
 
 ```bash
 # Fix a bug in ComfyUI
-pr-bot pr -r Comfy-Org/ComfyUI -p "Fix authentication bug in login module - users can't login with special characters in password"
+prbot pr -r Comfy-Org/ComfyUI -p "Fix authentication bug in login module - users can't login with special characters in password"
 
 # Add feature to frontend
-pr-bot github pr -r Comfy-Org/ComfyUI_frontend -b develop -p "Add dark mode toggle to settings page with persistent user preference"
+prbot github pr -r Comfy-Org/ComfyUI_frontend -b develop -p "Add dark mode toggle to settings page with persistent user preference"
 
 # Update documentation
-pr-bot pr -r Comfy-Org/docs -p "Add troubleshooting section for common installation errors on Windows"
+prbot pr -r Comfy-Org/docs -p "Add troubleshooting section for common installation errors on Windows"
 ```
 
 ## Available Repositories

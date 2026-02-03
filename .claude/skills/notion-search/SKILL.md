@@ -12,7 +12,7 @@ This skill searches the Comfy-Org team Notion workspace for documentation, guide
 ## Usage
 
 ```bash
-pr-bot notion search -q "<SEARCH_TERMS>" [-l <NUMBER>]
+prbot notion search -q "<SEARCH_TERMS>" [-l <NUMBER>]
 ```
 
 ## Parameters
@@ -33,13 +33,13 @@ Returns results with:
 
 ```bash
 # Search for ComfyUI setup documentation
-pr-bot notion search -q "ComfyUI setup" -l 5
+prbot notion search -q "ComfyUI setup" -l 5
 
 # Find meeting notes
-pr-bot notion search -q "weekly sync meeting"
+prbot notion search -q "weekly sync meeting"
 
 # Search for API references
-pr-bot notion search -q "API documentation workflow" -l 3
+prbot notion search -q "API documentation workflow" -l 3
 ```
 
 ## Notes

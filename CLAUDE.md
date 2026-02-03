@@ -55,7 +55,7 @@ The TypeScript server was experiencing severe performance issues causing slowdow
 
 - **`src/`**: Core utilities and shared functionality
 - **`app/tasks/`**: Specific task implementations
-- **`bot/code/`**: GitHub integration tools including pr-bot for spawning AI agents on repositories
+- **`bot/code/`**: GitHub integration tools including prbot for spawning AI agents on repositories
 - **`gh-service/`**: GitHub webhook service components
 - **`run/`**: Executable scripts and services
 - **Tests**: Co-located with source files using `.spec.ts` suffix
@@ -277,7 +277,7 @@ The bot system uses a two-tier architecture:
    - Must delegate all coding tasks to PR-Bot sub-agents
 
 2. **Worker Agents (PR-Bot Sub-Agents)** - Code Modification
-   - Spawned by master agent via `bun bot/code/pr-bot.ts`
+   - Spawned by master agent via `bun bot/code/prbot.ts`
    - Clones repositories to isolated directories (`/repos/`)
    - Has full write access to make code changes
    - Creates commits, branches, and pull requests
@@ -302,7 +302,7 @@ The bot agent prompt (lines 390-396 in `bot/index.ts`) includes the following sk
    - Clone any repositories from https://github.com/Comfy-Org
    - Inspect codebases at `./codes/Comfy-Org/[repo]/tree/[branch]`
    - Read and analyze source code
-   - **Note**: Master bot CANNOT make direct code changes - must use pr-bot tool
+   - **Note**: Master bot CANNOT make direct code changes - must use prbot tool
 
 3. **Slack Integration**
    - **Update messages**: `bun ../bot/slack/msg-update.ts --channel ${event.channel} --ts ${quickRespondMsg.ts} --text "<response>"`
@@ -314,10 +314,10 @@ The bot agent prompt (lines 390-396 in `bot/index.ts`) includes the following sk
    - Access internal documentation and knowledge base
 
 5. **Code Modification via PR-Bot (REQUIRED for GitHub changes)**
-   - To make any code changes to GitHub repositories, use: `bun ../bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<detailed coding task>"`
+   - To make any code changes to GitHub repositories, use: `bun ../bot/code/prbot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<detailed coding task>"`
    - If `--head` is not provided, the branch name will be auto-generated based on the prompt
    - Master bot is a RESEARCH and COORDINATION agent only
-   - All actual coding work must be delegated to pr-bot sub-agents
+   - All actual coding work must be delegated to prbot sub-agents
    - Master bot CANNOT create commits, branches, or PRs directly
 
 ### Context Repositories
@@ -336,10 +336,10 @@ The bot has knowledge of these Comfy-Org repositories:
 The bot is automatically spawned when:
 
 1. A user mentions the bot in a Slack channel
-2. The message is in an authorized channel (`#comfypr-bot` or `#pr-bot`)
+2. The message is in an authorized channel (`#comfyprbot` or `#prbot`)
 3. The bot determines that agent assistance is needed
 
-See `bot/README.md` for documentation on the individual skill scripts.
+See `.bot/AGENT.md` (and symlinked `.bot/README.md`) for complete prbot CLI documentation used by sub-agents.
 
 ## Coding Sub-Agent
 
@@ -349,7 +349,7 @@ The coding sub-agent system (`bot/code/coding/`) allows you to spawn AI coding a
 
 ### Implementation
 
-- **Main Script**: `bot/code/pr-bot.ts`
+- **Main Script**: `bot/code/prbot.ts`
 - **Core Logic**: `bot/code/coding/pr-agent.ts`
 - **Tests**: `bot/code/coding/pr-agent.spec.ts`
 - **Repository Storage**: `/repos/[owner]/[repo]/tree/[head]/`
@@ -357,7 +357,7 @@ The coding sub-agent system (`bot/code/coding/`) allows you to spawn AI coding a
 ### Usage
 
 ```bash
-bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<your prompt>"
+bun bot/code/prbot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<your prompt>"
 ```
 
 **Arguments:**
@@ -371,13 +371,13 @@ bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-
 
 ```bash
 # Auto-generate head branch name from prompt
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix authentication bug in login module"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix authentication bug in login module"
 
 # Specify both base and head branches explicitly
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=fix/auth-bug --prompt="Fix authentication bug"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI --base=main --head=fix/auth-bug --prompt="Fix authentication bug"
 
 # Work on a feature branch to merge into develop
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=feature/dark-mode --prompt="Add dark mode support"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=feature/dark-mode --prompt="Add dark mode support"
 ```
 
 ### How It Works
@@ -407,6 +407,322 @@ bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=f
 4. Added comprehensive test suite with Bun test
 5. Documentation in `bot/github/coding/README.md`
 
+## Prbot CLI - Unified Command Interface
+
+### Overview
+
+The prbot CLI (`bot/cli.ts`) is a unified command-line interface built with yargs that provides access to all bot capabilities including GitHub PR creation, code search, issue search, registry search, Slack integration, and Notion search.
+
+### Installation & Usage
+
+Available via package.json bin entries:
+
+- `prbot <command>` (primary)
+- `pr-bot <command>` (alias)
+- `bun bot/cli.ts <command>` (direct execution)
+
+### Complete Command Reference
+
+#### 1. GitHub PR Commands
+
+Create a PR with an AI coding agent:
+
+```bash
+# Primary commands (all equivalent)
+prbot code pr -r <owner/repo> [-b <base>] [--head <head>] -p "<task>"
+prbot github pr -r <owner/repo> [-b <base>] [--head <head>] -p "<task>"
+prbot pr -r <owner/repo> [-b <base>] [--head <head>] -p "<task>"
+prbot prbot -r <owner/repo> [-b <base>] [--head <head>] -p "<task>"
+
+# Examples
+prbot pr -r Comfy-Org/ComfyUI -p "Fix authentication timeout"
+prbot pr -r Comfy-Org/ComfyUI --head fix/auth-timeout -p "Fix auth"
+prbot pr -r Comfy-Org/ComfyUI_frontend -b develop -p "Add dark mode"
+```
+
+**Options:**
+
+- `-r, --repo` (required): Repository in format `owner/repo`
+- `-b, --base`: Base branch (default: `main`)
+- `--head`: Head branch (auto-generated if not provided using GPT-4o-mini)
+- `-p, --prompt` (required): Task description
+
+#### 2. Code Search
+
+Search ComfyUI codebases using comfy-codesearch:
+
+```bash
+prbot code search -q "<query>" [--repo <owner/repo>] [--path <pattern>]
+
+# Examples
+prbot code search -q "binarization"
+prbot code search -q "auth" --repo Comfy-Org/ComfyUI
+prbot code search -q "useAuth" --path "src/hooks/**"
+```
+
+**Options:**
+
+- `-q, --query` (required): Search query (supports `repo:` and `path:` filters)
+- `--repo`: Filter by repository
+- `--path`: Filter by file path pattern
+
+#### 3. GitHub Issue Search
+
+Search issues/PRs across Comfy-Org repositories:
+
+```bash
+prbot github-issue search -q "<query>" [-l <limit>]
+
+# Examples
+prbot github-issue search -q "authentication bug" -l 5
+prbot github-issue search -q "dark mode feature" -l 10
+```
+
+**Options:**
+
+- `-q, --query` (required): Search query
+- `-l, --limit`: Max results (default: 10)
+
+**Output:** Issue number, title, repository, state, type, author, labels, URL, updated timestamp
+
+#### 4. Registry Search
+
+Search ComfyUI custom nodes registry:
+
+```bash
+prbot registry search -q "<query>" [-l <limit>] [--include-deprecated]
+
+# Examples
+prbot registry search -q "video" -l 5
+prbot registry search -q "animation" --include-deprecated
+```
+
+**Options:**
+
+- `-q, --query` (required): Search query
+- `-l, --limit`: Max results (default: 10)
+- `--include-deprecated`: Include deprecated nodes
+
+**Output:** Node name, ID, description, publisher, version, repository, downloads, stars, tags
+
+#### 5. Slack Commands
+
+**Smart Read (Recommended - NEW!):**
+
+```bash
+# Auto-detect URL type (message/file/channel) and read appropriately
+prbot slack read "<slack_url>"
+
+# Examples
+prbot slack read "https://workspace.slack.com/archives/C123/p1234567890"  # nearby messages
+prbot slack read "https://workspace.slack.com/archives/C123"             # recent 10 messages
+prbot slack read "https://files.slack.com/files-pri/T123-F456/file.pdf"  # download file
+```
+
+**Output:** YAML format with structured data.
+
+**Update Message:**
+
+```bash
+prbot slack update -c <channel_id> -t <timestamp> -m "<text>"
+
+# Example
+prbot slack update -c C123ABC -t 1234567890.123456 -m "Task completed!"
+```
+
+**Read Thread (two methods):**
+
+```bash
+# Method 1: Channel + Timestamp
+prbot slack read-thread -c <channel_id> -t <thread_ts> [-l <limit>]
+
+# Method 2: Slack URL
+prbot slack read-thread -u "<slack_url>" [-l <limit>]
+
+# Examples
+prbot slack read-thread -c C123ABC -t 1234567890.123456 -l 50
+prbot slack read-thread -u "https://workspace.slack.com/archives/C123/p1234567890"
+```
+
+**Read Nearby Messages:**
+
+```bash
+# Method 1: Channel + Timestamp
+prbot slack read-nearby -c <channel_id> -t <ts> [-b <before>] [-a <after>]
+
+# Method 2: Slack URL
+prbot slack read-nearby -u "<slack_url>" [-b <before>] [-a <after>]
+
+# Examples
+prbot slack read-nearby -c C123ABC -t 1234567890.123456 -b 20 -a 20
+prbot slack read-nearby -u "https://workspace.slack.com/archives/C123/p1234567890"
+```
+
+**File Operations:**
+
+```bash
+# Upload file
+prbot slack upload-file -c <channel> -f <file> [--title] [-m <comment>] [-t <thread>]
+
+# Post message with files
+prbot slack post-with-files -c <channel> -m "<text>" -f <file1> [-f <file2>...] [-t <thread>]
+
+# Download file
+prbot slack download-file -f <fileId> -o <output>
+
+# Get file info
+prbot slack file-info -f <fileId>
+
+# Examples
+prbot slack upload-file -c C123ABC -f ./report.pdf -m "Weekly report"
+prbot slack post-with-files -c C123ABC -m "Review these" -f design1.png -f design2.png
+prbot slack download-file -f F123ABC -o ./downloaded.pdf
+prbot slack file-info -f F123ABC
+```
+
+**Research & Context Commands:**
+
+```bash
+# Get reactions for a message
+prbot slack reactions "<message_url>"
+
+# Search messages workspace-wide
+prbot slack search -q "authentication bug" -l 10
+prbot slack search -q "report.pdf" --type files
+
+# List pinned messages
+prbot slack pins "<channel_url>"
+
+# List channel bookmarks
+prbot slack bookmarks "<channel_url>"
+
+# Get permalink
+prbot slack permalink "<message_url>"
+
+# Get channel info
+prbot slack channel-info "<channel_url>"
+
+# List channel members
+prbot slack members "<channel_url>" -l 50
+
+# Check user presence
+prbot slack presence U123ABC
+prbot slack presence U123 U456 U789
+
+# Get complete message context (composite)
+prbot slack context "<message_url>"
+```
+
+#### 6. Notion Search
+
+Search Notion pages in Comfy-Org workspace:
+
+```bash
+prbot notion search -q "<query>" [-l <limit>]
+
+# Examples
+prbot notion search -q "ComfyUI setup" -l 5
+prbot notion search -q "sprint planning"
+```
+
+**Options:**
+
+- `-q, --query` (required): Search query
+- `-l, --limit`: Max results (default: 10)
+
+**Output:** Page title, Notion URL, last edited timestamp
+
+### Environment Configuration
+
+The CLI auto-loads `.env.local` from project root. Required variables:
+
+```bash
+# GitHub
+GITHUB_TOKEN=ghp_...
+
+# Slack
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_SOCKET_TOKEN=xapp-...
+
+# Notion
+NOTION_TOKEN=secret_...
+
+# OpenAI (for branch name generation)
+OPENAI_API_KEY=sk-...
+```
+
+### Implementation Details
+
+- **File**: `bot/cli.ts` (yargs-based CLI)
+- **Auto-load env**: `loadEnvLocal()` function loads `.env.local` from project root
+- **Branch naming**: Uses GPT-4o-mini to generate conventional branch names (`feature/`, `fix/`, etc.)
+- **Smart Slack URL parsing**: `parseSlackUrlSmart()` auto-detects message/file/channel URLs
+- **YAML output**: All Slack commands output YAML format for better human/AI readability
+- **Validation**: Yargs validation ensures required params and mutual exclusivity
+- **Slack API modules**:
+  - `lib/slack/reactions.ts` - Get message reactions
+  - `lib/slack/search.ts` - Search messages and files
+  - `lib/slack/pins.ts` - List pinned messages
+  - `lib/slack/bookmarks.ts` - List channel bookmarks
+  - `lib/slack/permalink.ts` - Get message permalinks
+  - `lib/slack/channel-info.ts` - Get channel metadata
+  - `lib/slack/members.ts` - List channel members
+  - `lib/slack/presence.ts` - Check user presence
+  - `lib/slack/context.ts` - Get complete message context (composite)
+
+### Sub-Agent Documentation
+
+Sub-agents (PR bots) spawned by prbot have access to comprehensive documentation in:
+
+- `.bot/AGENT.md` - Complete command reference and usage guide
+- `.bot/README.md` - Symlink to AGENT.md
+
+These files are in the `.bot/` workspace directory accessible to spawned agents.
+
+### Usage Patterns
+
+**Research then PR:**
+
+```bash
+prbot github-issue search -q "auth timeout" -l 5
+prbot code search -q "authentication timeout" --repo Comfy-Org/ComfyUI
+prbot notion search -q "authentication" -l 3
+prbot pr -r Comfy-Org/ComfyUI -p "Fix auth timeout by increasing session TTL"
+```
+
+**Slack Thread Investigation:**
+
+```bash
+# Quick context check with smart read
+prbot slack read "<slack_url>"
+
+# Deep research on a message
+prbot slack context "<message_url>"  # Get everything: reactions, thread, channel, user, pins
+prbot slack reactions "<message_url>"  # Check engagement
+prbot slack search -q "related topic" -c C123  # Find related discussions
+
+# Update with findings
+prbot slack update -c C123 -t 1234567890.123456 -m "Investigated root cause..."
+```
+
+**Channel Research:**
+
+```bash
+# Understand a channel
+prbot slack channel-info "<channel_url>"  # Get topic, purpose, member count
+prbot slack pins "<channel_url>"  # Find important messages
+prbot slack bookmarks "<channel_url>"  # Find key resources
+prbot slack members "<channel_url>"  # See who's in the channel
+```
+
+**Registry Research:**
+
+```bash
+prbot registry search -q "video processing" -l 10
+prbot code search -q "VideoProcessNode" --repo Comfy-Org/ComfyUI
+prbot pr -r Comfy-Org/ComfyUI -p "Integrate VideoProcessNode"
+```
+
 ## SFlow Stream Processing Library
 
 ### Overview
@@ -427,8 +743,8 @@ SFlow is a powerful functional stream processing library used throughout the cod
 To search for all TODO comments across the project:
 
 ```bash
-# Search for TODO comments using pr-bot
-pr-bot code search -q "TODO"
+# Search for TODO comments using prbot
+prbot code search -q "TODO"
 
 # Or use grep locally
 grep -ri "TODO" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.go" .
@@ -499,7 +815,7 @@ grep -ri "TODO" --include="*.ts" --include="*.tsx" --include="*.js" --include="*
 
 When working on TODOs:
 
-1. **Search**: Use `pr-bot code search -q "TODO"` or `grep -ri "TODO"`
+1. **Search**: Use `prbot code search -q "TODO"` or `grep -ri "TODO"`
 2. **Prioritize**: Focus on TODOs in active development areas first
 3. **Context**: Read surrounding code to understand the TODO context
 4. **Implement**: Create a branch and implement the solution
@@ -517,16 +833,16 @@ When adding new TODOs, use this format:
 // TODO(priority): <description> - for urgent items
 ```
 
-### Auto-Solving TODOs with pr-bot
+### Auto-Solving TODOs with prbot
 
-You can use pr-bot to automatically work on TODOs:
+You can use prbot to automatically work on TODOs:
 
 ```bash
 # Search for specific TODO
-pr-bot code search -q "TODO performance"
+prbot code search -q "TODO performance"
 
 # Create a PR to fix a TODO
-pr-bot code pr -r Comfy-Org/Comfy-PR -p "Fix TODO in bot/index.ts line 145: Define zSlackMessage schema"
+prbot code pr -r Comfy-Org/Comfy-PR -p "Fix TODO in bot/index.ts line 145: Define zSlackMessage schema"
 ```
 
 ### Process Cleaning

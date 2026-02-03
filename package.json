@@ -7,7 +7,8 @@
   "author": "snomiao <snomiao@gmail.com>",
   "bin": {
     "comfy-pr": "./src/cli.ts",
-    "pr-bot": "./bot/cli.ts"
+    "pr-bot": "./bot/cli.ts",
+    "prbot": "./bot/cli.ts"
   },
   "workspaces": [
     "packages/*"

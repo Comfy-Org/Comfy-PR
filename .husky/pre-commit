@@ -1,3 +1,5 @@
-bunx lint-staged
-bun typecheck
+#!/usr/bin/env bun
+bunx tsgo
+bunx oxlint --fix
+bunx oxfmt
 

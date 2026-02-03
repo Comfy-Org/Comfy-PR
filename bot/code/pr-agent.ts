@@ -1,5 +1,5 @@
 import { mkdir } from "fs/promises";
-import { $ } from "../../../src/cli/echoBunShell";
+import { $ } from "../../src/cli/echoBunShell";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 import path from "path";

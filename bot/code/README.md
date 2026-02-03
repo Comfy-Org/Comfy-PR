@@ -7,7 +7,7 @@ This directory contains tools for spawning AI coding agents to work on specific 
 Run the following command to spawn a coding agent for a specific repository:
 
 ```bash
-bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<your prompt>"
+bun bot/code/prbot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-branch>] --prompt="<your prompt>"
 ```
 
 ### Arguments
@@ -21,16 +21,16 @@ bun bot/code/pr-bot.ts --repo=<owner/repo> [--base=<base-branch>] [--head=<head-
 
 ```bash
 # Auto-generate head branch name
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix the authentication bug in the login module"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI --prompt="Fix the authentication bug in the login module"
 
 # Specify both base and head branches
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI --base=main --head=feature/fix-auth --prompt="Fix the authentication bug"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI --base=main --head=feature/fix-auth --prompt="Fix the authentication bug"
 
 # Work on a feature branch to be merged into develop
-bun bot/code/pr-bot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=feature/dark-mode --prompt="Add dark mode support to the settings page"
+bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=feature/dark-mode --prompt="Add dark mode support to the settings page"
 
 # Let AI generate an appropriate branch name
-bun bot/code/pr-bot.ts --repo=Comfy-Org/docs --base=main --prompt="Update the installation guide with Docker instructions"
+bun bot/code/prbot.ts --repo=Comfy-Org/docs --base=main --prompt="Update the installation guide with Docker instructions"
 ```
 
 ## How It Works
@@ -107,7 +107,7 @@ The agent is instructed to:
 
 ## Implementation Files
 
-- **../pr-bot.ts**: Main CLI entry point with argument parsing and branch name generation
+- **../prbot.ts**: Main CLI entry point with argument parsing and branch name generation
 - **pr-agent.ts**: Core logic for cloning repos, branch management, and spawning the agent
 - **pr-agent.spec.ts**: Unit tests for pr-agent
 
