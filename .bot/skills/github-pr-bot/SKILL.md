@@ -14,6 +14,11 @@ prbot github pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed codi
 
 Prompt tips:
 
+  prbot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
+  prbot code pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
+  prbot github pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
+
+Prompt tips:
 - Describe the desired outcome and acceptance criteria.
 - Specify target files/paths when known and include examples.
 - Mention tests/docs to update.

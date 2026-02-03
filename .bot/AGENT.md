@@ -760,6 +760,9 @@ prbot pr -r Comfy-Org/ComfyUI -p "Integrate VideoProcessNode into main pipeline"
 | Full Command              | Aliases                                         |
 | ------------------------- | ----------------------------------------------- |
 | `prbot code pr`           | `prbot github pr`, `prbot pr`, `prbot prbot`    |
+| Full Command | Aliases |
+|-------------|---------|
+| `prbot code pr` | `prbot github pr`, `prbot pr`, `prbot prbot` |
 | `prbot slack read-thread` | Can use `--url` instead of `--channel` + `--ts` |
 | `prbot slack read-nearby` | Can use `--url` instead of `--channel` + `--ts` |
 

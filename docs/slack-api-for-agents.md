@@ -28,6 +28,7 @@ This document explores useful Slack Web API methods for AI agents to research an
 await slack.reactions.get({
   channel: "C123",
   timestamp: "1234567890.123456",
+  timestamp: "1234567890.123456"
 });
 // Returns: {name: "thumbs_up", count: 5, users: ["U123", "U456"]}
 
@@ -35,6 +36,7 @@ await slack.reactions.get({
 await slack.reactions.list({
   user: "U123",
   count: 20,
+  count: 20
 });
 // Discover what messages a user has reacted to
 ```
@@ -59,12 +61,14 @@ await slack.search.messages({
   count: 20,
   sort: "timestamp",
   sort_dir: "desc",
+  sort_dir: "desc"
 });
 
 // Search files
 await slack.search.files({
   query: "quarterly report.pdf",
   count: 10,
+  count: 10
 });
 ```
 
@@ -85,12 +89,14 @@ await slack.search.files({
 // List bookmarks in a channel
 await slack.bookmarks.list({
   channel_id: "C123",
+  channel_id: "C123"
 });
 // Returns: Links, docs, tools the team considers important
 
 // Get bookmark details
 await slack.bookmarks.get({
   bookmark_id: "Bm123",
+  bookmark_id: "Bm123"
 });
 ```
 
@@ -110,6 +116,7 @@ await slack.bookmarks.get({
 // List pinned messages in a channel
 await slack.pins.list({
   channel: "C123",
+  channel: "C123"
 });
 // Returns: Messages pinned as important by team
 ```
@@ -131,6 +138,7 @@ await slack.pins.list({
 // List starred items (messages, files, channels)
 await slack.stars.list({
   count: 100,
+  count: 100
 });
 ```
 
@@ -153,6 +161,7 @@ await slack.reminders.list();
 // Get reminder details
 await slack.reminders.info({
   reminder: "Rm123",
+  reminder: "Rm123"
 });
 ```
 
@@ -173,6 +182,7 @@ await slack.admin.conversations.search({
   query: "engineering",
   sort: "member_count",
   sort_dir: "desc",
+  sort_dir: "desc"
 });
 ```
 
@@ -191,6 +201,7 @@ await slack.admin.conversations.search({
 ```typescript
 await slack.users.getPresence({
   user: "U123",
+  user: "U123"
 });
 // Returns: {ok: true, presence: "active", online: true}
 ```
@@ -211,6 +222,7 @@ await slack.users.getPresence({
 await slack.conversations.members({
   channel: "C123",
   limit: 100,
+  limit: 100
 });
 // Returns: List of all members in channel
 ```
@@ -231,6 +243,7 @@ await slack.conversations.members({
 await slack.conversations.info({
   channel: "C123",
   include_num_members: true,
+  include_num_members: true
 });
 // Returns: {
 //   name: "engineering",
@@ -271,6 +284,7 @@ await slack.users.conversations({
   user: "U123",
   types: "public_channel,private_channel,mpim,im",
   limit: 200,
+  limit: 200
 });
 ```
 
@@ -290,6 +304,7 @@ await slack.users.conversations({
 await slack.conversations.mark({
   channel: "C123",
   ts: "1234567890.123456",
+  ts: "1234567890.123456"
 });
 // Mark conversation as read up to this point
 ```
@@ -303,11 +318,13 @@ await slack.conversations.mark({
 ```typescript
 await slack.dnd.info({
   user: "U123",
+  user: "U123"
 });
 // Returns: {dnd_enabled: true, next_dnd_start_ts: 1234567890}
 
 await slack.dnd.teamInfo({
   users: "U123,U456,U789",
+  users: "U123,U456,U789"
 });
 // Check multiple users' DND status
 ```
@@ -328,6 +345,7 @@ await slack.dnd.teamInfo({
 await slack.chat.getPermalink({
   channel: "C123",
   message_ts: "1234567890.123456",
+  message_ts: "1234567890.123456"
 });
 // Returns: {permalink: "https://workspace.slack.com/archives/C123/p1234567890"}
 ```
@@ -379,6 +397,7 @@ async function getCompleteMessageContext(channel: string, ts: string) {
     latest: ts,
     inclusive: true,
     limit: 1,
+    limit: 1
   });
   const message = messages.messages?.[0];
 
@@ -398,6 +417,17 @@ async function getCompleteMessageContext(channel: string, ts: string) {
         limit: 100,
       })
     : null;
+  const reactions = await slack.reactions.get({
+    channel,
+    timestamp: ts
+  }).catch(() => null);
+
+  // 3. Get thread replies if it's a thread
+  const thread = message?.thread_ts ? await slack.conversations.replies({
+    channel,
+    ts: message.thread_ts,
+    limit: 100
+  }) : null;
 
   // 4. Get channel info
   const channelInfo = await slack.conversations.info({
@@ -411,11 +441,19 @@ async function getCompleteMessageContext(channel: string, ts: string) {
         user: message.user,
       })
     : null;
+    include_num_members: true
+  });
+
+  // 5. Get user info
+  const userInfo = message?.user ? await slack.users.info({
+    user: message.user
+  }) : null;
 
   // 6. Get permalink
   const permalink = await slack.chat.getPermalink({
     channel,
     message_ts: ts,
+    message_ts: ts
   });
 
   // 7. Check if pinned
@@ -534,3 +572,4 @@ matches:
 3. **Add caching** for expensive operations (search, list operations)
 4. **Document usage patterns** for agent prompt templates
 5. **Build composite commands** that combine multiple APIs
+

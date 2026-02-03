@@ -19,6 +19,10 @@ prbot slack read-thread --channel ${EVENT_CHANNEL} --ts ${EVENT_THREAD_TS} --lim
 
 Guidelines:
 
+  prbot slack update --channel ${EVENT_CHANNEL} --ts ${QUICK_RESPOND_MSG_TS} --text "Working on it..."
+  prbot slack read-thread --channel ${EVENT_CHANNEL} --ts ${EVENT_THREAD_TS} --limit 50
+
+Guidelines:
 - Acknowledge quickly; post iterative, concise updates.
 - Prefer editing your last progress message instead of spamming.
 - Quote or link to relevant messages for clarity.

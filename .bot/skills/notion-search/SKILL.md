@@ -14,6 +14,13 @@ prbot notion search --query "architecture decisions"
 
 Best practices:
 
+  prbot notion search --query "<search term>" [--limit=5]
+
+Examples:
+  prbot notion search --query "ComfyUI setup" --limit 5
+  prbot notion search --query "architecture decisions"
+
+Best practices:
 - Skim titles and last-edited times; open the most recent first.
 - Cite page titles and URLs in your response.
 - Check for updated information before making recommendations.
