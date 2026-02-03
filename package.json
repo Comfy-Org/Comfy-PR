@@ -39,6 +39,7 @@
     "prepare": "husky",
     "preview:pyproject": "bun scripts/preview-pyproject-minimal.ts",
     "preview:pyproject-repo": "bun scripts/preview-pyproject-toml.ts",
+    "db:setup-indexes": "bun scripts/setup-performance-indexes.ts",
     "prerelease": "bun run build && bun run test && vercel --prod",
     "release": "bunx standard-version && npm publish",
     "start": "next start",

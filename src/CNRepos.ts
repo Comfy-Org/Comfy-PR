@@ -77,5 +77,25 @@ export const CNRepos = db.collection<CNRepo>("CNRepos");
 
 CNRepos.createIndex({ repository: 1 }, { unique: true }).catch(() => {});
 
+// Performance optimization: compound index for complex state + mtime queries
+// This index improves queries filtering by multiple state and mtime fields
+// Target query: aggregate with $match on crPulls.state, info.state, and various mtime fields
+CNRepos.createIndex(
+  {
+    "crPulls.state": 1,
+    "info.state": 1,
+    "crPulls.mtime": 1,
+    "info.mtime": 1,
+    "candidate.mtime": 1,
+  },
+  {
+    name: "idx_states_mtimes",
+    background: true,
+  },
+).catch(() => {});
+
+// Also keep individual indexes for partial queries
+CNRepos.createIndex({ "pulls.mtime": 1 }, { background: true }).catch(() => {});
+
 // fix cr null, it should be not exists
 // await CNRepos.updateMany({ cr: null as unknown as WithId<CRNode> }, { $unset: { cr: 1 } });

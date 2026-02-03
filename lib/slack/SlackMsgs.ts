@@ -6,6 +6,16 @@ await SlackMsgs.createIndex({ ts: -1 });
 await SlackMsgs.createIndex({ channel: 1, ts: -1 });
 await SlackMsgs.createIndex({ text: 1 });
 await SlackMsgs.createIndex({ mtime: -1 });
+// Performance optimization: compound index for status + mtime queries
+// This index dramatically improves queries filtering by status with mtime range
+// Target query: { $or: [{ status: { $exists: false } }, { status: { $in: [...] }, mtime: ... }] }
+await SlackMsgs.createIndex(
+  { status: 1, mtime: 1 },
+  {
+    name: "idx_status_mtime",
+    background: true,
+  },
+);
 
 export type SlackMsg = (Awaited<ReturnType<typeof postSlackMessage>> | {}) & {
   text: string;
