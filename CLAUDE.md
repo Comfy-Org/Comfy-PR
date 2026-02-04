@@ -57,7 +57,7 @@ The TypeScript server was experiencing severe performance issues causing slowdow
 - **`app/tasks/`**: Specific task implementations
 - **`bot/code/`**: GitHub integration tools including prbot for spawning AI agents on repositories
 - **`gh-service/`**: GitHub webhook service components
-- **`run/`**: Executable scripts and services
+- **`bot/`**: Executable scripts and services
 - **Tests**: Co-located with source files using `.spec.ts` suffix
 
 ## Working Tasks State Management
@@ -735,6 +735,7 @@ SFlow is a powerful functional stream processing library used throughout the cod
 - **Author**: snomiao
 - **License**: MIT
 - **Core Concepts**: SFlow is built around composable stream operators, lazy evaluation, and support for both synchronous and asynchronous data flows.
+<<<<<<< HEAD
 
 ## Project TODOs
 

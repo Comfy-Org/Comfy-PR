@@ -32,7 +32,7 @@ Through these efforts, Comfy-PR seeks to create an environment where Custom Node
 1. **CLI Tool** (`src/cli.ts`): Command-line interface for processing individual repositories
 2. **Main Service** (`src/index.ts`): Orchestrates batch processing of repositories
 3. **Web Dashboard** (`app/`): Next.js application with analytics and management UI
-4. **Webhook Service** (`run/index.ts`): Real-time GitHub event monitoring
+4. **Webhook Service** (`bot/index.ts`): Real-time GitHub event monitoring
 5. **Task System** (`app/tasks/`): Automated background tasks for various operations
 
 ### Key Features
@@ -240,7 +240,7 @@ Comfy-PR/
 │   ├── (dashboard)/         # Dashboard pages and components
 │   ├── api/                 # API routes and tRPC
 │   └── tasks/               # Background task implementations
-├── run/                      # Production services
+├── bot/                      # Production services
 │   ├── index.ts             # GitHub webhook service
 │   └── deploy.sh            # Cloud deployment scripts
 ├── gh-service/              # Legacy webhook service
@@ -308,7 +308,7 @@ export WEBHOOK_BASE_URL=https://your-domain.com
 bun run gh-service
 ```
 
-See [WEBHOOK_SETUP.md](./WEBHOOK_SETUP.md) for detailed webhook configuration.
+See [WEBHOOK_SETUP.md](./docs/WEBHOOK_SETUP.md) for detailed webhook configuration.
 
 ### Task System
 

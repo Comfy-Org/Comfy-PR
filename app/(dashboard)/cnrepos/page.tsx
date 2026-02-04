@@ -11,6 +11,9 @@ import { CNRepos } from "@/src/CNRepos";
 import { Suspense } from "react";
 import { CNReposTableClient } from "./CNReposTableClient";
 
+// Prevent static generation since this page requires database access
+export const dynamic = "force-dynamic";
+
 interface CNReposPageProps {
   searchParams?: Promise<{
     page?: string;

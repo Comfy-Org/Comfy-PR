@@ -7,7 +7,7 @@ This system now supports both polling and real-time webhook-based monitoring.
 ### Polling Mode (Default)
 
 ```bash
-bun run run/label-op.tsx
+bun run bot/label-op.tsx
 ```
 
 ### Webhook Mode (Real-time)
@@ -19,7 +19,7 @@ export GITHUB_WEBHOOK_SECRET=your-secure-secret-here
 export WEBHOOK_BASE_URL=https://your-domain.com  # Your public URL
 
 # Run the monitor
-bun run run/label-op.tsx
+bun run bot/label-op.tsx
 ```
 
 ## Webhook Setup Instructions

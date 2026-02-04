@@ -2,7 +2,7 @@ import { CNRepos } from "@/src/CNRepos";
 import { Suspense } from "react";
 import yaml from "yaml";
 
-// Force dynamic rendering to avoid build-time database access
+// Prevent static generation since this page requires database access
 export const dynamic = "force-dynamic";
 
 /**

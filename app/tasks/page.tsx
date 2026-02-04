@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { GithubBugcopTask } from "../../bot/gh-bugcop/gh-bugcop";
+import { GithubBountyTask } from "./gh-bounty/gh-bounty";
+import { GithubDesignTask } from "./gh-design/gh-design";
+import {
+  GithubContributorAnalyzeTask,
+  GithubContributorAnalyzeTaskFilter,
+} from "./github-contributor-analyze/GithubContributorAnalyzeTask";
 
-// Force dynamic rendering to avoid build-time database access
+// Prevent static generation since this page requires database access
 export const dynamic = "force-dynamic";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -14,11 +21,6 @@ export default async function TasksIndexPage() {
   // Dynamic imports to avoid build-time execution
   const { GithubActionUpdateTask } =
     await import("@/src/GithubActionUpdateTask/GithubActionUpdateTask");
-  const { GithubBugcopTask } = await import("../../run/gh-bugcop/gh-bugcop");
-  const { GithubBountyTask } = await import("./gh-bounty/gh-bounty");
-  const { GithubDesignTask } = await import("./gh-design/gh-design");
-  const { GithubContributorAnalyzeTask, GithubContributorAnalyzeTaskFilter } =
-    await import("./github-contributor-analyze/GithubContributorAnalyzeTask");
 
   const Counts = {
     GithubActionUpdateTask: () => (

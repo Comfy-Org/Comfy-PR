@@ -32,7 +32,7 @@
     "dev": "next dev",
     "dev:bot": "bun --watch ./bot/index.ts",
     "dev:tsc": "tsc -w",
-    "gh-service": "bun run/index.ts",
+    "gh-service": "bun bot/index.ts",
     "check": "tsgo && oxlint && oxfmt",
     "typecheck": "tsgo",
     "lint": "oxlint --fix",

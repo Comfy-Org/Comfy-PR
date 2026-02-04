@@ -1,17 +1,15 @@
-#!/usr/bin/env bun
 import KeyvSqlite from "@keyv/sqlite";
-import type { WebhookEventMap } from "@octokit/webhooks-types";
 import DIE from "@snomiao/die";
-import * as crypto from "crypto";
+import crypto from "crypto";
 import Keyv from "keyv";
 import sflow, { pageFlow } from "sflow";
 import { match, P } from "ts-pattern";
-import type { UnionToIntersection } from "type-fest";
-import { gh, type GH } from "@/lib/github";
-import { ghc } from "@/lib/github/githubCached";
-import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
-import { processIssueCommentForLableops } from "./easylabel";
-
+import { type UnionToIntersection } from "type-fest";
+import { gh, type GH } from "../src/gh/index.js";
+import { ghc } from "../src/ghc.js";
+import { parseGithubRepoUrl } from "../src/parseOwnerRepo.js";
+import { processIssueCommentForLableops } from "./easylabel.jsx";
+import type { WEBHOOK_EVENT } from "./github-webhook-event-type/index.js";
 export const REPOLIST = [
   "https://github.com/Comfy-Org/Comfy-PR",
   "https://github.com/comfyanonymous/ComfyUI",
@@ -33,8 +31,7 @@ type WebhookIssue = GH[`webhook-issues-${string}` & keyof GH];
 type WebhookIssueComment = GH[`webhook-issue-comment-${string}` & keyof GH];
 type WebhookPullRequest = GH[`webhook-pull-request-${string}` & keyof GH];
 type WebhookPullRequestReview = GH[`webhook-pull-request-review${string}` & keyof GH];
-type WebhookPullRequestReviewComment = GH[`webhook-pull-request-review-comment-${string}` &
-  keyof GH];
+type WebhookPullRequestReviewComment = GH[`webhook-pull-request-review-comment-${string}` & keyof GH];
 type HaveBody<T> = T extends { issue: { body: string } } ? T : never;
 type test = HaveBody<GH[`webhook-${string}-${string}` & keyof GH]>;
 type WebhookAll = GH[`webhook-${string}-${string}` & keyof GH];
@@ -49,47 +46,14 @@ type Webhook =
 class RepoEventMonitor {
   private monitorState = new Map<string, RepoMonitorState>();
   private stateCache: Keyv<RepoMonitorState>;
-  private commentCache: Keyv<Map<number, string>>; // Map of comment ID to updated_at timestamp
   private pollingRepos = new Set<string>();
   private pollInterval = 30000; // 30 seconds
-  private commentPollInterval = 5000; // 5 seconds for comment polling
   private webhookSetupComplete = false;
-
-  // Placeholder for unknown previous content in edited comments
-  private static readonly UNKNOWN_PREVIOUS_CONTENT = "[UNKNOWN_PREVIOUS_CONTENT]";
-
-  /**
-   * Creates a properly typed mock webhook event for issue comments
-   */
-  private createMockIssueCommentEvent(
-    action: "created" | "edited",
-    owner: string,
-    repo: string,
-    issue: GH["issue"],
-    comment: GH["issue-comment"],
-    changes?: { body: { from: string } },
-  ): WebhookEventMap {
-    return {
-      issue_comment: {
-        action,
-        issue: issue as WebhookEventMap["issue_comment"]["issue"],
-        comment: comment as WebhookEventMap["issue_comment"]["comment"],
-        repository: {
-          owner: { login: owner },
-          name: repo,
-          full_name: `${owner}/${repo}`,
-        } as WebhookEventMap["issue_comment"]["repository"],
-        sender: comment.user! as WebhookEventMap["issue_comment"]["sender"],
-        ...(changes && { changes }),
-      },
-    } as WebhookEventMap;
-  }
 
   constructor() {
     // Initialize SQLite cache
     const sqlite = new KeyvSqlite("gh-service/state.sqlite");
     this.stateCache = new Keyv({ store: sqlite });
-    this.commentCache = new Keyv({ store: new KeyvSqlite("gh-service/comment-cache.sqlite") });
 
     // Initialize state for each repo
     for (const repoUrl of REPOLIST) {
@@ -152,23 +116,34 @@ class RepoEventMonitor {
     const event = req.headers.get("x-github-event") || "";
     const body = await req.text();
 
-    if (!this.verifyWebhookSignature(body, signature))
-      return new Response("Unauthorized", { status: 401 });
+    if (!this.verifyWebhookSignature(body, signature)) return new Response("Unauthorized", { status: 401 });
 
     const payload = JSON.parse(body);
-    this.handleWebhookEvent({ [event]: payload } as WebhookEventMap);
+    this.handleWebhookEvent({ type: event, payload } as WEBHOOK_EVENT);
     return new Response("OK");
   }
 
-  private async handleWebhookEvent(eventMap: WebhookEventMap) {
+  private async handleWebhookEvent(event: WEBHOOK_EVENT) {
     const timestamp = this.formatTimestamp();
-    match(eventMap)
-      .with({ issue_comment: P.select() }, async ({ issue, comment }) =>
-        processIssueCommentForLableops({
-          issue: issue as GH["issue"],
-          comment: comment as GH["issue-comment"],
-        }),
+    // const repo = event.payload.repository;
+    // const repoName = repo ? `${repo.owner.login}/${repo.name}` : "unknown";
+
+    match(event)
+      // .with({ type: "issues" }, async ({ payload: { issue } }) =>
+      //   processIssueCommentForLableops({ issue: issue as GH["issue"], comment: comment as GH["issue-comment"] }),
+      // )
+      .with({ type: "issue_comment" }, async ({ payload: { issue, comment } }) =>
+        processIssueCommentForLableops({ issue: issue as GH["issue"], comment: comment as GH["issue-comment"] }),
       )
+      .otherwise(() => null);
+    // match core-important in +Core-Important
+    match(event)
+      .with({ payload: { issue: { html_url: P.string }, comment: { body: P.string } } }, async ({ type, payload }) => {
+        const { issue, comment, action } = payload;
+        const fullEvent = `${type}:${action}` as const;
+        console.log(type, comment.body);
+        return { issueUrl: issue.html_url, body: comment.body };
+      })
       .otherwise(() => null);
 
     // match(event)
@@ -283,9 +258,7 @@ class RepoEventMonitor {
           existingHook = hooks.find((hook) => hook.config?.url === WEBHOOK_URL);
 
           if (existingHook) {
-            console.log(
-              `[${this.formatTimestamp()}] ✅ Webhook already exists for ${owner}/${repo}`,
-            );
+            console.log(`[${this.formatTimestamp()}] ✅ Webhook already exists for ${owner}/${repo}`);
             continue;
           }
         } catch (listError: any) {
@@ -300,7 +273,7 @@ class RepoEventMonitor {
         }
 
         // Create webhook
-        const webhookConfig = {
+        await gh.repos.createWebhook({
           owner,
           repo,
           config: {
@@ -316,9 +289,7 @@ class RepoEventMonitor {
             "pull_request_review_comment",
             "label",
           ],
-        };
-        console.log("Creating webhook with config:", webhookConfig);
-        await gh.repos.createWebhook(webhookConfig);
+        });
 
         console.log(`[${this.formatTimestamp()}] ✅ Webhook created for ${owner}/${repo}`);
       } catch (error: any) {
@@ -328,10 +299,7 @@ class RepoEventMonitor {
           );
           this.pollingRepos.add(repoUrl);
         } else {
-          console.error(
-            `[${this.formatTimestamp()}] ❌ Error creating webhook for ${repoUrl}:`,
-            error.message,
-          );
+          console.error(`[${this.formatTimestamp()}] ❌ Error creating webhook for ${repoUrl}:`, error.message);
         }
       }
     }
@@ -348,20 +316,11 @@ class RepoEventMonitor {
 
     console.log(`[${this.formatTimestamp()}] Monitoring repos: ${REPOLIST.join(", ")}`);
 
-    // Start comment polling for all repos (5 second interval)
-    console.log(
-      `[${this.formatTimestamp()}] Starting comment polling (5s interval) for recent comments...`,
-    );
-    setInterval(() => {
-      this.pollRecentComments();
-    }, this.commentPollInterval);
-
-    // Initial comment check
-    await this.pollRecentComments();
-
     if (WEBHOOK_URL) {
       console.log(`[${this.formatTimestamp()}] Using webhooks for real-time notifications`);
       await this.setupWebhooks();
+
+      // TODO: polling way
 
       // // Start polling for repos that couldn't set up webhooks
       if (this.pollingRepos.size > 0) {
@@ -387,125 +346,10 @@ class RepoEventMonitor {
     }
   }
 
-  private async pollRecentComments() {
-    // Check for comments in the last 5 minutes
-    const since = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-    for (const repoUrl of REPOLIST) {
-      // Listing issue comments for recent 5min
-      console.log(`[${this.formatTimestamp()}] Checking recent comments for ${repoUrl}`);
-      try {
-        const { owner, repo } = this.parseRepoUrl(repoUrl);
-        const cacheKey = `${owner}/${repo}`;
-
-        // Get cached comment timestamps
-        const cachedComments = (await this.commentCache.get(cacheKey)) || new Map<number, string>();
-
-        // List recent comments for the repository
-        const { data: comments } = await gh.issues.listCommentsForRepo({
-          owner,
-          repo,
-          since,
-          sort: "updated",
-          direction: "desc",
-          per_page: 100,
-        });
-
-        const newCachedComments = new Map<number, string>();
-
-        for (const comment of comments) {
-          newCachedComments.set(comment.id, comment.updated_at);
-
-          const previousUpdatedAt = cachedComments.get(comment.id);
-
-          if (!previousUpdatedAt) {
-            // New comment - mock issue_comment.created event
-            console.log(
-              `[${this.formatTimestamp()}] 💬 NEW COMMENT DETECTED: ${owner}/${repo} #${comment.issue_url?.split("/").pop()} - Comment ID: ${comment.id}`,
-            );
-
-            // Fetch the issue data for the mock event
-            const issueNumber = parseInt(comment.issue_url?.split("/").pop() || "0");
-            if (issueNumber) {
-              try {
-                const { data: issue } = await gh.issues.get({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                });
-
-                // Create and handle the mock webhook event
-                const mockEvent = this.createMockIssueCommentEvent(
-                  "created",
-                  owner,
-                  repo,
-                  issue,
-                  comment,
-                );
-                console.log("mocked-webhook-event", mockEvent);
-                await this.handleWebhookEvent(mockEvent);
-              } catch (error) {
-                console.error(
-                  `[${this.formatTimestamp()}] Error fetching issue for comment:`,
-                  error,
-                );
-              }
-            }
-          } else if (previousUpdatedAt !== comment.updated_at) {
-            // Updated comment - mock issue_comment.edited event
-            console.log(
-              `[${this.formatTimestamp()}] ✏️  COMMENT UPDATED: ${owner}/${repo} #${comment.issue_url?.split("/").pop()} - Comment ID: ${comment.id}`,
-            );
-
-            // Fetch the issue data for the mock event
-            const issueNumber = parseInt(comment.issue_url?.split("/").pop() || "0");
-
-            if (issueNumber) {
-              try {
-                const { data: issue } = await gh.issues.get({
-                  owner,
-                  repo,
-                  issue_number: issueNumber,
-                });
-                // Create and handle the mock webhook event
-                const mockEvent = this.createMockIssueCommentEvent(
-                  "edited",
-                  owner,
-                  repo,
-                  issue,
-                  comment,
-                  {
-                    body: { from: RepoEventMonitor.UNKNOWN_PREVIOUS_CONTENT },
-                  },
-                );
-                console.debug(mockEvent);
-                await this.handleWebhookEvent(mockEvent);
-              } catch (error) {
-                console.error(
-                  `[${this.formatTimestamp()}] Error fetching issue for comment:`,
-                  error,
-                );
-              }
-            }
-          }
-        }
-
-        // Update cache with new comment timestamps
-        await this.commentCache.set(cacheKey, newCachedComments);
-      } catch (error) {
-        console.error(`[${this.formatTimestamp()}] Error polling comments for ${repoUrl}:`, error);
-      }
-    }
-  }
-
   private async checkPollingRepos() {
     sflow(this.pollingRepos).map((html_url) => {
       pageFlow(1, async (page, per_page = 100) => {
-        const { data } = await ghc.issues.listForRepo({
-          ...parseGithubRepoUrl(html_url),
-          page,
-          per_page,
-        });
+        const { data } = await ghc.issues.listForRepo({ ...parseGithubRepoUrl(html_url), page, per_page });
         return { data, next: data.length >= per_page ? page + 1 : null };
       }).flat();
     });

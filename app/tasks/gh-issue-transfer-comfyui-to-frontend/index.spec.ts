@@ -104,22 +104,9 @@ describe("GithubFrontendIssueTransferTask", () => {
         }
         return HttpResponse.json([]);
       }),
-      // Mock fetching comments
+      // Mock listing comments (for comment pagination)
       http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments", () => {
-        return HttpResponse.json([
-          {
-            id: 1,
-            body: "First comment",
-            user: { login: "test-user", id: 1 },
-            created_at: "2025-01-11T10:00:00Z",
-          },
-          {
-            id: 2,
-            body: "Second comment",
-            user: { login: "test-user-2", id: 2 },
-            created_at: "2025-01-12T10:00:00Z",
-          },
-        ]);
+        return HttpResponse.json([]);
       }),
       // Mock creating issue in target repo
       http.post(
@@ -134,22 +121,22 @@ describe("GithubFrontendIssueTransferTask", () => {
         },
       ),
       // Mock creating comment on source issue
-      http.post(
-        "https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments",
-        async ({ request }) => {
-          createdComment = await request.json();
-          return HttpResponse.json({
-            id: 999,
-            body: createdComment.body,
-            user: { login: "test-user", id: 1 },
-            html_url: "https://github.com/comfyanonymous/ComfyUI/issues/123#issuecomment-999",
-            created_at: new Date().toISOString(),
-          });
-        },
-      ),
-      // Mock closing the issue
+      http.post("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments", async ({ request }) => {
+        createdComment = await request.json();
+        return HttpResponse.json({
+          id: 999,
+          body: createdComment.body,
+          user: { login: "test-user", id: 1 },
+          html_url: "https://github.com/comfyanonymous/ComfyUI/issues/123#issuecomment-999",
+          created_at: new Date().toISOString(),
+        });
+      }),
+      // Mock closing the source issue
       http.patch("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123", () => {
-        return HttpResponse.json({});
+        return HttpResponse.json({
+          ...sourceIssue,
+          state: "closed",
+        });
       }),
     );
 
@@ -162,7 +149,7 @@ describe("GithubFrontendIssueTransferTask", () => {
     expect(createdIssue.body).toContain(
       "*This issue is transferred from: https://github.com/comfyanonymous/ComfyUI/issues/123*",
     );
-    expect(createdIssue.labels).toEqual(["bug"]);
+    expect(createdIssue.labels).toEqual(["bug"]); // "frontend" label is filtered out
     expect(createdIssue.assignees).toEqual(["testuser"]);
 
     // Verify comment was posted
@@ -280,6 +267,7 @@ describe("GithubFrontendIssueTransferTask", () => {
       http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues", () => {
         return HttpResponse.json([sourceIssue]);
       }),
+      // Mock listing comments
       http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/555/comments", () => {
         return HttpResponse.json([]);
       }),
@@ -321,6 +309,7 @@ describe("GithubFrontendIssueTransferTask", () => {
       http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues", () => {
         return HttpResponse.json([sourceIssue]);
       }),
+      // Mock listing comments
       http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/666/comments", () => {
         return HttpResponse.json([]);
       }),
@@ -333,6 +322,7 @@ describe("GithubFrontendIssueTransferTask", () => {
       http.post("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/666/comments", () => {
         return HttpResponse.json({ message: "Comment Error" }, { status: 403 });
       }),
+      // Note: No need to mock closing since comment fails and close is in the same try block
     );
 
     await runGithubFrontendIssueTransferTask();
@@ -390,36 +380,29 @@ describe("GithubFrontendIssueTransferTask", () => {
         }
         return HttpResponse.json([]);
       }),
-      http.get(
-        "https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number/comments",
-        () => {
-          return HttpResponse.json([]);
-        },
-      ),
-      http.post(
-        "https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues",
-        async ({ request }) => {
-          const body: any = await request.json();
-          issuesCreated++;
-          const issueNumber = parseInt(body.title.split(" ")[1]);
-          return HttpResponse.json({
-            number: issueNumber + 10000,
-            html_url: `https://github.com/Comfy-Org/ComfyUI_frontend/issues/${issueNumber + 10000}`,
-          });
-        },
-      ),
-      http.post(
-        "https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number/comments",
-        () => {
-          commentsCreated++;
-          return HttpResponse.json({
-            id: commentsCreated,
-            html_url: "https://github.com/comfyanonymous/ComfyUI/issues/comment",
-          });
-        },
-      ),
+      // Mock listing comments for all issues
+      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number/comments", () => {
+        return HttpResponse.json([]);
+      }),
+      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues", async ({ request }) => {
+        const body: any = await request.json();
+        issuesCreated++;
+        const issueNumber = parseInt(body.title.split(" ")[1]);
+        return HttpResponse.json({
+          number: issueNumber + 10000,
+          html_url: `https://github.com/Comfy-Org/ComfyUI_frontend/issues/${issueNumber + 10000}`,
+        });
+      }),
+      http.post("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number/comments", () => {
+        commentsCreated++;
+        return HttpResponse.json({
+          id: commentsCreated,
+          html_url: "https://github.com/comfyanonymous/ComfyUI/issues/comment",
+        });
+      }),
+      // Mock closing all issues
       http.patch("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/:issue_number", () => {
-        return HttpResponse.json({});
+        return HttpResponse.json({ state: "closed" });
       }),
     );
 

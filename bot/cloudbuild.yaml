@@ -6,7 +6,7 @@ steps:
       - "-t"
       - "${_LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/github-webhook-service:latest"
       - "-f"
-      - "run/Dockerfile"
+      - "bot/Dockerfile"
       - "."
     id: "build-image"
 

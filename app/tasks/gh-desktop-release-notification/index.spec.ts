@@ -1,39 +1,36 @@
-import { gh } from "@/lib/github";
-import { getSlackChannel } from "@/lib/slack/channels";
-import { afterEach, beforeEach, describe, expect, it, jest } from "bun:test";
+import { gh } from "@/src/gh";
+import { getSlackChannel } from "@/src/slack/channels";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { upsertSlackMessage } from "./upsertSlackMessage";
 
-jest.mock("@/src/gh");
-jest.mock("@/src/slack/channels");
-jest.mock("./upsertSlackMessage");
+mock.module("@/src/gh", () => ({ gh: {} }));
+mock.module("@/src/slack/channels", () => ({ getSlackChannel: mock() }));
+mock.module("./upsertSlackMessage", () => ({ upsertSlackMessage: mock() }));
 
 const mockCollection = {
-  createIndex: jest.fn().mockResolvedValue({}),
-  findOne: jest.fn().mockResolvedValue(null),
-  findOneAndUpdate: jest.fn().mockImplementation((_filter, update) => Promise.resolve(update.$set)),
+  createIndex: mock(() => Promise.resolve({})),
+  findOne: mock(() => Promise.resolve(null)) as any,
+  findOneAndUpdate: mock((_filter: any, update: any) => Promise.resolve(update.$set)) as any,
 };
 
-jest.mock("@/src/db", () => ({
+mock.module("@/src/db", () => ({
   db: {
-    collection: jest.fn(() => mockCollection),
+    collection: mock(() => mockCollection),
   },
 }));
 
 import runGithubDesktopReleaseNotificationTask from "./index";
 
 describe("GithubDesktopReleaseNotificationTask", () => {
-  const mockGh = gh as jest.Mocked<typeof gh>;
-  const mockGetSlackChannel = getSlackChannel as jest.MockedFunction<typeof getSlackChannel>;
-  const mockUpsertSlackMessage = upsertSlackMessage as jest.MockedFunction<
-    typeof upsertSlackMessage
-  >;
+  const mockGh = gh as any;
+  const mockGetSlackChannel = getSlackChannel as any;
+  const mockUpsertSlackMessage = upsertSlackMessage as any;
 
   beforeEach(async () => {
-    jest.clearAllMocks();
-    mockCollection.findOne.mockResolvedValue(null);
-    mockCollection.findOneAndUpdate.mockImplementation((_filter, update) =>
-      Promise.resolve(update.$set),
-    );
+    mockCollection.findOne.mockClear();
+    mockCollection.findOneAndUpdate.mockClear();
+    mockCollection.findOne.mockImplementation(() => Promise.resolve(null));
+    mockCollection.findOneAndUpdate.mockImplementation((_filter: any, update: any) => Promise.resolve(update.$set));
 
     mockGetSlackChannel.mockResolvedValue({
       id: "test-channel-id",
@@ -48,7 +45,8 @@ describe("GithubDesktopReleaseNotificationTask", () => {
   });
 
   afterEach(async () => {
-    jest.clearAllMocks();
+    mockCollection.findOne.mockClear();
+    mockCollection.findOneAndUpdate.mockClear();
   });
 
   describe("Draft Release Processing - Bug Fix Verification", () => {
@@ -64,9 +62,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest.fn().mockResolvedValue({
+        listReleases: mock(() => Promise.resolve({
           data: [mockDraftRelease],
-        }),
+        })),
       } as any;
 
       // First call - save initial draft data
@@ -138,9 +136,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest.fn().mockResolvedValue({
+        listReleases: mock(() => Promise.resolve({
           data: [mockDraftRelease],
-        }),
+        })),
       } as any;
 
       const expectedText =
@@ -184,9 +182,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest.fn().mockResolvedValue({
+        listReleases: mock(() => Promise.resolve({
           data: [mockDraftRelease],
-        }),
+        })),
       } as any;
 
       // Return task with old drafting message text
@@ -243,9 +241,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest.fn().mockResolvedValue({
+        listReleases: mock(() => Promise.resolve({
           data: [mockStableRelease],
-        }),
+        })),
       } as any;
 
       // First call - save initial data
@@ -306,9 +304,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest.fn().mockResolvedValue({
+        listReleases: mock(() => Promise.resolve({
           data: [mockStableRelease],
-        }),
+        })),
       } as any;
 
       const expectedText =
@@ -352,9 +350,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest.fn().mockResolvedValue({
+        listReleases: mock(() => Promise.resolve({
           data: [mockPrerelease],
-        }),
+        })),
       } as any;
 
       // First call - save initial data
@@ -417,7 +415,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest.fn().mockResolvedValue({
+        listReleases: mock(() => Promise.resolve({
           data: [mockDesktopRelease],
         }),
       } as any;
@@ -434,13 +432,15 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       });
 
       // Find core task
-      mockCollection.findOne.mockResolvedValueOnce({
-        version: "v0.2.0",
-        slackMessage: {
-          text: "ComfyUI core v0.2.0 released",
-          url: "https://slack.com/message/core-123",
-        },
-      });
+      mockCollection.findOne.mockImplementationOnce(() =>
+        Promise.resolve({
+          version: "v0.2.0",
+          slackMessage: {
+            text: "ComfyUI core v0.2.0 released",
+            url: "https://slack.com/message/core-123",
+          },
+        }),
+      );
 
       // Second call - save with message including core version
       mockCollection.findOneAndUpdate.mockResolvedValueOnce({
@@ -489,8 +489,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest
-          .fn()
+        listReleases: mock()
           .mockResolvedValueOnce({ data: [mockComfyUIRelease] })
           .mockResolvedValueOnce({ data: [mockDesktopRelease] }),
       } as any;
@@ -535,9 +534,11 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       };
 
       mockGh.repos = {
-        listReleases: jest.fn().mockResolvedValue({
-          data: [oldRelease],
-        }),
+        listReleases: mock(() =>
+          Promise.resolve({
+            data: [oldRelease],
+          }),
+        ),
       } as any;
 
       mockCollection.findOneAndUpdate.mockResolvedValue({
@@ -561,6 +562,12 @@ describe("GithubDesktopReleaseNotificationTask", () => {
 
   describe("Database Index", () => {
     it("should create unique index on url field", async () => {
+      mockGh.repos = {
+        listReleases: mock(() => Promise.resolve({ data: [] })),
+      } as any;
+
+      await runGithubDesktopReleaseNotificationTask();
+
       expect(mockCollection.createIndex).toHaveBeenCalledWith({ url: 1 }, { unique: true });
     });
   });

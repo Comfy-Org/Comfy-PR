@@ -1,0 +1,287 @@
+name: Test, Build & Deploy the Comfy-PR Bot to Cloud Run Service
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.head_ref || github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT_ID: dreamboothy-dev
+  GAR_LOCATION: us-west2
+  SERVICE: comfy-pr
+  REGION: us-west2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Build and test
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cache TypeScript incremental build
+        uses: actions/cache@v3
+        with:
+          path: tsconfig.tsbuildinfo
+          key: ${{ runner.os }}-tsc-${{ hashFiles('**/*.ts', '**/*.tsx', 'tsconfig.json') }}
+          restore-keys: |
+            ${{ runner.os }}-tsc-
+
+      - name: Type check
+        run: bunx tsc --noEmit
+
+      - name: Run tests
+        run: bun test
+
+      - name: Build Next.js app
+        run: bun run build
+
+      # Deploy to CloudRun
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: "${{ secrets.GCP_SA_KEY }}"
+
+      - name: Cache Google Cloud SDK
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.config/gcloud
+            ~/google-cloud-sdk
+          key: ${{ runner.os }}-gcloud-${{ hashFiles('**/deploy.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-gcloud-
+
+      - name: Set up Cloud SDK (gcloud)
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          skip_install: false
+          install_components: ""
+
+      - name: Configure Docker to use gcloud
+        run: gcloud auth configure-docker $GAR_LOCATION-docker.pkg.dev --quiet
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Container
+        run: |-
+          # Get branch name for tagging
+          BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's|/|-|g' | sed 's|_|-|g' | tr '[:upper:]' '[:lower:]')
+
+          # Build with multiple tags: SHA, branch, and latest
+          docker buildx build \
+            --cache-from=type=registry,ref=$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:buildcache \
+            --cache-from=type=registry,ref=$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:latest \
+            --cache-to=type=registry,ref=$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:buildcache,mode=max \
+            --push \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            -t "$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:$GITHUB_SHA" \
+            -t "$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:branch-$SANITIZED_BRANCH" \
+            -t "$GAR_LOCATION-docker.pkg.dev/$PROJECT_ID/$SERVICE/$SERVICE:latest" \
+            .
+
+      - name: Extract branch name
+        id: extract_branch
+        run: |
+          BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+
+          # For PRs, use the actual branch SHA instead of the merge commit SHA
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            ACTUAL_SHA="${{ github.event.pull_request.head.sha }}"
+            echo "Using PR head SHA: $ACTUAL_SHA (instead of merge commit: $GITHUB_SHA)"
+          else
+            ACTUAL_SHA="$GITHUB_SHA"
+          fi
+
+          # Sanitize branch name for Cloud Run tags
+          SANITIZED_BRANCH=$(echo "$BRANCH_NAME" | sed 's|/|-|g' | sed 's|_|-|g' | tr '[:upper:]' '[:lower:]' | sed 's/-*$//')
+          # If branch starts with a number, prefix with 'br-'
+          if [[ "$SANITIZED_BRANCH" =~ ^[0-9] ]]; then
+            SANITIZED_BRANCH="br-${SANITIZED_BRANCH}"
+          fi
+
+          # Create revision suffix: branch-first7chars (max 30 chars for branch, 7 for hash)
+          BRANCH_SUFFIX=$(echo "$SANITIZED_BRANCH" | cut -c1-30)
+          COMMIT_SHORT=$(echo "$ACTUAL_SHA" | cut -c1-7)
+          REVISION_SUFFIX="${BRANCH_SUFFIX}-${COMMIT_SHORT}"
+
+          # Truncate tag to fit within Cloud Run's 46 char limit
+          TAG_FOR_TRAFFIC=$(echo "$SANITIZED_BRANCH" | cut -c1-37)
+
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "sanitized_branch=$SANITIZED_BRANCH" >> $GITHUB_OUTPUT
+          echo "revision_suffix=$REVISION_SUFFIX" >> $GITHUB_OUTPUT
+          echo "tag_for_traffic=$TAG_FOR_TRAFFIC" >> $GITHUB_OUTPUT
+          echo "Deploying branch: $BRANCH_NAME (sanitized: $SANITIZED_BRANCH)"
+          echo "Revision suffix: $REVISION_SUFFIX"
+          echo "Traffic tag: $TAG_FOR_TRAFFIC"
+
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{
+            env.SERVICE }}:${{ github.sha }}
+          flags: |
+            ${{ steps.extract_branch.outputs.branch == 'main' && '--memory=2Gi --cpu=2' || '--memory=1Gi --cpu=1' }}
+            --port=80
+            --allow-unauthenticated
+            --service-account=comfy-pr-sa@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --update-labels=branch=${{ steps.extract_branch.outputs.sanitized_branch }},commit=${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }},deployed-by=github-actions
+            --tag=${{ steps.extract_branch.outputs.tag_for_traffic }}
+            --revision-suffix=${{ steps.extract_branch.outputs.revision_suffix }}
+            ${{ steps.extract_branch.outputs.branch == 'main' && '--min-instances=1' || '--min-instances=0' }}
+            --max-instances=1
+            ${{ steps.extract_branch.outputs.branch != 'main' && '--no-traffic' || '' }}
+          env_vars: |
+            BRANCH_NAME=${{ steps.extract_branch.outputs.branch }}
+            NODE_ENV=production
+            GH_TOKEN=${{ secrets.GH_TOKEN }}
+            SALT=${{ secrets.SALT }}
+            GIT_USEREMAIL=${{ secrets.GIT_USEREMAIL }}
+            GIT_USERNAME=${{ secrets.GIT_USERNAME }}
+            FORK_PREFIX=${{ secrets.FORK_PREFIX }}
+            FORK_OWNER=${{ secrets.FORK_OWNER }}
+            MONGODB_URI=${{ secrets.MONGODB_URI }}
+            SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
+            NOTION_TOKEN=${{ secrets.NOTION_TOKEN }}
+
+      - name: Generate tagged URL
+        id: tagged_url
+        if: steps.extract_branch.outputs.branch != 'main'
+        run: |
+          # Generate the correct tagged URL format: https://{tag}---{service}-{hash}.a.run.app
+          SERVICE_URL="${{ steps.deploy.outputs.url }}"
+          TAGGED_URL=$(echo "$SERVICE_URL" | sed "s|https://|https://${{ steps.extract_branch.outputs.tag_for_traffic }}---|")
+          echo "tagged_url=$TAGGED_URL" >> $GITHUB_OUTPUT
+          echo "Generated tagged URL: $TAGGED_URL"
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        uses: edumserrano/find-create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- deploy-comment -->"
+          comment-author: "github-actions[bot]"
+          edit-mode: replace
+          body: |
+            <!-- deploy-comment -->
+            ## 🚀 Deployment Ready
+
+            Your PR has been deployed successfully!
+
+            **🔗 Cloud Run URL:** ${{ steps.tagged_url.outputs.tagged_url }}
+
+            **Branch:** `${{ steps.extract_branch.outputs.branch }}`
+            **Commit:** `${{ github.sha }}`
+            **Revision:** `${{ env.SERVICE }}-${{ steps.extract_branch.outputs.revision_suffix }}`
+            **Scaling:** Min instances: 0, Max instances: 1 (scales to zero when not in use)
+
+            ---
+
+            📊 **[View Logs in GCP Console](https://console.cloud.google.com/logs/query;query=resource.type%3D%22cloud_run_revision%22%0Aresource.labels.service_name%3D%22${{ env.SERVICE }}%22%0Aresource.labels.revision_name%3D%22${{ env.SERVICE }}-${{ steps.extract_branch.outputs.revision_suffix }}%22;timeRange=PT1H?project=${{ env.PROJECT_ID }})**
+
+            ---
+
+            ℹ️ Note: This deployment receives no production traffic and will be automatically cleaned up when the PR is closed.
+
+            <details>
+            <summary>📋 Deployment Details</summary>
+
+            - **Service:** `${{ env.SERVICE }}`
+            - **Region:** `${{ env.REGION }}`
+            - **Image:** `${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.SERVICE }}/${{ env.SERVICE }}:${{ github.sha }}`
+            - **Labels:** `branch=${{ steps.extract_branch.outputs.branch }}, commit=${{ github.sha }}, deployed-by=github-actions`
+
+            </details>
+
+      - name: Health Check Cloud Run
+        id: healthcheck
+        run: |
+          # Check the Cloud Run backend directly
+          if [ "${{ steps.extract_branch.outputs.branch }}" == "main" ]; then
+            HEALTH_URL="${{ steps.deploy.outputs.url }}/api/health"
+            echo "🏥 Starting health check for main branch: $HEALTH_URL"
+          else
+            # For PR branches, check the tagged URL directly
+            HEALTH_URL="${{ steps.tagged_url.outputs.tagged_url }}/api/health"
+            echo "🏥 Starting health check for Cloud Run: $HEALTH_URL"
+          fi
+
+          # Health check with timeout (3 minutes = 180 seconds)
+          MAX_ATTEMPTS=36  # 36 attempts * 5 seconds = 180 seconds
+          ATTEMPT=1
+
+          while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS..."
+
+            # Make health check request
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$HEALTH_URL" || echo "000")
+
+            if [ "$HTTP_STATUS" == "200" ]; then
+              echo "✅ Health check passed! Server is up and running."
+              HEALTH_RESPONSE=$(curl -s "$HEALTH_URL")
+              echo "Health response: $HEALTH_RESPONSE"
+              echo "health_status=success" >> $GITHUB_OUTPUT
+              exit 0
+            else
+              echo "⏳ Health check returned HTTP $HTTP_STATUS, retrying in 5 seconds..."
+            fi
+
+            ATTEMPT=$((ATTEMPT + 1))
+            [ $ATTEMPT -le $MAX_ATTEMPTS ] && sleep 5
+          done
+
+          echo "❌ Health check failed after 3 minutes. Server did not respond with HTTP 200."
+          echo "health_status=failed" >> $GITHUB_OUTPUT
+          exit 1
+
+      - name: Set Traffic to 100% for Main Branch
+        if: steps.extract_branch.outputs.branch == 'main' && steps.healthcheck.outputs.health_status
+          == 'success'
+        run: |
+          echo "🚦 Setting traffic to 100% for main branch deployment..."
+
+          # Update traffic to route 100% to the specific revision that was just deployed
+          gcloud run services update-traffic ${{ env.SERVICE }} \
+            --region=${{ env.REGION }} \
+            --to-revisions=${{ env.SERVICE }}-${{ steps.extract_branch.outputs.revision_suffix }}=100 \
+            --platform=managed
+
+          echo "✅ Traffic routing updated: 100% traffic now directed to revision ${{ env.SERVICE }}-${{ steps.extract_branch.outputs.revision_suffix }}"
+
+      - name: Show Output
+        run: |
+          echo "🚀 Deployment completed!"
+          echo "Cloud Run Service URL: ${{ steps.deploy.outputs.url }}"
+          if [ "${{ steps.healthcheck.outputs.health_status }}" == "success" ]; then
+            echo "✅ Backend health check passed"
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "🔗 Cloud Run Tagged URL: ${{ steps.tagged_url.outputs.tagged_url }}"
+              echo "ℹ️  This PR deployment receives no production traffic (--no-traffic)"
+            else
+              echo "✅ Main branch deployment receiving production traffic"
+            fi
+          else
+            echo "⚠️  Backend health check failed"
+            echo "Please check Cloud Run logs for details"
+          fi

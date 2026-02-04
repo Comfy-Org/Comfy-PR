@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import DetailsTable from "./DetailsTable";
 import TotalsPage from "./totals/page";
 
-// Force dynamic rendering to avoid build-time database access
+// Prevent static generation since this page requires database access
 export const dynamic = "force-dynamic";
 export const revalidate = 60; // seconds
 

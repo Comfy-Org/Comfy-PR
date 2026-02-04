@@ -1,17 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
 import { GithubDesignTaskMetaEditor } from "./GithubDesignTaskMetaEditor";
 
-// Force dynamic rendering to avoid build-time database access
+// Prevent static generation since this page requires database access
 export const dynamic = "force-dynamic";
 
 /**
@@ -114,9 +106,13 @@ export default async function GithubDesignTaskPage() {
                         <Badge className="w-16 text-center justify-center">
                           {{ pull_request: "PR", issue: "Issue" }[task.type] || "Task"}
                         </Badge>
+<<<<<<< HEAD
                         <span className="text-sm text-muted-foreground">
                           {getIssueNumber(task.url)}
                         </span>
+=======
+                        <span className="text-sm text-muted-foreground">{getIssueNumber(task.url)}</span>
+>>>>>>> 6c13502 (fix: mark gh-design task page as dynamic)
                         <h3>{task.title}</h3>
                       </div>
                     </Link>

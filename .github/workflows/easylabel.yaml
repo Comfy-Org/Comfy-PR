@@ -21,7 +21,7 @@ jobs:
       - run: bun i
 
       # Run EasyLabel task with timeout
-      - run: bun run/easylabel.tsx
+      - run: bun bot/easylabel.tsx
         env:
           GH_TOKEN_COMFY_PR: ${{ secrets.GH_TOKEN_COMFY_PR_BOT }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}

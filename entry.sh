@@ -10,4 +10,6 @@ comfy --help
 # activate venv
 source ./.venv/bin/activate
 
-# bun index.ts $*
+# Start Next.js server
+export PORT=80
+bun --bun start

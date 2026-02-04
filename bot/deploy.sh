@@ -111,7 +111,7 @@ deploy_service() {
     WEBHOOK_BASE_URL="https://${SERVICE_NAME}-REPLACE_WITH_HASH-${LOCATION:0:2}.a.run.app"
     
     gcloud builds submit . \
-        --config=run/cloudbuild.yaml \
+        --config=bot/cloudbuild.yaml \
         --project="$PROJECT_ID" \
         --substitutions="_LOCATION=$LOCATION,_REPOSITORY=$REPOSITORY,_SERVICE_NAME=$SERVICE_NAME,_WEBHOOK_BASE_URL=$WEBHOOK_BASE_URL"
     

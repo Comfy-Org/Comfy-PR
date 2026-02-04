@@ -77,3 +77,11 @@ codes/
 tmp/
 
 TODO.md
+
+# Terraform
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/*.tfstate
+infra/*.tfstate.*
+infra/*.tfvars
+infra/*.tfplan

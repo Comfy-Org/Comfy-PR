@@ -1,49 +1,42 @@
-import { gh } from "@/lib/github";
-import { getSlackChannel } from "@/lib/slack/channels";
-import { afterEach, beforeEach, describe, expect, it, jest } from "bun:test";
+import { gh } from "@/src/gh";
+import { getSlackChannel } from "@/src/slack/channels";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
 
-jest.mock("@/src/gh");
-jest.mock("@/src/slack/channels");
-jest.mock("../gh-desktop-release-notification/upsertSlackMessage");
+mock.module("@/src/gh", () => ({ gh: {} }));
+mock.module("@/src/slack/channels", () => ({ getSlackChannel: mock() }));
+mock.module("../gh-desktop-release-notification/upsertSlackMessage", () => ({ upsertSlackMessage: mock() }));
 
 const mockCollection = {
-  createIndex: jest.fn().mockResolvedValue({}),
-  findOne: jest.fn().mockResolvedValue(null),
-  findOneAndUpdate: jest.fn().mockImplementation((_filter, update) => Promise.resolve(update.$set)),
+  createIndex: mock(() => Promise.resolve({})),
+  findOne: mock(() => Promise.resolve(null)) as any,
+  findOneAndUpdate: mock((_filter: any, update: any) => Promise.resolve(update.$set)) as any,
 };
 
-jest.mock("@/src/db", () => ({
+mock.module("@/src/db", () => ({
   db: {
-    collection: jest.fn(() => mockCollection),
+    collection: mock(() => mockCollection),
   },
 }));
 
 import runGithubCoreTagNotificationTask from "./index";
 
 describe("GithubCoreTagNotificationTask", () => {
-  const mockGh = gh as jest.Mocked<typeof gh>;
-  const mockGetSlackChannel = getSlackChannel as jest.MockedFunction<typeof getSlackChannel>;
-  const mockUpsertSlackMessage = upsertSlackMessage as jest.MockedFunction<
-    typeof upsertSlackMessage
-  >;
+  const mockGh = gh as any;
+  const mockGetSlackChannel = getSlackChannel as any;
+  const mockUpsertSlackMessage = upsertSlackMessage as any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockCollection.findOne.mockResolvedValue(null);
-    mockCollection.findOneAndUpdate.mockImplementation((_filter, update) =>
-      Promise.resolve(update.$set),
-    );
-    mockGetSlackChannel.mockImplementation((channelName: string) =>
-      Promise.resolve({
-        id: channelName === "desktop" ? "test-channel-desktop" : "test-channel-live-ops",
-        name: channelName,
-      } as any),
-    );
+    mockCollection.findOne.mockClear();
+    mockCollection.findOneAndUpdate.mockClear();
+    mockCollection.findOne.mockImplementation(() => Promise.resolve(null));
+    mockCollection.findOneAndUpdate.mockImplementation((_filter: any, update: any) => Promise.resolve(update.$set));
+    mockGetSlackChannel.mockResolvedValue({ id: "test-channel-id", name: "desktop" } as any);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    mockCollection.findOne.mockClear();
+    mockCollection.findOneAndUpdate.mockClear();
   });
 
   it("should fetch tags from the ComfyUI repository", async () => {
@@ -61,19 +54,21 @@ describe("GithubCoreTagNotificationTask", () => {
     ];
 
     mockGh.repos = {
-      listTags: jest.fn().mockResolvedValue({ data: mockTags }),
-      getCommit: jest.fn().mockResolvedValue({
-        data: {
-          commit: {
-            author: { date: new Date().toISOString() },
-            committer: { date: new Date().toISOString() },
+      listTags: mock(() => Promise.resolve({ data: mockTags })),
+      getCommit: mock(() =>
+        Promise.resolve({
+          data: {
+            commit: {
+              author: { date: new Date().toISOString() },
+              committer: { date: new Date().toISOString() },
+            },
           },
-        },
-      }),
+        }),
+      ),
     } as any;
 
     mockGh.git = {
-      getTag: jest.fn().mockRejectedValue(new Error("Not an annotated tag")),
+      getTag: mock(() => Promise.reject(new Error("Not an annotated tag"))),
     } as any;
 
     mockUpsertSlackMessage.mockResolvedValue({
@@ -103,28 +98,32 @@ describe("GithubCoreTagNotificationTask", () => {
     ];
 
     mockGh.repos = {
-      listTags: jest.fn().mockResolvedValue({ data: mockTags }),
-      getCommit: jest.fn().mockResolvedValue({
-        data: {
-          commit: {
-            author: { date: new Date().toISOString() },
+      listTags: mock(() => Promise.resolve({ data: mockTags })),
+      getCommit: mock(() =>
+        Promise.resolve({
+          data: {
+            commit: {
+              author: { date: new Date().toISOString() },
+            },
           },
-        },
-      }),
+        }),
+      ),
     } as any;
 
     mockGh.git = {
-      getTag: jest.fn().mockResolvedValue({
-        data: {
-          tag: "v0.2.2",
-          tagger: {
-            date: new Date().toISOString(),
-            name: "Test Author",
-            email: "test@example.com",
+      getTag: mock(() =>
+        Promise.resolve({
+          data: {
+            tag: "v0.2.2",
+            tagger: {
+              date: new Date().toISOString(),
+              name: "Test Author",
+              email: "test@example.com",
+            },
+            message: "Release v0.2.2 with new features",
           },
-          message: "Release v0.2.2 with new features",
-        },
-      }),
+        }),
+      ),
     } as any;
 
     mockUpsertSlackMessage.mockResolvedValue({
@@ -150,18 +149,20 @@ describe("GithubCoreTagNotificationTask", () => {
     ];
 
     mockGh.repos = {
-      listTags: jest.fn().mockResolvedValue({ data: mockTags }),
-      getCommit: jest.fn().mockResolvedValue({
-        data: {
-          commit: {
-            author: { date: new Date().toISOString() },
+      listTags: mock(() => Promise.resolve({ data: mockTags })),
+      getCommit: mock(() =>
+        Promise.resolve({
+          data: {
+            commit: {
+              author: { date: new Date().toISOString() },
+            },
           },
-        },
-      }),
+        }),
+      ),
     } as any;
 
     mockGh.git = {
-      getTag: jest.fn().mockRejectedValue(new Error("Not an annotated tag")),
+      getTag: mock(() => Promise.reject(new Error("Not an annotated tag"))),
     } as any;
 
     mockUpsertSlackMessage.mockResolvedValue({
@@ -200,26 +201,21 @@ describe("GithubCoreTagNotificationTask", () => {
     ];
 
     mockGh.repos = {
-      listTags: jest.fn().mockResolvedValue({ data: mockTags }),
+      listTags: mock(() => Promise.resolve({ data: mockTags })),
     } as any;
 
-    mockCollection.findOne.mockResolvedValue({
-      tagName: "v0.2.0",
-      commitSha: "existing123",
-      url: "https://github.com/comfyanonymous/ComfyUI/releases/tag/v0.2.0",
-      slackMessages: [
-        {
+    mockCollection.findOne.mockImplementation(() =>
+      Promise.resolve({
+        tagName: "v0.2.0",
+        commitSha: "existing123",
+        url: "https://github.com/comfyanonymous/ComfyUI/releases/tag/v0.2.0",
+        slackMessage: {
           text: "Already sent",
-          channel: "test-channel-desktop",
-          url: "https://slack.com/message/old1",
+          channel: "test-channel-id",
+          url: "https://slack.com/message/old",
         },
-        {
-          text: "Already sent",
-          channel: "test-channel-live-ops",
-          url: "https://slack.com/message/old2",
-        },
-      ],
-    });
+      }),
+    );
 
     await runGithubCoreTagNotificationTask();
 
@@ -240,21 +236,23 @@ describe("GithubCoreTagNotificationTask", () => {
     const tagMessage = "Major release with breaking changes";
 
     mockGh.repos = {
-      listTags: jest.fn().mockResolvedValue({ data: mockTags }),
+      listTags: mock(() => Promise.resolve({ data: mockTags })),
     } as any;
 
     mockGh.git = {
-      getTag: jest.fn().mockResolvedValue({
-        data: {
-          tag: "v0.3.0",
-          tagger: {
-            date: new Date().toISOString(),
-            name: "Test Author",
-            email: "test@example.com",
+      getTag: mock(() =>
+        Promise.resolve({
+          data: {
+            tag: "v0.3.0",
+            tagger: {
+              date: new Date().toISOString(),
+              name: "Test Author",
+              email: "test@example.com",
+            },
+            message: tagMessage,
           },
-          message: tagMessage,
-        },
-      }),
+        }),
+      ),
     } as any;
 
     mockUpsertSlackMessage.mockResolvedValue({
@@ -285,25 +283,29 @@ describe("GithubCoreTagNotificationTask", () => {
     ];
 
     mockGh.repos = {
-      listTags: jest.fn().mockResolvedValue({ data: mockTags }),
-      getCommit: jest.fn().mockResolvedValue({
-        data: {
-          commit: {
-            author: { date: oldDate.toISOString() },
+      listTags: mock(() => Promise.resolve({ data: mockTags })),
+      getCommit: mock(() =>
+        Promise.resolve({
+          data: {
+            commit: {
+              author: { date: oldDate.toISOString() },
+            },
           },
-        },
-      }),
+        }),
+      ),
     } as any;
 
     mockGh.git = {
-      getTag: jest.fn().mockResolvedValue({
-        data: {
-          tag: "v0.1.0",
-          tagger: {
-            date: oldDate.toISOString(),
+      getTag: mock(() =>
+        Promise.resolve({
+          data: {
+            tag: "v0.1.0",
+            tagger: {
+              date: oldDate.toISOString(),
+            },
           },
-        },
-      }),
+        }),
+      ),
     } as any;
 
     await runGithubCoreTagNotificationTask();

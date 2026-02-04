@@ -3,7 +3,7 @@ import { db } from "@/src/db";
 import isCI from "is-ci";
 
 // Import all the 5-minute tasks
-import runGithubBugcopTask from "../../run/gh-bugcop/gh-bugcop";
+import runGithubBugcopTask from "../../bot/gh-bugcop/gh-bugcop";
 import runGithubBountyTask from "./gh-bounty/gh-bounty";
 import runGithubCoreTagNotificationTask from "./gh-core-tag-notification/index";
 import { runGithubDesignTask } from "./gh-design/gh-design";

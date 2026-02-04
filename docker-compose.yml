@@ -43,6 +43,32 @@ services:
   #   env_file:
   #     - .env.local
 
+  gh-service:
+    image: oven/bun:latest
+    # command: bun --hot bot/index.tsx
+    # dev environment
+    # docker compose run gh-service
+    command: sh -c "bun bot/index.ts"
+    working_dir: /app
+    volumes: [./:/app]
+    ports: [14215:14215]
+    environment:
+      PORT: 14215
+    env_file:
+      - .env.local
+  # comfy-pr:
+  #     - .env
+  #   restart: always
+  #   image: snomiao/comfy-registry-pr
+  #   build: .
+  #   volumes:
+  #     - $HOME/.ssh:/root/.ssh:ro
+  #     - venv:/app/.venv
+  #     - ./prs:/app/prs
+  #   env_file:
+  #     - .env
+  #     - .env.test
+  #
   # db is not necessary for local dev
   # todo: use .override.yml to enable testing dmongodb
   # comfy-pr-db:

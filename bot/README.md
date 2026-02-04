@@ -1,166 +1,285 @@
-# Bot Skills
+# GitHub Webhook Service Deployment
 
-This directory contains the skills/utilities used by the ComfyPR Bot to interact with Slack, Notion, and other services.
+This directory contains the GitHub webhook service and deployment configuration for Google Cloud Run.
 
-## Unified CLI
+## Overview
 
-A consolidated CLI is available at `bot/cli.ts` using yargs. It exposes GitHub PR-bot actions and Slack/Notion utilities via a single entry point.
+The webhook service (`index.tsx`) monitors GitHub repositories for events like issues, pull requests, and comments. It can operate in two modes:
 
-Run with Bun:
+- **Webhook mode**: Real-time event handling via GitHub webhooks
+- **Polling mode**: Fallback polling when webhooks can't be configured
 
-```bash
-bun bot/cli.ts --help
-```
+## Prerequisites
 
-Common commands:
+1. **Google Cloud CLI**: Install and authenticate with `gcloud auth login`
+2. **Docker**: Required for building container images
+3. **Project Setup**: Enable billing on your Google Cloud project
+4. **GitHub Token**: Personal Access Token with repo permissions
+5. **Webhook Secret**: Secret for securing webhook payloads
 
-```bash
-# Create a coding sub-agent and open a PR
-bun bot/cli.ts github pr -r Comfy-Org/ComfyUI -b main -p "Fix auth bug"
+## Environment Variables
 
-# Alias for the above
-bun bot/cli.ts pr -r Comfy-Org/desktop -p "Add spellcheck to editor"
+The service requires these environment variables:
 
-# Slack utilities
-bun bot/cli.ts slack update -c C123 -t 1234567890.123456 -m "Working on it"
-bun bot/cli.ts slack read-thread -c C123 -t 1234567890.123456 -l 50
+### Required
 
-# Notion search
-bun bot/cli.ts notion search -q "ComfyUI setup" -l 5
-```
+- `GITHUB_TOKEN`: GitHub Personal Access Token
+- `GITHUB_WEBHOOK_SECRET`: Secret for webhook signature validation
+- `PORT`: Server port (defaults to 8080)
 
-Environment requirements:
+### Optional
 
-- GitHub PR agent: token/config as required by existing `bot/github` tools
-- Slack: `SLACK_BOT_TOKEN`, `SLACK_SOCKET_TOKEN` (for socket mode)
-- Notion: `NOTION_TOKEN`
+- `GITHUB_WEBHOOK_BASEURL`: Base URL for webhook endpoints
+- `GITHUB_WEBHOOK_PORT`: Alternative port setting
 
-## Slack Skills
+## Deployment
 
-### msg-update.ts
-
-Update an existing Slack message.
-
-**Usage:**
+### Quick Deploy
 
 ```bash
-bun bot/slack/msg-update.ts --channel <channel_id> --ts <message_ts> --text "<new_text>"
+# Set environment variables
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+export GITHUB_TOKEN="ghp_your_token_here"
+export GITHUB_WEBHOOK_SECRET="your_webhook_secret"
+
+# Deploy
+cd run
+./deploy.sh
 ```
 
-**Example:**
+### Manual Deploy Steps
+
+1. **Enable APIs**:
+
+   ```bash
+   gcloud services enable cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
+   ```
+
+2. **Create Artifact Registry**:
+
+   ```bash
+   gcloud artifacts repositories create github-webhook-service \
+       --repository-format=docker \
+       --location=us-central1
+   ```
+
+3. **Create Secrets**:
+
+   ```bash
+   echo "$GITHUB_TOKEN" | gcloud secrets create github-token --data-file=-
+   echo "$GITHUB_WEBHOOK_SECRET" | gcloud secrets create github-webhook-secret --data-file=-
+   ```
+
+4. **Build and Deploy**:
+   ```bash
+   gcloud builds submit . --config=cloudbuild.yaml
+   ```
+
+## Files
+
+- `index.tsx` - Main webhook service application
+- `Dockerfile` - Container build configuration
+- `cloudbuild.yaml` - Cloud Build deployment configuration
+- `deploy.sh` - Automated deployment script
+- `README.md` - This documentation
+
+## Service Endpoints
+
+- `/` - Root endpoint with basic info
+- `/api/github/webhook` - GitHub webhook endpoint
+- `/health` - Health check endpoint
+
+## GitHub Webhook Configuration
+
+After deployment, configure your GitHub repositories:
+
+1. Go to Repository Settings → Webhooks
+2. Add webhook with URL: `https://your-service-url/api/github/webhook`
+3. Set content type to `application/json`
+4. Enter your webhook secret
+5. Select events: Issues, Pull requests, Issue comments, Pull request reviews, Labels
+
+## Local Development
 
 ```bash
-bun bot/slack/msg-update.ts --channel C123ABC --ts 1234567890.123456 --text "Updated message content"
+# Install dependencies
+bun install
+
+# Set environment variables
+export GITHUB_TOKEN="your_token"
+export GITHUB_WEBHOOK_SECRET="your_secret"
+export PORT=3000
+
+# Run locally
+bun run index.tsx
 ```
 
-**Environment Variables:**
+## Getting Your Webhook Secret
 
-- `SLACK_BOT_TOKEN`: Your Slack bot token
-
-### msg-read-thread.ts
-
-Read all messages from a Slack thread.
-
-**Usage:**
+### Option 1: Generate a Secure Random Secret (Recommended)
 
 ```bash
-bun bot/slack/msg-read-thread.ts --channel <channel_id> --ts <thread_ts> [--limit <number>]
+# Generate a 32-byte random hex string
+node -e "console.log('GITHUB_WEBHOOK_SECRET='+require('crypto').randomBytes(32).toString('hex'))" >> .env.local
+
+# Or use openssl
+openssl rand -hex 32
+
+# Or use Bun
+bun -e "console.log(crypto.randomBytes(32).toString('hex'))"
 ```
 
-**Example:**
+Example output: `a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456`
+
+### Option 2: Use a Password Generator
+
+Visit [1Password Generator](https://1password.com/password-generator/) or similar:
+
+- Length: 64 characters
+- Include: Letters, Numbers, Symbols
+- Copy the generated password
+
+### Option 3: Custom Secret (Less Secure)
 
 ```bash
-bun bot/slack/msg-read-thread.ts --channel C123ABC --ts 1234567890.123456 --limit 50
+export GITHUB_WEBHOOK_SECRET="my-super-secret-webhook-password-2024"
 ```
 
-**Environment Variables:**
+⚠️ **Security Note**: Use a long, random, unique secret that you don't use anywhere else.
 
-- `SLACK_BOT_TOKEN`: Your Slack bot token
+## Environment Variables
 
-### parseSlackMessageToMarkdown.ts
+| Variable                | Required     | Description                     | Example                  |
+| ----------------------- | ------------ | ------------------------------- | ------------------------ |
+| `USE_WEBHOOKS`          | No           | Enable webhook mode             | `true`                   |
+| `GITHUB_WEBHOOK_SECRET` | Webhook mode | Secret for webhook verification | `abc123...`              |
+| `WEBHOOK_BASE_URL`      | Webhook mode | Your public URL                 | `https://myapp.ngrok.io` |
+| `GH_TOKEN`              | Yes          | GitHub token with repo access   | `ghp_xxx...`             |
+| `PORT`                  | No           | Server port                     | `3000`                   |
 
-Utility function to convert Slack message formatting to Markdown.
+## GitHub Token Setup
 
-**Features:**
-
-- User mentions: `<@U123>` → `@U123`
-- Channel mentions: `<#C456|general>` → `#general`
-- Links: `<https://example.com|text>` → `[text](https://example.com)`
-- Bold: `*text*` → `**text**`
-- Italic: `_text_` → `*text*`
-- Preserves code blocks and inline code
-
-**Usage:**
-
-```typescript
-import { parseSlackMessageToMarkdown } from "./bot/slack/parseSlackMessageToMarkdown";
-
-const markdown = await parseSlackMessageToMarkdown("Hello <@U123> with *bold* text");
-```
-
-### slackTsToISO.ts
-
-Convert Slack timestamp to ISO 8601 format.
-
-**Usage:**
-
-```typescript
-import { slackTsToISO } from "./bot/slack/slackTsToISO";
-
-const iso = slackTsToISO("1703347200.123456");
-// Returns: "2023-12-23T16:00:00.123Z"
-```
-
-## Notion Skills
-
-### notion/search.ts
-
-Search Notion pages in the Comfy-Org workspace.
-
-**Usage:**
+1. Go to [GitHub Personal Access Tokens](https://github.com/settings/tokens)
+2. Click "Generate new token" → "Generate new token (classic)"
+3. Select scopes:
+   - ✅ `repo` (Full control of private repositories)
+   - ✅ `admin:repo_hook` (Read and write repository hooks)
+4. Copy the token and set it as `GH_TOKEN`
 
 ```bash
-bun bot/notion/search.ts --query "<search_term>" [--limit <number>]
+export GH_TOKEN=ghp_your_github_token_here
 ```
 
-**Example:**
+## Making Your Server Public (For Webhooks)
+
+### Development - Using ngrok
+
+1. Install ngrok: https://ngrok.com/download
+2. Start your server: `bun bot/gh-service.tsx`
+3. In another terminal: `ngrok http 3000`
+4. Copy the HTTPS URL: `https://abc123.ngrok.io`
+5. Set environment variable: `export WEBHOOK_BASE_URL=https://abc123.ngrok.io`
+
+### Development - Using Cloudflare Tunnel
 
 ```bash
-bun bot/notion/search.ts --query "ComfyUI setup" --limit 5
+# Install cloudflared
+npm install -g @cloudflare/next-on-pages
+
+# Start tunnel
+cloudflared tunnel --url http://localhost:3000
+
+# Copy the HTTPS URL and set WEBHOOK_BASE_URL
 ```
 
-**Environment Variables:**
+### Production Deployment
 
-- `NOTION_TOKEN`: Your Notion integration token
+Deploy to any cloud provider:
 
-**Output:**
-Returns a JSON array of matching pages with title, URL, and timestamps.
+- **Vercel**: `vercel --prod`
+- **Railway**: `railway deploy`
+- **Heroku**: `git push heroku main`
+- **DigitalOcean**: App Platform
+- **AWS**: Lambda/EC2
+- **Google Cloud**: Cloud Run
 
-## Testing
-
-Test individual utilities:
+## Complete Setup Example
 
 ```bash
-# Test Slack timestamp conversion
-bun bot/slack/slackTsToISO.ts
+# 1. Generate webhook secret
+export GITHUB_WEBHOOK_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
 
-# Test Slack to Markdown parsing
-bun bot/slack/parseSlackMessageToMarkdown.ts
+# 2. Set your GitHub token
+export GH_TOKEN=ghp_your_github_personal_access_token
+
+# 3. Make server public (development)
+ngrok http 3000 &  # Run in background
+export WEBHOOK_BASE_URL=https://your-ngrok-url.ngrok.io
+
+# 4. Enable webhook mode
+export USE_WEBHOOKS=true
+
+# 5. Start the monitor
+bun bot/gh-service.tsx
 ```
 
-## Development
+## Event Types Monitored
 
-All scripts follow the standard development pattern outlined in CLAUDE.md:
+- 🆕 **New Issues** - When someone opens an issue
+- 🔄 **New Pull Requests** - When someone creates a PR
+- 💬 **Comments** - Issue comments, PR comments, review comments
+- 🏷️ **Labels** - When labels are added or removed
+- ✅ **Status Changes** - Issue/PR closed, reopened, merged
 
-1. TypeScript with full type safety
-2. Executable with `bun <file.ts>` when `import.meta.main` is true
-3. Exportable functions for use as libraries
-4. Command-line argument parsing with `yargs` in `bot/cli.ts` and `parseArgs` in leaf tools
-5. Proper error handling and validation
-6. Cached API clients from `@/lib`
+## Webhook vs Polling Comparison
 
-## Notes
+| Feature                | Polling (30s)     | Webhooks             |
+| ---------------------- | ----------------- | -------------------- |
+| **Latency**            | ~30 seconds       | ~1 second            |
+| **API Rate Limit**     | High usage        | Minimal usage        |
+| **Setup Complexity**   | Simple            | Moderate             |
+| **Reliability**        | Always works      | Network dependent    |
+| **Resource Usage**     | Higher CPU/Memory | Lower                |
+| **GitHub Permissions** | Read-only         | Admin/Write required |
 
-- All Slack and Notion API calls are automatically cached using the cached clients from `@/lib`
-- Cache is stored in `node_modules/.cache/` directory
-- Scripts can be used both as standalone CLI tools and as importable modules
+## Troubleshooting
+
+### "Error creating webhook: 403 Forbidden"
+
+- Your GitHub token needs `admin:repo_hook` permissions
+- You need admin or write access to the repositories
+
+### "Webhook endpoint not reachable"
+
+- Ensure your `WEBHOOK_BASE_URL` is publicly accessible
+- Test: `curl -X POST https://your-url.com/webhook`
+
+### "Webhook signature verification failed"
+
+- Check that `GITHUB_WEBHOOK_SECRET` matches what you configured
+- Ensure the secret is the same when creating webhooks
+
+### No webhook events received
+
+- Check GitHub webhook delivery logs in repo settings → Webhooks
+- Verify the webhook URL is correct: `https://your-domain.com/webhook`
+- Ensure your server is running and accessible
+
+## Security Best Practices
+
+1. **Use strong webhook secrets** - Generate random 64+ character strings
+2. **Use HTTPS** - Never use HTTP for webhook endpoints in production
+3. **Verify signatures** - The system automatically verifies webhook authenticity
+4. **Rotate secrets periodically** - Update webhook secrets every 90 days
+5. **Limit token permissions** - Only grant necessary GitHub token scopes
+
+## Monitored Repositories
+
+The system monitors these repositories by default:
+
+- `Comfy-Org/Comfy-PR`
+- `comfyanonymous/ComfyUI`
+- `Comfy-Org/ComfyUI_frontend`
+- `Comfy-Org/desktop`
+
+To modify the list, edit the `REPOLIST` array in `gh-service.tsx`.

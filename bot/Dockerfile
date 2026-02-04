@@ -1,20 +1,28 @@
-FROM snomiao/agent-yes
+# Use official Bun image
+FROM oven/bun:1.1.21-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files and patches (build context is project root)
-COPY package.json bun.lock* ./
-COPY patches ./patches
+# Copy package files
+COPY package.json bun.lock ./
 
 # Install dependencies
-RUN bun install --frozen-lockfile
+RUN bun install --production --ignore-scripts
 
-# Copy entire project
-COPY . ./
+# Copy source code
+COPY ../ .
 
-# Set entrypoint to load nvm
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+# Expose port
+EXPOSE 8080
 
-# Run the bot service
-CMD ["bun", "bot/index.ts"]
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+# Run the webhook service
+CMD ["bun", "bot/index.tsx"]
