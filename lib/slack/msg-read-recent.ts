@@ -31,9 +31,7 @@ if (import.meta.main) {
   });
 
   if (!values.channel) {
-    console.error(
-      "Usage: bun lib/slack/msg-read-recent.ts --channel <channel_id> [--limit <number>]",
-    );
+    console.error("Usage: bun lib/slack/msg-read-recent.ts --channel <channel_id> [--limit <number>]");
     console.error("Example: bun lib/slack/msg-read-recent.ts --channel C123ABC --limit 10");
     process.exit(1);
   }

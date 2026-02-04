@@ -55,8 +55,3 @@ export function lazyInstantiation<T extends object>(factory: () => T): T {
     },
   ) as T;
 }
-
-export async function getSlackChannelName(channelId: string): Promise<string> {
-  const res = await slackBot.conversations.info({ channel: channelId });
-  return res.channel?.name || DIE(`Unknown channel ID: ${channelId}`);
-}

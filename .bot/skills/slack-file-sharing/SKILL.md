@@ -17,13 +17,6 @@ prbot slack upload --channel ${EVENT_CHANNEL} --file ./data.json --comment "Here
 
 ## When to upload files:
 
-  prbot slack upload --channel <channel_id> --file <file_path> --comment "<message>" --thread <thread_ts>
-
-Examples:
-  prbot slack upload --channel ${EVENT_CHANNEL} --file ./report.md --comment "Analysis complete" --thread ${QUICK_RESPOND_MSG_TS}
-  prbot slack upload --channel ${EVENT_CHANNEL} --file ./data.json --comment "Here is the data" --thread ${QUICK_RESPOND_MSG_TS}
-
-## When to upload files:
 - Reports, analysis results, or documentation (.md, .pdf, .txt)
 - Code samples or scripts (.py, .ts, .js, .sh)
 - Diagrams, screenshots, or visualizations (.png, .jpg, .svg)

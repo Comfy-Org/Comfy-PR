@@ -129,7 +129,9 @@ if (import.meta.main) {
       console.error("   or: bun lib/slack/pins.ts --url <slack_channel_url>");
       console.error("\nExamples:");
       console.error("  bun lib/slack/pins.ts --channel C123ABC");
-      console.error("  bun lib/slack/pins.ts --url 'https://workspace.slack.com/archives/C123'");
+      console.error(
+        "  bun lib/slack/pins.ts --url 'https://workspace.slack.com/archives/C123'",
+      );
       process.exit(1);
     }
     channel = values.channel;

@@ -38,9 +38,7 @@ export async function getChannelInfo(channelId: string) {
       topic: {
         value: channel.topic?.value || "",
         creator: channel.topic?.creator,
-        last_set: channel.topic?.last_set
-          ? slackTsToISO(channel.topic.last_set.toString())
-          : undefined,
+        last_set: channel.topic?.last_set ? slackTsToISO(channel.topic.last_set.toString()) : undefined,
       },
       purpose: {
         value: channel.purpose?.value || "",

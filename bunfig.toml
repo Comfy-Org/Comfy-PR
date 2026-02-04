@@ -1,4 +1,2 @@
-preload = ["./src/preload.ts"]
-
 [test]
-preload = ["./src/preload.ts", "./src/test/msw-setup.ts"]
+preload = [ "./src/test/msw-setup.ts"]
