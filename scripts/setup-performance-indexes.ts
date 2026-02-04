@@ -85,25 +85,6 @@ async function setupPerformanceIndexes() {
     }
   }
 
-  // Also ensure pulls.mtime index exists
-  try {
-    await CNRepos.createIndex(
-      { "pulls.mtime": 1 },
-      {
-        name: "idx_pulls_mtime",
-        background: true,
-      },
-    );
-    console.log("  ✅ Created supporting index: idx_pulls_mtime\n");
-  } catch (error) {
-    if ((error as Error).message.includes("already exists")) {
-      console.log("  ℹ️  Index idx_pulls_mtime already exists\n");
-    } else {
-      // Non-critical, just log warning
-      console.warn("  ⚠️  Could not create idx_pulls_mtime:", error);
-    }
-  }
-
   // ===================================================================
   // Verification
   // ===================================================================
