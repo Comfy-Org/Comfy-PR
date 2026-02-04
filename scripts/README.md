@@ -56,9 +56,9 @@ After running, monitor:
 
 **Related Documentation:**
 
-- `./tmp/mongodb-performance-fix-plan.md` - Detailed fix plan
-- `./tmp/mongodb-performance-improvement-plan.md` - Long-term optimization
-- `./tmp/README-mongodb-performance.md` - Quick reference
+- `../PERFORMANCE-FIXES.md` - Detailed performance fixes and implementation guide
+- [MongoDB Index Best Practices](https://www.mongodb.com/docs/manual/indexes/)
+- [Query Optimization](https://www.mongodb.com/docs/manual/core/query-optimization/)
 
 ---
 
@@ -130,7 +130,10 @@ await db.collection("SlackMsgs").listIndexes().toArray();
 await db.collection("CNRepos").listIndexes().toArray();
 
 // Check index build progress
-await db.currentOp({ "command.createIndexes": { $exists: true } });
+await db.admin().command({
+  currentOp: 1,
+  "command.createIndexes": { $exists: true },
+});
 ```
 
 ---
@@ -140,5 +143,5 @@ await db.currentOp({ "command.createIndexes": { $exists: true } });
 For issues or questions:
 
 - Check MongoDB Atlas Performance Advisor
-- Review `./tmp/mongodb-performance-*.md` documentation
+- Review `../PERFORMANCE-FIXES.md` documentation
 - Open an issue in the repository

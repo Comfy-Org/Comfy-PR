@@ -239,10 +239,8 @@ db.CNRepos.dropIndex("idx_states_mtimes");
 
 ### In This Repository
 
-- `./tmp/mongodb-performance-fix-plan.md` - Detailed implementation plan
-- `./tmp/mongodb-performance-improvement-plan.md` - Long-term optimization strategy
-- `./tmp/README-mongodb-performance.md` - Quick reference guide
-- `./scripts/README.md` - Migration script documentation
+- `./scripts/README.md` - Migration script documentation and usage guide
+- `./scripts/setup-performance-indexes.ts` - Performance index setup script
 
 ### External Resources
 

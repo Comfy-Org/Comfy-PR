@@ -94,8 +94,8 @@ CNRepos.createIndex(
   },
 ).catch(() => {});
 
-// Also keep individual indexes for partial queries
-CNRepos.createIndex({ "pulls.mtime": 1 }, { background: true }).catch(() => {});
+// Note: pulls.mtime index is created by setup-performance-indexes.ts script
+// Run: bun run db:setup-indexes
 
 // fix cr null, it should be not exists
 // await CNRepos.updateMany({ cr: null as unknown as WithId<CRNode> }, { $unset: { cr: 1 } });
