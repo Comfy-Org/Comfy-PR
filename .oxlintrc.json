@@ -1,7 +1,13 @@
 {
   "plugins": ["unicorn", "typescript", "oxc"],
   "rules": {
-    // Ban 'as any' type assertions
-    "typescript/no-explicit-any": "error"
+    // Ban 'as any' type assertions and explicit any usage
+    "typescript/no-explicit-any": "error",
+    // Additional type safety rules
+    "typescript/no-unsafe-argument": "warn",
+    "typescript/no-unsafe-assignment": "warn",
+    "typescript/no-unsafe-call": "warn",
+    "typescript/no-unsafe-member-access": "warn",
+    "typescript/no-unsafe-return": "warn"
   }
 }
