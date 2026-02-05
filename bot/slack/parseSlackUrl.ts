@@ -23,7 +23,7 @@ export function parseSlackUrl(url: string): { channel: string; ts: string } | nu
       const ts = `${timestampPart.slice(0, 10)}.${timestampPart.slice(10)}`;
 
       // Check if this is a thread reply (use thread_ts if available)
-      const threadTs = urlObj.searchParams.get('thread_ts');
+      const threadTs = urlObj.searchParams.get("thread_ts");
 
       return {
         channel,
@@ -57,7 +57,9 @@ if (import.meta.main) {
   if (!url) {
     console.error("Usage: bun bot/slack/parseSlackUrl.ts <slack-url>");
     console.error("\nExample:");
-    console.error("  bun bot/slack/parseSlackUrl.ts 'https://comfy-organization.slack.com/archives/D09GGTE7S00/p1767577596210299'");
+    console.error(
+      "  bun bot/slack/parseSlackUrl.ts 'https://comfy-organization.slack.com/archives/D09GGTE7S00/p1767577596210299'",
+    );
     process.exit(1);
   }
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { notion } from "@/lib";
 import sflow from "sflow";
-import { parseArgs } from "util";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 
 /**
  * Search Notion pages from Comfy-Org team workspace
@@ -44,7 +45,7 @@ async function searchNotion(query: string, limit: number = 10) {
       })
       .toArray();
 
-    return results;
+    return { results, total: response.results.length, hasMore: response.has_more };
   } catch (error) {
     console.error("Error searching Notion:", error);
     throw error;
@@ -52,32 +53,31 @@ async function searchNotion(query: string, limit: number = 10) {
 }
 
 if (import.meta.main) {
-  const { values } = parseArgs({
-    args: Bun.argv.slice(2),
-    options: {
-      query: {
-        type: "string",
-        short: "q",
-      },
-      limit: {
-        type: "string",
-        short: "l",
-        default: "10",
-      },
-    },
-    strict: true,
-    allowPositionals: false,
-  });
+  const argv = await yargs(hideBin(process.argv))
+    .scriptName("notion-search")
+    .usage("$0 --query <search term> [--limit <number>]")
+    .option("query", {
+      alias: "q",
+      type: "string",
+      description: "Search query",
+      demandOption: true,
+    })
+    .option("limit", {
+      alias: "l",
+      type: "number",
+      description: "Maximum number of results",
+      default: 10,
+    })
+    .example('$0 -q "ComfyUI setup"', "Search for ComfyUI setup docs")
+    .example('$0 -q "sprint planning" -l 5', "Search with limit")
+    .help()
+    .parse();
 
-  if (!values.query) {
-    console.error('Usage: bun bot/notion/search.ts --query "<search term>" [--limit <number>]');
-    console.error('Example: bun bot/notion/search.ts --query "ComfyUI setup" --limit 5');
-    process.exit(1);
-  }
+  const { results, total, hasMore } = await searchNotion(argv.query, argv.limit);
 
-  const results = await searchNotion(values.query, parseInt(values.limit || "10"));
-
-  console.log(`Found ${results.length} results for query: "${values.query}"\n`);
+  console.log(
+    `Found ${results.length} of ${total}${hasMore ? "+" : ""} results for query: "${argv.query}"\n`,
+  );
 
   for (const result of results) {
     console.log(`Title: ${result.title}`);

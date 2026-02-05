@@ -1,0 +1,7 @@
+{
+  "plugins": ["unicorn", "typescript", "oxc"],
+  "rules": {
+    // Ban 'as any' type assertions
+    "typescript/no-explicit-any": "error"
+  }
+}

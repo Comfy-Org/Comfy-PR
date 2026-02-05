@@ -778,7 +778,7 @@ async function main() {
             }),
           async (args) => {
             await loadEnvLocal();
-            const userIds = args.user_id as string[];
+            const userIds = [args.user_id].flat() as string[];
             let result;
             if (userIds.length === 1) {
               result = await getUserPresence(userIds[0]);
@@ -820,8 +820,13 @@ async function main() {
           .option("limit", { alias: "l", type: "number", default: 10 }),
       async (args) => {
         await loadEnvLocal();
-        const results = await searchNotion(args.query as string, (args.limit as number) ?? 10);
-        console.log(`Found ${results.length} results for: "${args.query}"\n`);
+        const { results, total, hasMore } = await searchNotion(
+          args.query as string,
+          (args.limit as number) ?? 10,
+        );
+        console.log(
+          `Found ${results.length} of ${total}${hasMore ? "+" : ""} results for: "${args.query}"\n`,
+        );
         for (const r of results) {
           console.log(`Title: ${r.title}`);
           console.log(`URL: ${r.url}`);

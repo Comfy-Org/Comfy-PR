@@ -44,7 +44,10 @@ export async function parseSlackMessageToMarkdown(text: string): Promise<string>
   markdown = markdown.replace(/_([^_]+)_/g, "*$1*");
 
   // Restore code blocks and inline code
-  markdown = markdown.replace(/\x00INLINECODE\x00(\d+)\x00/g, (_, idx) => inlineCode[parseInt(idx)]);
+  markdown = markdown.replace(
+    /\x00INLINECODE\x00(\d+)\x00/g,
+    (_, idx) => inlineCode[parseInt(idx)],
+  );
   markdown = markdown.replace(/\x00CODEBLOCK\x00(\d+)\x00/g, (_, idx) => codeBlocks[parseInt(idx)]);
 
   return markdown;

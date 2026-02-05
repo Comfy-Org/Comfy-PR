@@ -88,4 +88,3 @@ if (import.meta.main) {
 }
 
 export { searchNotion };
-

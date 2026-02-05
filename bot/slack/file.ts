@@ -207,7 +207,9 @@ if (import.meta.main) {
   switch (command) {
     case "upload":
       if (!values.channel || !values.file) {
-        console.error("Usage: bun bot/slack/file.ts upload --channel <channel_id> --file <file_path>");
+        console.error(
+          "Usage: bun bot/slack/file.ts upload --channel <channel_id> --file <file_path>",
+        );
         console.error("Optional: --title <title> --comment <message> --thread <thread_ts>");
         process.exit(1);
       }
@@ -220,7 +222,9 @@ if (import.meta.main) {
 
     case "download":
       if (!values.fileId || !values.output) {
-        console.error("Usage: bun bot/slack/file.ts download --fileId <file_id> --output <output_path>");
+        console.error(
+          "Usage: bun bot/slack/file.ts download --fileId <file_id> --output <output_path>",
+        );
         process.exit(1);
       }
       await downloadSlackFile(values.fileId, values.output);
@@ -252,7 +256,9 @@ if (import.meta.main) {
     default:
       console.error("Unknown command. Available commands: upload, download, info, post-with-files");
       console.error("\nExamples:");
-      console.error('  bun bot/slack/file.ts upload --channel C123 --file ./report.pdf --comment "Here\'s the report"');
+      console.error(
+        '  bun bot/slack/file.ts upload --channel C123 --file ./report.pdf --comment "Here\'s the report"',
+      );
       console.error("  bun bot/slack/file.ts download --fileId F123 --output ./downloaded.pdf");
       console.error("  bun bot/slack/file.ts info --fileId F123");
       console.error(

@@ -187,13 +187,13 @@ Task completed
     `.trim();
 
     const result = filterInternalThoughts(input);
-    const lines = result.split('\n');
+    const lines = result.split("\n");
 
     // Should not have consecutive empty lines
     expect(result).toContain("Task started");
     expect(result).toContain("Processing item");
     expect(result).toContain("Task completed");
-    expect(lines.every(line => line.trim() !== '')).toBe(true);
+    expect(lines.every((line) => line.trim() !== "")).toBe(true);
   });
 
   test("handles mixed content with multiple patterns", () => {

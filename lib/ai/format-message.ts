@@ -113,7 +113,12 @@ if (import.meta.main) {
       role: "assistant",
       content: [
         { type: "text", text: "Let me check the weather for you." },
-        { type: "tool-call", toolCallId: "tc1", toolName: "get_weather", args: { location: "Seattle" } },
+        {
+          type: "tool-call",
+          toolCallId: "tc1",
+          toolName: "get_weather",
+          args: { location: "Seattle" },
+        },
       ],
     },
     {

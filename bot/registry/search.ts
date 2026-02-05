@@ -102,7 +102,9 @@ if (import.meta.main) {
 
   for (const node of results) {
     console.log(`📦 ${node.name} (${node.id})`);
-    console.log(`   ${node.description.substring(0, 100)}${node.description.length > 100 ? "..." : ""}`);
+    console.log(
+      `   ${node.description.substring(0, 100)}${node.description.length > 100 ? "..." : ""}`,
+    );
     console.log(`   Publisher: ${node.publisher.name}`);
     console.log(`   Version: ${node.latest_version.version}`);
     console.log(`   Repository: ${node.repository}`);

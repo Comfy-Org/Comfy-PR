@@ -51,9 +51,9 @@ const DEBUG_PATTERNS = [
   /^\s*From\s+https?:\/\//gm,
 
   // Debug/trace logging prefixes (entire lines)
-  /^\s*\[DEBUG\].*$/gmi,
-  /^\s*\[TRACE\].*$/gmi,
-  /^\s*\[VERBOSE\].*$/gmi,
+  /^\s*\[DEBUG\].*$/gim,
+  /^\s*\[TRACE\].*$/gim,
+  /^\s*\[VERBOSE\].*$/gim,
 
   // Stack traces (partial - first line indicators)
   /^\s*at\s+\w+\s+\([^)]+:\d+:\d+\)/gm,
@@ -89,13 +89,14 @@ export function filterInternalThoughts(rawOutput: string): string {
 
   // Apply all debug patterns
   for (const pattern of DEBUG_PATTERNS) {
-    filtered = filtered.replace(pattern, '');
+    filtered = filtered.replace(pattern, "");
   }
 
   // Split into lines and process
-  const lines = filtered.split('\n')
-    .map(line => line.trim())
-    .filter(line => {
+  const lines = filtered
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => {
       // Remove empty lines
       if (!line) return false;
 
@@ -109,7 +110,7 @@ export function filterInternalThoughts(rawOutput: string): string {
     });
 
   // Join back together
-  const result = lines.join('\n').trim();
+  const result = lines.join("\n").trim();
 
   return result;
 }
@@ -122,8 +123,16 @@ export function filterInternalThoughts(rawOutput: string): string {
  * @returns Array of filtered-out lines
  */
 export function getFilteredContent(rawOutput: string, filteredOutput: string): string[] {
-  const rawLines = rawOutput.split('\n').map(l => l.trim()).filter(Boolean);
-  const filteredLines = new Set(filteredOutput.split('\n').map(l => l.trim()).filter(Boolean));
+  const rawLines = rawOutput
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const filteredLines = new Set(
+    filteredOutput
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean),
+  );
 
-  return rawLines.filter(line => !filteredLines.has(line));
+  return rawLines.filter((line) => !filteredLines.has(line));
 }

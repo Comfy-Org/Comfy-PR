@@ -24,6 +24,7 @@ comfy-codesearch search "binarization"
 ```
 
 **Results:**
+
 - **ComfyUI-Sa2VA-XJ** (by alexjx)
   - Repository: https://github.com/alexjx/ComfyUI-Sa2VA-XJ
   - Provides video segmentation with binarization capabilities
@@ -32,6 +33,7 @@ comfy-codesearch search "binarization"
   - Default binarization threshold is 0.5
 
 Additional related searches:
+
 ```bash
 # Search for binarize functions
 comfy-codesearch search "binarize"

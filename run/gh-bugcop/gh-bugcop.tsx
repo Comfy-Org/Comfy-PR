@@ -1,4 +1,5 @@
 #!/usr/bin/env bun --watch
+
 /**
  * Github Bugcop Bot
  * 1. bot matches issues for label "bug-cop:ask-for-info"
@@ -28,7 +29,7 @@ import { union } from "rambda";
 import sflow, { pageFlow } from "sflow";
 import z from "zod";
 import { createTimeLogger } from "../../app/tasks/gh-design/createTimeLogger";
-import type { WebhookEventMap } from "@octokit/webhooks-types";
+import { tsmatch } from "@/packages/mongodb-pipeline-ts/Task";
 
 export const REPOLIST = [
   "https://github.com/comfyanonymous/ComfyUI",
@@ -463,33 +464,27 @@ async function processIssue(issue: GH["issue"]) {
   tlog(chalk.bgBlue("Labels: " + JSON.stringify(issueLabels)));
 
   // Use cached timeline from GraphQL if available, otherwise fetch from REST API
-  const timeline = (issue as any)._timeline
-    ? convertGraphQLTimelineToREST((issue as any)._timeline)
-    : await ghPageFlow(ghc.issues.listEventsForTimeline)(issueId).toArray();
+  const timeline = (await ghPageFlow(ghc.issues.listEventsForTimeline)(
+    issueId,
+  ).toArray()) as GH["timeline-issue-events"][];
 
   // list all label events
-  const labelEvents = (await sflow([...timeline])
-    .map((_e) => {
-      return _e.event === "labeled" || _e.event === "unlabeled" || _e.event === "commented"
-        ? (_e as
-            | WebhookEventMap["labeled-issue-event"]
-            | WebhookEventMap["unlabeled-issue-event"]
-            | WebhookEventMap["timeline-comment-event"])
-        : null;
-    })
-    .filter((e): e is NonNullable<typeof e> => e !== null)
-    .toArray()) as (
-    | WebhookEventMap["labeled-issue-event"]
-    | WebhookEventMap["timeline-comment-event"]
-    | WebhookEventMap["unlabeled-issue-event"]
-  )[];
+  const labelEvents = await sflow([...timeline])
+    .map((e) =>
+      tsmatch(e)
+        .with({ event: "labeled" }, (e) => e as GH["labeled-issue-event"])
+        .with({ event: "unlabeled" }, (e) => e as GH["unlabeled-issue-event"])
+        .with({ event: "commented" }, (e) => e as GH["timeline-comment-event"])
+        .otherwise(() => null),
+    )
+    .filter()
+    .toArray(); // as TimelineEvent[];
   tlog("Found " + labelEvents.length + " unlabeled/labeled/commented events");
-  await saveTask({ timeline: labelEvents });
+  await saveTask({ timeline: labelEvents as any });
 
   function lastLabeled(labelName: string) {
     return labelEvents
-      .filter((e) => e?.event === "labeled")
-      .map((e) => e as GH["labeled-issue-event"])
+      .filter((e): e is GH["labeled-issue-event"] => e.event === "labeled")
       .filter((e) => e.label?.name === labelName)
       .sort(compareBy((e) => e.created_at))
       .reverse()[0];
@@ -498,26 +493,26 @@ async function processIssue(issue: GH["issue"]) {
   const latestLabeledEvent = lastLabeled(BUGCOP_ASKING_FOR_INFO) || lastLabeled(BUGCOP_ANSWERED);
   if (!latestLabeledEvent) {
     lastLabeled(BUGCOP_RESPONSE_RECEIVED) ||
-      DIE(
-        new Error(
-          `No labeled event found, this should not happen since we are filtering issues by those label, ${JSON.stringify(task.labels)}`,
-        ),
-      );
+      DIE`No labeled event found, this should not happen since we are filtering issues by those label, ${JSON.stringify(task.labels)}`;
+
     return task;
   }
 
   // check if it's answered since lastLabel
   const hasNewComment = (() => {
-    const labelLastAddedTime = new Date(latestLabeledEvent?.created_at);
+    const labelLastAddedTime = new Date(latestLabeledEvent?.created_at ?? 0);
     const commentEvents = timeline
       .filter((e): e is GH["timeline-comment-event"] => e.event === "commented")
       .filter((e) => e.user) // filter out comments without user
       .filter((e) => !e.user?.login.match(/\[bot\]$|-bot/)) // no bots
-      .filter((e) => +new Date(e.updated_at) > +new Date(labelLastAddedTime)) // only comments that is updated later than the label added time
+      .filter((e) => +new Date((e as any).updated_at) > +new Date(labelLastAddedTime)) // only comments that is updated later than the label added time
       .filter(
-        (e) => !["COLLABORATOR", "CONTRIBUTOR", "MEMBER", "OWNER"].includes(e.author_association),
+        (e) =>
+          !["COLLABORATOR", "CONTRIBUTOR", "MEMBER", "OWNER"].includes(
+            (e as any).author_association ?? "",
+          ),
       ) // not by collaborators, usually askForInfo for more info
-      .filter((e) => e.user?.login !== latestLabeledEvent.actor.login); // ignore the user who added the label
+      .filter((e) => e.user?.login !== latestLabeledEvent?.actor?.login); // ignore the user who added the label
 
     commentEvents.length &&
       tlog(
@@ -537,7 +532,9 @@ async function processIssue(issue: GH["issue"]) {
   }
 
   const addLabels = [BUGCOP_RESPONSE_RECEIVED].filter((e) => !issueLabels.includes(e)); // add response received label if not already added
-  const removeLabels = [latestLabeledEvent.label.name].filter((e) => issueLabels.includes(e)); // remove the triggering label if it exists on the issue
+  const removeLabels = [latestLabeledEvent?.label?.name].filter(
+    (e): e is string => !!e && issueLabels.includes(e),
+  ); // remove the triggering label if it exists on the issue
 
   if (isResponseReceived) {
     addLabels.length && console.log(chalk.bgBlue("Adding:"), addLabels);
