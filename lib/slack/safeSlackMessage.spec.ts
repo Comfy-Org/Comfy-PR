@@ -1,6 +1,14 @@
 import { describe, expect, it, jest } from "bun:test";
 import { safeSlackPostMessage, safeSlackUpdateMessage } from "./safeSlackMessage";
 
+// Type definition for mocked Slack client
+type MockSlackClient = {
+  chat: {
+    postMessage: jest.Mock;
+    update?: jest.Mock;
+  };
+};
+
 describe("safeSlackMessage", () => {
   describe("safeSlackPostMessage", () => {
     it("should post message without truncation for short text", async () => {
@@ -8,7 +16,7 @@ describe("safeSlackMessage", () => {
         chat: {
           postMessage: jest.fn().mockResolvedValue({ ok: true, ts: "1234567890.123456" }),
         },
-      } as any;
+      } as MockSlackClient;
 
       const params = {
         channel: "C123",
@@ -26,7 +34,7 @@ describe("safeSlackMessage", () => {
         chat: {
           postMessage: jest.fn().mockResolvedValue({ ok: true, ts: "1234567890.123456" }),
         },
-      } as any;
+      } as MockSlackClient;
 
       const longText = "A".repeat(40000);
       const params = {
@@ -47,7 +55,7 @@ describe("safeSlackMessage", () => {
         chat: {
           postMessage: jest.fn().mockResolvedValue({ ok: true, ts: "1234567890.123456" }),
         },
-      } as any;
+      } as MockSlackClient;
 
       const longText = "B".repeat(15000);
       const params = {
@@ -73,7 +81,7 @@ describe("safeSlackMessage", () => {
             })
             .mockResolvedValueOnce({ ok: true, ts: "1234567890.123456" }),
         },
-      } as any;
+      } as MockSlackClient;
 
       const params = {
         channel: "C123",
@@ -91,7 +99,7 @@ describe("safeSlackMessage", () => {
         chat: {
           postMessage: jest.fn().mockResolvedValue({ ok: true, ts: "1234567890.123456" }),
         },
-      } as any;
+      } as MockSlackClient;
 
       const params = {
         channel: "C123",
@@ -114,7 +122,7 @@ describe("safeSlackMessage", () => {
         chat: {
           update: jest.fn().mockResolvedValue({ ok: true, ts: "1234567890.123456" }),
         },
-      } as any;
+      } as MockSlackClient;
 
       const params = {
         channel: "C123",
@@ -139,7 +147,7 @@ describe("safeSlackMessage", () => {
             })
             .mockResolvedValueOnce({ ok: true, ts: "1234567890.123456" }),
         },
-      } as any;
+      } as MockSlackClient;
 
       const params = {
         channel: "C123",

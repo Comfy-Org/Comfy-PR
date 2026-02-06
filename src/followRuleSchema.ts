@@ -76,7 +76,7 @@ const zFollowUpRule = z.object({
           tags: mAny,
         })
         .strict(),
-      // close: z.any(),
+      // close: z.unknown(),
     })
     .strict()
     .partial(),

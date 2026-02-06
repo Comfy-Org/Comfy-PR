@@ -168,7 +168,7 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
     .flat()
     .map((e) => e as Notion.PageObjectResponse)
     .filter((e) => e.id !== checkpoint?.id) // skip checkpoint entry as it's already processed
-    .map((e: any) => {
+    .map((e: unknown) => {
       return {
         ...e,
         Title: e.properties.Task?.title?.[0]?.plain_text,
@@ -229,8 +229,8 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
 
 export default SyncPriorityBetweenComfyTaskAndGithubIssue;
 
-function tryCatcher<F extends (...args: any[]) => Promise<any>, R>(
-  onError: (error: any, fn: F, ...args: any[]) => R,
+function tryCatcher<F extends (...args: unknown[]) => Promise<unknown>, R>(
+  onError: (error: unknown, fn: F, ...args: unknown[]) => R,
   fn: F,
 ) {
   return async (...args: Parameters<F>): Promise<ReturnType<F> | R> => {

@@ -24,12 +24,12 @@ async function searchNotion(query: string, limit: number = 10) {
     });
 
     const results = await sflow(response.results)
-      .map(async (page: any) => {
+      .map(async (page: unknown) => {
         let title = "Untitled";
         if (page.properties) {
           const titleProp = Object.values(page.properties).find(
-            (prop: any) => prop.type === "title",
-          ) as any;
+            (prop: unknown) => prop.type === "title",
+          ) as Record<string, unknown>;
           if (titleProp?.title?.[0]?.plain_text) {
             title = titleProp.title[0].plain_text;
           }

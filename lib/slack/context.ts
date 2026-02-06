@@ -19,13 +19,13 @@ export async function getCompleteMessageContext(channel: string, ts: string) {
       inclusive: true,
       limit: 1,
     });
-    const message = messagesResult.messages?.[0] as any;
+    const message = messagesResult.messages?.[0] as Record<string, unknown>;
 
     if (!message) {
       throw new Error("Message not found");
     }
 
-    // 2. Get reactions (if any)
+    // 2. Get reactions (if unknown)
     let reactions = null;
     try {
       const reactionsData = await getMessageReactions(channel, ts);
@@ -61,7 +61,7 @@ export async function getCompleteMessageContext(channel: string, ts: string) {
     if (message.user) {
       try {
         const userResult = await slack.users.info({ user: message.user });
-        const user = userResult.user as any;
+        const user = userResult.user as Record<string, unknown>;
         userInfo = {
           id: user.id,
           name: user.name,
@@ -91,7 +91,7 @@ export async function getCompleteMessageContext(channel: string, ts: string) {
     let isPinned = false;
     try {
       const pinsResult = await slack.pins.list({ channel });
-      isPinned = pinsResult.items?.some((item: any) => item.message?.ts === ts) || false;
+      isPinned = pinsResult.items?.some((item: unknown) => item.message?.ts === ts) || false;
     } catch {
       // Pins error - that's ok
     }

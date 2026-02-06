@@ -10,22 +10,22 @@ describe("Working Tasks Manager", () => {
   });
 
   // Helper functions (same as in bot/index.ts)
-  async function addWorkingTask(event: any) {
+  async function addWorkingTask(event: unknown) {
     const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
     const events = workingTasks.workingMessageEvents || [];
 
-    const exists = events.some((e: any) => e.ts === event.ts && e.channel === event.channel);
+    const exists = events.some((e: unknown) => e.ts === event.ts && e.channel === event.channel);
     if (!exists) {
       events.push(event);
       await State.set("current-working-tasks", { workingMessageEvents: events });
     }
   }
 
-  async function removeWorkingTask(event: any) {
+  async function removeWorkingTask(event: unknown) {
     const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
     const events = workingTasks.workingMessageEvents || [];
 
-    const filtered = events.filter((e: any) => !(e.ts === event.ts && e.channel === event.channel));
+    const filtered = events.filter((e: unknown) => !(e.ts === event.ts && e.channel === event.channel));
     await State.set("current-working-tasks", { workingMessageEvents: filtered });
   }
 

@@ -27,7 +27,7 @@ export async function listChannelBookmarks(channelId: string) {
     const channelName = channelInfo.channel?.name || channelId;
 
     // Format bookmarks
-    const formattedBookmarks = bookmarks.map((bookmark: any) => ({
+    const formattedBookmarks = bookmarks.map((bookmark: unknown) => ({
       id: bookmark.id,
       title: bookmark.title,
       link: bookmark.link,

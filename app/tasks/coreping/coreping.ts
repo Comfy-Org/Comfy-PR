@@ -184,7 +184,7 @@ function reviewStatusExplained(status: ReviewStatus) {
  *   2. merged: have merged_at
  *   3. closed: have closed_at
  *   4. requested: Requested someone to review, but none reviewed neither commented yet
- *   5. reviewed: Reviewed/Commented by any collaborator after requested
+ *   5. reviewed: Reviewed/Commented by unknown collaborator after requested
  *   6. responded: A Latest change is responds by the PR author
  *   7. open: is ready for review, but no review/response yet
  */
@@ -562,7 +562,7 @@ async function processPullRequestCorePingTask(
     prev: task.lastStatus,
     curr: status,
   })
-    // reviewed => any(related)
+    // reviewed => unknown(related)
     .with(
       {
         prev: P.union("REVIEWED", "REVIEWER_COMMENTED"),
@@ -570,7 +570,7 @@ async function processPullRequestCorePingTask(
       },
       () => true,
     )
-    // any => review_requested
+    // unknown => review_requested
     .with(
       {
         prev: P.not(P.union("REVIEW_REQUESTED", "AUTHOR_COMMENTED")),

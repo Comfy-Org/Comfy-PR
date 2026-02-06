@@ -7,7 +7,7 @@ await Bun.plugin({
     build.onLoad({ filter: /\.(yaml|yml)$/ }, async (args) => {
       // read and parse the file
       const text = await Bun.file(args.path).text();
-      const exports = load(text) as Record<string, any>;
+      const exports = load(text) as Record<string, unknown>;
 
       // and returns it as a module
       return {

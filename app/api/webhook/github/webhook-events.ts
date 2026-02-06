@@ -13,7 +13,7 @@ export interface GithubWebhookEvent {
   hookInstallationTargetType: string | null;
 
   // Payload
-  payload: any;
+  payload: unknown;
 
   // Timestamps
   receivedAt: Date;

@@ -40,7 +40,7 @@ import { searchNotion } from "@/lib/notion/search";
 
 /**
  * Load environment variables from .env.local in the project root
- * This allows prbot to work from any directory
+ * This allows prbot to work from unknown directory
  */
 async function loadEnvLocal() {
   const envPath = path.join(import.meta.dir, "../.env.local");
@@ -648,13 +648,13 @@ async function main() {
             if (searchType === "files") {
               results = await searchFiles(args.query as string, {
                 limit: args.limit as number,
-                sort: args.sort as any,
+                sort: args.sort as Record<string, unknown>,
               });
             } else {
               results = await searchMessages(args.query as string, {
                 channel: args.channel as string | undefined,
                 limit: args.limit as number,
-                sort: args.sort as any,
+                sort: args.sort as Record<string, unknown>,
               });
             }
             console.log(yaml.stringify(results));

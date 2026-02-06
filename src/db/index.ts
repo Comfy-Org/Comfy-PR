@@ -15,15 +15,15 @@ const MONGODB_URI = process.env.MONGODB_URI ?? "mongodb://PLEASE_SET_MONGODB_URI
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
 export const mongo = await (isBuildPhase
-  ? Promise.resolve(null as any as MongoClient)
+  ? Promise.resolve(null as Record<string, unknown> as MongoClient)
   : hotResource(async () => [new MongoClient(MONGODB_URI), (conn) => conn.close()]));
 
 // Create a Proxy for db during build that returns dummy collection objects
-const buildTimeDb = new Proxy({} as any, {
+const buildTimeDb = new Proxy({} as Record<string, unknown>, {
   get(target, prop) {
     if (prop === "collection") {
       return () =>
-        new Proxy({} as any, {
+        new Proxy({} as Record<string, unknown>, {
           get(target, prop) {
             if (prop === "createIndex") return () => Promise.resolve();
             return () => {};

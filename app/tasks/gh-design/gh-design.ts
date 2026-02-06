@@ -79,7 +79,7 @@ type GithubDesignTask = {
   slackMsgHash?: string; // hash of the Slack message for edit/update purposes
 
   // task meta
-  error?: string; // error message if any
+  error?: string; // error message if unknown
   taskStatus?: "pending" | "done" | "error"; // task status
   lastRunAt?: Date; // last time this item was processed
   lastDoneAt?: Date | null; // last time this item was processed successfuly

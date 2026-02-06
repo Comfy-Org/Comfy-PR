@@ -17,7 +17,7 @@ export const gh = octokit.rest;
 
 export type GH = ghComponents["schemas"];
 
-// Use a cache directory that works from any working directory
+// Use a cache directory that works from unknown working directory
 // Priority: 1) Project's node_modules if it exists, 2) Temp directory
 function getCacheDir(): string {
   const projectCache = path.join(process.cwd(), "node_modules/.cache/Comfy-PR");
@@ -45,7 +45,7 @@ const DEFAULT_TTL = process.env.LOCAL_DEV
 async function ensureCacheDir() {
   try {
     await fs.mkdir(CACHE_DIR, { recursive: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Ignore errors if directory already exists or can't be created
     // This prevents crashes when running from different working directories
     if (error.code !== "EEXIST") {
@@ -64,7 +64,7 @@ async function getKeyv() {
         store: new KeyvSqlite(CACHE_FILE),
         ttl: DEFAULT_TTL,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If SQLite fails, fall back to in-memory cache
       console.warn(
         `Warning: Could not initialize SQLite cache, using in-memory cache:`,
@@ -78,7 +78,7 @@ async function getKeyv() {
   return keyv;
 }
 
-function createCacheKey(basePath: string[], prop: string | symbol, args: any[]): string {
+function createCacheKey(basePath: string[], prop: string | symbol, args: unknown[]): string {
   // Create a deterministic key from the path and arguments
   const fullPath = [...basePath, prop.toString()];
   const apiPath = fullPath.join(".");
@@ -99,13 +99,13 @@ function createCacheKey(basePath: string[], prop: string | symbol, args: any[]):
   return cacheKey;
 }
 
-function createCachedProxy(target: any, basePath: string[] = []): any {
+function createCachedProxy(target: unknown, basePath: string[] = []): unknown {
   return new Proxy(target, {
     get(obj, prop) {
       const value = obj[prop];
 
       if (typeof value === "function") {
-        return async function (...args: any[]) {
+        return async function (...args: unknown[]) {
           const cacheKey = createCacheKey(basePath, prop, args);
           const keyvInstance = await getKeyv();
 

@@ -39,7 +39,7 @@ export const REPOLIST = [
 ];
 await mkdir("./.cache", { recursive: true });
 const kv = new Keyv({ store: new KeyvSqlite("sqlite://.cache/bugcop-cache.sqlite") });
-function createKeyvCachedFn<FN extends (...args: any[]) => Promise<unknown>>(
+function createKeyvCachedFn<FN extends (...args: unknown[]) => Promise<unknown>>(
   key: string,
   fn: FN,
 ): FN {
@@ -284,7 +284,7 @@ async function fetchRepoIssuesWithGraphQL(
             labels: node.labels.nodes.map((l) => ({ name: l.name })),
             // Store timeline in a cache property for later use
             _timeline: node.timelineItems.nodes,
-          } as any;
+          } as Record<string, unknown>;
           return issue;
         });
 
@@ -480,7 +480,7 @@ async function processIssue(issue: GH["issue"]) {
     .filter()
     .toArray(); // as TimelineEvent[];
   tlog("Found " + labelEvents.length + " unlabeled/labeled/commented events");
-  await saveTask({ timeline: labelEvents as any });
+  await saveTask({ timeline: labelEvents as Record<string, unknown> });
 
   function lastLabeled(labelName: string) {
     return labelEvents
@@ -505,11 +505,11 @@ async function processIssue(issue: GH["issue"]) {
       .filter((e): e is GH["timeline-comment-event"] => e.event === "commented")
       .filter((e) => e.user) // filter out comments without user
       .filter((e) => !e.user?.login.match(/\[bot\]$|-bot/)) // no bots
-      .filter((e) => +new Date((e as any).updated_at) > +new Date(labelLastAddedTime)) // only comments that is updated later than the label added time
+      .filter((e) => +new Date((e as Record<string, unknown>).updated_at) > +new Date(labelLastAddedTime)) // only comments that is updated later than the label added time
       .filter(
         (e) =>
           !["COLLABORATOR", "CONTRIBUTOR", "MEMBER", "OWNER"].includes(
-            (e as any).author_association ?? "",
+            (e as Record<string, unknown>).author_association ?? "",
           ),
       ) // not by collaborators, usually askForInfo for more info
       .filter((e) => e.user?.login !== latestLabeledEvent?.actor?.login); // ignore the user who added the label

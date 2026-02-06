@@ -1,4 +1,4 @@
-import { WebClient } from "@slack/web-api";
+import { WebClient, ChatPostMessageArguments, ChatUpdateArguments } from "@slack/web-api";
 import { truncateFromMiddle } from "../utils";
 
 /**
@@ -13,12 +13,14 @@ const SLACK_MARKDOWN_BLOCK_LIMIT = 11000; // Conservative limit for markdown blo
 /**
  * Safely post a message to Slack with automatic truncation on msg_too_long error
  */
+type SlackBlock = Record<string, unknown>;
+
 export async function safeSlackPostMessage(
   slack: WebClient,
   params: {
     channel: string;
     text?: string;
-    blocks?: any[];
+    blocks?: SlackBlock[];
     thread_ts?: string;
     reply_broadcast?: boolean;
   },
@@ -50,10 +52,10 @@ export async function safeSlackPostMessage(
     return await slack.chat.postMessage({
       ...truncatedParams,
       blocks: truncatedParams.blocks || undefined,
-    } as any);
-  } catch (error: any) {
+    } as ChatPostMessageArguments);
+  } catch (error: unknown) {
     // If we still get msg_too_long error, retry with more aggressive truncation
-    if (error?.data?.error === "msg_too_long") {
+    if ((error as { data?: { error?: string } })?.data?.error === "msg_too_long") {
       console.warn("Slack msg_too_long error, retrying with aggressive truncation");
 
       const aggressiveParams = { ...params };
@@ -78,7 +80,7 @@ export async function safeSlackPostMessage(
       return await slack.chat.postMessage({
         ...aggressiveParams,
         blocks: aggressiveParams.blocks || undefined,
-      } as any);
+      } as ChatPostMessageArguments);
     }
 
     throw error;
@@ -94,7 +96,7 @@ export async function safeSlackUpdateMessage(
     channel: string;
     ts: string;
     text?: string;
-    blocks?: any[];
+    blocks?: SlackBlock[];
   },
 ) {
   try {
@@ -124,10 +126,10 @@ export async function safeSlackUpdateMessage(
     return await slack.chat.update({
       ...truncatedParams,
       blocks: truncatedParams.blocks || undefined,
-    } as any);
-  } catch (error: any) {
+    } as ChatUpdateArguments);
+  } catch (error: unknown) {
     // If we still get msg_too_long error, retry with more aggressive truncation
-    if (error?.data?.error === "msg_too_long") {
+    if ((error as { data?: { error?: string } })?.data?.error === "msg_too_long") {
       console.warn("Slack msg_too_long error, retrying with aggressive truncation");
 
       const aggressiveParams = { ...params };
@@ -152,7 +154,7 @@ export async function safeSlackUpdateMessage(
       return await slack.chat.update({
         ...aggressiveParams,
         blocks: aggressiveParams.blocks || undefined,
-      } as any);
+      } as ChatUpdateArguments);
     }
 
     throw error;

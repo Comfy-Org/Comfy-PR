@@ -27,7 +27,7 @@ export async function analyzeTotals() {
       "on Registry": CRNodes.estimatedDocumentCount(),
       "on Registry (exclude unclaimed)": CRNodes.countDocuments({
         "publisher.id": { $ne: UNCLAIMED_ADMIN_PUBLISHER_ID },
-      } as any),
+      } as Record<string, unknown>),
     }),
     "Total Repos": $pipeline(CNRepos)
       .group({
@@ -45,7 +45,7 @@ export async function analyzeTotals() {
       })
       .project({ _id: 0 })
       .aggregate()
-      // .map((e: any) => e.pairs)
+      // .map((e: unknown) => e.pairs)
       .next(),
     "Total Authors": $pipeline(CNRepos)
       .match($flatten({ info: { data: { owner: { login: { $exists: true } } } } }))
@@ -65,7 +65,7 @@ export async function analyzeTotals() {
       })
       .project({ _id: 0 })
       .aggregate()
-      // .map((e: any) => e.pairs)
+      // .map((e: unknown) => e.pairs)
       .next(),
     "Total PRs Made": $pipeline(CNRepos)
       .unwind("$crPulls.data")
@@ -74,7 +74,7 @@ export async function analyzeTotals() {
       .set({ id_total: [["$_id", "$total"]] })
       .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
-      .map((e: any) => e.pairs)
+      .map((e: unknown) => e.pairs)
       .next(),
     "Total Open": $pipeline(CNRepos)
       .unwind("$crPulls.data")
@@ -84,7 +84,7 @@ export async function analyzeTotals() {
       .set({ id_total: [["$_id", "$total"]] })
       .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
-      .map((e: any) => e.pairs)
+      .map((e: unknown) => e.pairs)
       .next(),
     "Total Merged (on Registry)": $pipeline(CNRepos)
       .unwind("$crPulls.data")
@@ -94,7 +94,7 @@ export async function analyzeTotals() {
       .set({ id_total: [["$_id", "$total"]] })
       .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
-      .map((e: any) => e.pairs)
+      .map((e: unknown) => e.pairs)
       .next(),
     "Total Merged (not on Registry)": $pipeline(CNRepos)
       .unwind("$crPulls.data")
@@ -104,7 +104,7 @@ export async function analyzeTotals() {
       .set({ id_total: [["$_id", "$total"]] })
       .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
-      .map((e: any) => e.pairs)
+      .map((e: unknown) => e.pairs)
       .next(),
     "Total Closed": $pipeline(CNRepos)
       .unwind("$crPulls.data")
@@ -114,7 +114,7 @@ export async function analyzeTotals() {
       .set({ id_total: [["$_id", "$total"]] })
       .group({ _id: null, pairs: { $mergeObjects: { $arrayToObject: "$id_total" } } })
       .aggregate()
-      .map((e: any) => e.pairs)
+      .map((e: unknown) => e.pairs)
       .next(),
 
     // // Follow Rules

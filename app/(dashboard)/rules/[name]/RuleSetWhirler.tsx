@@ -19,7 +19,7 @@ import { PullsStatusTable } from "../../PullsStatusTable";
 import { SaveButton } from "../../SaveButton";
 // import { useFormState } from "react-dom";
 
-type MatchAllResults = { name: string; matched: Task<PullStatus[]>; actions: Task<any[]> }[];
+type MatchAllResults = { name: string; matched: Task<PullStatus[]>; actions: Task<unknown[]> }[];
 /**
  * Author: snomiao <snomiao@gmail.com>
  */

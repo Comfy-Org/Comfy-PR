@@ -35,8 +35,8 @@ export class RestartManager {
       debounceDelay?: number;
       /** Logger function */
       logger?: {
-        info: (msg: string, meta?: any) => void;
-        warn: (msg: string, meta?: any) => void;
+        info: (msg: string, meta?: unknown) => void;
+        warn: (msg: string, meta?: unknown) => void;
       };
     },
   ) {

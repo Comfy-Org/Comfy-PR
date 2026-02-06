@@ -15,8 +15,8 @@ export type FollowRuleSet = {
   matched?: Task<PullsStatus>;
   action_results?: {
     name: string;
-    action: any;
-    result: Task<any>;
+    action: unknown;
+    result: Task<unknown>;
   }[];
   enabled?: boolean;
   yamlWhenEnabled?: string;

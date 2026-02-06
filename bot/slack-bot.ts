@@ -92,6 +92,23 @@ const SlackBotState = new Keyv(
 
 const TaskInputFlows = new Map<string, TransformStream<string, string>>();
 // https://comfy-pr-bot.pages.dev/
+// Slack block type definition
+const zSlackBlock = z.object({
+  type: z.string(),
+  block_id: z.string().optional(),
+  elements: z.array(z.unknown()).optional(),
+}).passthrough();
+
+// Slack attachment type definition
+const zSlackAttachment = z.object({
+  title: z.string().optional(),
+  title_link: z.string().optional(),
+  text: z.string().optional(),
+  fallback: z.string().optional(),
+  image_url: z.string().optional(),
+  from_url: z.string().optional(),
+}).passthrough();
+
 const zAppMentionEvent = z.object({
   type: z.literal("app_mention"),
   user: z.string(),
@@ -101,10 +118,10 @@ const zAppMentionEvent = z.object({
   team: z.string(),
   thread_ts: z.string().optional(),
   parent_user_id: z.string().optional(),
-  blocks: z.array(z.any()),
+  blocks: z.array(zSlackBlock),
   channel: z.string(),
-  assistant_thread: z.any().optional(),
-  attachments: z.array(z.any()).optional(),
+  assistant_thread: z.unknown().optional(),
+  attachments: z.array(zSlackAttachment).optional(),
   event_ts: z.string(),
 });
 
@@ -116,7 +133,7 @@ async function addWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
   const events = workingTasks.workingMessageEvents || [];
 
   // Check if event already exists (by ts and channel)
-  const exists = events.some((e: any) => e.ts === event.ts && e.channel === event.channel);
+  const exists = events.some((e: z.infer<typeof zAppMentionEvent>) => e.ts === event.ts && e.channel === event.channel);
   if (!exists) {
     events.push(event);
     await SlackBotState.set("current-working-tasks", { workingMessageEvents: events });
@@ -131,7 +148,7 @@ async function removeWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
   const events = workingTasks.workingMessageEvents || [];
 
   // Remove event by ts and channel
-  const filtered = events.filter((e: any) => !(e.ts === event.ts && e.channel === event.channel));
+  const filtered = events.filter((e: z.infer<typeof zAppMentionEvent>) => !(e.ts === event.ts && e.channel === event.channel));
   await SlackBotState.set("current-working-tasks", { workingMessageEvents: filtered });
   logger.info(`Removed task from working list: ${event.ts} (remaining: ${filtered.length})`);
 }
@@ -220,7 +237,7 @@ export async function startSlackBot() {
         const events = workingTasks.workingMessageEvents || [];
 
         // Build message URLs from events
-        const processing_message_urls = events.map((event: any) => {
+        const processing_message_urls = events.map((event: z.infer<typeof zAppMentionEvent>) => {
           const tsForUrl = event.ts.replace(".", "");
           return `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${tsForUrl}`;
         });
@@ -326,15 +343,34 @@ export async function startSlackBot() {
     })
     .on("message", async ({ event, body, ack }) => {
       // bot-1  | msg:  {"type":"message","user":"U04F3GHTG2X","ts":"1767100459.669809","client_msg_id":"2fed13c0-9739-4888-a4f6-b876c25f1407","text":"test","team":"T0462DJ9G3C","blocks":[{"type":"rich_text","block_id":"gB9fq","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"test"}]}]}],"channel":"C0A6Y4AU52L","event_ts":"1767100459.669809","channel_type":"channel"}
-      // const zSlackMessage = ... // TODO
+      // Parse the message event
+      const zSlackMessage = z.object({
+        type: z.literal("message"),
+        user: z.string().optional(),
+        ts: z.string().optional(),
+        client_msg_id: z.string().optional(),
+        text: z.string().optional(),
+        team: z.string().optional(),
+        thread_ts: z.string().optional(),
+        parent_user_id: z.string().optional(),
+        blocks: z.array(zSlackBlock).optional(),
+        channel: z.string().optional(),
+        channel_type: z.string().optional(),
+        assistant_thread: z.unknown().optional(),
+        attachments: z.array(zSlackAttachment).optional(),
+        event_ts: z.string().optional(),
+        bot_id: z.string().optional(),
+      }).passthrough();
+
+      const messageEvent = zSlackMessage.parse(event);
 
       logger.debug("MESSAGE EVENT", { event });
-      logger.debug("parsed_text: " + (await parseSlackMessageToMarkdown(event.text || "")));
+      logger.debug("parsed_text: " + (await parseSlackMessageToMarkdown(messageEvent.text || "")));
 
       await ack();
 
       // Skip bot messages
-      if ((event as any).bot_id) {
+      if (messageEvent.bot_id) {
         return;
       }
 
@@ -344,34 +380,34 @@ export async function startSlackBot() {
       const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K"; // ComfyPR-Bot user ID
 
       // Check if message mentions the bot
-      const text = (event as any).text || "";
+      const text = messageEvent.text || "";
       const hasBotMention = text.includes(`<@${botUserId}>`);
 
       // Handle DM messages (channel_type: "im") and treat them like app mentions
-      const isDM = (event as any).channel_type === "im";
+      const isDM = messageEvent.channel_type === "im";
 
-      if ((isDM || hasBotMention) && (event as any).user && (event as any).text) {
+      if ((isDM || hasBotMention) && messageEvent.user && messageEvent.text && messageEvent.channel && messageEvent.ts && messageEvent.team && messageEvent.event_ts) {
         const eventType = isDM ? "DM" : "BOT MENTION";
         logger.debug(`${eventType} DETECTED - Processing message as app_mention`, {
-          channel: (event as any).channel,
-          ts: (event as any).ts,
+          channel: messageEvent.channel,
+          ts: messageEvent.ts,
           text: text.substring(0, 100),
         });
 
-        const mentionEvent = {
+        const mentionEvent: z.infer<typeof zAppMentionEvent> = {
           type: "app_mention" as const,
-          user: (event as any).user,
-          ts: (event as any).ts,
-          client_msg_id: (event as any).client_msg_id,
-          text: (event as any).text,
-          team: (event as any).team,
-          thread_ts: (event as any).thread_ts,
-          parent_user_id: (event as any).parent_user_id,
-          blocks: (event as any).blocks || [],
-          channel: (event as any).channel,
-          assistant_thread: (event as any).assistant_thread,
-          attachments: (event as any).attachments,
-          event_ts: (event as any).event_ts,
+          user: messageEvent.user,
+          ts: messageEvent.ts,
+          client_msg_id: messageEvent.client_msg_id,
+          text: messageEvent.text,
+          team: messageEvent.team,
+          thread_ts: messageEvent.thread_ts,
+          parent_user_id: messageEvent.parent_user_id,
+          blocks: messageEvent.blocks || [],
+          channel: messageEvent.channel,
+          assistant_thread: messageEvent.assistant_thread,
+          attachments: messageEvent.attachments,
+          event_ts: messageEvent.event_ts,
         };
         await spawnBotOnSlackMessageEvent(mentionEvent);
       }
@@ -388,21 +424,7 @@ export async function startSlackBot() {
   logger.info("BOT - socketModeClient.start() returned");
   return socketModeClient;
 }
-async function spawnBotOnSlackMessageEvent(event: {
-  type: "app_mention";
-  user: string;
-  ts: string;
-  client_msg_id?: string;
-  text: string;
-  team: string;
-  thread_ts?: string;
-  parent_user_id?: string;
-  blocks: any[];
-  channel: string;
-  assistant_thread?: any;
-  attachments?: any[];
-  event_ts: string;
-}) {
+async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEvent>) {
   // msg dedup for same content
   const eventProcessed = await SlackBotState.get(`msg-${event.ts}`);
   // if (eventProcessed?.content === event.text) return;
@@ -453,6 +475,21 @@ async function spawnBotOnSlackMessageEvent(event: {
     ts: workspaceId,
     limit: 100,
   });
+  // Type definitions for Slack message components
+  type SlackFile = {
+    name?: string;
+    title?: string;
+    mimetype?: string;
+    size?: number;
+    url_private?: string;
+    permalink?: string;
+  };
+
+  type SlackReaction = {
+    name?: string;
+    count?: number;
+  };
+
   const nearbyMessages = (
     await sflow(nearbyMessagesResp.messages || [])
       .map(async (m) => ({
@@ -464,32 +501,41 @@ async function spawnBotOnSlackMessageEvent(event: {
         iso: slackTsToISO(m.ts || DIE("missing ts")),
         ...(m.files &&
           m.files.length > 0 && {
-            files: m.files.map((f: any) => ({
-              name: f.name,
-              title: f.title,
-              mimetype: f.mimetype,
-              size: f.size,
-              url_private: f.url_private,
-              permalink: f.permalink,
-            })),
+            files: m.files.map((f: unknown) => {
+              const file = f as SlackFile;
+              return {
+                name: file.name,
+                title: file.title,
+                mimetype: file.mimetype,
+                size: file.size,
+                url_private: file.url_private,
+                permalink: file.permalink,
+              };
+            }),
           }),
         ...(m.attachments &&
           m.attachments.length > 0 && {
-            attachments: m.attachments.map((a: any) => ({
-              title: a.title,
-              title_link: a.title_link,
-              text: a.text,
-              fallback: a.fallback,
-              image_url: a.image_url,
-              from_url: a.from_url,
-            })),
+            attachments: m.attachments.map((a: unknown) => {
+              const attachment = a as z.infer<typeof zSlackAttachment>;
+              return {
+                title: attachment.title,
+                title_link: attachment.title_link,
+                text: attachment.text,
+                fallback: attachment.fallback,
+                image_url: attachment.image_url,
+                from_url: attachment.from_url,
+              };
+            }),
           }),
         ...(m.reactions &&
           m.reactions.length > 0 && {
-            reactions: m.reactions.map((r: any) => ({
-              name: r.name,
-              count: r.count,
-            })),
+            reactions: m.reactions.map((r: unknown) => {
+              const reaction = r as SlackReaction;
+              return {
+                name: reaction.name,
+                count: reaction.count,
+              };
+            }),
           }),
       }))
       .toArray()
@@ -646,7 +692,7 @@ For context, Recent messages from this thread are as follows:
 ${nearbyMessages.map((m) => `- User ${m.username} said: ${JSON.stringify(m.markdown)}`).join("\n\n")}
 
 Possible Context Repos:
-- https://github.com/comfyanonymous/ComfyUI: The main ComfyUI repository containing the core application logic and features. Its a python backend to run any machine learning models and solves various machine learning tasks.
+- https://github.com/comfyanonymous/ComfyUI: The main ComfyUI repository containing the core application logic and features. Its a python backend to run unknown machine learning models and solves various machine learning tasks.
 - https://github.com/Comfy-Org/ComfyUI_frontend: The frontend codebase for ComfyuUI, built with Vue and TypeScript.
 - https://github.com/Comfy-Org/docs: Documentation for ComfyUI, including setup guides, tutorials, and API references.
 - https://github.com/Comfy-Org/desktop: The desktop application for ComfyUI, providing a user-friendly interface and additional functionalities.
@@ -668,8 +714,9 @@ Respond in JSON format with the following fields:
   logger.info("Intent detection response", JSON.stringify({ resp }));
 
   // upsert quick respond msg
+  type QuickRespondMsg = { ts: string; text: string; channel?: string };
   const quickRespondMsg = await SlackBotState.get(`task-quick-respond-msg-${eventId}`).then(
-    async (existing: any) => {
+    async (existing: QuickRespondMsg | undefined) => {
       if (existing) {
         await slack.reactions
           .remove({ name: "x", channel: existing.channel, timestamp: existing.ts! })
@@ -883,12 +930,12 @@ Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
   - Issue search: prbot github-issue search --query="<search terms>"
   - Notion search: prbot notion search --query="<search terms>"
   - Registry search: prbot registry search --query="<search terms>"
-- Coordinate with prbot agents for any coding tasks:
+- Coordinate with prbot agents for unknown coding tasks:
   - prbot pr --repo=<owner/repo> --prompt="<detailed coding task>"
 - Compile findings and provide a comprehensive response to the user.
 
 ## GitHub Changes
-- IMPORTANT: Remember to use the prbot CLI for any GitHub code changes:
+- IMPORTANT: Remember to use the prbot CLI for unknown GitHub code changes:
   prbot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
 
 `,
@@ -985,7 +1032,7 @@ Please assist them with their request using all your resources available.
         async (chunk) => await appendFile(`${botWorkingDir}/.logs/bot-${logDate}.log`, chunk),
       );
     })
-    // show loading icon when any output activity, and remove the loading icon after idle for 5s
+    // show loading icon when unknown output activity, and remove the loading icon after idle for 5s
     .forkTo(async (e) => {
       const idleWaiter = new IdleWaiter();
       let isThinking = false;
@@ -1069,17 +1116,17 @@ Please assist them with their request using all your resources available.
             my_response_md_original: quickRespondMsg.text || "",
           };
           const updateResponseResp = (await zChatCompletion({
-            my_response_md_updated: z.string() as any,
+            my_response_md_updated: z.string(),
           })`
 TASK: Update my my_response_md_original based on agent's my_internal_thoughts findings, and give me my_response_md_updated to post in slack.
 
 RULES:
-- Do not remove any parts from my_response_md_original that are not mentioned in my_internal_thoughts.
+- Do not remove unknown parts from my_response_md_original that are not mentioned in my_internal_thoughts.
 - Preserve markdown formatting in my_response_md_original.
 - If my_internal_thoughts contains new information, append it to the relevant sections in my_response_md_original.
 - If my_internal_thoughts indicates completion of a task, add a "Tasks" section at the end of my_response_md_original with - [x] mark.
 - Ensure my_response_md_updated is clear and concise.
-- Use **bold** to highlight any new sections or important updates. and remove previeous highlighted sections if not important anymore.
+- Use **bold** to highlight unknown new sections or important updates. and remove previeous highlighted sections if not important anymore.
 If all infomations from my_internal_thoughts are already contained in my_response_md_original, you can feel free to return {my_response_md_updated: "__NOTHING_CHANGED__"}
 
 - IMPORTANT NOTES:
@@ -1091,7 +1138,7 @@ If all infomations from my_internal_thoughts are already contained in my_respons
 - my_internal_thoughts may contain terminal control characters and environment system info, ignore them and only focus on the end-user-helpful content. 
 - YOU CAN ONLY change/remove/add up to 1 line!
 - Describe what you are currently doing in up to 7 words! less is better.
-- Don't show any ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
+- Don't show unknown ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
 - DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION BY YOUR SELF AND SHOW YOUR BEST UNDERSTANDING.
 - Output the my_response_md_updated in standard markdown format (github favored).
 - LENGTH LIMIT: my_response_md_updated must be within 4000 characters. SYSTEM WILL TRUNCATE IF EXCEEDING THIS LIMIT.
@@ -1271,11 +1318,13 @@ async function spawnBotOnSlackMessageUrl(url: string) {
     })
     .then((res) => res.messages?.[0] || DIE("failed to fetch message from slack"));
   logger.info("Processing missed message " + JSON.stringify({ url, event }));
-  await spawnBotOnSlackMessageEvent({
+  // Parse the event to ensure it matches the expected type
+  const mentionEvent = zAppMentionEvent.parse({
     ...event,
     type: "app_mention",
     user: event.user || "",
     channel: channel,
     event_ts: event.ts || ts,
-  } as any);
+  });
+  await spawnBotOnSlackMessageEvent(mentionEvent);
 }

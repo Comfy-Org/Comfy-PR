@@ -54,7 +54,7 @@ export const githubHandlers = [
   // POST /repos/:owner/:repo/forks - Create a fork
   http.post(`${GITHUB_API_BASE}/repos/:owner/:repo/forks`, async ({ params, request }) => {
     const { owner, repo } = params;
-    const body = (await request.json()) as any;
+    const body = (await request.json()) as Record<string, unknown>;
     const forkName = body?.name || `${repo}-fork`;
     const forkOwner = body?.organization || "test-user";
 
@@ -221,7 +221,7 @@ export const githubHandlers = [
   // POST /repos/:owner/:repo/hooks - Create a webhook
   http.post(`${GITHUB_API_BASE}/repos/:owner/:repo/hooks`, async ({ params, request }) => {
     const { owner, repo } = params;
-    const body = (await request.json()) as any;
+    const body = (await request.json()) as Record<string, unknown>;
 
     return HttpResponse.json({
       id: 2,
@@ -366,7 +366,7 @@ export const githubHandlers = [
   // POST /repos/:owner/:repo/pulls - Create a pull request
   http.post(`${GITHUB_API_BASE}/repos/:owner/:repo/pulls`, async ({ params, request }) => {
     const { owner, repo } = params;
-    const body = (await request.json()) as any;
+    const body = (await request.json()) as Record<string, unknown>;
 
     return HttpResponse.json({
       id: 999,
@@ -404,7 +404,7 @@ export const githubHandlers = [
     `${GITHUB_API_BASE}/repos/:owner/:repo/pulls/:pull_number`,
     async ({ params, request }) => {
       const { owner, repo, pull_number } = params;
-      const body = (await request.json()) as any;
+      const body = (await request.json()) as Record<string, unknown>;
 
       return HttpResponse.json({
         id: 1,
@@ -427,7 +427,7 @@ export const githubHandlers = [
     `${GITHUB_API_BASE}/repos/:owner/:repo/pulls/:pull_number/requested_reviewers`,
     async ({ params, request }) => {
       const { owner, repo, pull_number } = params;
-      const body = (await request.json()) as any;
+      const body = (await request.json()) as Record<string, unknown>;
 
       return HttpResponse.json({
         number: pull_number,
@@ -579,7 +579,7 @@ export const githubHandlers = [
     `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number`,
     async ({ params, request }) => {
       const { owner, repo, issue_number } = params;
-      const body = (await request.json()) as any;
+      const body = (await request.json()) as Record<string, unknown>;
 
       return HttpResponse.json({
         id: 1,
@@ -639,7 +639,7 @@ export const githubHandlers = [
     `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/comments`,
     async ({ params, request }) => {
       const { owner, repo, issue_number } = params;
-      const body = (await request.json()) as any;
+      const body = (await request.json()) as Record<string, unknown>;
 
       return HttpResponse.json({
         id: 999,
@@ -660,7 +660,7 @@ export const githubHandlers = [
     `${GITHUB_API_BASE}/repos/:owner/:repo/issues/comments/:comment_id`,
     async ({ params, request }) => {
       const { owner, repo, comment_id } = params;
-      const body = (await request.json()) as any;
+      const body = (await request.json()) as Record<string, unknown>;
 
       return HttpResponse.json({
         id: comment_id,
@@ -696,7 +696,7 @@ export const githubHandlers = [
     `${GITHUB_API_BASE}/repos/:owner/:repo/issues/:issue_number/labels`,
     async ({ params, request }) => {
       const { owner, repo, issue_number } = params;
-      const body = (await request.json()) as any;
+      const body = (await request.json()) as Record<string, unknown>;
 
       return HttpResponse.json(
         body.labels?.map((name: string) => ({

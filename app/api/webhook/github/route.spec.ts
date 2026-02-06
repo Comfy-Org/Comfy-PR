@@ -2,6 +2,7 @@ import { db } from "@/src/db";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createHmac } from "crypto";
 import { GET, POST } from "./route";
+import { NextRequest } from "next/server";
 
 // Mock environment
 const TEST_SECRET = "test-webhook-secret-key";
@@ -47,7 +48,7 @@ describe("GitHub Webhook Route", () => {
         body: rawBody,
       });
 
-      const response = await POST(request as any);
+      const response = await POST(request as unknown as NextRequest);
       await response.json();
 
       expect(response.status).toBe(200);
@@ -72,7 +73,7 @@ describe("GitHub Webhook Route", () => {
         body: rawBody,
       });
 
-      const response = await POST(request as any);
+      const response = await POST(request as unknown as NextRequest);
       const data = await response.json();
 
       expect(response.status).toBe(401);
@@ -92,7 +93,7 @@ describe("GitHub Webhook Route", () => {
         body: rawBody,
       });
 
-      const response = await POST(request as any);
+      const response = await POST(request as unknown as NextRequest);
       const data = await response.json();
 
       expect(response.status).toBe(400);
@@ -118,7 +119,7 @@ describe("GitHub Webhook Route", () => {
         body: rawBody,
       });
 
-      const response = await POST(request as any);
+      const response = await POST(request as unknown as NextRequest);
       await response.json();
 
       expect(response.status).toBe(200);
@@ -159,7 +160,7 @@ describe("GitHub Webhook Route", () => {
         });
       });
 
-      const responses = await Promise.all(requests.map((req) => POST(req as any)));
+      const responses = await Promise.all(requests.map((req) => POST(req as unknown as NextRequest)));
 
       expect(responses.every((r) => r.status === 200)).toBe(true);
 
@@ -192,7 +193,7 @@ describe("GitHub Webhook Route", () => {
         body: rawBody,
       });
 
-      const response = await POST(request as any);
+      const response = await POST(request as unknown as NextRequest);
       expect(response.status).toBe(200);
 
       // Cleanup

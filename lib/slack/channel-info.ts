@@ -19,7 +19,7 @@ export async function getChannelInfo(channelId: string) {
       throw new Error(`Failed to get channel info: ${result.error || "unknown error"}`);
     }
 
-    const channel = result.channel as any;
+    const channel = result.channel as Record<string, unknown>;
 
     return {
       id: channel.id,

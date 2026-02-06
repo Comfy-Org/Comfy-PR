@@ -3,14 +3,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { http, HttpResponse } from "msw";
 
 // Track database operations
-let dbOperations: Map<string, any> = new Map();
+let dbOperations: Map<string, unknown> = new Map();
 const mockMongoCollection = {
   createIndex: async () => ({}),
-  findOne: async (filter: any) => {
+  findOne: async (filter: unknown) => {
     const key = JSON.stringify(filter);
     return dbOperations.get(key) || null;
   },
-  updateOne: async (filter: any, update: any, options?: any) => {
+  updateOne: async (filter: unknown, update: unknown, options?: unknown) => {
     const key = JSON.stringify(filter);
     const data = { ...filter, ...update.$set };
     dbOperations.set(key, data);
@@ -42,11 +42,11 @@ mock.module("@/src/parseIssueUrl", () => ({
 }));
 
 // Mock Notion client
-let mockNotionPages: any[] = [];
-let mockNotionDatabase: any = null;
+let mockNotionPages: unknown[] = [];
+let mockNotionDatabase: unknown = null;
 const mockNotionClient = {
   databases: {
-    retrieve: async ({ database_id }: any) => {
+    retrieve: async ({ database_id }: unknown) => {
       return (
         mockNotionDatabase || {
           id: database_id,
@@ -56,7 +56,7 @@ const mockNotionClient = {
     },
   },
   dataSources: {
-    query: async ({ data_source_id, start_cursor, page_size = 100 }: any) => {
+    query: async ({ data_source_id, start_cursor, page_size = 100 }: unknown) => {
       let results = mockNotionPages;
 
       // If there's a start_cursor (page ID), find that page and return everything after it
@@ -93,8 +93,8 @@ mock.module("@notionhq/client", () => ({
 
 // Mock keyv-cache-proxy to bypass caching during tests
 mock.module("keyv-cache-proxy", () => ({
-  default: () => (target: any) => target,
-  globalThisCached: (_name: string, factory: () => any) => factory(),
+  default: () => (target: unknown) => target,
+  globalThisCached: (_name: string, factory: () => unknown) => factory(),
 }));
 
 // Mock Keyv to use in-memory storage
@@ -104,7 +104,7 @@ mock.module("keyv", () => ({
     async get(key: string) {
       return keyvStorage.get(key);
     }
-    async set(key: string, value: any) {
+    async set(key: string, value: unknown) {
       keyvStorage.set(key, value);
       return true;
     }
@@ -117,7 +117,7 @@ mock.module("keyv", () => ({
 
 // Mock KeyvNest to pass through
 mock.module("keyv-nest", () => ({
-  default: (...stores: any[]) => stores[stores.length - 1],
+  default: (...stores: unknown[]) => stores[stores.length - 1],
 }));
 
 // Set environment variables
@@ -189,7 +189,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.post(
         "https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues/100/labels",
         async ({ request }) => {
-          const body: any = await request.json();
+          const body: unknown = await request.json();
           labelsAdded = body.labels || [];
           return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
         },
@@ -249,7 +249,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.post(
         "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/200/labels",
         async ({ request }) => {
-          const body: any = await request.json();
+          const body: unknown = await request.json();
           labelsAdded = body.labels || [];
           return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
         },
@@ -359,7 +359,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.post(
         "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/400/labels",
         async ({ request }) => {
-          const body: any = await request.json();
+          const body: unknown = await request.json();
           labelsAdded = body.labels || [];
           return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
         },
@@ -454,7 +454,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.post(
         "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/600/labels",
         async ({ request }) => {
-          const body: any = await request.json();
+          const body: unknown = await request.json();
           labelsAdded = body.labels || [];
           return HttpResponse.json(labelsAdded.map((name) => ({ name, color: "000000" })));
         },
@@ -507,7 +507,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
       http.post(
         "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/:number/labels",
         async ({ request, params }) => {
-          const body: any = await request.json();
+          const body: unknown = await request.json();
           const issueNumber = parseInt(params.number as string);
           labelsAddedByIssue[issueNumber] = body.labels || [];
           return HttpResponse.json(body.labels.map((name: string) => ({ name, color: "000000" })));

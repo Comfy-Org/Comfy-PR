@@ -31,7 +31,7 @@ export async function listPinnedMessages(channel: string) {
 
     // Format pinned items
     const formattedPins = await sflow(items)
-      .map(async (item: any) => {
+      .map(async (item: unknown) => {
         // Pins can be messages or files
         if (item.message) {
           const msg = item.message;
@@ -54,7 +54,7 @@ export async function listPinnedMessages(channel: string) {
             pinned_by: item.created_by,
             ...(msg.reactions &&
               msg.reactions.length > 0 && {
-                reactions: msg.reactions.map((r: any) => ({
+                reactions: msg.reactions.map((r: unknown) => ({
                   name: r.name,
                   count: r.count,
                 })),

@@ -22,7 +22,7 @@ import { parseTitleBodyOfMarkdown } from "./parseTitleBodyOfMarkdown";
 type LicenseUpdateTask = {
   repository: string;
   tomlUpdated?: boolean;
-  prTask: Task<any>;
+  prTask: Task<unknown>;
   updatedAt?: Date;
 };
 

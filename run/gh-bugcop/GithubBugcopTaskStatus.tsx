@@ -153,8 +153,8 @@ export default function GithubBugcopTaskStatus({}) {
                     {task.timeline
                       .slice(-5)
                       .map((event, idx) => {
-                        const eventTime = new Date((event as any).created_at).toISOString();
-                        const actor = (event as any).actor?.login || "unknown";
+                        const eventTime = new Date((event as Record<string, unknown>).created_at).toISOString();
+                        const actor = (event as Record<string, unknown>).actor?.login || "unknown";
 
                         let eventDesc = "";
                         if (event.event === "labeled") {

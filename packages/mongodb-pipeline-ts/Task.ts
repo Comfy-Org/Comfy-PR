@@ -24,7 +24,7 @@ export function TaskOK<T>(data: T) {
 }
 
 export const $ERROR = { state: "error" } as const;
-export function TaskError(error: any) {
+export function TaskError(error: unknown) {
   return {
     state: "error" as const,
     mtime: new Date(),

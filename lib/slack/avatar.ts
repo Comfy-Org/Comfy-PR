@@ -42,7 +42,7 @@ async function setSlackBotAvatar(imagePath: string): Promise<void> {
     console.log(slackApp.users);
     // TODO: Fix API - setPhoto doesn't exist on slackApp.apps
     // Need to use correct Slack API method for setting bot avatar
-    const result = await (slackApp as any).users.setPhoto({
+    const result = await (slackApp as Record<string, unknown>).users.setPhoto({
       image: Buffer.from(imageBuffer),
     });
 

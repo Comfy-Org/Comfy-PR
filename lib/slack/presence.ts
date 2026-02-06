@@ -17,7 +17,7 @@ export async function getUserPresence(userId: string) {
       throw new Error(`Failed to get presence: ${presenceResult.error || "unknown error"}`);
     }
 
-    const user = userInfo.user as any;
+    const user = userInfo.user as Record<string, unknown>;
 
     return {
       user_id: userId,

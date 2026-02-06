@@ -3,17 +3,17 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { http, HttpResponse } from "msw";
 
 // Track database operations
-let dbOperations: any[] = [];
+let dbOperations: unknown[] = [];
 const trackingMockDb = {
   collection: () => ({
     createIndex: async () => ({}),
-    findOne: async (filter: any) => {
+    findOne: async (filter: unknown) => {
       const op = dbOperations.find(
         (op) => op.filter?.sourceIssueNumber === filter?.sourceIssueNumber,
       );
       return op?.data || null;
     },
-    findOneAndUpdate: async (filter: any, update: any) => {
+    findOneAndUpdate: async (filter: unknown, update: unknown) => {
       const data = { ...filter, ...update.$set };
       dbOperations.push({ filter, data });
       return data;
@@ -91,8 +91,8 @@ describe("GithubDesktopIssueTransferTask", () => {
       comments: 0,
     };
 
-    let createdIssue: any = null;
-    let createdComment: any = null;
+    let createdIssue: unknown = null;
+    let createdComment: unknown = null;
 
     server.use(
       // Mock source repo issues list
@@ -399,7 +399,7 @@ describe("GithubDesktopIssueTransferTask", () => {
       http.post(
         "https://api.github.com/repos/Comfy-Org/ComfyUI_frontend/issues",
         async ({ request }) => {
-          const body: any = await request.json();
+          const body: unknown = await request.json();
           issuesCreated++;
           const issueNumber = parseInt(body.title.split(" ")[1]);
           return HttpResponse.json({

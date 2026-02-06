@@ -14,13 +14,13 @@ export default async function RulesList() {
         <h2>Follow-up RuleSets</h2>
         <div className="card">
           <ul>
-            {followRuleSets.map((e: any) => {
+            {followRuleSets.map((e: unknown) => {
               return (
                 <li key={e.name} className="card-body">
                   [{e.enabled ? "ENABLED" : "DISABLED"}]
                   {`${e.name}: (${
                     e.rules?.length ?? "FAIL to parse"
-                  } rules, matched ${(TaskDataOrNull(e.matched) as any)?.length} prs, performed ${e.action_results?.map((r: any) => (TaskDataOrNull(r.result) as any).length).join("/") ?? "NO"} actions)`}
+                  } rules, matched ${(TaskDataOrNull(e.matched) as Record<string, unknown>)?.length} prs, performed ${e.action_results?.map((r: unknown) => (TaskDataOrNull(r.result) as Record<string, unknown>).length).join("/") ?? "NO"} actions)`}
                   <Link className="btn" href={`/rules/${e.name}`}>
                     [Edit]
                   </Link>

@@ -30,7 +30,7 @@ export type BrowserNativeObject = Date | FileList | File;
  * TupleKeys<[number, string]> = '0' | '1'
  * ```
  */
-export type TupleKeys<T extends ReadonlyArray<any>> = Exclude<keyof T, keyof any[]>;
+export type TupleKeys<T extends ReadonlyArray<unknown>> = Exclude<keyof T, keyof unknown[]>;
 
 /**
  * Type to query whether an array type T is a tuple type.
@@ -41,7 +41,7 @@ export type TupleKeys<T extends ReadonlyArray<any>> = Exclude<keyof T, keyof any
  * IsTuple<number[]> = false
  * ```
  */
-export type IsTuple<T extends ReadonlyArray<any>> = number extends T["length"] ? false : true;
+export type IsTuple<T extends ReadonlyArray<unknown>> = number extends T["length"] ? false : true;
 
 /**
  * Type which can be used to index an array or tuple type.
@@ -49,7 +49,7 @@ export type IsTuple<T extends ReadonlyArray<any>> = number extends T["length"] ?
 export type ArrayKey = number;
 
 /**
- * Helper function to break apart T1 and check if any are equal to T2
+ * Helper function to break apart T1 and check if unknown are equal to T2
  *
  * See {@link IsEqual}
  */
@@ -100,4 +100,4 @@ type PathInternal<T, TraversedTypes = T> =
  */
 // We want to explode the union type and process each individually
 // so assignable types don't leak onto the stack from the base.
-export type AllPath<T> = T extends any ? PathInternal<T> : never;
+export type AllPath<T> = T extends unknown ? PathInternal<T> : never;

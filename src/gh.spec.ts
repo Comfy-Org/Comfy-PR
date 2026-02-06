@@ -362,7 +362,7 @@ describe("GitHub API Client (gh)", () => {
         });
         // Should not reach here
         expect(true).toBe(false);
-      } catch (error: any) {
+      } catch (error: unknown) {
         expect(error.status).toBe(404);
       }
     });
@@ -413,7 +413,7 @@ describe("GitHub API Client (gh)", () => {
         });
         // Should not reach here
         expect(true).toBe(false);
-      } catch (error: any) {
+      } catch (error: unknown) {
         expect(error.status).toBe(404);
       }
     });
@@ -446,7 +446,7 @@ describe("GitHub API Client (gh)", () => {
         });
         // Should not reach here
         expect(true).toBe(false);
-      } catch (error: any) {
+      } catch (error: unknown) {
         expect(error.status).toBe(403);
       }
     });

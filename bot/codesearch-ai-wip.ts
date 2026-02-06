@@ -137,7 +137,7 @@ type CodeMatch = {
   snippet: string;
 };
 
-const extractCodeMatches = (toolResults: any[]): CodeMatch[] => {
+const extractCodeMatches = (toolResults: unknown[]): CodeMatch[] => {
   const seen = new Set<string>();
   const matches: CodeMatch[] = [];
   for (const tr of toolResults) {
@@ -228,8 +228,8 @@ const runAi = async (options: {
         tools,
       });
       const durationMs = Date.now() - startedAt;
-      const toolResults = result.steps?.flatMap((step: any) => step.toolResults ?? []) ?? [];
-      const toolCalls = result.steps?.flatMap((step: any) => step.toolCalls ?? []) ?? [];
+      const toolResults = result.steps?.flatMap((step: unknown) => step.toolResults ?? []) ?? [];
+      const toolCalls = result.steps?.flatMap((step: unknown) => step.toolCalls ?? []) ?? [];
       const codeMatches = extractCodeMatches(toolResults);
 
       console.log(`\n🤖 Model: ${run.name}`);
@@ -243,7 +243,7 @@ const runAi = async (options: {
         });
       }
       if (toolCalls.length > 0) {
-        const callList = toolCalls.map((call: any) => {
+        const callList = toolCalls.map((call: unknown) => {
           const args = call.args ? JSON.stringify(call.args) : "{}";
           return `${call.toolName ?? "tool"}(${args.slice(0, 120)}${args.length > 120 ? "..." : ""})`;
         });

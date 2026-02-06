@@ -36,7 +36,7 @@ All changes address the feedback from @cbyrne and automated review tools.`;
     } else {
       console.error("❌ Failed:", result.error);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error:", error.message);
   }
 }

@@ -25,7 +25,7 @@ import { useState } from "react";
 import yaml from "yaml";
 
 interface CNReposTableClientProps {
-  repos: Array<CNRepo & { _id?: any }>;
+  repos: Array<CNRepo & { _id?: unknown }>;
 }
 
 export function CNReposTableClient({ repos }: CNReposTableClientProps) {
@@ -51,7 +51,7 @@ export function CNReposTableClient({ repos }: CNReposTableClientProps) {
   );
 }
 
-function CNRepoRow({ repo }: { repo: CNRepo & { _id?: any } }) {
+function CNRepoRow({ repo }: { repo: CNRepo & { _id?: unknown } }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const getStatusIcon = () => {

@@ -19,7 +19,12 @@ export async function searchMessages(
   } = {},
 ) {
   try {
-    const searchParams: any = {
+    const searchParams: {
+      query: string;
+      count: number;
+      sort: string;
+      sort_dir: string;
+    } = {
       query,
       count: options.limit || 20,
       sort: options.sort || "timestamp",
@@ -35,13 +40,23 @@ export async function searchMessages(
     const messages = result.messages?.matches || [];
 
     // Filter by channel if specified
+    type SlackMessage = {
+      channel?: { id?: string; name?: string };
+      user?: string;
+      ts?: string;
+      text?: string;
+      permalink?: string;
+      score?: number;
+      reactions?: Array<{ name?: string; count?: number }>;
+    };
+
     const filteredMessages = options.channel
-      ? messages.filter((m: any) => m.channel?.id === options.channel)
-      : messages;
+      ? (messages as SlackMessage[]).filter((m) => m.channel?.id === options.channel)
+      : (messages as SlackMessage[]);
 
     // Format results
     const formattedResults = await sflow(filteredMessages)
-      .map(async (match: any) => {
+      .map(async (match: SlackMessage) => {
         const channelName = match.channel?.name || match.channel?.id || "unknown";
 
         // Get user info
@@ -65,7 +80,7 @@ export async function searchMessages(
           score: match.score,
           ...(match.reactions &&
             match.reactions.length > 0 && {
-              reactions: match.reactions.map((r: any) => ({
+              reactions: match.reactions.map((r) => ({
                 name: r.name,
                 count: r.count,
               })),
@@ -98,7 +113,12 @@ export async function searchFiles(
   } = {},
 ) {
   try {
-    const searchParams: any = {
+    const searchParams: {
+      query: string;
+      count: number;
+      sort: string;
+      sort_dir: string;
+    } = {
       query,
       count: options.limit || 20,
       sort: options.sort || "timestamp",
@@ -114,7 +134,20 @@ export async function searchFiles(
     const files = result.files?.matches || [];
 
     // Format results
-    const formattedResults = files.map((file: any) => ({
+    type SlackFile = {
+      id?: string;
+      name?: string;
+      title?: string;
+      mimetype?: string;
+      size?: number;
+      url_private?: string;
+      permalink?: string;
+      created?: number;
+      user?: string;
+      score?: number;
+    };
+
+    const formattedResults = (files as SlackFile[]).map((file) => ({
       id: file.id,
       name: file.name,
       title: file.title,
@@ -197,15 +230,15 @@ if (import.meta.main) {
   if (searchType === "files") {
     results = await searchFiles(values.query, {
       limit,
-      sort: values.sort as any,
-      sortDir: values.sortDir as any,
+      sort: values.sort as "score" | "timestamp",
+      sortDir: values.sortDir as "asc" | "desc",
     });
   } else {
     results = await searchMessages(values.query, {
       channel: values.channel,
       limit,
-      sort: values.sort as any,
-      sortDir: values.sortDir as any,
+      sort: values.sort as "score" | "timestamp",
+      sortDir: values.sortDir as "asc" | "desc",
     });
   }
 

@@ -9,7 +9,7 @@ import { createLogger } from "@/src/logger";
 
 const logger = createLogger("slackCached");
 
-// Use a cache directory that works from any working directory
+// Use a cache directory that works from unknown working directory
 // Priority: 1) Project's node_modules if it exists, 2) Temp directory
 function getCacheDir(): string {
   const projectCache = path.join(process.cwd(), "node_modules/.cache/Comfy-PR");
@@ -37,11 +37,12 @@ const DEFAULT_TTL = process.env.LOCAL_DEV
 async function ensureCacheDir() {
   try {
     await fs.mkdir(CACHE_DIR, { recursive: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Ignore errors if directory already exists or can't be created
     // This prevents crashes when running from different working directories
-    if (error.code !== "EEXIST") {
-      console.warn(`Warning: Could not create cache directory ${CACHE_DIR}:`, error.message);
+    const err = error as { code?: string; message?: string };
+    if (err.code !== "EEXIST") {
+      console.warn(`Warning: Could not create cache directory ${CACHE_DIR}:`, err.message);
     }
   }
 }
@@ -56,11 +57,12 @@ async function getKeyv() {
         store: new KeyvSqlite(CACHE_FILE),
         ttl: DEFAULT_TTL,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If SQLite fails, fall back to in-memory cache
+      const err = error as { message?: string };
       console.warn(
         `Warning: Could not initialize SQLite cache, using in-memory cache:`,
-        error.message,
+        err.message,
       );
       keyv = new Keyv({
         ttl: DEFAULT_TTL,
@@ -71,9 +73,9 @@ async function getKeyv() {
 }
 
 type DeepAsyncWrapper<T> = {
-  [K in keyof T]: T[K] extends (...args: any[]) => Promise<any>
+  [K in keyof T]: T[K] extends (...args: unknown[]) => Promise<unknown>
     ? T[K]
-    : T[K] extends (...args: any[]) => any
+    : T[K] extends (...args: unknown[]) => unknown
       ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
       : T[K] extends object
         ? DeepAsyncWrapper<T[K]>
@@ -85,10 +87,10 @@ function createCachedProxy<T extends object>(
 ): DeepAsyncWrapper<T> {
   return new Proxy<T>(target, {
     get(obj, prop) {
-      const value = (obj as any)[prop];
+      const value = (obj as Record<string, unknown>)[prop];
 
       if (typeof value === "function") {
-        return async function (...args: any[]) {
+        return async function (...args: unknown[]) {
           const cacheKey = createCacheKey(basePath, prop, args);
           const keyvInstance = await getKeyv();
 
@@ -121,7 +123,7 @@ function createCachedProxy<T extends object>(
     const keyvInstance = await getKeyv();
     await keyvInstance.clear();
   }
-  function createCacheKey(basePath: string[], prop: string | symbol, args: any[]): string {
+  function createCacheKey(basePath: string[], prop: string | symbol, args: unknown[]): string {
     // Create a deterministic key from the path and arguments
     const fullPath = [...basePath, prop.toString()];
     const apiPath = fullPath.join(".");
@@ -157,7 +159,7 @@ export const slackCached = new Proxy({} as ReturnType<typeof createCachedProxy<W
   get(_target, prop) {
     // console.warn("Direct access to 'slackCached' is deprecated. Use getSlackCached() instead.");
     const cached = getSlackCached();
-    return (cached as any)[prop];
+    return (cached as Record<string, unknown>)[prop];
   },
 });
 

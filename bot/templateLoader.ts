@@ -14,7 +14,7 @@ export interface TemplateSlots {
  * @param template - Template string with ${SLOT_NAME} placeholders
  * @param slots - Object mapping slot names to values
  * @returns Processed template string
- * @throws Error if any slots are unreplaced
+ * @throws Error if unknown slots are unreplaced
  */
 export function replaceTemplateSlots(template: string, slots: TemplateSlots): string {
   let result = template;
@@ -67,7 +67,7 @@ export function loadSkills(slots: TemplateSlots): Record<string, string> {
     try {
       const template = readFileSync(skillPath, "utf-8");
       skills[skillName] = replaceTemplateSlots(template, slots);
-    } catch (error: any) {
+    } catch (error: unknown) {
       DIE(`Failed to load skill '${skillName}' from ${skillPath}: ${error.message}`);
     }
   }
@@ -86,7 +86,7 @@ export function loadSkill(skillName: string, slots: TemplateSlots): string {
   try {
     const template = readFileSync(skillPath, "utf-8");
     return replaceTemplateSlots(template, slots);
-  } catch (error: any) {
+  } catch (error: unknown) {
     DIE(`Failed to load skill '${skillName}' from ${skillPath}: ${error.message}`);
   }
 }

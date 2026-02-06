@@ -288,7 +288,7 @@ class RepoEventMonitor {
             );
             continue;
           }
-        } catch (listError: any) {
+        } catch (listError: unknown) {
           if (listError.status === 403 || listError.status === 404) {
             console.warn(
               `[${this.formatTimestamp()}] ⚠️  No permission to list webhooks for ${owner}/${repo}. Falling back to polling.`,
@@ -321,7 +321,7 @@ class RepoEventMonitor {
         await gh.repos.createWebhook(webhookConfig);
 
         console.log(`[${this.formatTimestamp()}] ✅ Webhook created for ${owner}/${repo}`);
-      } catch (error: any) {
+      } catch (error: unknown) {
         if (error.status === 403) {
           console.warn(
             `[${this.formatTimestamp()}] ⚠️  No permission to create webhook for ${repoUrl}. Falling back to polling.`,
@@ -666,7 +666,7 @@ class RepoEventMonitor {
   //   }
   // }
 
-  // private async checkIssueLabels(owner: string, repo: string, issueNumber: number, labels: any[]) {
+  // private async checkIssueLabels(owner: string, repo: string, issueNumber: number, labels: unknown[]) {
   //   // This is a simplified approach - in a real implementation, you'd want to store
   //   // previous label state to detect actual additions/removals
   //   if (labels && labels.length > 0) {
@@ -684,7 +684,7 @@ if (import.meta.main) {
     routes: {
       "/api/github/webhook": (req) => monitor.webhookRequestHandler(req),
       "/": new Response(
-        "Hello from Comfy-Org/Comfy-PR Github Service, contact snomiao@gmail.com if you have encountered any problem.",
+        "Hello from Comfy-Org/Comfy-PR Github Service, contact snomiao@gmail.com if you have encountered unknown problem.",
       ),
       "/health": () => new Response("gh-service OK"),
     },

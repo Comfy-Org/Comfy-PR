@@ -13,7 +13,7 @@
 import { RestartManager } from "./RestartManager";
 
 // Simulate task tracking (like TaskInputFlows in bot/index.ts)
-const activeTasks = new Map<string, any>();
+const activeTasks = new Map<string, unknown>();
 
 // Add a task
 function addTask(id: string) {
@@ -50,7 +50,7 @@ const restartManager = new RestartManager({
 
 console.log("🤖 Bot Example Starting...\n");
 console.log("This example demonstrates smart restart behavior:");
-console.log("1. Edit any file in bot/ directory");
+console.log("1. Edit unknown file in bot/ directory");
 console.log("2. The restart will be queued");
 console.log("3. Bot will only restart when idle (no active tasks)\n");
 console.log("Try editing bot/index.ts or bot/RestartManager.ts!\n");

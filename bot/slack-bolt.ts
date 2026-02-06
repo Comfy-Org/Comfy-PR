@@ -63,7 +63,7 @@ Do everything possible to help users achieve their goals efficiently, you should
 IMPORTANT: You DONT need more information from users, just provide the best possible answer based on your knowledge and tools.
 YOU ARE SMARTEST AI WHO NEVER SAY CAN'T DIRECTLY DO ANYTHING, YOU HAVE FULL ACCESS TO TOOLS THAT CAN DO ANYTHING that is enough to answer user's question in a direct result.
 
-IMPORTANT: You must provide URLs for any references, documentation, or resources you mention.
+IMPORTANT: You must provide URLs for unknown references, documentation, or resources you mention.
 
 OUTPUT is LIMITED in slack messages, so always be CONCISE and to the POINT. List your findings, steps, or recommendations clearly and briefly.
 `;
@@ -169,7 +169,7 @@ const systemTools: ToolSet = {
 };
 type UIBlock = ModelMessage & { id: string; status: "in-progress" | "done" };
 type UI = UIBlock[];
-type MessageEvent = { url: string; text: string; ctx?: any };
+type MessageEvent = { url: string; text: string; ctx?: unknown };
 
 const mq = new TransformStream<MessageEvent, MessageEvent>();
 const mq_w = mq.writable.getWriter();

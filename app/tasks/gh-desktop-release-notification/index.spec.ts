@@ -3,6 +3,16 @@ import { getSlackChannel } from "@/lib/slack/channels";
 import { afterEach, beforeEach, describe, expect, it, jest } from "bun:test";
 import { upsertSlackMessage } from "./upsertSlackMessage";
 
+// Type definitions for mocked objects
+type MockGhRepos = {
+  listReleases: jest.Mock;
+};
+
+type MockSlackChannel = {
+  id: string;
+  name: string;
+};
+
 jest.mock("@/src/gh");
 jest.mock("@/src/slack/channels");
 jest.mock("./upsertSlackMessage");
@@ -38,7 +48,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
     mockGetSlackChannel.mockResolvedValue({
       id: "test-channel-id",
       name: "desktop",
-    } as any);
+    } as MockSlackChannel);
 
     mockUpsertSlackMessage.mockResolvedValue({
       text: "mocked message",
@@ -67,7 +77,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockDraftRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // First call - save initial draft data
       mockCollection.findOneAndUpdate.mockResolvedValueOnce({
@@ -105,9 +115,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
           $set: expect.objectContaining({
             url: mockDraftRelease.html_url,
             slackMessageDrafting: expect.objectContaining({
-              text: expect.any(String),
+              text: expect.unknown(String),
               channel: "test-channel-id",
-              url: expect.any(String),
+              url: expect.unknown(String),
             }),
           }),
         },
@@ -141,7 +151,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockDraftRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       const expectedText =
         "🔮 desktop <https://github.com/Comfy-Org/desktop/releases/tag/v1.0.0-draft|Release v1.0.0-draft> is draft!";
@@ -187,7 +197,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockDraftRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // Return task with old drafting message text
       mockCollection.findOneAndUpdate.mockResolvedValueOnce({
@@ -246,7 +256,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockStableRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // First call - save initial data
       mockCollection.findOneAndUpdate.mockResolvedValueOnce({
@@ -284,9 +294,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
           $set: expect.objectContaining({
             url: mockStableRelease.html_url,
             slackMessage: expect.objectContaining({
-              text: expect.any(String),
+              text: expect.unknown(String),
               channel: "test-channel-id",
-              url: expect.any(String),
+              url: expect.unknown(String),
             }),
           }),
         },
@@ -309,7 +319,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockStableRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       const expectedText =
         "🔮 desktop <https://github.com/Comfy-Org/desktop/releases/tag/v1.0.0|Release v1.0.0> is stable!";
@@ -355,7 +365,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockPrerelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // First call - save initial data
       mockCollection.findOneAndUpdate.mockResolvedValueOnce({
@@ -393,9 +403,9 @@ describe("GithubDesktopReleaseNotificationTask", () => {
           $set: expect.objectContaining({
             url: mockPrerelease.html_url,
             slackMessageDrafting: expect.objectContaining({
-              text: expect.any(String),
+              text: expect.unknown(String),
               channel: "test-channel-id",
-              url: expect.any(String),
+              url: expect.unknown(String),
             }),
           }),
         },
@@ -420,7 +430,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockDesktopRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // First call - save initial data with core version extracted
       mockCollection.findOneAndUpdate.mockResolvedValueOnce({
@@ -493,7 +503,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
           .fn()
           .mockResolvedValueOnce({ data: [mockComfyUIRelease] })
           .mockResolvedValueOnce({ data: [mockDesktopRelease] }),
-      } as any;
+      } as MockGhRepos;
 
       // Mock responses for both releases
       mockCollection.findOneAndUpdate.mockResolvedValue({
@@ -538,7 +548,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [oldRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       mockCollection.findOneAndUpdate.mockResolvedValue({
         url: oldRelease.html_url,

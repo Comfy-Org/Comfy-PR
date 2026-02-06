@@ -32,7 +32,7 @@ export async function listChannelMembers(channelId: string, limit: number = 100)
       .map(async (userId: string) => {
         try {
           const userInfo = await slack.users.info({ user: userId });
-          const user = userInfo.user as any;
+          const user = userInfo.user as Record<string, unknown>;
 
           return {
             id: user.id,

@@ -29,7 +29,7 @@ export const router = t.router({
   getWorker: t.procedure
     .meta({ openapi: { method: "GET", path: "/worker", description: "Get current worker" } })
     .input(z.object({}))
-    .output(z.any())
+    .output(z.unknown())
     .query(async () => {
       const { getWorkerInstance } = await import("@/src/WorkerInstances");
       return await getWorkerInstance();
@@ -57,7 +57,7 @@ export const router = t.router({
     )
     .query(async ({ input: { limit = 0, skip = 0 } }) => {
       const { analyzePullsStatus } = await import("@/src/analyzePullsStatus");
-      return (await analyzePullsStatus({ limit, skip })) as any;
+      return (await analyzePullsStatus({ limit, skip })) as Record<string, unknown>;
     }),
   getRepoUrls: t.procedure
     .meta({ openapi: { method: "GET", path: "/repo-urls", description: "Get repo urls" } })
@@ -243,7 +243,7 @@ export const router = t.router({
       // TODO: add back later
       try {
         const { GithubDesignTaskMeta } = await import("../tasks/gh-design/gh-design");
-        const updateData: any = {};
+        const updateData: unknown = {};
         if (input.slackMessageTemplate !== undefined)
           updateData.slackMessageTemplate = input.slackMessageTemplate;
         if (input.requestReviewers !== undefined)

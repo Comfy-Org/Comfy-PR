@@ -3,6 +3,21 @@ import { getSlackChannel } from "@/lib/slack/channels";
 import { afterEach, beforeEach, describe, expect, it, jest } from "bun:test";
 import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
 
+// Type definitions for mocked GitHub API responses
+type MockGhRepos = {
+  listTags: jest.Mock;
+  getCommit?: jest.Mock;
+};
+
+type MockGhGit = {
+  getTag: jest.Mock;
+};
+
+type MockSlackChannel = {
+  id: string;
+  name: string;
+};
+
 jest.mock("@/src/gh");
 jest.mock("@/src/slack/channels");
 jest.mock("../gh-desktop-release-notification/upsertSlackMessage");
@@ -38,7 +53,7 @@ describe("GithubCoreTagNotificationTask", () => {
       Promise.resolve({
         id: channelName === "desktop" ? "test-channel-desktop" : "test-channel-live-ops",
         name: channelName,
-      } as any),
+      } as MockSlackChannel),
     );
   });
 
@@ -70,11 +85,11 @@ describe("GithubCoreTagNotificationTask", () => {
           },
         },
       }),
-    } as any;
+    } as MockGhRepos;
 
     mockGh.git = {
       getTag: jest.fn().mockRejectedValue(new Error("Not an annotated tag")),
-    } as any;
+    } as MockGhGit;
 
     mockUpsertSlackMessage.mockResolvedValue({
       text: "Test message",
@@ -111,7 +126,7 @@ describe("GithubCoreTagNotificationTask", () => {
           },
         },
       }),
-    } as any;
+    } as MockGhRepos;
 
     mockGh.git = {
       getTag: jest.fn().mockResolvedValue({
@@ -125,7 +140,7 @@ describe("GithubCoreTagNotificationTask", () => {
           message: "Release v0.2.2 with new features",
         },
       }),
-    } as any;
+    } as MockGhGit;
 
     mockUpsertSlackMessage.mockResolvedValue({
       text: "Test message",
@@ -158,11 +173,11 @@ describe("GithubCoreTagNotificationTask", () => {
           },
         },
       }),
-    } as any;
+    } as MockGhRepos;
 
     mockGh.git = {
       getTag: jest.fn().mockRejectedValue(new Error("Not an annotated tag")),
-    } as any;
+    } as MockGhGit;
 
     mockUpsertSlackMessage.mockResolvedValue({
       text: "🏷️ ComfyUI <https://github.com/comfyanonymous/ComfyUI/releases/tag/v0.2.3|Tag v0.2.3> created!",
@@ -201,7 +216,7 @@ describe("GithubCoreTagNotificationTask", () => {
 
     mockGh.repos = {
       listTags: jest.fn().mockResolvedValue({ data: mockTags }),
-    } as any;
+    } as MockGhRepos;
 
     mockCollection.findOne.mockResolvedValue({
       tagName: "v0.2.0",
@@ -241,7 +256,7 @@ describe("GithubCoreTagNotificationTask", () => {
 
     mockGh.repos = {
       listTags: jest.fn().mockResolvedValue({ data: mockTags }),
-    } as any;
+    } as MockGhRepos;
 
     mockGh.git = {
       getTag: jest.fn().mockResolvedValue({
@@ -255,7 +270,7 @@ describe("GithubCoreTagNotificationTask", () => {
           message: tagMessage,
         },
       }),
-    } as any;
+    } as MockGhGit;
 
     mockUpsertSlackMessage.mockResolvedValue({
       text: `🏷️ ComfyUI <https://github.com/comfyanonymous/ComfyUI/releases/tag/v0.3.0|Tag v0.3.0> created!\n> ${tagMessage}`,
@@ -293,7 +308,7 @@ describe("GithubCoreTagNotificationTask", () => {
           },
         },
       }),
-    } as any;
+    } as MockGhRepos;
 
     mockGh.git = {
       getTag: jest.fn().mockResolvedValue({
@@ -304,7 +319,7 @@ describe("GithubCoreTagNotificationTask", () => {
           },
         },
       }),
-    } as any;
+    } as MockGhGit;
 
     await runGithubCoreTagNotificationTask();
 

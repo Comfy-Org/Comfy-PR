@@ -143,7 +143,7 @@ export async function readNearbyMessages(
           ...(m.thread_ts && { thread_ts: m.thread_ts }),
           ...(m.files &&
             m.files.length > 0 && {
-              files: m.files.map((f: any) => ({
+              files: m.files.map((f: unknown) => ({
                 name: f.name,
                 title: f.title,
                 mimetype: f.mimetype,
@@ -154,7 +154,7 @@ export async function readNearbyMessages(
             }),
           ...(m.attachments &&
             m.attachments.length > 0 && {
-              attachments: m.attachments.map((a: any) => ({
+              attachments: m.attachments.map((a: unknown) => ({
                 title: a.title,
                 title_link: a.title_link,
                 text: a.text,
@@ -165,7 +165,7 @@ export async function readNearbyMessages(
             }),
           ...(m.reactions &&
             m.reactions.length > 0 && {
-              reactions: m.reactions.map((r: any) => ({
+              reactions: m.reactions.map((r: unknown) => ({
                 name: r.name,
                 count: r.count,
               })),

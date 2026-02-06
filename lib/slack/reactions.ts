@@ -20,12 +20,12 @@ export async function getMessageReactions(channel: string, ts: string) {
       throw new Error(`Failed to get reactions: ${result.error || "unknown error"}`);
     }
 
-    const message = result.message as any;
+    const message = result.message as Record<string, unknown>;
     const reactions = message?.reactions || [];
 
     // Enrich reactions with user info
     const enrichedReactions = await Promise.all(
-      reactions.map(async (reaction: any) => {
+      reactions.map(async (reaction: unknown) => {
         const usernames = await Promise.all(
           reaction.users.map(async (userId: string) => {
             try {

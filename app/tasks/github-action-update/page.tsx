@@ -34,7 +34,7 @@ export default async function GithubActionUpdateTaskPage() {
   if (!user.admin) return forbidden();
   const data = await listGithubActionUpdateTask();
 
-  function filterHopper<T>(values: T[], predicates: Array<(value: T) => any>) {
+  function filterHopper<T>(values: T[], predicates: Array<(value: T) => unknown>) {
     return predicates.reduce((acc, predicate) => {
       acc.push(values.filter((e) => !!predicate(e)));
       values = values.filter((e) => !predicate(e));

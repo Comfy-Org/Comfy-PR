@@ -5,6 +5,16 @@ import { getSlackChannel } from "@/lib/slack/channels";
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import runGithubFrontendReleaseNotificationTask from "./index";
 
+// Type definitions for mocked objects
+type MockGhRepos = {
+  listReleases: jest.Mock;
+};
+
+type MockSlackChannel = {
+  id: string;
+  name: string;
+};
+
 jest.mock("@/src/gh");
 jest.mock("@/src/slack/channels");
 jest.mock("../gh-desktop-release-notification/upsertSlackMessage");
@@ -16,7 +26,11 @@ const { upsertSlackMessage } = jest.requireMock(
 );
 
 describe("GithubFrontendReleaseNotificationTask", () => {
-  let collection: any;
+  let collection: {
+    findOne: jest.Mock;
+    findOneAndUpdate: jest.Mock;
+    createIndex: jest.Mock;
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -32,7 +46,7 @@ describe("GithubFrontendReleaseNotificationTask", () => {
     mockGetSlackChannel.mockResolvedValue({
       id: "test-channel-id",
       name: "frontend",
-    } as any);
+    } as MockSlackChannel);
 
     upsertSlackMessage.mockResolvedValue({
       text: "mocked message",
@@ -71,7 +85,7 @@ describe("GithubFrontendReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // First call - no existing message
       collection.findOneAndUpdate.mockResolvedValueOnce({
@@ -131,7 +145,7 @@ describe("GithubFrontendReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // Return task with existing message text matching new message
       collection.findOneAndUpdate.mockResolvedValue({
@@ -170,7 +184,7 @@ describe("GithubFrontendReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockPrerelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // First call - save initial data
       collection.findOneAndUpdate.mockResolvedValueOnce({
@@ -224,7 +238,7 @@ describe("GithubFrontendReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockDraft],
         }),
-      } as any;
+      } as MockGhRepos;
 
       collection.findOneAndUpdate.mockResolvedValue({
         url: mockDraft.html_url,
@@ -266,7 +280,7 @@ describe("GithubFrontendReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [oldRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       collection.findOneAndUpdate.mockResolvedValue({
         url: oldRelease.html_url,
@@ -300,7 +314,7 @@ describe("GithubFrontendReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // Return task with old message text
       collection.findOneAndUpdate.mockResolvedValueOnce({
@@ -359,7 +373,7 @@ describe("GithubFrontendReleaseNotificationTask", () => {
         listReleases: jest.fn().mockResolvedValue({
           data: [mockRelease],
         }),
-      } as any;
+      } as MockGhRepos;
 
       // First call - save initial data
       collection.findOneAndUpdate.mockResolvedValueOnce({

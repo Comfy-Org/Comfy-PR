@@ -47,7 +47,7 @@ async function DataPage({ page = 0, size = 10000 }) {
   if (!data.length) return null;
   return (
     <>
-      {data.map((item: any) => (
+      {data.map((item: unknown) => (
         <div key={item.repository}>
           <a href={item.repository} target="_blank" rel="noreferrer" title={yaml.stringify(item)}>
             <noscript>{JSON.stringify(item)}</noscript>

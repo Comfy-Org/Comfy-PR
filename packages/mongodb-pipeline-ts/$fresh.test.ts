@@ -14,7 +14,7 @@ beforeAll(async () => {
     throw new Error("MONGODB_URI is not set. Please set it to run these tests.");
   }
 
-  const globalAny = global as any as g;
+  const globalAny = global as unknown as g;
   if (!globalAny._db) {
     client = new MongoClient(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000, // 5 second timeout
@@ -27,7 +27,7 @@ beforeAll(async () => {
   }
   db = globalAny._db;
 
-  Test = db.collection<any>("test-fresh-stale");
+  Test = db.collection<unknown>("test-fresh-stale");
   await Test.createIndex({ t: 1 });
 }, 10000); // 10 second timeout for beforeAll
 

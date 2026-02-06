@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse the JSON payload
-    let payload: any;
+    let payload: unknown;
     try {
       payload = JSON.parse(rawBody);
     } catch (error) {

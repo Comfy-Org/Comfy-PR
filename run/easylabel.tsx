@@ -13,7 +13,7 @@ import z from "zod";
 /**
  * Label Ops System
  *
- * In any of those repos:
+ * In unknown of those repos:
  * https://github.com/Comfy-Org/Comfy-PR
  * https://github.com/comfyanonymous/ComfyUI
  * https://github.com/Comfy-Org/ComfyUI_frontend

@@ -40,7 +40,7 @@ async function getKeyv() {
   return keyv;
 }
 
-function createCacheKey(basePath: string[], prop: string | symbol, args: any[]): string {
+function createCacheKey(basePath: string[], prop: string | symbol, args: unknown[]): string {
   // Create a deterministic key from the path and arguments
   const fullPath = [...basePath, prop.toString()];
   const apiPath = fullPath.join(".");
@@ -61,13 +61,13 @@ function createCacheKey(basePath: string[], prop: string | symbol, args: any[]):
   return cacheKey;
 }
 
-function createCachedProxy<T extends object>(target: T, basePath: string[] = []): any {
-  return new Proxy(target as any, {
-    get(obj: any, prop: string | symbol) {
+function createCachedProxy<T extends object>(target: T, basePath: string[] = []): unknown {
+  return new Proxy(target as Record<string, unknown>, {
+    get(obj: unknown, prop: string | symbol) {
       const value = obj[prop];
 
       if (typeof value === "function") {
-        return async function (...args: any[]) {
+        return async function (...args: unknown[]) {
           const cacheKey = createCacheKey(basePath, prop, args);
           const keyvInstance = await getKeyv();
 
@@ -97,11 +97,11 @@ function createCachedProxy<T extends object>(target: T, basePath: string[] = [])
 }
 
 // More flexible types that work with GitHub API
-type GitHubPaginatedFunction = (...args: any[]) => Promise<{ data: any[] }>;
+type GitHubPaginatedFunction = (...args: unknown[]) => Promise<{ data: unknown[] }>;
 
 function listAll<T extends GitHubPaginatedFunction>(fn: T) {
   return async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>["data"]> => {
-    let allData: any[] = [];
+    let allData: unknown[] = [];
     let page = 1;
     const per_page = args[0]?.per_page || 100; // max per_page for GitHub API
 
@@ -134,7 +134,7 @@ type DeepListAllWrapper<T> = {
 // Create a proxy that adds `.all` method to list methods
 // Note: This is a simplified version and may need adjustments based on actual API patterns
 function createListAllProxy<T extends object>(obj: T): DeepListAllWrapper<T> {
-  return new Proxy(obj as any, {
+  return new Proxy(obj as Record<string, unknown>, {
     get(target, prop: string | symbol) {
       const value = target[prop];
       if (typeof value === "function" && prop.toString().startsWith("list")) {

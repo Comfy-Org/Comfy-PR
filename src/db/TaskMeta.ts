@@ -11,7 +11,7 @@ await _TaskMeta.createIndex({ coll: 1 }, { unique: true }); // Ensure unique col
  * @deprecated Use MetaCollection for not repeating yourself on collection name
  */
 export const TaskMetaCollection = <
-  S extends z.ZodObject<any>,
+  S extends z.ZodObject<unknown>,
   const COLLECTION_NAME extends string = string,
 >(
   coll: COLLECTION_NAME,
@@ -75,7 +75,7 @@ type CollectionWithName<NAME extends string> = {
  * const meta = await Meta.save({ ... });
  */
 export const MetaCollection = <
-  S extends z.ZodObject<any>,
+  S extends z.ZodObject<unknown>,
   const COLLECTION_NAME extends string = string,
 >(
   coll: CollectionWithName<COLLECTION_NAME>,

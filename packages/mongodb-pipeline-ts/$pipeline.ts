@@ -10,22 +10,22 @@ import {
 import type { Update as UpdateAt } from "ts-toolbelt/out/Object/P/Update";
 import type { Split } from "ts-toolbelt/out/String/Split";
 import type { AllPath } from "./AllPath";
-type FieldPath<T extends any> = string;
-type FieldArrayPath<T extends any> = string;
-type FieldArrayPathValue<T extends any, P extends string> = any;
-type FieldPathValue<T extends any, P extends string> = any;
+type FieldPath<T extends unknown> = string;
+type FieldArrayPath<T extends unknown> = string;
+type FieldArrayPathValue<T extends unknown, P extends string> = unknown;
+type FieldPathValue<T extends unknown, P extends string> = unknown;
 type $Path<S extends Document, P extends string = string> = `$${AllPath<S>}`;
 type PathOf$Path<P extends string> = P extends `$${infer Path}` ? Path : never;
 // type DeepRecord<Path extends string, Value> = Path extends `${infer Head}.${infer Tail}`
 //   ? { [K in Head]: DeepRecord<Tail, Value> }
 //   : { [K in Path]: Value };
-type $Value<S extends Document, P extends string = string> = any;
-type Expression<S extends Document> = any;
+type $Value<S extends Document, P extends string = string> = unknown;
+type Expression<S extends Document> = unknown;
 type $Set<S extends Document> = {
   [P in keyof S]?: Expression<S>;
 } & Record<string, Expression<S>>;
 type $SetResult<S extends Document, Set extends $Set<S>> = S & {
-  [P in keyof Set]?: any; //Set[P] extends `$${infer P extends FieldPath<S>}` ? FieldPathValue<S, P> : Set[P]; // WARN: very slow
+  [P in keyof Set]?: unknown; //Set[P] extends `$${infer P extends FieldPath<S>}` ? FieldPathValue<S, P> : Set[P]; // WARN: very slow
 };
 type $Unset<S extends Document> = {
   [P in keyof S]?: 1 | 0;
@@ -45,9 +45,9 @@ type $ProjectResult<S extends Document, Project extends $Project<S>> = {
       ? never
       : Project[P] extends $Path<S, infer K>
         ? $Value<S, K>
-        : any;
+        : unknown;
 } & {
-  [P in keyof Project]?: Project[P] extends $Path<S, infer K> ? $Value<S, K> : any;
+  [P in keyof Project]?: Project[P] extends $Path<S, infer K> ? $Value<S, K> : unknown;
 };
 
 type PipelineLauncher = <S extends Document>(coll?: Collection<S>) => Pipeline<S>;
@@ -56,7 +56,7 @@ export const $pipeline: PipelineLauncher = function $pipeline<S extends Document
   coll?: Collection<S>,
   pipeline = [] as readonly Document[],
 ) {
-  const _coll = coll as any;
+  const _coll = coll as unknown;
   return new Proxy(
     {
       // type helper
@@ -69,16 +69,16 @@ export const $pipeline: PipelineLauncher = function $pipeline<S extends Document
         return coll.aggregate([...pipeline]) as unknown as FindCursor<S>;
       },
       // all general stage
-      stage<RSchema extends Document = S>(stage: any): Pipeline<RSchema> {
+      stage<RSchema extends Document = S>(stage: unknown): Pipeline<RSchema> {
         if (!stage || !Object.keys(stage).length) return $pipeline(_coll, pipeline);
         return $pipeline(_coll, [...pipeline, stage]);
       },
-    } as any,
+    } as unknown,
     {
       get(target, prop, receiver) {
         if (prop in target) return Reflect.get(target, prop, receiver);
         if (typeof prop !== "string") return;
-        return (stage: any) => $pipeline(_coll, [...pipeline, { [`$${prop}`]: stage }]);
+        return (stage: unknown) => $pipeline(_coll, [...pipeline, { [`$${prop}`]: stage }]);
       },
     },
   );
@@ -90,7 +90,7 @@ type BasePipeline<S extends Document | null = Document> = {
   as<R extends Document>(): Pipeline<R>;
   satisfies<R extends S>(): Pipeline<R>;
   with<R extends Document>(): Pipeline<S & R>;
-  stage<R extends Document>(stage: any): Pipeline<R>;
+  stage<R extends Document>(stage: unknown): Pipeline<R>;
 };
 type Stages<S extends Document> = {
   /** Adds new fields to documents. Similar to $project, $addFields reshapes each document in the stream; specifically, by adding new fields to output documents that contain both the existing fields from the input documents and the newly added fields.
@@ -191,7 +191,7 @@ type Stages<S extends Document> = {
   unionWith<I extends Document>(i: I): Pipeline<S>;
   /** Removes/excludes fields from documents.
    * $unset is an alias for $project stage that removes fields. */
-  unset<I extends string | string[]>(i: I): Pipeline<Omit<S, I extends any[] ? I[number] : I>>;
+  unset<I extends string | string[]>(i: I): Pipeline<Omit<S, I extends unknown[] ? I[number] : I>>;
   /** Deconstructs an array field from the input documents to output a document for each element. Each output document replaces the array with an element value. For each input document, outputs n documents where n is the number of array elements and can be zero for an empty array. */
   unwind<P extends FieldArrayPath<S>>(
     i:

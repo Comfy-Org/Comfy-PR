@@ -67,8 +67,8 @@ export async function searchRegistryNodes(options: SearchOptions): Promise<Regis
       description: node.description,
       author: node.author,
       repository: node.repository,
-      downloads: (node as any).downloads || 0,
-      github_stars: (node as any).github_stars || 0,
+      downloads: (node as Record<string, unknown>).downloads || 0,
+      github_stars: (node as Record<string, unknown>).github_stars || 0,
       tags: node.tags || [],
       publisher: {
         name: node.publisher?.name || "",

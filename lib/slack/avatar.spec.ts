@@ -9,7 +9,7 @@ describe("avatar", () => {
   let downloadedFiles: string[] = [];
 
   afterEach(async () => {
-    // Clean up any downloaded files
+    // Clean up unknown downloaded files
     for (const file of downloadedFiles) {
       if (existsSync(file)) {
         await unlink(file);
