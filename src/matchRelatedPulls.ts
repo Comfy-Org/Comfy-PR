@@ -8,7 +8,7 @@ export type RelatedPullsWithComments = Awaited<ReturnType<typeof fetchRelatedPul
 export type RelatedPull = Awaited<ReturnType<typeof matchRelatedPulls>>[number];
 export async function matchRelatedPulls(pulls: GithubPullParsed[]): Promise<
   {
-    type: "pyproject" | "publishcr" | "licence-update";
+    type: "pyproject" | "publishcr" | "licence-update" | "gpl3-license";
     pull: {
       title: string;
       number: number;
@@ -27,6 +27,7 @@ export async function matchRelatedPulls(pulls: GithubPullParsed[]): Promise<
   const pyproject = await readTemplateTitle("./templates/add-toml.md");
   const publishcr = await readTemplateTitle("./templates/add-action.md");
   const licenseUpdate = await readTemplateTitle("./templates/update-toml-license.md");
+  const gpl3License = await readTemplateTitle("./templates/add-gpl3-license.md");
   const relatedPulls = await pMap(pulls, async (pull) =>
     match(pull)
       .with({ title: pyproject }, (pull) => ({
@@ -39,6 +40,10 @@ export async function matchRelatedPulls(pulls: GithubPullParsed[]): Promise<
       }))
       .with({ title: publishcr }, (pull) => ({
         type: "publishcr" as const,
+        pull,
+      }))
+      .with({ title: gpl3License }, (pull) => ({
+        type: "gpl3-license" as const,
         pull,
       }))
       .otherwise(() => null),
