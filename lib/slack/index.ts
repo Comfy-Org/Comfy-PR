@@ -60,3 +60,8 @@ export async function getSlackChannelName(channelId: string): Promise<string> {
   const res = await slackBot.conversations.info({ channel: channelId });
   return res.channel?.name || DIE(`Unknown channel ID: ${channelId}`);
 }
+
+export async function getSlackUsername(userId: string): Promise<string> {
+  const res = await slackBot.users.info({ user: userId });
+  return res.user?.profile?.display_name || res.user?.real_name || res.user?.name || DIE(`Unknown user ID: ${userId}`);
+}
