@@ -61,9 +61,9 @@ function createCacheKey(basePath: string[], prop: string | symbol, args: unknown
   return cacheKey;
 }
 
-function createCachedProxy<T extends object>(target: T, basePath: string[] = []): unknown {
-  return new Proxy(target as Record<string, unknown>, {
-    get(obj: unknown, prop: string | symbol) {
+function createCachedProxy<T extends object>(target: T, basePath: string[] = []): T {
+  return new Proxy(target as Record<string | symbol, unknown>, {
+    get(obj: Record<string | symbol, unknown>, prop: string | symbol) {
       const value = obj[prop];
 
       if (typeof value === "function") {
@@ -88,12 +88,12 @@ function createCachedProxy<T extends object>(target: T, basePath: string[] = [])
         };
       } else if (typeof value === "object" && value !== null) {
         // Recursively wrap nested objects
-        return createCachedProxy(value, [...basePath, prop.toString()]);
+        return createCachedProxy(value as object, [...basePath, prop.toString()]);
       }
 
       return value;
     },
-  });
+  }) as T;
 }
 
 // More flexible types that work with GitHub API
@@ -103,13 +103,13 @@ function listAll<T extends GitHubPaginatedFunction>(fn: T) {
   return async (...args: Parameters<T>): Promise<Awaited<ReturnType<T>>["data"]> => {
     let allData: unknown[] = [];
     let page = 1;
-    const per_page = args[0]?.per_page || 100; // max per_page for GitHub API
+    const per_page = ((args[0] as Record<string, unknown>)?.per_page as number) || 100; // max per_page for GitHub API
 
     while (true) {
       // Clone the first argument (params) and add pagination
       const [firstArg, ...restArgs] = args;
       const paginatedParams = {
-        ...firstArg,
+        ...(firstArg as object),
         per_page,
         page,
       };
@@ -134,13 +134,13 @@ type DeepListAllWrapper<T> = {
 // Create a proxy that adds `.all` method to list methods
 // Note: This is a simplified version and may need adjustments based on actual API patterns
 function createListAllProxy<T extends object>(obj: T): DeepListAllWrapper<T> {
-  return new Proxy(obj as Record<string, unknown>, {
-    get(target, prop: string | symbol) {
+  return new Proxy(obj as Record<string | symbol, unknown>, {
+    get(target: Record<string | symbol, unknown>, prop: string | symbol) {
       const value = target[prop];
       if (typeof value === "function" && prop.toString().startsWith("list")) {
-        return Object.assign(value, { all: listAll(value) });
+        return Object.assign(value, { all: listAll(value as GitHubPaginatedFunction) });
       } else if (typeof value === "object" && value !== null) {
-        return createListAllProxy(value);
+        return createListAllProxy(value as object);
       }
       return value;
     },
@@ -185,7 +185,7 @@ if (import.meta.main) {
     console.info("Second call result (cached)", { name: result2.data.name });
 
     // list all pull requests
-    const allPRs = await listAll(ghc.pulls.list)({
+    const allPRs = await listAll(ghc.pulls.list as unknown as GitHubPaginatedFunction)({
       owner: "octocat",
       repo: "Hello-World",
       state: "all",

@@ -31,11 +31,11 @@ export async function sendEmailAction({
         .map((e) => yaml.stringify(e))
         .map((e) =>
           // replace {{var}} s
-          e.replace(
-            /{{\$([_A-Za-z0-9]+)}}/g,
-            (_, key: string) =>
-              (payload as Record<string, unknown>)[key] ||
-              DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
+          e.replace(/{{\$([_A-Za-z0-9]+)}}/g, (_, key: string) =>
+            String(
+              (payload as Record<string, unknown>)[key] ??
+                DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
+            ),
           ),
         )
         .map((e) => yaml.parse(e))

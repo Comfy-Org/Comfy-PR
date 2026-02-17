@@ -18,6 +18,7 @@ import { fromStdio, fromWritable } from "from-node-stream";
 import { mkdir } from "fs/promises";
 import sflow, { pageFlow } from "sflow";
 import winston from "winston";
+// @ts-ignore
 import zChatCompletion from "z-chat-completion";
 import z from "zod";
 import { IdleWaiter } from "./IdleWaiter";
@@ -726,7 +727,7 @@ Respond in JSON format with the following fields:
     async (existing: QuickRespondMsg | undefined) => {
       if (existing) {
         await slack.reactions
-          .remove({ name: "x", channel: existing.channel, timestamp: existing.ts! })
+          .remove({ name: "x", channel: existing.channel!, timestamp: existing.ts! })
           .catch(() => {});
 
         // if its a DM, always create a new message

@@ -11,10 +11,16 @@ describe("Working Tasks Manager", () => {
 
   // Helper functions (same as in bot/index.ts)
   async function addWorkingTask(event: unknown) {
-    const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
+    const workingTasks = ((await State.get("current-working-tasks")) as
+      | { workingMessageEvents: unknown[] }
+      | undefined) || { workingMessageEvents: [] };
     const events = workingTasks.workingMessageEvents || [];
 
-    const exists = events.some((e: unknown) => e.ts === event.ts && e.channel === event.channel);
+    const exists = events.some(
+      (e: unknown) =>
+        (e as Record<string, unknown>).ts === (event as Record<string, unknown>).ts &&
+        (e as Record<string, unknown>).channel === (event as Record<string, unknown>).channel,
+    );
     if (!exists) {
       events.push(event);
       await State.set("current-working-tasks", { workingMessageEvents: events });
@@ -22,10 +28,18 @@ describe("Working Tasks Manager", () => {
   }
 
   async function removeWorkingTask(event: unknown) {
-    const workingTasks = (await State.get("current-working-tasks")) || { workingMessageEvents: [] };
+    const workingTasks = ((await State.get("current-working-tasks")) as
+      | { workingMessageEvents: unknown[] }
+      | undefined) || { workingMessageEvents: [] };
     const events = workingTasks.workingMessageEvents || [];
 
-    const filtered = events.filter((e: unknown) => !(e.ts === event.ts && e.channel === event.channel));
+    const filtered = events.filter(
+      (e: unknown) =>
+        !(
+          (e as Record<string, unknown>).ts === (event as Record<string, unknown>).ts &&
+          (e as Record<string, unknown>).channel === (event as Record<string, unknown>).channel
+        ),
+    );
     await State.set("current-working-tasks", { workingMessageEvents: filtered });
   }
 
@@ -43,10 +57,12 @@ describe("Working Tasks Manager", () => {
 
     await addWorkingTask(event);
 
-    const workingTasks = await State.get("current-working-tasks");
+    const workingTasks = (await State.get("current-working-tasks")) as
+      | { workingMessageEvents: Array<Record<string, unknown>> }
+      | undefined;
     expect(workingTasks).toBeDefined();
-    expect(workingTasks.workingMessageEvents).toHaveLength(1);
-    expect(workingTasks.workingMessageEvents[0].ts).toBe(event.ts);
+    expect(workingTasks?.workingMessageEvents).toHaveLength(1);
+    expect(workingTasks?.workingMessageEvents[0].ts).toBe(event.ts);
   });
 
   test("should not add duplicate tasks", async () => {
@@ -64,8 +80,10 @@ describe("Working Tasks Manager", () => {
     await addWorkingTask(event);
     await addWorkingTask(event); // Add same event again
 
-    const workingTasks = await State.get("current-working-tasks");
-    expect(workingTasks.workingMessageEvents).toHaveLength(1);
+    const workingTasks = (await State.get("current-working-tasks")) as
+      | { workingMessageEvents: unknown[] }
+      | undefined;
+    expect(workingTasks?.workingMessageEvents).toHaveLength(1);
   });
 
   test("should remove task from working list", async () => {
@@ -83,8 +101,10 @@ describe("Working Tasks Manager", () => {
     await addWorkingTask(event);
     await removeWorkingTask(event);
 
-    const workingTasks = await State.get("current-working-tasks");
-    expect(workingTasks.workingMessageEvents).toHaveLength(0);
+    const workingTasks = (await State.get("current-working-tasks")) as
+      | { workingMessageEvents: unknown[] }
+      | undefined;
+    expect(workingTasks?.workingMessageEvents).toHaveLength(0);
   });
 
   test("should handle multiple tasks", async () => {
@@ -113,14 +133,18 @@ describe("Working Tasks Manager", () => {
     await addWorkingTask(event1);
     await addWorkingTask(event2);
 
-    let workingTasks = await State.get("current-working-tasks");
-    expect(workingTasks.workingMessageEvents).toHaveLength(2);
+    let workingTasks = (await State.get("current-working-tasks")) as
+      | { workingMessageEvents: Array<Record<string, unknown>> }
+      | undefined;
+    expect(workingTasks?.workingMessageEvents).toHaveLength(2);
 
     await removeWorkingTask(event1);
 
-    workingTasks = await State.get("current-working-tasks");
-    expect(workingTasks.workingMessageEvents).toHaveLength(1);
-    expect(workingTasks.workingMessageEvents[0].ts).toBe(event2.ts);
+    workingTasks = (await State.get("current-working-tasks")) as
+      | { workingMessageEvents: Array<Record<string, unknown>> }
+      | undefined;
+    expect(workingTasks?.workingMessageEvents).toHaveLength(1);
+    expect(workingTasks?.workingMessageEvents[0].ts).toBe(event2.ts);
   });
 
   test("should handle empty state on first access", async () => {

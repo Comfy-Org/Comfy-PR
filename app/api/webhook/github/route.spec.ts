@@ -49,7 +49,7 @@ describe("GitHub Webhook Route", () => {
       });
 
       const response = await POST(request as unknown as NextRequest);
-      await response.json();
+      const data = await response.json();
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
@@ -160,7 +160,9 @@ describe("GitHub Webhook Route", () => {
         });
       });
 
-      const responses = await Promise.all(requests.map((req) => POST(req as unknown as NextRequest)));
+      const responses = await Promise.all(
+        requests.map((req) => POST(req as unknown as NextRequest)),
+      );
 
       expect(responses.every((r) => r.status === 200)).toBe(true);
 

@@ -30,11 +30,13 @@ async function uploadSlackFile(
       title: options.title || fileName,
       initial_comment: options.initialComment,
       thread_ts: options.threadTs,
-    });
+    } as unknown as Parameters<typeof slack.files.uploadV2>[0]);
 
-    if (result.ok && result.file) {
-      console.log(`File uploaded successfully: ${result.file.id}`);
-      console.log(`File URL: ${result.file.permalink}`);
+    const resultObj = result as unknown as Record<string, unknown>;
+    if (result.ok && resultObj.file) {
+      const fileInfo = resultObj.file as Record<string, unknown>;
+      console.log(`File uploaded successfully: ${fileInfo.id}`);
+      console.log(`File URL: ${fileInfo.permalink}`);
       return result;
     } else {
       throw new Error(`Failed to upload file: ${result.error || "unknown error"}`);
@@ -213,10 +215,10 @@ if (import.meta.main) {
         console.error("Optional: --title <title> --comment <message> --thread <thread_ts>");
         process.exit(1);
       }
-      await uploadSlackFile(values.channel, values.file, {
-        title: values.title,
-        initialComment: values.comment,
-        threadTs: values.thread,
+      await uploadSlackFile(values.channel as string, values.file as string, {
+        title: values.title as string | undefined,
+        initialComment: values.comment as string | undefined,
+        threadTs: values.thread as string | undefined,
       });
       break;
 
@@ -227,7 +229,7 @@ if (import.meta.main) {
         );
         process.exit(1);
       }
-      await downloadSlackFile(values.fileId, values.output);
+      await downloadSlackFile(values.fileId as string, values.output as string);
       break;
 
     case "info":
@@ -235,7 +237,7 @@ if (import.meta.main) {
         console.error("Usage: bun bot/slack/file.ts info --fileId <file_id>");
         process.exit(1);
       }
-      const info = await getSlackFileInfo(values.fileId);
+      const info = await getSlackFileInfo(values.fileId as string);
       console.log(JSON.stringify(info, null, 2));
       break;
 
@@ -249,8 +251,15 @@ if (import.meta.main) {
         process.exit(1);
       }
       // Support multiple files
-      const files = Array.isArray(values.file) ? values.file : [values.file];
-      await postMessageWithFiles(values.channel, values.text, files, values.thread);
+      const files = Array.isArray(values.file)
+        ? (values.file as string[])
+        : [values.file as string];
+      await postMessageWithFiles(
+        values.channel as string,
+        values.text as string,
+        files,
+        values.thread as string | undefined,
+      );
       break;
 
     default:

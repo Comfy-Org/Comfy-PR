@@ -27,7 +27,7 @@ export async function listChannelBookmarks(channelId: string) {
     const channelName = channelInfo.channel?.name || channelId;
 
     // Format bookmarks
-    const formattedBookmarks = bookmarks.map((bookmark: unknown) => ({
+    const formattedBookmarks = bookmarks.map((bookmark) => ({
       id: bookmark.id,
       title: bookmark.title,
       link: bookmark.link,
@@ -36,7 +36,7 @@ export async function listChannelBookmarks(channelId: string) {
       created: bookmark.date_created ? slackTsToISO(bookmark.date_created.toString()) : undefined,
       updated: bookmark.date_updated ? slackTsToISO(bookmark.date_updated.toString()) : undefined,
       created_by: bookmark.app_id || bookmark.entity_id,
-      ...(bookmark.icon_url && { icon_url: bookmark.icon_url }),
+      ...(bookmark.icon_url ? { icon_url: bookmark.icon_url } : {}),
     }));
 
     return {

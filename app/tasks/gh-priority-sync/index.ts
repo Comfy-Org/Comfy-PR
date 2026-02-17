@@ -168,12 +168,18 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
     .flat()
     .map((e) => e as Notion.PageObjectResponse)
     .filter((e) => e.id !== checkpoint?.id) // skip checkpoint entry as it's already processed
-    .map((e: unknown) => {
+    .map((e) => {
       return {
         ...e,
-        Title: e.properties.Task?.title?.[0]?.plain_text,
-        Priority: e.properties.Priority?.select?.name || null,
-        issueUrl: e.properties["[GH🤖] Link"]?.url?.trim(),
+        Title: (
+          (e.properties.Task as unknown as Record<string, unknown[]>)?.title?.[0] as
+            | Record<string, string>
+            | undefined
+        )?.plain_text,
+        Priority:
+          (e.properties.Priority as unknown as { select?: { name?: string } })?.select?.name ||
+          null,
+        issueUrl: (e.properties["[GH🤖] Link"] as unknown as { url?: string })?.url?.trim(),
       };
     })
     // update issue Priority state cache
@@ -194,16 +200,18 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
     .forEach(
       tryCatcher(
         (error, fn, e) => {
+          const eRecord = e as Record<string, unknown>;
           console.error(
             chalk.red(
-              `Error processing task ${e.id} - ${e.issueUrl}:`,
+              `Error processing task ${eRecord.id} - ${eRecord.issueUrl}:`,
               error instanceof Error ? error.message : error,
             ),
           );
         },
         async (e) => {
-          await ComfyTaskPrioritySync(e);
-          await State.set(NotionCheckpoint, { id: e.id, editedAt: e.last_edited_time }); // per-item checkpoint, can resume from last processed page
+          const task = e as Notion.PageObjectResponse;
+          await ComfyTaskPrioritySync(task);
+          await State.set(NotionCheckpoint, { id: task.id, editedAt: task.last_edited_time }); // per-item checkpoint, can resume from last processed page
         },
       ),
     )
@@ -235,7 +243,7 @@ function tryCatcher<F extends (...args: unknown[]) => Promise<unknown>, R>(
 ) {
   return async (...args: Parameters<F>): Promise<ReturnType<F> | R> => {
     try {
-      return await fn(...args);
+      return (await fn(...args)) as unknown as ReturnType<F>;
     } catch (error) {
       return onError(error, fn, ...args);
     }

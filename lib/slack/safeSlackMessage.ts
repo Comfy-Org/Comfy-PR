@@ -1,4 +1,5 @@
-import { WebClient, ChatPostMessageArguments, ChatUpdateArguments } from "@slack/web-api";
+import { WebClient } from "@slack/web-api";
+import type { ChatPostMessageArguments, ChatUpdateArguments } from "@slack/web-api";
 import { truncateFromMiddle } from "../utils";
 
 /**
@@ -13,7 +14,7 @@ const SLACK_MARKDOWN_BLOCK_LIMIT = 2900; // Conservative limit for markdown bloc
 /**
  * Safely post a message to Slack with automatic truncation on msg_too_long error
  */
-type SlackBlock = Record<string, unknown>;
+type SlackBlock = Record<string, unknown> & { text?: string; type?: string };
 
 export async function safeSlackPostMessage(
   slack: WebClient,

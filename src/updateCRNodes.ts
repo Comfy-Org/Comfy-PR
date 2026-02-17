@@ -46,7 +46,7 @@ export async function updateCRNodes() {
     await $pipeline(CNRepos)
       .project({ repository: 1 })
       .match({
-        repository: { $exists: true, $ne: null, $type: "string" },
+        repository: { $exists: true, $ne: null as unknown as string, $type: "string" },
       })
       .set({
         on_registry_all: TaskOK({ $in: ["$repository", CRNodesRepo] }),

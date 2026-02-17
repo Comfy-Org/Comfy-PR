@@ -22,6 +22,6 @@ import type { Filter } from "mongodb";
  * ```
  */
 export function $elemMatch<T extends Filter<Document>>(filter: T): [T] {
-  if (typeof filter !== "object" || !(filter instanceof Object)) return filter;
-  return { $elemMatch: filter } as unknown;
+  if (typeof filter !== "object" || !(filter instanceof Object)) return filter as unknown as [T];
+  return { $elemMatch: filter } as unknown as [T];
 }

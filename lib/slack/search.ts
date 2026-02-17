@@ -19,16 +19,11 @@ export async function searchMessages(
   } = {},
 ) {
   try {
-    const searchParams: {
-      query: string;
-      count: number;
-      sort: string;
-      sort_dir: string;
-    } = {
+    const searchParams = {
       query,
       count: options.limit || 20,
-      sort: options.sort || "timestamp",
-      sort_dir: options.sortDir || "desc",
+      sort: (options.sort || "timestamp") as "score" | "timestamp",
+      sort_dir: (options.sortDir || "desc") as "asc" | "desc",
     };
 
     const result = await slack.search.messages(searchParams);
@@ -71,7 +66,7 @@ export async function searchMessages(
           channel: match.channel?.id || "unknown",
           channel_name: channelName,
           ts: match.ts,
-          iso: slackTsToISO(match.ts),
+          iso: match.ts ? slackTsToISO(match.ts) : undefined,
           user: match.user || "unknown",
           username: userName,
           text: match.text || "",
@@ -113,16 +108,11 @@ export async function searchFiles(
   } = {},
 ) {
   try {
-    const searchParams: {
-      query: string;
-      count: number;
-      sort: string;
-      sort_dir: string;
-    } = {
+    const searchParams = {
       query,
       count: options.limit || 20,
-      sort: options.sort || "timestamp",
-      sort_dir: options.sortDir || "desc",
+      sort: (options.sort || "timestamp") as "score" | "timestamp",
+      sort_dir: (options.sortDir || "desc") as "asc" | "desc",
     };
 
     const result = await slack.search.files(searchParams);

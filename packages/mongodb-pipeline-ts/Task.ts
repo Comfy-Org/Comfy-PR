@@ -28,7 +28,7 @@ export function TaskError(error: unknown) {
   return {
     state: "error" as const,
     mtime: new Date(),
-    error: (String(error) + "\n" + String(error.stack ?? "")).trim(),
+    error: (String(error) + "\n" + String((error as Error).stack ?? "")).trim(),
   };
 }
 export function TaskDataOrNull<T>(e?: Task<T>) {

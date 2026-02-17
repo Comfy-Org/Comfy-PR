@@ -82,7 +82,7 @@ function GithubDesignTaskMetaEditorComponent() {
       setIsExpanded(false);
     } catch (error: unknown) {
       console.error("Failed to save metadata:", error);
-      const errorMessage = error?.message || "Failed to save configuration";
+      const errorMessage = (error as Error)?.message || "Failed to save configuration";
       toast.error(errorMessage);
     }
   };

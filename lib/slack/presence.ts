@@ -29,11 +29,13 @@ export async function getUserPresence(userId: string) {
       manual_away: presenceResult.manual_away,
       connection_count: presenceResult.connection_count,
       last_activity: presenceResult.last_activity,
-      ...(user?.tz && {
-        timezone: user.tz,
-        timezone_label: user.tz_label,
-        timezone_offset: user.tz_offset,
-      }),
+      ...(user?.tz
+        ? {
+            timezone: user.tz,
+            timezone_label: user.tz_label,
+            timezone_offset: user.tz_offset,
+          }
+        : {}),
     };
   } catch (error) {
     console.error("Error getting user presence:", error);

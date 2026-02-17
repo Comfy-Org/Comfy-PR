@@ -47,21 +47,21 @@ async function DataPage({ page = 0, size = 10000 }) {
   if (!data.length) return null;
   return (
     <>
-      {data.map((item: unknown) => (
-        <div key={item.repository}>
-          <a href={item.repository} target="_blank" rel="noreferrer" title={yaml.stringify(item)}>
+      {(data as unknown as Array<Record<string, unknown>>).map((item) => (
+        <div key={item.repository as string}>
+          <a href={item.repository as string} target="_blank" rel="noreferrer" title={yaml.stringify(item)}>
             <noscript>{JSON.stringify(item)}</noscript>
             {(function () {
               // not listed in both cr and cm
               if (!item.cr && !item.cm) return <>🫗</>;
               // already in registry
-              if (!!item.cr && !!item.cm && item.crPulls?.state === "ok") return <>✅</>; // by pr bot
+              if (!!item.cr && !!item.cm && (item.crPulls as Record<string, unknown>)?.state === "ok") return <>✅</>; // by pr bot
               if (!!item.cr && !!item.cm) return <>☑️</>; // not by pr bot, but in cm
               if (!!item.cr && !item.cm) return <>✔️</>; // not by pr bot, not in cm
               // has cm, check crPulls status
               if (!item.crPulls) return <>🧪</>;
-              if (item.crPulls.state === "ok") return <>👀</>;
-              if (item.crPulls.error) return <span title={item.crPulls.error}>❗</span>;
+              if ((item.crPulls as Record<string, unknown>).state === "ok") return <>👀</>;
+              if ((item.crPulls as Record<string, unknown>).error) return <span title={(item.crPulls as Record<string, unknown>).error as string}>❗</span>;
               return <>❓</>;
             })()}
           </a>

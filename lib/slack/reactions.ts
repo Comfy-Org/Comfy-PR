@@ -21,13 +21,13 @@ export async function getMessageReactions(channel: string, ts: string) {
     }
 
     const message = result.message as Record<string, unknown>;
-    const reactions = message?.reactions || [];
+    const reactions = (message?.reactions as Array<Record<string, unknown>>) || [];
 
     // Enrich reactions with user info
     const enrichedReactions = await Promise.all(
-      reactions.map(async (reaction: unknown) => {
+      reactions.map(async (reaction: Record<string, unknown>) => {
         const usernames = await Promise.all(
-          reaction.users.map(async (userId: string) => {
+          (reaction.users as string[]).map(async (userId: string) => {
             try {
               const userInfo = await slack.users.info({ user: userId });
               return {
@@ -56,7 +56,7 @@ export async function getMessageReactions(channel: string, ts: string) {
     return {
       message_ts: ts,
       channel,
-      total_reactions: enrichedReactions.reduce((sum, r) => sum + r.count, 0),
+      total_reactions: enrichedReactions.reduce((sum, r) => sum + (r.count as number), 0),
       reaction_types: enrichedReactions.length,
       reactions: enrichedReactions,
       message_text: message?.text || "",

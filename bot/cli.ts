@@ -75,6 +75,7 @@ async function handlePrCommand(args: {
   const { repo, base = "main", head, prompt } = args;
 
   // Import here to avoid circular dependencies
+  // @ts-ignore - z-chat-completion may not have type declarations
   const zChatCompletion = (await import("z-chat-completion")).default;
   const z = (await import("zod")).default;
 
@@ -683,13 +684,13 @@ async function main() {
             if (searchType === "files") {
               results = await searchFiles(args.query as string, {
                 limit: args.limit as number,
-                sort: args.sort as Record<string, unknown>,
+                sort: args.sort as "score" | "timestamp",
               });
             } else {
               results = await searchMessages(args.query as string, {
                 channel: args.channel as string | undefined,
                 limit: args.limit as number,
-                sort: args.sort as Record<string, unknown>,
+                sort: args.sort as "score" | "timestamp",
               });
             }
             console.log(yaml.stringify(results));

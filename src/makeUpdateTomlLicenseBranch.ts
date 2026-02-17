@@ -61,7 +61,7 @@ export async function updateTomlLicenseTasks() {
     .match({ cr: { $exists: true } })
     .project({ _id: 0, repository: 1 })
     .match({
-      repository: { $exists: true, $ne: null, $type: "string" },
+      repository: { $exists: true, $ne: null as unknown as string, $type: "string" },
     })
     .merge({ into: LicenseTasks.collectionName, on: "repository" })
     .aggregate()

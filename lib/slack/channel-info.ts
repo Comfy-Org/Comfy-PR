@@ -36,27 +36,29 @@ export async function getChannelInfo(channelId: string) {
       creator: channel.creator,
       num_members: channel.num_members,
       topic: {
-        value: channel.topic?.value || "",
-        creator: channel.topic?.creator,
-        last_set: channel.topic?.last_set
-          ? slackTsToISO(channel.topic.last_set.toString())
+        value: (channel.topic as Record<string, unknown>)?.value || "",
+        creator: (channel.topic as Record<string, unknown>)?.creator,
+        last_set: (channel.topic as Record<string, unknown>)?.last_set
+          ? slackTsToISO((channel.topic as Record<string, unknown>).last_set!.toString())
           : undefined,
       },
       purpose: {
-        value: channel.purpose?.value || "",
-        creator: channel.purpose?.creator,
-        last_set: channel.purpose?.last_set
-          ? slackTsToISO(channel.purpose.last_set.toString())
+        value: (channel.purpose as Record<string, unknown>)?.value || "",
+        creator: (channel.purpose as Record<string, unknown>)?.creator,
+        last_set: (channel.purpose as Record<string, unknown>)?.last_set
+          ? slackTsToISO((channel.purpose as Record<string, unknown>).last_set!.toString())
           : undefined,
       },
-      ...(channel.latest && {
-        latest_message: {
-          ts: channel.latest.ts,
-          iso: slackTsToISO(channel.latest.ts),
-          text: channel.latest.text,
-          user: channel.latest.user,
-        },
-      }),
+      ...(channel.latest
+        ? {
+            latest_message: {
+              ts: (channel.latest as Record<string, unknown>).ts,
+              iso: slackTsToISO((channel.latest as Record<string, unknown>).ts as string),
+              text: (channel.latest as Record<string, unknown>).text,
+              user: (channel.latest as Record<string, unknown>).user,
+            },
+          }
+        : {}),
     };
   } catch (error) {
     console.error("Error getting channel info:", error);

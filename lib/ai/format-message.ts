@@ -117,7 +117,7 @@ if (import.meta.main) {
           type: "tool-call",
           toolCallId: "tc1",
           toolName: "get_weather",
-          args: { location: "Seattle" },
+          input: { location: "Seattle" },
         },
       ],
     },

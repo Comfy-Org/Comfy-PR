@@ -23,7 +23,7 @@ async function uploadSlackFile(
     const fileContent = await Bun.file(filePath).arrayBuffer();
     const fileName = filePath.split("/").pop() || "file";
 
-    const uploadParams: unknown = {
+    const uploadParams: Record<string, unknown> = {
       channels: channel,
       file: Buffer.from(fileContent),
       filename: fileName,
@@ -38,11 +38,17 @@ async function uploadSlackFile(
       uploadParams.thread_ts = options.threadTs;
     }
 
-    const result = await slack.files.uploadV2(uploadParams);
+    const result = await slack.files.uploadV2(
+      uploadParams as unknown as Parameters<typeof slack.files.uploadV2>[0],
+    );
 
-    if (result.ok && (result as Record<string, unknown>).file) {
-      console.log(`File uploaded successfully: ${(result as Record<string, unknown>).file.id}`);
-      console.log(`File URL: ${(result as Record<string, unknown>).file.permalink}`);
+    if (result.ok && (result as unknown as Record<string, unknown>).file) {
+      console.log(
+        `File uploaded successfully: ${((result as unknown as Record<string, unknown>).file as Record<string, unknown>).id}`,
+      );
+      console.log(
+        `File URL: ${((result as unknown as Record<string, unknown>).file as Record<string, unknown>).permalink}`,
+      );
       return result;
     } else {
       throw new Error(`Failed to upload file: ${result.error || "unknown error"}`);

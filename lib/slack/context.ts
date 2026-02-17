@@ -26,7 +26,7 @@ export async function getCompleteMessageContext(channel: string, ts: string) {
     }
 
     // 2. Get reactions (if unknown)
-    let reactions = null;
+    let reactions: Array<Record<string, unknown>> | null = null;
     try {
       const reactionsData = await getMessageReactions(channel, ts);
       reactions = reactionsData.reactions;
@@ -41,7 +41,7 @@ export async function getCompleteMessageContext(channel: string, ts: string) {
       try {
         const threadResult = await slack.conversations.replies({
           channel,
-          ts: message.thread_ts,
+          ts: message.thread_ts as string,
           limit: 100,
         });
         threadInfo = {
@@ -60,14 +60,14 @@ export async function getCompleteMessageContext(channel: string, ts: string) {
     let userInfo = null;
     if (message.user) {
       try {
-        const userResult = await slack.users.info({ user: message.user });
+        const userResult = await slack.users.info({ user: message.user as string });
         const user = userResult.user as Record<string, unknown>;
         userInfo = {
           id: user.id,
           name: user.name,
           real_name: user.real_name,
-          display_name: user.profile?.display_name || user.name,
-          title: user.profile?.title || "",
+          display_name: (user.profile as Record<string, unknown>)?.display_name || user.name,
+          title: (user.profile as Record<string, unknown>)?.title || "",
           is_bot: user.is_bot,
         };
       } catch {
@@ -91,15 +91,20 @@ export async function getCompleteMessageContext(channel: string, ts: string) {
     let isPinned = false;
     try {
       const pinsResult = await slack.pins.list({ channel });
-      isPinned = pinsResult.items?.some((item: unknown) => item.message?.ts === ts) || false;
+      isPinned =
+        pinsResult.items?.some(
+          (item: unknown) =>
+            (item as Record<string, unknown>).message &&
+            ((item as Record<string, unknown>).message as Record<string, unknown>).ts === ts,
+        ) || false;
     } catch {
       // Pins error - that's ok
     }
 
     return {
       message: {
-        ts: message.ts,
-        iso: slackTsToISO(message.ts),
+        ts: message.ts as string,
+        iso: slackTsToISO(message.ts as string),
         text: message.text || "",
         type: message.type,
         subtype: message.subtype,

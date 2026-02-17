@@ -21,17 +21,25 @@ import type { UnwrapArrayDeep } from "./UnwrapArrayDeep";
 export function $flatten<TSchema extends Document>(
   filter: UnwrapArrayDeep<Filter<TSchema>>,
 ): Filter<TSchema> {
-  const v = filter as unknown;
-  if (typeof v !== "object" || !(v instanceof Object)) return v;
-  if (v instanceof Date) return v;
-  if (Array.isArray(v)) return v.map($flatten) as unknown;
+  const v: unknown = filter;
+  if (typeof v !== "object" || !(v instanceof Object)) return v as unknown as Filter<TSchema>;
+  if (v instanceof Date) return v as unknown as Filter<TSchema>;
+  const obj = v as Record<string, unknown>;
+  if (Array.isArray(obj)) return obj.map($flatten) as unknown as Filter<TSchema>;
   return fromPairs(
-    toPairs(v).flatMap(([k, v]) => {
+    toPairs(obj).flatMap(([k, v]) => {
       if (typeof v !== "object" || !(v instanceof Object)) return [[k, v]];
-      if (k.startsWith("$")) return [[k, $flatten(v)]];
-      if (Object.keys(v).some((kk) => kk.startsWith("$"))) return [[k, $flatten(v)]];
+      if (k.startsWith("$")) return [[k, $flatten(v as UnwrapArrayDeep<Filter<TSchema>>)]];
+      if (Object.keys(v as object).some((kk) => kk.startsWith("$")))
+        return [[k, $flatten(v as UnwrapArrayDeep<Filter<TSchema>>)]];
       // TODO: optimize this
-      return toPairs($flatten(fromPairs(toPairs(v).map(([kk, vv]) => [`${k}.${kk}`, vv]))));
-    }, v) as unknown,
-  );
+      return toPairs(
+        $flatten(
+          fromPairs(
+            toPairs(v as Record<string, unknown>).map(([kk, vv]) => [`${k}.${kk}`, vv]),
+          ) as UnwrapArrayDeep<Filter<TSchema>>,
+        ),
+      );
+    }) as [string, unknown][],
+  ) as unknown as Filter<TSchema>;
 }

@@ -69,10 +69,10 @@ async function getKeyv() {
 }
 
 type DeepAsyncWrapper<T> = {
-  [K in keyof T]: T[K] extends (...args: unknown[]) => Promise<unknown>
-    ? T[K]
-    : T[K] extends (...args: unknown[]) => unknown
-      ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
+  [K in keyof T]: T[K] extends (...args: infer Args) => Promise<infer Ret>
+    ? (...args: Args) => Promise<Ret>
+    : T[K] extends (...args: infer Args) => infer Ret
+      ? (...args: Args) => Promise<Ret>
       : T[K] extends object
         ? DeepAsyncWrapper<T[K]>
         : T[K];
@@ -83,7 +83,7 @@ function createCachedProxy<T extends object>(
 ): DeepAsyncWrapper<T> {
   return new Proxy<T>(target, {
     get(obj, prop) {
-      const value = (obj as Record<string, unknown>)[prop];
+      const value = (obj as Record<string | symbol, unknown>)[prop];
 
       if (typeof value === "function") {
         return async function (...args: unknown[]) {
@@ -107,7 +107,7 @@ function createCachedProxy<T extends object>(
         };
       } else if (typeof value === "object" && value !== null) {
         // Recursively wrap nested objects
-        return createCachedProxy(value, [...basePath, prop.toString()]);
+        return createCachedProxy(value as object, [...basePath, prop.toString()]);
       }
 
       return value;
@@ -155,7 +155,7 @@ export const slackCached = new Proxy({} as ReturnType<typeof createCachedProxy<W
   get(_target, prop) {
     // console.warn("Direct access to 'slackCached' is deprecated. Use getSlackCached() instead.");
     const cached = getSlackCached();
-    return (cached as Record<string, unknown>)[prop];
+    return (cached as Record<string | symbol, unknown>)[prop];
   },
 });
 

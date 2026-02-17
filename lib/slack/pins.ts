@@ -30,38 +30,39 @@ export async function listPinnedMessages(channel: string) {
     const channelName = channelInfo.channel?.name || channel;
 
     // Format pinned items
-    const formattedPins = await sflow(items)
-      .map(async (item: unknown) => {
+    const formattedPins = await sflow(items as unknown as Array<Record<string, unknown>>)
+      .map(async (item) => {
         // Pins can be messages or files
         if (item.message) {
-          const msg = item.message;
+          const msg = item.message as Record<string, unknown>;
           const user = msg.user
             ? await slack.users
-                .info({ user: msg.user })
-                .then((res) => res.user?.name || msg.user)
-                .catch(() => msg.user)
+                .info({ user: msg.user as string })
+                .then((res) => res.user?.name || (msg.user as string))
+                .catch(() => msg.user as string)
             : "unknown";
 
           return {
             type: "message",
-            ts: msg.ts || DIE("missing ts"),
-            iso: slackTsToISO(msg.ts || DIE("missing ts")),
-            user: msg.user || "unknown",
+            ts: (msg.ts as string) || DIE("missing ts"),
+            iso: slackTsToISO((msg.ts as string) || DIE("missing ts")),
+            user: (msg.user as string) || "unknown",
             username: user,
-            text: msg.text || "",
-            markdown: await parseSlackMessageToMarkdown(msg.text || ""),
+            text: (msg.text as string) || "",
+            markdown: await parseSlackMessageToMarkdown((msg.text as string) || ""),
             pinned_at: item.created ? slackTsToISO(item.created.toString()) : undefined,
             pinned_by: item.created_by,
-            ...(msg.reactions &&
-              msg.reactions.length > 0 && {
-                reactions: msg.reactions.map((r: unknown) => ({
-                  name: r.name,
-                  count: r.count,
-                })),
-              }),
+            ...(msg.reactions && (msg.reactions as unknown[]).length > 0
+              ? {
+                  reactions: (msg.reactions as Record<string, unknown>[]).map((r) => ({
+                    name: r.name,
+                    count: r.count,
+                  })),
+                }
+              : {}),
           };
         } else if (item.file) {
-          const file = item.file;
+          const file = item.file as Record<string, unknown>;
           return {
             type: "file",
             file_id: file.id,

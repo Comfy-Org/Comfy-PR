@@ -79,7 +79,7 @@ export default async function GithubBugCopTaskPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              tasks.map((task: unknown) => (
+              tasks.map((task) => (
                 <TableRow key={task.url}>
                   <TableCell>
                     <Link
@@ -100,7 +100,9 @@ export default async function GithubBugCopTaskPage() {
                     >
                       <div className="flex items-center gap-2">
                         <Badge className="w-16 text-center justify-center">
-                          {({ pull_request: "PR", issue: "Issue" } as Record<string, unknown>)[task.type] || "Task"}
+                          {({ pull_request: "PR", issue: "Issue" } as Record<string, unknown>)[
+                            task.type as string
+                          ] || "Task"}
                         </Badge>
                         <span className="text-sm text-muted-foreground">
                           {getIssueNumber(task.url)}

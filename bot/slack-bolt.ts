@@ -242,7 +242,13 @@ app.message(async ({ message, client, say, logger: boltLogger }) => {
   if (message.channel_type !== "im") return;
   if (message.subtype) return; // Ignore message updates, deletions, etc.
 
-  const msg = message as { text?: string; user?: string; ts: string; channel: string };
+  const msg = message as {
+    text?: string;
+    user?: string;
+    ts: string;
+    channel: string;
+    thread_ts?: string;
+  };
   const { text, user, ts: timestamp, channel } = msg;
   logger.info(
     await parseSlackMessageToMarkdown(
@@ -252,7 +258,7 @@ app.message(async ({ message, client, say, logger: boltLogger }) => {
   await mq_w.write({
     url: (await slack.chat.getPermalink({ channel, message_ts: timestamp })).permalink || DIE(""),
     text: text || "",
-    ctx: { user, channel, timestamp, thread_ts: message.thread_ts },
+    ctx: { user, channel, timestamp, thread_ts: msg.thread_ts },
   });
 });
 
@@ -460,7 +466,9 @@ export async function startSlackBoltApp() {
 
       // check if user is restricted/bot
       const userinfo =
-        (await slackCached.users.info({ user: m.ctx?.user || "" })) || DIE("missing user info");
+        (await slackCached.users.info({
+          user: ((m.ctx as Record<string, unknown>)?.user as string) || "",
+        })) || DIE("missing user info");
       if (userinfo.user?.is_restricted) return;
       if (userinfo.user?.is_bot) return;
 
@@ -498,12 +506,13 @@ export async function startSlackBoltApp() {
               text,
               blocks: [{ type: "markdown", text }],
             });
-            const url = (
-              await slack.chat.getPermalink({
-                channel: posted.channel || DIE("missing channel"),
-                message_ts: posted.ts || DIE("missing message_ts"),
-              })
-            ).permalink;
+            const url =
+              (
+                await slack.chat.getPermalink({
+                  channel: posted.channel || DIE("missing channel"),
+                  message_ts: posted.ts || DIE("missing message_ts"),
+                })
+              ).permalink || DIE("missing permalink");
             await SlackRepliesSentBlocks.set(url, { ui });
 
             await SlackReplies.set(m.url, {
@@ -520,7 +529,10 @@ export async function startSlackBoltApp() {
       const respId = `resp-${Date.now()}`;
 
       // read replies if have thread_ts, else read channel history.
-      const thread_ts = m.ctx.thread_ts ?? slackMessageUrlParse(m.url).thread_ts ?? undefined;
+      const thread_ts =
+        ((m.ctx as Record<string, unknown>)?.thread_ts as string | undefined) ??
+        slackMessageUrlParse(m.url).thread_ts ??
+        undefined;
       const limit = 20;
       const threadMessages: ModelMessage[] = await sflow(
         (

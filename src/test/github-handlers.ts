@@ -384,8 +384,8 @@ export const githubHandlers = [
       closed_at: null,
       merged_at: null,
       head: {
-        label: body.head,
-        ref: body.head.split(":")[1] || body.head,
+        label: body.head as string,
+        ref: (body.head as string).split(":")[1] || (body.head as string),
         sha: "new123",
       },
       base: {
@@ -431,7 +431,7 @@ export const githubHandlers = [
 
       return HttpResponse.json({
         number: pull_number,
-        requested_reviewers: body.reviewers?.map((login: string) => ({
+        requested_reviewers: (body.reviewers as string[] | undefined)?.map((login: string) => ({
           login,
           id: 1,
         })),
@@ -699,7 +699,7 @@ export const githubHandlers = [
       const body = (await request.json()) as Record<string, unknown>;
 
       return HttpResponse.json(
-        body.labels?.map((name: string) => ({
+        (body.labels as string[] | undefined)?.map((name: string) => ({
           name,
           color: "ededed",
         })) || [],

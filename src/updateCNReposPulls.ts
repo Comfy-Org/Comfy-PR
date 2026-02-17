@@ -19,7 +19,9 @@ export async function updateCNReposPulls() {
   )
     .pMap(
       async ({ repository }) => {
-        const pulls = await fetchGithubPulls(repository).then(TaskOK).catch(TaskError);
+        const pulls = await fetchGithubPulls(repository as string)
+          .then(TaskOK)
+          .catch(TaskError);
         match(pulls)
           .with($OK, ({ data }) =>
             console.debug(`[DEBUG] fetched ${data.length} Pulls from ${repository}`),

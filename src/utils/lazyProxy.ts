@@ -35,13 +35,13 @@ export function lazyInstantiate<T>(fn: () => T): T {
         if (cached === null) {
           cached = fn();
         }
-        return (cached as Record<string, unknown>)[prop];
+        return (cached as Record<string | symbol, unknown>)[prop];
       },
       apply(_, __, args) {
         if (cached === null) {
           cached = fn();
         }
-        return (cached as Record<string, unknown>)(...args);
+        return (cached as unknown as (...args: unknown[]) => unknown)(...args);
       },
     },
   ) as T;

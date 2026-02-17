@@ -14,7 +14,7 @@ import type { zPullStatus } from "./zod/zPullsStatus";
 // import { $pipeline } from "./db/$pipeline";
 // in case of dump production in local environment:
 // bun --env-file .env.production.local src/dump.ts > dump.csv
-export const DashboardDetails = db.collection<unknown>("DashboardDetails");
+export const DashboardDetails = db.collection<Record<string, unknown>>("DashboardDetails");
 if (import.meta.main) {
   // const r = peekYaml(await analyzePullsStatus());
 

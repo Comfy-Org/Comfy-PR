@@ -25,6 +25,13 @@ export async function updateAuthorsFromCNRepo() {
       .project({ _id: 0 })
       .aggregate(),
   )
-    .map(({ githubId, ...$set }) => Authors.updateOne({ githubId }, { $set }, { upsert: true }))
+    .map((doc) => {
+      const { githubId, ...$set } = doc as Record<string, unknown>;
+      return Authors.updateOne(
+        { githubId: githubId as string | undefined },
+        { $set: $set as Record<string, unknown> } as Parameters<typeof Authors.updateOne>[1],
+        { upsert: true },
+      );
+    })
     .done();
 }

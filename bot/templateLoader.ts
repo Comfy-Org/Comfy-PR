@@ -68,7 +68,7 @@ export function loadSkills(slots: TemplateSlots): Record<string, string> {
       const template = readFileSync(skillPath, "utf-8");
       skills[skillName] = replaceTemplateSlots(template, slots);
     } catch (error: unknown) {
-      DIE(`Failed to load skill '${skillName}' from ${skillPath}: ${error.message}`);
+      DIE(`Failed to load skill '${skillName}' from ${skillPath}: ${(error as Error).message}`);
     }
   }
 
@@ -87,6 +87,6 @@ export function loadSkill(skillName: string, slots: TemplateSlots): string {
     const template = readFileSync(skillPath, "utf-8");
     return replaceTemplateSlots(template, slots);
   } catch (error: unknown) {
-    DIE(`Failed to load skill '${skillName}' from ${skillPath}: ${error.message}`);
+    DIE(`Failed to load skill '${skillName}' from ${skillPath}: ${(error as Error).message}`);
   }
 }

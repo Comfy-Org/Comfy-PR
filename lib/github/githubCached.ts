@@ -97,9 +97,9 @@ function createCacheKey(basePath: string[], prop: string | symbol, args: unknown
   return cacheKey;
 }
 
-function createCachedProxy(target: unknown, basePath: string[] = []): unknown {
-  return new Proxy(target, {
-    get(obj, prop) {
+function createCachedProxy(target: object, basePath: string[] = []): unknown {
+  return new Proxy(target as Record<string | symbol, unknown>, {
+    get(obj: Record<string | symbol, unknown>, prop: string | symbol) {
       const value = obj[prop];
 
       if (typeof value === "function") {
@@ -115,7 +115,7 @@ function createCachedProxy(target: unknown, basePath: string[] = []): unknown {
           }
 
           // Call the original function
-          const result = await value.apply(obj, args);
+          const result = await (value as (...args: unknown[]) => unknown).apply(obj, args);
 
           // Cache the result
           await keyvInstance.set(cacheKey, result);
@@ -124,7 +124,7 @@ function createCachedProxy(target: unknown, basePath: string[] = []): unknown {
         };
       } else if (typeof value === "object" && value !== null) {
         // Recursively wrap nested objects
-        return createCachedProxy(value, [...basePath, prop.toString()]);
+        return createCachedProxy(value as object, [...basePath, prop.toString()]);
       }
 
       return value;

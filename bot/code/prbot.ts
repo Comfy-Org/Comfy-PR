@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import minimist from "minimist";
 import { spawnSubAgent } from "./pr-agent";
+// @ts-ignore
 import zChatCompletion from "z-chat-completion";
 import z from "zod";
 

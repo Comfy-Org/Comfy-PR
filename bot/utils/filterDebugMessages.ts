@@ -104,7 +104,7 @@ export function filterInternalThoughts(rawOutput: string): string {
       if (/^[^\w\s]*$/.test(line)) return false;
 
       // Remove lines that look like log prefixes without content
-      if (/^[\[\]\-\s]+$/.test(line)) return false;
+      if (/^[[\]\-\s]+$/.test(line)) return false;
 
       return true;
     });

@@ -39,25 +39,10 @@ export const router = t.router({
       openapi: { method: "GET", path: "/analyze-pulls-status", description: "Get current worker" },
     })
     .input(z.object({ skip: z.number(), limit: z.number() }).partial())
-    .output(
-      z.object({
-        updated: z.string(), // deprecated
-        pull_updated: z.string(),
-        repo_updated: z.string(),
-        on_registry: z.boolean(),
-        state: z.enum(["OPEN", "MERGED", "CLOSED"]),
-        url: z.string(),
-        head: z.string(),
-        comments: z.number(),
-        lastcomment: z.string(),
-        ownername: z.string().optional(),
-        repository: z.string().optional(),
-        author_email: z.string().optional(),
-      }),
-    )
+    .output(z.unknown())
     .query(async ({ input: { limit = 0, skip = 0 } }) => {
       const { analyzePullsStatus } = await import("@/src/analyzePullsStatus");
-      return (await analyzePullsStatus({ limit, skip })) as Record<string, unknown>;
+      return await analyzePullsStatus({ limit, skip });
     }),
   getRepoUrls: t.procedure
     .meta({ openapi: { method: "GET", path: "/repo-urls", description: "Get repo urls" } })
@@ -243,7 +228,7 @@ export const router = t.router({
       // TODO: add back later
       try {
         const { GithubDesignTaskMeta } = await import("../tasks/gh-design/gh-design");
-        const updateData: unknown = {};
+        const updateData: Record<string, unknown> = {};
         if (input.slackMessageTemplate !== undefined)
           updateData.slackMessageTemplate = input.slackMessageTemplate;
         if (input.requestReviewers !== undefined)

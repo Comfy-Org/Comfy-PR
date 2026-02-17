@@ -12,7 +12,7 @@ import type { Split } from "ts-toolbelt/out/String/Split";
 import type { AllPath } from "./AllPath";
 type FieldPath<T extends unknown> = string;
 type FieldArrayPath<T extends unknown> = string;
-type FieldArrayPathValue<T extends unknown, P extends string> = unknown;
+type FieldArrayPathValue<T extends unknown, P extends string> = unknown[];
 type FieldPathValue<T extends unknown, P extends string> = unknown;
 type $Path<S extends Document, P extends string = string> = `$${AllPath<S>}`;
 type PathOf$Path<P extends string> = P extends `$${infer Path}` ? Path : never;
@@ -56,7 +56,7 @@ export const $pipeline: PipelineLauncher = function $pipeline<S extends Document
   coll?: Collection<S>,
   pipeline = [] as readonly Document[],
 ) {
-  const _coll = coll as unknown;
+  const _coll: Collection<Document> | undefined = coll as Collection<Document> | undefined;
   return new Proxy(
     {
       // type helper
@@ -70,10 +70,11 @@ export const $pipeline: PipelineLauncher = function $pipeline<S extends Document
       },
       // all general stage
       stage<RSchema extends Document = S>(stage: unknown): Pipeline<RSchema> {
-        if (!stage || !Object.keys(stage).length) return $pipeline(_coll, pipeline);
-        return $pipeline(_coll, [...pipeline, stage]);
+        if (!stage || !Object.keys(stage as object).length)
+          return $pipeline(_coll, pipeline) as unknown as Pipeline<RSchema>;
+        return $pipeline(_coll, [...pipeline, stage as Document]) as unknown as Pipeline<RSchema>;
       },
-    } as unknown,
+    } as object,
     {
       get(target, prop, receiver) {
         if (prop in target) return Reflect.get(target, prop, receiver);
@@ -81,7 +82,7 @@ export const $pipeline: PipelineLauncher = function $pipeline<S extends Document
         return (stage: unknown) => $pipeline(_coll, [...pipeline, { [`$${prop}`]: stage }]);
       },
     },
-  );
+  ) as unknown as Pipeline<S>;
 };
 export type Pipeline<S extends Document | null = Document> = BasePipeline<S> &
   (S extends Document ? Stages<S> : {});

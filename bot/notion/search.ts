@@ -22,15 +22,21 @@ async function searchNotion(query: string, limit: number = 10) {
       },
     });
 
-    const results = await sflow(response.results)
-      .map(async (page: unknown) => {
+    const results = await sflow(response.results as Array<Record<string, unknown>>)
+      .map(async (page) => {
         let title = "Untitled";
         if (page.properties) {
-          const titleProp = Object.values(page.properties).find(
-            (prop: unknown) => prop.type === "title",
+          const titleProp = Object.values(page.properties as Record<string, unknown>).find(
+            (prop: unknown) => (prop as Record<string, unknown>).type === "title",
           ) as Record<string, unknown>;
-          if (titleProp?.title?.[0]?.plain_text) {
-            title = titleProp.title[0].plain_text;
+          if (
+            titleProp?.title &&
+            (titleProp.title as unknown[])?.[0] &&
+            ((titleProp.title as Record<string, unknown>[])[0] as Record<string, unknown>)
+              ?.plain_text
+          ) {
+            title = ((titleProp.title as Record<string, unknown>[])[0] as Record<string, unknown>)
+              .plain_text as string;
           }
         }
 

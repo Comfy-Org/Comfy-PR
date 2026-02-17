@@ -141,20 +141,23 @@ const extractCodeMatches = (toolResults: unknown[]): CodeMatch[] => {
   const seen = new Set<string>();
   const matches: CodeMatch[] = [];
   for (const tr of toolResults) {
-    const result = tr?.result ?? tr?.output ?? tr ?? {};
-    const items = result?.results ?? [];
+    const trObj = tr as Record<string, unknown>;
+    const result = (trObj?.result ?? trObj?.output ?? tr ?? {}) as Record<string, unknown>;
+    const items = (result?.results ?? []) as unknown[];
     for (const item of items) {
-      for (const match of item?.matches ?? []) {
+      const itemObj = item as Record<string, unknown>;
+      for (const match of (itemObj?.matches ?? []) as unknown[]) {
+        const matchObj = match as Record<string, unknown>;
         if (
-          typeof match?.url === "string" &&
-          match.url.includes("github.com") &&
-          !seen.has(match.url)
+          typeof matchObj?.url === "string" &&
+          matchObj.url.includes("github.com") &&
+          !seen.has(matchObj.url)
         ) {
-          seen.add(match.url);
+          seen.add(matchObj.url);
           matches.push({
-            path: match?.path ?? "",
-            url: match.url,
-            snippet: match?.snippet ?? match?.content ?? "",
+            path: (matchObj?.path as string) ?? "",
+            url: matchObj.url,
+            snippet: (matchObj?.snippet as string) ?? (matchObj?.content as string) ?? "",
           });
         }
       }
@@ -228,8 +231,14 @@ const runAi = async (options: {
         tools,
       });
       const durationMs = Date.now() - startedAt;
-      const toolResults = result.steps?.flatMap((step: unknown) => step.toolResults ?? []) ?? [];
-      const toolCalls = result.steps?.flatMap((step: unknown) => step.toolCalls ?? []) ?? [];
+      const toolResults =
+        result.steps?.flatMap(
+          (step: unknown) => ((step as Record<string, unknown>).toolResults as unknown[]) ?? [],
+        ) ?? [];
+      const toolCalls =
+        result.steps?.flatMap(
+          (step: unknown) => ((step as Record<string, unknown>).toolCalls as unknown[]) ?? [],
+        ) ?? [];
       const codeMatches = extractCodeMatches(toolResults);
 
       console.log(`\n🤖 Model: ${run.name}`);
@@ -244,8 +253,9 @@ const runAi = async (options: {
       }
       if (toolCalls.length > 0) {
         const callList = toolCalls.map((call: unknown) => {
-          const args = call.args ? JSON.stringify(call.args) : "{}";
-          return `${call.toolName ?? "tool"}(${args.slice(0, 120)}${args.length > 120 ? "..." : ""})`;
+          const callObj = call as Record<string, unknown>;
+          const args = callObj.args ? JSON.stringify(callObj.args) : "{}";
+          return `${callObj.toolName ?? "tool"}(${args.slice(0, 120)}${args.length > 120 ? "..." : ""})`;
         });
         console.log(`\nTool calls (${toolCalls.length}): ${callList.join(" | ")}`);
       }

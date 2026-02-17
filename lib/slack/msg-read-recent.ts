@@ -86,7 +86,7 @@ export async function readRecentMessages(channel: string, limit: number = 10) {
           ...(m.thread_ts && { thread_ts: m.thread_ts }),
           ...(m.files &&
             m.files.length > 0 && {
-              files: m.files.map((f: unknown) => ({
+              files: m.files.map((f) => ({
                 id: f.id,
                 name: f.name,
                 title: f.title,
@@ -98,7 +98,7 @@ export async function readRecentMessages(channel: string, limit: number = 10) {
             }),
           ...(m.attachments &&
             m.attachments.length > 0 && {
-              attachments: m.attachments.map((a: unknown) => ({
+              attachments: m.attachments.map((a) => ({
                 title: a.title,
                 title_link: a.title_link,
                 text: a.text,
@@ -109,7 +109,7 @@ export async function readRecentMessages(channel: string, limit: number = 10) {
             }),
           ...(m.reactions &&
             m.reactions.length > 0 && {
-              reactions: m.reactions.map((r: unknown) => ({
+              reactions: m.reactions.map((r) => ({
                 name: r.name,
                 count: r.count,
               })),

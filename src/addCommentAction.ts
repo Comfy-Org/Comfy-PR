@@ -32,11 +32,11 @@ export async function addCommentAction({
         action: "add-comment",
         url: payload.url,
         by: action.by,
-        body: action.body.replace(
-          /{{\$([_A-Za-z0-9]+)}}/g,
-          (_, key: string) =>
-            (payload as Record<string, unknown>)[key] ||
-            DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
+        body: action.body.replace(/{{\$([_A-Za-z0-9]+)}}/g, (_, key: string) =>
+          String(
+            (payload as Record<string, unknown>)[key] ??
+              DIE("Missing key: " + key + " in payload: " + JSON.stringify(payload)),
+          ),
         ),
       };
 

@@ -38,15 +38,17 @@ export async function listChannelMembers(channelId: string, limit: number = 100)
             id: user.id,
             name: user.name,
             real_name: user.real_name,
-            display_name: user.profile?.display_name || user.name,
-            title: user.profile?.title || "",
-            email: user.profile?.email,
+            display_name: (user.profile as Record<string, unknown>)?.display_name || user.name,
+            title: (user.profile as Record<string, unknown>)?.title || "",
+            email: (user.profile as Record<string, unknown>)?.email,
             is_admin: user.is_admin,
             is_owner: user.is_owner,
             is_bot: user.is_bot,
             is_app_user: user.is_app_user,
             deleted: user.deleted,
-            ...(user.profile?.image_72 && { avatar: user.profile.image_72 }),
+            ...((user.profile as Record<string, unknown>)?.image_72
+              ? { avatar: (user.profile as Record<string, unknown>).image_72 }
+              : {}),
           };
         } catch {
           return {

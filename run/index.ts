@@ -289,7 +289,10 @@ class RepoEventMonitor {
             continue;
           }
         } catch (listError: unknown) {
-          if (listError.status === 403 || listError.status === 404) {
+          if (
+            (listError as { status?: number }).status === 403 ||
+            (listError as { status?: number }).status === 404
+          ) {
             console.warn(
               `[${this.formatTimestamp()}] ⚠️  No permission to list webhooks for ${owner}/${repo}. Falling back to polling.`,
             );
@@ -322,7 +325,7 @@ class RepoEventMonitor {
 
         console.log(`[${this.formatTimestamp()}] ✅ Webhook created for ${owner}/${repo}`);
       } catch (error: unknown) {
-        if (error.status === 403) {
+        if ((error as { status?: number }).status === 403) {
           console.warn(
             `[${this.formatTimestamp()}] ⚠️  No permission to create webhook for ${repoUrl}. Falling back to polling.`,
           );
@@ -330,7 +333,7 @@ class RepoEventMonitor {
         } else {
           console.error(
             `[${this.formatTimestamp()}] ❌ Error creating webhook for ${repoUrl}:`,
-            error.message,
+            (error as Error).message,
           );
         }
       }

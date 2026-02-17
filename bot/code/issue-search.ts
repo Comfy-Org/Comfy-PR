@@ -44,7 +44,7 @@ export async function searchGitHubIssues(query: string, limit: number = 10) {
       is_pull_request: !!item.pull_request,
     }));
   } catch (error: unknown) {
-    throw new Error(`GitHub issue search failed: ${error?.message || error}`);
+    throw new Error(`GitHub issue search failed: ${(error as Error)?.message || error}`);
   }
 }
 
