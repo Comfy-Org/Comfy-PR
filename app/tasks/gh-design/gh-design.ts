@@ -5,6 +5,7 @@ import { gh } from "@/lib/github";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
+import { normalizeGithubUrl } from "@/src/normalizeGithubUrl";
 import DIE from "@snomiao/die";
 import isCI from "is-ci";
 import sflow from "sflow";
@@ -102,10 +103,24 @@ async function ensureIndexes() {
 // Helper function to save/update GithubDesignTask
 async function saveGithubDesignTask(url: string, $set: Partial<GithubDesignTask>) {
   await ensureIndexes();
+  // Normalize URLs to handle both comfyanonymous and Comfy-Org formats
+  const normalizedUrl = normalizeGithubUrl(url);
+  const normalizedSet = {
+    ...$set,
+    url: normalizedUrl,
+    slackUrl: $set.slackUrl ? normalizeGithubUrl($set.slackUrl) : undefined,
+  };
+
+  // Incremental migration: Check both normalized and old URL formats
+  const oldUrl = normalizedUrl.replace(/Comfy-Org/i, "comfyanonymous");
+  const existing = await GithubDesignTask.findOne({
+    $or: [{ url: normalizedUrl }, { url: oldUrl }],
+  });
+
   return (
     (await GithubDesignTask.findOneAndUpdate(
-      { url },
-      { $set },
+      existing ? { _id: existing._id } : { url: normalizedUrl },
+      { $set: normalizedSet },
       { upsert: true, returnDocument: "after" },
     )) || DIE("NEVER")
   );

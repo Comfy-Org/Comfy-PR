@@ -2,6 +2,7 @@
 import { db } from "@/src/db";
 import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
+import { normalizeGithubUrl } from "@/src/normalizeGithubUrl";
 import DIE from "@snomiao/die";
 import isCI from "is-ci";
 import parseGithubUrl from "parse-github-url";
@@ -50,12 +51,25 @@ export type GithubFrontendReleaseNotificationTask = {
 export const GithubFrontendReleaseNotificationTask =
   db.collection<GithubFrontendReleaseNotificationTask>("GithubFrontendReleaseNotificationTask");
 
-const save = async (task: { url: string } & Partial<GithubFrontendReleaseNotificationTask>) =>
-  (await GithubFrontendReleaseNotificationTask.findOneAndUpdate(
-    { url: task.url },
-    { $set: task },
+const save = async (task: { url: string } & Partial<GithubFrontendReleaseNotificationTask>) => {
+  // Normalize URLs to handle both comfyanonymous and Comfy-Org formats
+  const normalizedTask = {
+    ...task,
+    url: normalizeGithubUrl(task.url),
+  };
+
+  // Incremental migration: Check both normalized and old URL formats
+  const oldUrl = normalizedTask.url.replace(/Comfy-Org/i, "comfyanonymous");
+  const existing = await GithubFrontendReleaseNotificationTask.findOne({
+    $or: [{ url: normalizedTask.url }, { url: oldUrl }],
+  });
+
+  return (await GithubFrontendReleaseNotificationTask.findOneAndUpdate(
+    existing ? { _id: existing._id } : { url: normalizedTask.url },
+    { $set: normalizedTask },
     { upsert: true, returnDocument: "after" },
   )) || DIE("never");
+};
 
 if (import.meta.main) {
   await runGithubFrontendReleaseNotificationTask();

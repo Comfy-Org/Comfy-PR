@@ -2,6 +2,7 @@
 import { db } from "@/src/db";
 import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
+import { normalizeGithubUrl } from "@/src/normalizeGithubUrl";
 import DIE from "@snomiao/die";
 import { $ } from "bun";
 import isCI from "is-ci";
@@ -48,12 +49,34 @@ await GithubComfyUIToDesktopIssueTransferTask.createIndex(
 
 const save = async (
   task: { sourceIssueNumber: number } & Partial<GithubComfyUIToDesktopIssueTransferTask>,
-) =>
-  (await GithubComfyUIToDesktopIssueTransferTask.findOneAndUpdate(
-    { sourceIssueNumber: task.sourceIssueNumber },
-    { $set: task },
+) => {
+  // Normalize URLs to handle both comfyanonymous and Comfy-Org formats
+  const normalizedTask = {
+    ...task,
+    sourceIssueUrl: task.sourceIssueUrl ? normalizeGithubUrl(task.sourceIssueUrl) : undefined,
+    targetIssueUrl: task.targetIssueUrl ? normalizeGithubUrl(task.targetIssueUrl) : undefined,
+    commentUrl: task.commentUrl ? normalizeGithubUrl(task.commentUrl) : undefined,
+  };
+
+  // Incremental migration: Check both normalized and old URL formats
+  const existing = await GithubComfyUIToDesktopIssueTransferTask.findOne({
+    $or: [
+      { sourceIssueNumber: normalizedTask.sourceIssueNumber },
+      ...(normalizedTask.sourceIssueUrl
+        ? [
+            { sourceIssueUrl: normalizedTask.sourceIssueUrl },
+            { sourceIssueUrl: normalizedTask.sourceIssueUrl.replace(/Comfy-Org/i, "comfyanonymous") },
+          ]
+        : []),
+    ],
+  });
+
+  return (await GithubComfyUIToDesktopIssueTransferTask.findOneAndUpdate(
+    existing ? { _id: existing._id } : { sourceIssueNumber: normalizedTask.sourceIssueNumber },
+    { $set: normalizedTask },
     { upsert: true, returnDocument: "after" },
   )) || DIE("never");
+};
 
 if (import.meta.main) {
   await runGithubComfyUIToDesktopIssueTransferTask();

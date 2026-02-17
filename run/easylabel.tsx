@@ -6,6 +6,7 @@ import { gh, type GH } from "@/lib/github";
 import { ghc } from "@/lib/github/githubCached";
 import { parseIssueUrl } from "@/src/parseIssueUrl";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
+import { normalizeGithubUrl } from "@/src/normalizeGithubUrl";
 import DIE from "@snomiao/die";
 import chalk from "chalk";
 import sflow, { pageFlow } from "sflow";
@@ -69,12 +70,27 @@ const Meta = MetaCollection(
   }),
 );
 
-const saveTask = async (task: Partial<GithubIssueLabelOps> & { target_url: string }) =>
-  (await GithubIssueLabelOps.findOneAndUpdate(
-    { target_url: task.target_url },
-    { $set: { ...task, task_updated_at: new Date() } },
+const saveTask = async (task: Partial<GithubIssueLabelOps> & { target_url: string }) => {
+  // Normalize URLs to handle both comfyanonymous and Comfy-Org formats
+  const normalizedTask = {
+    ...task,
+    target_url: normalizeGithubUrl(task.target_url),
+    issue_url: task.issue_url ? normalizeGithubUrl(task.issue_url) : undefined,
+    task_updated_at: new Date(),
+  };
+
+  // Incremental migration: Check both normalized and old URL formats
+  const oldUrl = normalizedTask.target_url.replace(/Comfy-Org/i, "comfyanonymous");
+  const existing = await GithubIssueLabelOps.findOne({
+    $or: [{ target_url: normalizedTask.target_url }, { target_url: oldUrl }],
+  });
+
+  return (await GithubIssueLabelOps.findOneAndUpdate(
+    existing ? { _id: existing._id } : { target_url: normalizedTask.target_url },
+    { $set: normalizedTask },
     { upsert: true, returnDocument: "after" },
   )) || DIE("fail to save task");
+};
 
 if (import.meta.main) {
   // const issueCommentUrl = 'https://github.com/Comfy-Org/ComfyUI/issues/10522#issuecomment-3459764591'
@@ -188,9 +204,10 @@ export async function processIssueCommentForLableops({
 }) {
   const target = comment || issue;
   console.log("  +COMMENT " + target.html_url + " len:" + target.body?.length);
+  // Normalize URLs before saving to handle both comfyanonymous and Comfy-Org formats
   let task = await saveTask({
-    target_url: target.html_url,
-    issue_url: issue.html_url,
+    target_url: normalizeGithubUrl(target.html_url),
+    issue_url: normalizeGithubUrl(issue.html_url),
     type: comment ? "issue-comment" : "issue",
   });
   if (!target.body) return task;
