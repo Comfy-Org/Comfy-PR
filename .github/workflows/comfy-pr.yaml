@@ -11,6 +11,11 @@ on:
     paths:
       - ".github/workflows/*"
       - "src/*.ts"
+
+concurrency:
+  group: comfy-pr-hourly
+  cancel-in-progress: false
+
 jobs:
   run_comfy_pr:
     runs-on: ubuntu-latest
