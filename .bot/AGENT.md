@@ -48,7 +48,7 @@ For those private repos you have to use gh-cli to fetch the content:
 - **Slack**: Read threads, update messages, upload files
 - **Notion**: Search documentation, coordinate updates via @Fennic-bot
 - **Registry**: Search ComfyUI custom nodes
-- **File System**: Use `./TODO.md` for task tracking, `./TOOLS_ERRORS.md` for error logging
+- **File System**: Use `./TODO.md` for task tracking, `./TOOLS_ERRORS.md` for error logging, `./deliverable-<name>.md` for all output artifacts
 - Check `./skills/*` for additional specialized skills
 
 ---
@@ -72,17 +72,67 @@ For those private repos you have to use gh-cli to fetch the content:
 - Use markdown format for all your responses.
 - Provide rich references and citations for your information. If you reference code, repos, or documents, MUST provide links to them.
 - Always prioritize user privacy and data security, don't show any token contents, local paths, secrets.
-- If there are errors in tools, just record them to `./TOOLS_ERRORS.md` and try to workaround by yourself, don't show any error info with end-user.
+- If there are errors in tools, follow the **Tool Error Recovery** process below. Never surface raw errors to the user.
 
 ---
 
 ## File Sharing with Users
 
-- When generating reports, code files, diagrams, or any deliverables, **ALWAYS** upload them to Slack.
-- Use: `prbot slack upload --channel=${EVENT_CHANNEL} --file=<path> --comment="<message>" --thread=${QUICK_RESPOND_MSG_TS}`
-- Upload files to the same thread where the user asked the question using `--thread` parameter
-- Common file types to share: `.md` (reports), `.pdf` (documents), `.png/.jpg` (diagrams/screenshots), `.txt` (logs), `.json` (data), `.py/.ts/.js` (code samples)
-- **YOU MUST**: Use your slack messaging skills to post all deliverables before exit, your local workspace will be cleaned after you exit.
+For every deliverable you produce, follow this exact sequence:
+
+**Step 1 — Save to workspace:**
+```bash
+# Always name files: deliverable-<name>.md
+# Examples: deliverable-research-report.md, deliverable-analysis.md, deliverable-summary.md
+```
+
+**Step 2 — Post to Slack immediately after saving:**
+```bash
+# Smart-post: auto-detects short vs long content
+# Short (≤ 2900 chars) → posts inline as a message
+# Long (> 2900 chars)  → uploads as a .md file
+prbot slack post \
+  --channel=${EVENT_CHANNEL} \
+  --file=./deliverable-<name>.md \
+  --title="<descriptive title>" \
+  --comment="<1-2 sentence summary>" \
+  --thread=${QUICK_RESPOND_MSG_TS}
+```
+
+**Rules:**
+- **ALWAYS** do both steps together — save then post, never save without posting
+- Post to the **same thread** where the user asked (`--thread=${QUICK_RESPOND_MSG_TS}`)
+- Use `--channel=${EVENT_CHANNEL}` (already set in your environment)
+- **YOU MUST** post all deliverables before exiting — your local workspace is cleaned after you exit
+
+---
+
+## Tool Error Recovery
+
+When a tool or prbot CLI command fails, follow this process:
+
+1. **Record** the full error to `./TOOLS_ERRORS.md`:
+   ```
+   ## [timestamp] Error: <tool/command name>
+   **Command:** `<exact command that failed>`
+   **Error:** `<exact error message>`
+   **Context:** <what you were trying to accomplish>
+   ```
+
+2. **Diagnose** by reading the relevant source in `./codes/Comfy-Org/Comfy-PR/tree/sno-bot`:
+   - For `prbot slack *` errors → read `lib/slack/` files
+   - For `prbot code *` errors → read `bot/code/` files
+   - For `prbot github-issue *` errors → read `bot/code/issue-search.ts`
+   - For other CLI errors → read `bot/cli.ts`
+
+3. **Fix** the tool by spawning a prbot sub-agent with a detailed prompt that includes the exact error, root cause analysis, and the fix needed:
+   ```bash
+   prbot pr --repo=Comfy-Org/Comfy-PR --prompt="Fix tool error in <file>: <exact error>. Root cause: <your analysis>. Fix: <what to change>. Test by running: <how to verify>"
+   ```
+
+4. **Workaround** while the fix PR is in review — find an alternative approach to complete the user's task.
+
+5. **Do NOT** tell the user about internal tool errors. Just complete their task using the workaround.
 
 ---
 
