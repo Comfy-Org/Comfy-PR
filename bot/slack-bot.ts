@@ -7,20 +7,15 @@
 
  */
 import { slack } from "@/lib";
-import { db } from "@/src/db";
 import { yaml } from "@/src/utils/yaml";
 import { SocketModeClient } from "@slack/socket-mode";
 import {} from "@slack/bolt";
 import Slack from "@slack/web-api";
 import DIE from "@snomiao/die";
-import { spawn } from "child_process";
+import { exec, spawn } from "node:child_process";
 import { compareBy } from "comparing";
 import { fromStdio, fromWritable } from "from-node-stream";
 import { mkdir } from "fs/promises";
-import { Keyv } from "keyv";
-import KeyvMongodbStore from "keyv-mongodb-store";
-import KeyvNedbStore from "keyv-nedb-store";
-import KeyvNest from "keyv-nest";
 import sflow, { pageFlow } from "sflow";
 import winston from "winston";
 import zChatCompletion from "z-chat-completion";
@@ -43,8 +38,10 @@ import fsp from "fs/promises";
 import { mdFmt } from "@/app/tasks/gh-desktop-release-notification/upsertSlackMessage";
 import { getSlackChannel } from "@/lib/slack/channels";
 import { getSlackChannelName } from "@/lib/slack";
+import { SlackBotState } from "./state";
+import { ErrorCollector } from "./error-collector";
 
-const SLACK_ORG_DOMAIN_NAME = "comfy-organization";
+export const SLACK_ORG_DOMAIN_NAME = "comfy-organization";
 // Configure winston logger
 const logDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
 const logger = winston.createLogger({
@@ -81,33 +78,28 @@ const logger = winston.createLogger({
   ],
 });
 
-const SlackBotState = new Keyv(
-  KeyvNest(
-    new Map(),
-    new KeyvNedbStore("./.cache/ComfyPRBotState.nedb.yaml"),
-    new KeyvMongodbStore(db.collection("ComfyPRBotState")),
-  ),
-  { namespace: "", serialize: undefined, deserialize: undefined },
-);
-
 const TaskInputFlows = new Map<string, TransformStream<string, string>>();
 // https://comfy-pr-bot.pages.dev/
 // Slack block type definition
-const zSlackBlock = z.object({
-  type: z.string(),
-  block_id: z.string().optional(),
-  elements: z.array(z.unknown()).optional(),
-}).passthrough();
+const zSlackBlock = z
+  .object({
+    type: z.string(),
+    block_id: z.string().optional(),
+    elements: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
 
 // Slack attachment type definition
-const zSlackAttachment = z.object({
-  title: z.string().optional(),
-  title_link: z.string().optional(),
-  text: z.string().optional(),
-  fallback: z.string().optional(),
-  image_url: z.string().optional(),
-  from_url: z.string().optional(),
-}).passthrough();
+const zSlackAttachment = z
+  .object({
+    title: z.string().optional(),
+    title_link: z.string().optional(),
+    text: z.string().optional(),
+    fallback: z.string().optional(),
+    image_url: z.string().optional(),
+    from_url: z.string().optional(),
+  })
+  .passthrough();
 
 const zAppMentionEvent = z.object({
   type: z.literal("app_mention"),
@@ -133,7 +125,9 @@ async function addWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
   const events = workingTasks.workingMessageEvents || [];
 
   // Check if event already exists (by ts and channel)
-  const exists = events.some((e: z.infer<typeof zAppMentionEvent>) => e.ts === event.ts && e.channel === event.channel);
+  const exists = events.some(
+    (e: z.infer<typeof zAppMentionEvent>) => e.ts === event.ts && e.channel === event.channel,
+  );
   if (!exists) {
     events.push(event);
     await SlackBotState.set("current-working-tasks", { workingMessageEvents: events });
@@ -148,7 +142,9 @@ async function removeWorkingTask(event: z.infer<typeof zAppMentionEvent>) {
   const events = workingTasks.workingMessageEvents || [];
 
   // Remove event by ts and channel
-  const filtered = events.filter((e: z.infer<typeof zAppMentionEvent>) => !(e.ts === event.ts && e.channel === event.channel));
+  const filtered = events.filter(
+    (e: z.infer<typeof zAppMentionEvent>) => !(e.ts === event.ts && e.channel === event.channel),
+  );
   await SlackBotState.set("current-working-tasks", { workingMessageEvents: filtered });
   logger.info(`Removed task from working list: ${event.ts} (remaining: ${filtered.length})`);
 }
@@ -260,9 +256,9 @@ export async function startSlackBot() {
 
   // const missedMsg = "https://comfy-organization.slack.com/archives/C09QKKXK8RX/p1767849032076329?thread_ts=1767838632.470639&cid=C09QKKXK8RX"
   // const missedMsg = "https://comfy-organization.slack.com/archives/C0A4XMHANP3/p1767893546609709?thread_ts=1767862331.962569&cid=C0A4XMHANP3"
-  await spawnBotOnSlackMessageUrl(
-    "https://comfy-organization.slack.com/archives/D09GGTE7S00/p1769576340892099",
-  );
+  // await spawnBotOnSlackMessageUrl(
+  //   "https://comfy-organization.slack.com/archives/D09GGTE7S00/p1769576340892099",
+  // );
 
   const msgs = await fsp
     .readFile("./msgs.yaml", "utf-8")
@@ -344,23 +340,25 @@ export async function startSlackBot() {
     .on("message", async ({ event, body, ack }) => {
       // bot-1  | msg:  {"type":"message","user":"U04F3GHTG2X","ts":"1767100459.669809","client_msg_id":"2fed13c0-9739-4888-a4f6-b876c25f1407","text":"test","team":"T0462DJ9G3C","blocks":[{"type":"rich_text","block_id":"gB9fq","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"test"}]}]}],"channel":"C0A6Y4AU52L","event_ts":"1767100459.669809","channel_type":"channel"}
       // Parse the message event
-      const zSlackMessage = z.object({
-        type: z.literal("message"),
-        user: z.string().optional(),
-        ts: z.string().optional(),
-        client_msg_id: z.string().optional(),
-        text: z.string().optional(),
-        team: z.string().optional(),
-        thread_ts: z.string().optional(),
-        parent_user_id: z.string().optional(),
-        blocks: z.array(zSlackBlock).optional(),
-        channel: z.string().optional(),
-        channel_type: z.string().optional(),
-        assistant_thread: z.unknown().optional(),
-        attachments: z.array(zSlackAttachment).optional(),
-        event_ts: z.string().optional(),
-        bot_id: z.string().optional(),
-      }).passthrough();
+      const zSlackMessage = z
+        .object({
+          type: z.literal("message"),
+          user: z.string().optional(),
+          ts: z.string().optional(),
+          client_msg_id: z.string().optional(),
+          text: z.string().optional(),
+          team: z.string().optional(),
+          thread_ts: z.string().optional(),
+          parent_user_id: z.string().optional(),
+          blocks: z.array(zSlackBlock).optional(),
+          channel: z.string().optional(),
+          channel_type: z.string().optional(),
+          assistant_thread: z.unknown().optional(),
+          attachments: z.array(zSlackAttachment).optional(),
+          event_ts: z.string().optional(),
+          bot_id: z.string().optional(),
+        })
+        .passthrough();
 
       const messageEvent = zSlackMessage.parse(event);
 
@@ -386,7 +384,15 @@ export async function startSlackBot() {
       // Handle DM messages (channel_type: "im") and treat them like app mentions
       const isDM = messageEvent.channel_type === "im";
 
-      if ((isDM || hasBotMention) && messageEvent.user && messageEvent.text && messageEvent.channel && messageEvent.ts && messageEvent.team && messageEvent.event_ts) {
+      if (
+        (isDM || hasBotMention) &&
+        messageEvent.user &&
+        messageEvent.text &&
+        messageEvent.channel &&
+        messageEvent.ts &&
+        messageEvent.team &&
+        messageEvent.event_ts
+      ) {
         const eventType = isDM ? "DM" : "BOT MENTION";
         logger.debug(`${eventType} DETECTED - Processing message as app_mention`, {
           channel: messageEvent.channel,
@@ -667,6 +673,7 @@ Respond in JSON format with the following fields:
     ...(await SlackBotState.get(`task-${workspaceId}`)),
     status: "checking",
     event,
+    startTime: Date.now(),
   });
   await slack.reactions
     .add({ name: "eyes", channel: event.channel, timestamp: event.ts })
@@ -714,7 +721,7 @@ Respond in JSON format with the following fields:
   logger.info("Intent detection response", JSON.stringify({ resp }));
 
   // upsert quick respond msg
-  type QuickRespondMsg = { ts: string; text: string; channel?: string };
+  type QuickRespondMsg = { ts: string; text: string; channel?: string; url?: string };
   const quickRespondMsg = await SlackBotState.get(`task-quick-respond-msg-${eventId}`).then(
     async (existing: QuickRespondMsg | undefined) => {
       if (existing) {
@@ -769,6 +776,8 @@ Respond in JSON format with the following fields:
         await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
           ts: existing.ts,
           text: myResponseMessage,
+          channel: event.channel,
+          url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${existing.ts.replace(".", "")}`,
         });
         return { ...msg, text: myResponseMessage };
       } else {
@@ -786,6 +795,8 @@ Respond in JSON format with the following fields:
         await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
           ts: newMsg.ts!,
           text: myResponseMessage,
+          channel: event.channel,
+          url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${newMsg.ts!.replace(".", "")}`,
         });
         return { ...newMsg, text: myResponseMessage };
       }
@@ -932,11 +943,28 @@ Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
   - Registry search: prbot registry search --query="<search terms>"
 - Coordinate with prbot agents for unknown coding tasks:
   - prbot pr --repo=<owner/repo> --prompt="<detailed coding task>"
+- For each deliverable: save to ./deliverable-<name>.md then immediately upload to Slack.
 - Compile findings and provide a comprehensive response to the user.
 
 ## GitHub Changes
 - IMPORTANT: Remember to use the prbot CLI for unknown GitHub code changes:
   prbot pr --repo=<owner/repo> [--branch=<branch>] --prompt="<detailed coding task>"
+
+## Deliverables Convention
+- ALWAYS save any document, guide, report, or artifact to: ./deliverable-<name>.md
+- Then IMMEDIATELY post to Slack (smart-post: short → inline message, long → file upload):
+  prbot slack post --channel=<channel> --file=./deliverable-<name>.md --title="<title>" --comment="<summary>" --thread=<thread_ts>
+- Examples:
+  - ./deliverable-research-report.md
+  - ./deliverable-analysis.md
+  - ./deliverable-summary.md
+
+## Tool Error Recovery
+When a prbot CLI command fails:
+1. Record error to ./TOOLS_ERRORS.md (command, error, context)
+2. Read the failing tool's source in ./codes/Comfy-Org/Comfy-PR/tree/sno-bot to diagnose
+3. Spawn a fix via: prbot pr --repo=Comfy-Org/Comfy-PR --prompt="Fix <tool>: <error>. Root cause: <analysis>. Fix: <change>"
+4. Workaround to complete the user's task while the fix PR is open
 
 `,
   );
@@ -945,11 +973,27 @@ Open the corresponding SKILL.md under .claude/skills/<name>/ for details.
   const agentPrompt = `
 the @${username} intented to ${resp.user_intent}
 Please assist them with their request using all your resources available.
+
+IMPORTANT WORKSPACE CONVENTIONS:
+- Save ALL deliverables (documents, guides, reports, summaries, analysis, code snippets, etc.) to ./deliverable-<name>.md in the current workspace directory. For example: ./deliverable-draft-pr-guide.md, ./deliverable-research-report.md
+- Log any tool errors or failures to ./TOOLS_ERRORS.md
+- Keep deliverables self-contained and well-formatted so they can be shared directly with the user
 `;
+
+  // Write PROMPT.txt so claude-yes can read the user's intent
+  await Bun.write(`${botWorkingDir}/PROMPT.txt`, agentPrompt);
+
   logger.info(`Spawning agent in ${botWorkingDir} with prompt: ${JSON.stringify(agentPrompt)}`);
   // todo: spawn in a worker user
 
   // await Bun.$.cwd(botWorkingDir)`claude-yes -- solve-everything-in=TODO.md, PROMPT.txt, current bot args --working-dir=${botWorkingDir} --slack-channel=${event.channel} --slack-thread-ts=${quickRespondMsg.ts!}`
+
+  // Create dedicated log files for this task (before spawning)
+  const taskLogDir = `${botWorkingDir}/.logs`;
+  await mkdir(taskLogDir, { recursive: true });
+  const stdoutLogPath = `${taskLogDir}/claude-yes-stdout.log`;
+  const stderrLogPath = `${taskLogDir}/claude-yes-stderr.log`;
+  const statusLogPath = `${taskLogDir}/STATUS.txt`;
 
   // create a user for task
   const exitCodePromise = Promise.withResolvers<number | null>();
@@ -967,14 +1011,24 @@ Please assist them with their request using all your resources available.
     //   // }
     //   continueArgs.push('--continue')
     // }
-    const cmd = `bunx claude-yes -i=1d -- ${Bun.$.escape(agentPrompt)}`;
-    const cli = cmd.split(" ")[0];
-    logger.info(`Spawning process: ${cmd}`);
-    const shell = execaCommand(cmd, {
+    // const cmd = `bunx claude-yes -i=1d -- ${Bun.$.escape(agentPrompt)}`;
+    // const cli = cmd.split(" ")[0];
+    const cli = "claude-yes"; // Use the globally installed claude-yes (via bun)
+    // Pass prompt to read PROMPT.txt and TODO.md
+    const args = [
+      "--exit-on-idle=1m",
+      "--",
+      "Please read PROMPT.txt and TODO.md in the current directory and complete all tasks listed there.",
+    ];
+    logger.info(
+      `Spawning process: ${cli} ${args.join(" ")} in ${botWorkingDir} with env GH_TOKEN_COMFY_PR_BOT=[REDACTED]`,
+    );
+    const shell = spawn(cli, args, {
       cwd: botWorkingDir,
       env: {
-        // ...process.env,
-        GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT,
+        ...process.env,
+        GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
+        GITHUB_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
       },
     });
 
@@ -987,10 +1041,16 @@ Please assist them with their request using all your resources available.
       exitCodePromise.resolve(code);
     });
 
-    // Log stderr separately for debugging
+    // Auto-answer the trust prompt (option 1 = "Yes, proceed")
+    if (shell.stdin) {
+      shell.stdin.write("1\n");
+    }
 
+    // Stream stderr to log file and logger (async operations moved outside)
     shell.stderr?.on("data", (data) => {
-      logger.warn(`[${cli} stderr]:`, { data: data.toString() });
+      const text = data.toString();
+      appendFile(stderrLogPath, text).catch(() => {});
+      logger.warn(`[${cli} stderr]:`, { data: text });
     });
 
     // Check if stdout/stderr are available
@@ -1004,7 +1064,34 @@ Please assist them with their request using all your resources available.
     return shell;
   })();
 
+  // Write initial status
+  await Bun.write(statusLogPath, `Started: ${new Date().toISOString()}\nPID: ${sh.pid}\nStatus: Running\nLog: ${stdoutLogPath}\n`);
+
+  const isDebugMode = process.env.DEBUG === "true" || process.env.DEBUG === "1";
+
   logger.info(`Spawned claude-yes process with PID ${sh.pid} for task ${workspaceId}`);
+  if (isDebugMode) {
+    logger.info(`📝 Real-time logs: tail -f ${stdoutLogPath}`);
+    logger.info(`📊 Status file: cat ${statusLogPath}`);
+    logger.info(`💡 Debug commands: prbot debug watch ${botWorkingDir}`);
+  }
+
+  // Start error collector to monitor workspace for errors
+  const errorLogPath = `${taskLogDir}/COLLECTED_ERRORS.md`;
+  const errorCollector = new ErrorCollector({
+    workspaceDir: botWorkingDir,
+    outputLogPath: errorLogPath,
+    onError: isDebugMode ? (errorPath, content) => {
+      logger.warn(`⚠️  Error detected in workspace: ${errorPath}`);
+      logger.warn(`Error content preview: ${content.substring(0, 500)}...`);
+    } : undefined,
+    checkInterval: 10000, // Check every 10 seconds
+  });
+  await errorCollector.start();
+  if (isDebugMode) {
+    logger.info(`🔍 Error collector started, errors will be logged to: ${errorLogPath}`);
+  }
+
   await sflow(
     [""], // Initial Prompt to start the agent, could be empty
   )
@@ -1015,13 +1102,16 @@ Please assist them with their request using all your resources available.
         .map(async (awaitableText) => awaitableText),
     )
     .by(fromStdio(sh))
-    // convert buffer to string
+    // convert buffer to string and write to log file
     .map(async (buffer) => {
       if (buffer === undefined || buffer === null) {
         logger.warn(`Received undefined/null buffer from process ${workspaceId}`);
         return "";
       }
-      return buffer.toString();
+      const text = buffer.toString();
+      // Write raw output to dedicated stdout log file
+      await appendFile(stdoutLogPath, text).catch(() => {});
+      return text;
     })
 
     // pipe to /botWorkingDir/.logs/bot-<date>.log to claude input
@@ -1187,6 +1277,8 @@ ${yaml.stringify(contexts)}
             await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
               ts: quickRespondMsg.ts,
               text: quickRespondMsg.text,
+              channel: event.channel,
+              url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${quickRespondMsg.ts.replace(".", "")}`,
             });
           }
         }
@@ -1221,16 +1313,27 @@ ${yaml.stringify(contexts)}
         .run();
     })
 
-    // show contents in console
+    // show contents in console if needed for debugging
     // .forkTo((e) => e.pipeTo(fromWritable(process.stdout)))
-    .forkTo((e) => e.pipeTo(fromWritable(process.stdout)))
+    // .forkTo((e) => e.pipeTo(fromWritable(process.stdout)))
     .run();
 
   TaskInputFlows.delete(workspaceId);
 
+  // Stop error collector
+  errorCollector.stop();
+  if (isDebugMode) {
+    logger.info(`🔍 Error collector stopped for task ${workspaceId}`);
+  }
+
   // check exit code, checkmark if claude-yes exited 0, cross if not
 
   const exitCode = await exitCodePromise.promise;
+
+  // Update final status
+  const finalStatus = exitCode === 0 ? "Completed Successfully" : `Failed (exit code ${exitCode})`;
+  await Bun.write(statusLogPath, `Started: ${new Date().toISOString()}\nPID: ${sh.pid}\nStatus: ${finalStatus}\nExit Code: ${exitCode}\nEnded: ${new Date().toISOString()}\nLogs: ${stdoutLogPath}\nErrors: ${errorLogPath}\n`).catch(() => {});
+
   if (exitCode !== 0) {
     logger.error(`claude-yes process for task ${workspaceId} exited with code ${exitCode}`);
     // those error tasks will got  retry after a restart
@@ -1267,9 +1370,15 @@ ${yaml.stringify(contexts)}
   await slack.reactions
     .add({ name: "white_check_mark", channel: event.channel, timestamp: event.ts })
     .catch(() => {});
+  const taskState = await SlackBotState.get(`task-${workspaceId}`);
+  const endTime = Date.now();
+  const responseDuration = taskState?.startTime ? endTime - taskState.startTime : undefined;
+
   await SlackBotState.set(`task-${workspaceId}`, {
-    ...(await SlackBotState.get(`task-${workspaceId}`)),
+    ...taskState,
     status: "done",
+    endTime,
+    responseDuration,
   });
 
   // Remove task from working list
