@@ -22,6 +22,7 @@ import { readNearbyMessages } from "@/lib/slack/msg-read-nearby";
 import { readRecentMessages } from "@/lib/slack/msg-read-recent";
 import { readSlackThread } from "@/lib/slack/msg-read-thread";
 import { updateSlackMessage } from "@/lib/slack/msg-update";
+import { smartPost } from "@/lib/slack/msg-post";
 import { parseSlackUrl } from "@/lib/slack/parseSlackUrl";
 import { parseSlackUrlSmart } from "@/lib/slack/parseSlackUrlSmart";
 import { getMessageReactions } from "@/lib/slack/reactions";
@@ -368,6 +369,40 @@ async function main() {
               args.ts as string,
               args.text as string,
             );
+          },
+        )
+        .command(
+          "post",
+          "Smart-post: short text as a message, long markdown as a file upload (auto-detected at 2900 chars)",
+          (y) =>
+            y
+              .option("channel", { alias: "c", type: "string", demandOption: true, describe: "Channel ID" })
+              .option("text", { alias: "m", type: "string", describe: "Text to post (or omit to read --file)" })
+              .option("file", { alias: "f", type: "string", describe: "File path to read content from" })
+              .option("title", { type: "string", describe: "Title used when uploading as a file" })
+              .option("comment", { type: "string", describe: "Comment to accompany file upload" })
+              .option("thread", { alias: "t", type: "string", describe: "Thread timestamp to reply in" })
+              .check((argv) => {
+                if (!argv.text && !argv.file) throw new Error("Either --text or --file is required");
+                return true;
+              }),
+          async (args) => {
+            await loadEnvLocal();
+            let text = args.text as string | undefined;
+            if (!text && args.file) {
+              text = await Bun.file(args.file as string).text();
+            }
+            const result = await smartPost(args.channel as string, text!, {
+              threadTs: args.thread as string | undefined,
+              title: args.title as string | undefined,
+              filePath: args.file as string | undefined,
+              comment: args.comment as string | undefined,
+            });
+            if (result.method === "message") {
+              console.log(`Posted as message (ts: ${result.ts})`);
+            } else {
+              console.log(`Uploaded as file: ${result.fileUrl}`);
+            }
           },
         )
         .command(
@@ -888,6 +923,100 @@ async function main() {
         },
       );
     })
+    .command("debug", "Debug and monitoring commands for bot tasks", (yargs) => {
+      return yargs
+        .command(
+          "list",
+          "List all active and recent claude-yes tasks",
+          (y) => y,
+          async () => {
+            const { $ } = await import("bun");
+            const scriptPath = path.join(import.meta.dir, "./list-tasks.sh");
+            await $`bash ${scriptPath}`;
+          },
+        )
+        .command(
+          "watch <task_dir>",
+          "Monitor a specific task with status, output, and errors",
+          (y) =>
+            y.positional("task_dir", {
+              type: "string",
+              describe: "Task directory path (e.g., /bot/slack/snomiao/1771137874-418759)",
+              demandOption: true,
+            }),
+          async (args) => {
+            const { $ } = await import("bun");
+            const scriptPath = path.join(import.meta.dir, "./watch-task.sh");
+            await $`bash ${scriptPath} ${args.task_dir}`;
+          },
+        )
+        .command(
+          "logs <task_dir>",
+          "Show full stdout logs for a task",
+          (y) =>
+            y.positional("task_dir", {
+              type: "string",
+              describe: "Task directory path",
+              demandOption: true,
+            }),
+          async (args) => {
+            const logPath = `${args.task_dir}/.logs/claude-yes-stdout.log`;
+            const { $ } = await import("bun");
+            await $`tail -500 ${logPath}`;
+          },
+        )
+        .command(
+          "errors <task_dir>",
+          "Show collected errors for a task",
+          (y) =>
+            y.positional("task_dir", {
+              type: "string",
+              describe: "Task directory path",
+              demandOption: true,
+            }),
+          async (args) => {
+            const errorsPath = `${args.task_dir}/.logs/COLLECTED_ERRORS.md`;
+            const { $ } = await import("bun");
+            try {
+              await $`cat ${errorsPath}`;
+            } catch {
+              console.log("No errors collected for this task.");
+            }
+          },
+        )
+        .command(
+          "status <task_dir>",
+          "Show status file for a task",
+          (y) =>
+            y.positional("task_dir", {
+              type: "string",
+              describe: "Task directory path",
+              demandOption: true,
+            }),
+          async (args) => {
+            const statusPath = `${args.task_dir}/.logs/STATUS.txt`;
+            const { $ } = await import("bun");
+            await $`cat ${statusPath}`;
+          },
+        )
+        .command(
+          "tail <task_dir>",
+          "Tail live stdout logs for a task",
+          (y) =>
+            y.positional("task_dir", {
+              type: "string",
+              describe: "Task directory path",
+              demandOption: true,
+            }),
+          async (args) => {
+            const logPath = `${args.task_dir}/.logs/claude-yes-stdout.log`;
+            const { $ } = await import("bun");
+            await $`tail -f ${logPath}`;
+          },
+        )
+        .demandCommand(1, "Please specify a debug subcommand")
+        .help();
+    })
     .demandCommand(1, "Please specify a command")
     .strict()
     .help()
@@ -901,6 +1030,9 @@ async function main() {
         "  prbot registry search -q 'video' -l 5",
         "  prbot pr -r Comfy-Org/desktop -p 'Add spellcheck to editor'",
         "  prbot agent respond-slack-msg 'https://workspace.slack.com/archives/C123/p1234567890'",
+        "  prbot debug list",
+        "  prbot debug watch /bot/slack/snomiao/1771137874-418759",
+        "  prbot debug tail /bot/slack/snomiao/1771137874-418759",
         "  prbot slack update -c C123 -t 1234567890.123456 -m 'Working on it'",
         "  prbot slack read-thread -c C123 -t 1234567890.123456",
         "  prbot slack read-thread -u 'https://workspace.slack.com/archives/C123/p1234567890'",
