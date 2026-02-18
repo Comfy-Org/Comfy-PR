@@ -64,7 +64,8 @@ export async function smartPost(
   }
 
   // Too long — save to a .md file then upload
-  const savePath = filePath || join(tmpdir(), `${title.replace(/[^a-z0-9-]/gi, "-")}-${Date.now()}.md`);
+  const savePath =
+    filePath || join(tmpdir(), `${title.replace(/[^a-z0-9-]/gi, "-")}-${Date.now()}.md`);
 
   mkdirSync(join(savePath, ".."), { recursive: true });
   writeFileSync(savePath, text, "utf-8");
@@ -75,7 +76,9 @@ export async function smartPost(
     threadTs,
   });
 
-  const file = (uploadResult as Record<string, unknown>).file as Record<string, unknown> | undefined;
+  const file = (uploadResult as unknown as Record<string, unknown>).file as
+    | Record<string, unknown>
+    | undefined;
 
   return {
     method: "file",

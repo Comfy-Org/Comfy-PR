@@ -55,7 +55,7 @@ async function migrateCollection(
     console.log(`  📝 Processing field: ${field}`);
 
     // Find all documents with comfyanonymous URLs in this field
-    const query: any = {};
+    const query: Record<string, unknown> = {};
     query[field] = { $regex: /github\.com\/comfyanonymous\//i };
 
     const documents = await collection.find(query).toArray();
@@ -96,14 +96,12 @@ async function migrateCollection(
       try {
         // Check if a document with the normalized URL already exists
         if (uniqueField === field) {
-          const query: any = {};
+          const query: Record<string, unknown> = {};
           query[field] = newUrl;
           const existing = await collection.findOne(query);
 
           if (existing && existing._id.toString() !== doc._id.toString()) {
-            console.log(
-              `    ⚠️  Skipping ${oldUrl}: Document with normalized URL already exists`,
-            );
+            console.log(`    ⚠️  Skipping ${oldUrl}: Document with normalized URL already exists`);
             // Keep the document with the normalized URL, mark old one for review
             await collection.updateOne(
               { _id: doc._id },
@@ -115,7 +113,7 @@ async function migrateCollection(
         }
 
         // Update the document
-        const updateDoc: any = {};
+        const updateDoc: Record<string, unknown> = {};
         updateDoc[field] = newUrl;
 
         await collection.updateOne({ _id: doc._id }, { $set: updateDoc });

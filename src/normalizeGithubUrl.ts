@@ -20,7 +20,7 @@ export function normalizeGithubUrl(url: string): string {
   // Only ComfyUI was migrated from comfyanonymous to Comfy-Org
   return url.replace(
     /github\.com\/comfyanonymous\/ComfyUI([/?#]|$)/gi,
-    'github.com/Comfy-Org/ComfyUI$1'
+    "github.com/Comfy-Org/ComfyUI$1",
   );
 }
 
@@ -48,14 +48,14 @@ export function normalizeGithubUrls(urls: string[]): string[] {
  * )
  * // => { sourceIssueUrl: "https://github.com/Comfy-Org/ComfyUI/issues/123" }
  */
-export function normalizeGithubUrlsInObject<T extends Record<string, any>>(
+export function normalizeGithubUrlsInObject<T extends Record<string, unknown>>(
   obj: T,
-  urlFields: (keyof T)[]
+  urlFields: (keyof T)[],
 ): T {
   const result = { ...obj };
 
   for (const field of urlFields) {
-    if (typeof result[field] === 'string') {
+    if (typeof result[field] === "string") {
       result[field] = normalizeGithubUrl(result[field] as string) as T[keyof T];
     }
   }
