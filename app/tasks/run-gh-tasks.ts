@@ -64,6 +64,10 @@ const TASK_DEFS = [
     name: "GitHub Bugcop Task",
     load: () => import("../../run/gh-bugcop/gh-bugcop").then((m) => m.default),
   },
+  {
+    name: "GitHub PR Release Tagger Task",
+    load: () => import("./gh-pr-release-tagger/index").then((m) => m.default),
+  },
 ];
 
 const DRY_RUN = process.env.DRY_RUN !== "false";
