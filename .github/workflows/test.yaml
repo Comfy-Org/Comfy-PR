@@ -5,8 +5,10 @@ on:
     branches:
       - main
 jobs:
-  run_comfy_pr:
+  comfy_pr_test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +32,17 @@ jobs:
       # setup comfy-pr
       # Run Comfy-PR Tests
       - run: bun i
+      - run: bunx oxlint --fix
+      - run: bunx oxfmt --write
+      - name: Commit lint/format fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet; then
+            git add -A
+            git commit -m "style: auto-fix lint and formatting"
+            git push
+          fi
       - run: bun test
         timeout-minutes: 8
         env:
