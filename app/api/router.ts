@@ -15,7 +15,7 @@ export const router = t.router({
     .meta({ openapi: { method: "GET", path: "/version", description: "Get version of ComfyPR" } })
     .input(z.object({}))
     .output(z.object({ version: z.string() }))
-    .query(({}) => ({ version: pkg.version })),
+    .query(() => ({ version: pkg.version })),
   dumpCsv: t.procedure
     .meta({ openapi: { method: "GET", path: "/dump.csv", description: "Get csv dump" } })
     .input(z.object({}))
