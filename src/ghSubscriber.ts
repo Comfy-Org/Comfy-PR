@@ -28,7 +28,7 @@ async function showSubscriberUsers() {
       .text(),
   );
 }
-async function listNotifications() {
+async function _listNotifications() {
   console.log(
     `Messages: `,
     await sflow(tokens)

@@ -64,11 +64,13 @@ const save = async (task: { url: string } & Partial<GithubReleaseNotificationTas
     $or: [{ url: normalizedTask.url }, { url: oldUrl }],
   });
 
-  return (await GithubReleaseNotificationTask.findOneAndUpdate(
-    existing ? { _id: existing._id } : { url: normalizedTask.url },
-    { $set: normalizedTask },
-    { upsert: true, returnDocument: "after" },
-  )) || DIE("never");
+  return (
+    (await GithubReleaseNotificationTask.findOneAndUpdate(
+      existing ? { _id: existing._id } : { url: normalizedTask.url },
+      { $set: normalizedTask },
+      { upsert: true, returnDocument: "after" },
+    )) || DIE("never")
+  );
 };
 
 if (import.meta.main) {

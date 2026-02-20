@@ -5,6 +5,7 @@ Hey! My name is Robin and I'm from [comfy-org](https://comfy.org/)! We noticed y
 This PR adds a [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html) (GPL-3.0) license, which is a common open-source license used by many ComfyUI custom nodes.
 
 The GPL-3.0 license:
+
 - Allows users to freely use, study, share, and modify your software
 - Requires derivative works to also be distributed under the GPL-3.0
 - Provides protection against patent claims

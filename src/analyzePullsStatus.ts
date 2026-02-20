@@ -50,7 +50,7 @@ export async function analyzePullsStatus({
     .skip(skip)
     .limit(limit || 2 ** 31 - 1)
     .aggregate()
-    .map(({ updated_at, created_at, actived_at, on_registry_at, ...pull }) => {
+    .map(({ updated_at, created_at: _created_at, actived_at, on_registry_at: _on_registry_at, ...pull }) => {
       const pull_updated =
         prettyMs(+new Date() - +new Date(updated_at), { compact: true }) + " ago";
       const repo_updated =

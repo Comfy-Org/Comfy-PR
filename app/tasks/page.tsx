@@ -4,7 +4,7 @@ import { Suspense } from "react";
 // Force dynamic rendering to avoid build-time database access
 export const dynamic = "force-dynamic";
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const _sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  *

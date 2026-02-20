@@ -34,24 +34,24 @@ export async function updateCNRepos() {
       return [await notifySlack(msg, { unique: true, silent: true })];
     }),
     // stage 1: get repos
-    await tLog("Update Nodes from ComfyUI Manager", updateCMNodes),
-    await tLog("Update Repos from ComfyUI Manager", updateCMRepos),
-    await tLog("Update Nodes from ComfyRegistry", updateCRNodes),
-    await tLog("Update Repos from ComfyRegistry", updateCRRepos),
+    tLog("Update Nodes from ComfyUI Manager", updateCMNodes),
+    tLog("Update Repos from ComfyUI Manager", updateCMRepos),
+    tLog("Update Nodes from ComfyRegistry", updateCRNodes),
+    tLog("Update Repos from ComfyRegistry", updateCRRepos),
     // stage 2: update repo info & pulls
-    await tLog("Update CNRepos for Repo Infos", updateCNReposInfo),
-    await tLog("Update CNRepos for Github Pulls", updateCNReposPulls),
-    await tLog("Update Pulls Dashboard", updateCNRepoPullsDashboard),
+    tLog("Update CNRepos for Repo Infos", updateCNReposInfo),
+    tLog("Update CNRepos for Github Pulls", updateCNReposPulls),
+    tLog("Update Pulls Dashboard", updateCNRepoPullsDashboard),
     // stage 3: update related pulls and comments
-    await tLog("Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
-    await tLog("Update Outdated Pulls Templates", updateOutdatedPullsTemplates),
+    tLog("Update CNRepos for Related Pulls", updateCNReposRelatedPulls),
+    tLog("Update Outdated Pulls Templates", updateOutdatedPullsTemplates),
     // stage 4: update related comments
-    await tLog("Update CNRepos for Related Comments", updateCNReposCRPullsComments),
+    tLog("Update CNRepos for Related Comments", updateCNReposCRPullsComments),
     // stage 5: mark and create PRs
-    await tLog("Update CNRepos PR Candidates", updateCNReposPRCandidate),
-    await tLog("Create ComfyRegistry PRs", createComfyRegistryPRsFromCandidates),
+    tLog("Update CNRepos PR Candidates", updateCNReposPRCandidate),
+    tLog("Create ComfyRegistry PRs", createComfyRegistryPRsFromCandidates),
     // final
-    await tLog("Update Comfy Totals", updateComfyTotals),
+    tLog("Update Comfy Totals", updateComfyTotals),
   ]);
 
   console.log("All repo updated");

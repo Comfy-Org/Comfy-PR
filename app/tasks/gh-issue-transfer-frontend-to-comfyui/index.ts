@@ -67,17 +67,21 @@ const save = async (
       ...(normalizedTask.sourceIssueUrl
         ? [
             { sourceIssueUrl: normalizedTask.sourceIssueUrl },
-            { sourceIssueUrl: normalizedTask.sourceIssueUrl.replace(/Comfy-Org/i, "comfyanonymous") },
+            {
+              sourceIssueUrl: normalizedTask.sourceIssueUrl.replace(/Comfy-Org/i, "comfyanonymous"),
+            },
           ]
         : []),
     ],
   });
 
-  return (await GithubFrontendToComfyuiIssueTransferTask.findOneAndUpdate(
-    existing ? { _id: existing._id } : { sourceIssueNumber: normalizedTask.sourceIssueNumber },
-    { $set: normalizedTask },
-    { upsert: true, returnDocument: "after" },
-  )) || DIE("never");
+  return (
+    (await GithubFrontendToComfyuiIssueTransferTask.findOneAndUpdate(
+      existing ? { _id: existing._id } : { sourceIssueNumber: normalizedTask.sourceIssueNumber },
+      { $set: normalizedTask },
+      { upsert: true, returnDocument: "after" },
+    )) || DIE("never")
+  );
 };
 
 if (import.meta.main) {

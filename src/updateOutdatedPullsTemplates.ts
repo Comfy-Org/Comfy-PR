@@ -19,7 +19,7 @@ import { notifySlackLinks } from "@/lib/slack/notifySlackLinks";
 import { tLog } from "./utils/tLog";
 if (import.meta.main) {
   await tLog("updateOutdatedPullsTemplates", updateOutdatedPullsTemplates);
-  isCI && process.exit(0);
+  if (isCI) process.exit(0);
 }
 
 export async function updateOutdatedPullsTemplates() {

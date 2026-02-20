@@ -53,7 +53,13 @@ const zAppMentionEvent = z.object({
 type AppMentionEvent = z.infer<typeof zAppMentionEvent>;
 
 interface TaskState {
-  status?: "checking" | "thinking" | "done" | "stopped_by_user" | "forward_to_pr_bot_channel" | string;
+  status?:
+    | "checking"
+    | "thinking"
+    | "done"
+    | "stopped_by_user"
+    | "forward_to_pr_bot_channel"
+    | string;
   event?: AppMentionEvent;
   startTime?: number; // Timestamp when task started
   endTime?: number; // Timestamp when task finished
@@ -129,7 +135,7 @@ const MessageItem: React.FC<{ message: StatusMessage; index: number }> = ({ mess
 
   // For DM channels (starting with 'D'), show as #DM_username
   let channelDisplay: string;
-  if (message.event.channel.startsWith('D')) {
+  if (message.event.channel.startsWith("D")) {
     // It's a DM - show as #DM_username
     channelDisplay = `#DM_${message.username || message.event.user}`;
   } else {
@@ -152,18 +158,20 @@ const MessageItem: React.FC<{ message: StatusMessage; index: number }> = ({ mess
   // Terminal width minus prefix, channel/user, and respond link
   const terminalWidth = process.stdout.columns || 80;
   const respondLinkLength = botRespondUrl ? 10 : 0; // " [respond]" length only if link exists
-  const availableForMessage = terminalWidth - prefixLength - channelUserStr.length - respondLinkLength - 5; // -5 for safety margin
+  const availableForMessage =
+    terminalWidth - prefixLength - channelUserStr.length - respondLinkLength - 5; // -5 for safety margin
 
   // Truncate message text to fit
   const rawMessage = message.parsedMessage || message.event.text;
-  const cleaned = rawMessage.replace(/\s+/g, ' ').trim();
-  const messageText = cleaned.length > availableForMessage
-    ? cleaned.slice(0, availableForMessage) + "…"
-    : cleaned;
+  const cleaned = rawMessage.replace(/\s+/g, " ").trim();
+  const messageText =
+    cleaned.length > availableForMessage ? cleaned.slice(0, availableForMessage) + "…" : cleaned;
 
   const clickableMessage = terminalLink(messageText, messageUrl, { fallback: () => messageText });
   const clickableUser = terminalLink(userDisplay, userUrl, { fallback: () => userDisplay });
-  const clickableChannel = terminalLink(channelDisplay, channelUrl, { fallback: () => channelDisplay });
+  const clickableChannel = terminalLink(channelDisplay, channelUrl, {
+    fallback: () => channelDisplay,
+  });
   const clickableRespond = botRespondUrl
     ? terminalLink("[respond]", botRespondUrl, { fallback: () => "[respond]" })
     : null;
@@ -173,7 +181,9 @@ const MessageItem: React.FC<{ message: StatusMessage; index: number }> = ({ mess
 
   return (
     <Box>
-      <Text bold color="cyan">{indexStr}</Text>
+      <Text bold color="cyan">
+        {indexStr}
+      </Text>
       <Text> </Text>
       <Text color={statusColors[message.status]}>{statusIcons[message.status]}</Text>
       <Text dimColor> {timestampStr} </Text>
@@ -216,29 +226,33 @@ const StatusDisplay: React.FC<StatusProps> = ({ messages }) => {
   const statsLines = 1; // Statistics line
   const statsMargin = 1; // marginBottom after stats
   const boxPadding = 2; // Box padding top + bottom
-  const availableLines = terminalHeight - headerLines - headerMargin - statsLines - statsMargin - boxPadding;
+  const availableLines =
+    terminalHeight - headerLines - headerMargin - statsLines - statsMargin - boxPadding;
 
   // Calculate max scroll offset
   const maxScrollOffset = Math.max(0, messages.length - availableLines);
 
   // Handle keyboard input for scrolling (only if stdin supports raw mode)
-  useInput((input, key) => {
-    if (key.upArrow) {
-      setScrollOffset((prev) => Math.max(0, prev - 1));
-    } else if (key.downArrow) {
-      setScrollOffset((prev) => Math.min(maxScrollOffset, prev + 1));
-    } else if (key.pageUp) {
-      setScrollOffset((prev) => Math.max(0, prev - availableLines));
-    } else if (key.pageDown) {
-      setScrollOffset((prev) => Math.min(maxScrollOffset, prev + availableLines));
-    } else if (input === 'g') {
-      // Go to top
-      setScrollOffset(0);
-    } else if (input === 'G') {
-      // Go to bottom
-      setScrollOffset(maxScrollOffset);
-    }
-  }, { isActive: process.stdin.isTTY && typeof process.stdin.setRawMode === 'function' });
+  useInput(
+    (input, key) => {
+      if (key.upArrow) {
+        setScrollOffset((prev) => Math.max(0, prev - 1));
+      } else if (key.downArrow) {
+        setScrollOffset((prev) => Math.min(maxScrollOffset, prev + 1));
+      } else if (key.pageUp) {
+        setScrollOffset((prev) => Math.max(0, prev - availableLines));
+      } else if (key.pageDown) {
+        setScrollOffset((prev) => Math.min(maxScrollOffset, prev + availableLines));
+      } else if (input === "g") {
+        // Go to top
+        setScrollOffset(0);
+      } else if (input === "G") {
+        // Go to bottom
+        setScrollOffset(maxScrollOffset);
+      }
+    },
+    { isActive: process.stdin.isTTY && typeof process.stdin.setRawMode === "function" },
+  );
 
   // Reset scroll offset if messages change and offset is out of bounds
   useEffect(() => {
@@ -261,14 +275,39 @@ const StatusDisplay: React.FC<StatusProps> = ({ messages }) => {
 
       <Box marginBottom={1} paddingX={1}>
         <Text>
-          Total: <Text bold color="cyan">{stats.total}</Text> |
-          Processing: <Text bold color="yellow">{stats.processing}</Text> |
-          Done: <Text bold color="green">{stats.done}</Text> |
-          Timeout: <Text bold color="magenta">{stats.timeout}</Text> |
-          Stopped: <Text bold color="gray">{stats.stopped}</Text> |
-          Errors: <Text bold color="red">{stats.error}</Text>
+          Total:{" "}
+          <Text bold color="cyan">
+            {stats.total}
+          </Text>{" "}
+          | Processing:{" "}
+          <Text bold color="yellow">
+            {stats.processing}
+          </Text>{" "}
+          | Done:{" "}
+          <Text bold color="green">
+            {stats.done}
+          </Text>{" "}
+          | Timeout:{" "}
+          <Text bold color="magenta">
+            {stats.timeout}
+          </Text>{" "}
+          | Stopped:{" "}
+          <Text bold color="gray">
+            {stats.stopped}
+          </Text>{" "}
+          | Errors:{" "}
+          <Text bold color="red">
+            {stats.error}
+          </Text>
           {messages.length > availableLines && (
-            <Text dimColor> | Viewing {scrollOffset + 1}-{Math.min(scrollOffset + availableLines, messages.length)}/{messages.length}{process.stdin.isTTY && typeof process.stdin.setRawMode === 'function' ? ' [↑↓ PgUp/PgDn g/G]' : ''}</Text>
+            <Text dimColor>
+              {" "}
+              | Viewing {scrollOffset + 1}-
+              {Math.min(scrollOffset + availableLines, messages.length)}/{messages.length}
+              {process.stdin.isTTY && typeof process.stdin.setRawMode === "function"
+                ? " [↑↓ PgUp/PgDn g/G]"
+                : ""}
+            </Text>
           )}
         </Text>
       </Box>
@@ -369,7 +408,7 @@ const StatusApp: React.FC = () => {
                   })
                   .catch(() => {
                     // Ignore errors
-                  })
+                  }),
               );
             }
 
@@ -386,7 +425,7 @@ const StatusApp: React.FC = () => {
                   })
                   .catch(() => {
                     // Ignore errors
-                  })
+                  }),
               );
             }
 
@@ -399,7 +438,7 @@ const StatusApp: React.FC = () => {
                   })
                   .catch(() => {
                     // Ignore parsing errors
-                  })
+                  }),
               );
             }
 
@@ -408,14 +447,16 @@ const StatusApp: React.FC = () => {
               const eventId = event.channel + "_" + event.ts;
               fetchPromises.push(
                 SlackBotState.get(`task-quick-respond-msg-${eventId}`)
-                  .then((respondMsg: { ts: string; text: string; channel?: string } | undefined) => {
-                    if (respondMsg) {
-                      quickRespondMsgCache.set(event.ts, respondMsg);
-                    }
-                  })
+                  .then(
+                    (respondMsg: { ts: string; text: string; channel?: string } | undefined) => {
+                      if (respondMsg) {
+                        quickRespondMsgCache.set(event.ts, respondMsg);
+                      }
+                    },
+                  )
                   .catch(() => {
                     // Ignore errors (message might not have response yet)
-                  })
+                  }),
               );
             }
 
@@ -477,7 +518,6 @@ const StatusApp: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
-
 
   return <StatusDisplay messages={messages} />;
 };

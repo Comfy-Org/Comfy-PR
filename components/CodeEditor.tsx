@@ -31,7 +31,7 @@ export default function CodeEditor({
       options={{ wordWrap: "on", readOnly: readOnly }}
       defaultLanguage={defaultLanguage}
       defaultValue={defaultValue}
-      onChange={function handleEditorChange(value, event) {
+      onChange={function handleEditorChange(value, _event) {
         onChange(value);
       }}
       onMount={function handleEditorDidMount(editor, monaco) {

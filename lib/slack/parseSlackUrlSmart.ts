@@ -95,7 +95,7 @@ export function parseSlackUrlSmart(url: string): ParsedSlackUrl {
       type: "unknown",
       url,
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       type: "unknown",
       url,

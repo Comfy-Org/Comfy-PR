@@ -20,7 +20,7 @@ type Email = {
   to: string;
 };
 
-type Sent = {
+type _Sent = {
   slack?: SlackMsg;
   emails?: Email[];
 };

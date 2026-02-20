@@ -11,7 +11,10 @@ const TYPE_PREFIX_RE = new RegExp(`^(${CC_TYPES})[/\\-](.+)$`);
 
 /** Normalize any branch name to prbot-[type]-[name] convention. */
 function normalizeProbotBranch(name: string): string {
-  const clean = name.trim().toLowerCase().replace(/[^a-z0-9-/]/g, "-");
+  const clean = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-/]/g, "-");
 
   // Already correct: prbot-feat-xxx
   if (PRBOT_PREFIX_RE.test(clean)) return clean;

@@ -8,7 +8,7 @@ if (import.meta.main) {
 }
 export async function updateCMRepos() {
   await CMNodes.createIndex({ repo_id: 1 });
-  return await pMap(CMNodes.find({ repo_id: { $exists: false } }), async (cm, i) => {
+  return await pMap(CMNodes.find({ repo_id: { $exists: false } }), async (cm, _i) => {
     const { reference: repository, _id } = cm;
     return await CNRepos.updateOne(
       { repository },

@@ -69,11 +69,13 @@ const save = async (task: { tagName: string } & Partial<GithubCoreTagNotificatio
     tagName: normalizedTask.tagName,
   });
 
-  return (await GithubCoreTagNotificationTask.findOneAndUpdate(
-    existing ? { _id: existing._id } : { tagName: normalizedTask.tagName },
-    { $set: normalizedTask },
-    { upsert: true, returnDocument: "after" },
-  )) || DIE("never");
+  return (
+    (await GithubCoreTagNotificationTask.findOneAndUpdate(
+      existing ? { _id: existing._id } : { tagName: normalizedTask.tagName },
+      { $set: normalizedTask },
+      { upsert: true, returnDocument: "after" },
+    )) || DIE("never")
+  );
 };
 
 if (import.meta.main) {

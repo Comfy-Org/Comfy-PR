@@ -10,17 +10,17 @@ import {
 import type { Update as UpdateAt } from "ts-toolbelt/out/Object/P/Update";
 import type { Split } from "ts-toolbelt/out/String/Split";
 import type { AllPath } from "./AllPath";
-type FieldPath<T extends unknown> = string;
-type FieldArrayPath<T extends unknown> = string;
-type FieldArrayPathValue<T extends unknown, P extends string> = unknown[];
-type FieldPathValue<T extends unknown, P extends string> = unknown;
-type $Path<S extends Document, P extends string = string> = `$${AllPath<S>}`;
-type PathOf$Path<P extends string> = P extends `$${infer Path}` ? Path : never;
+type _FieldPath<_T extends unknown> = string;
+type _FieldArrayPath<_T extends unknown> = string;
+type _FieldArrayPathValue<_T extends unknown, _P extends string> = unknown[];
+type _FieldPathValue<_T extends unknown, _P extends string> = unknown;
+type $Path<S extends Document, _P extends string = string> = `$${AllPath<S>}`;
+type _PathOf$Path<P extends string> = P extends `$${infer Path}` ? Path : never;
 // type DeepRecord<Path extends string, Value> = Path extends `${infer Head}.${infer Tail}`
 //   ? { [K in Head]: DeepRecord<Tail, Value> }
 //   : { [K in Path]: Value };
-type $Value<S extends Document, P extends string = string> = unknown;
-type Expression<S extends Document> = unknown;
+type $Value<_S extends Document, _P extends string = string> = unknown;
+type Expression<_S extends Document> = unknown;
 type $Set<S extends Document> = {
   [P in keyof S]?: Expression<S>;
 } & Record<string, Expression<S>>;
@@ -30,7 +30,7 @@ type $SetResult<S extends Document, Set extends $Set<S>> = S & {
 type $Unset<S extends Document> = {
   [P in keyof S]?: 1 | 0;
 };
-type $UnsetResult<S extends Document, Unset extends $Unset<S>> = S & {
+type _$UnsetResult<S extends Document, Unset extends $Unset<S>> = S & {
   [P in keyof Unset & keyof S]?: Unset[P] extends 1 ? never : S[P];
 };
 type $Project<S extends Document> = { _id?: 1 | 0 } & {

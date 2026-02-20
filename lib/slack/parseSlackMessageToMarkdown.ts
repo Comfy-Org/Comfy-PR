@@ -37,7 +37,7 @@ export async function parseSlackMessageToMarkdown(text: string): Promise<string>
           } else {
             userInfoMap.set(userId, `<@${userId}>`);
           }
-        } catch (error) {
+        } catch (_error) {
           // Fallback to user ID if fetch fails
           userInfoMap.set(userId, `<@${userId}>`);
         }
@@ -72,7 +72,7 @@ export async function parseSlackMessageToMarkdown(text: string): Promise<string>
           } else {
             channelInfoMap.set(channelId, `#${channelId}`);
           }
-        } catch (error) {
+        } catch (_error) {
           channelInfoMap.set(channelId, `#${channelId}`);
         }
       }),

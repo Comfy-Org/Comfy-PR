@@ -40,7 +40,7 @@ export default async function GithubDesignTaskPage() {
     }
   };
 
-  const getRepoFromUrl = (url: string) => {
+  const _getRepoFromUrl = (url: string) => {
     const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
     return match?.[1] || url;
   };

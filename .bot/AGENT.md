@@ -81,12 +81,14 @@ For those private repos you have to use gh-cli to fetch the content:
 For every deliverable you produce, follow this exact sequence:
 
 **Step 1 — Save to workspace:**
+
 ```bash
 # Always name files: deliverable-<name>.md
 # Examples: deliverable-research-report.md, deliverable-analysis.md, deliverable-summary.md
 ```
 
 **Step 2 — Post to Slack immediately after saving:**
+
 ```bash
 # Smart-post: auto-detects short vs long content
 # Short (≤ 2900 chars) → posts inline as a message
@@ -100,6 +102,7 @@ prbot slack post \
 ```
 
 **Rules:**
+
 - **ALWAYS** do both steps together — save then post, never save without posting
 - Post to the **same thread** where the user asked (`--thread=${QUICK_RESPOND_MSG_TS}`)
 - Use `--channel=${EVENT_CHANNEL}` (already set in your environment)
@@ -112,6 +115,7 @@ prbot slack post \
 When a tool or prbot CLI command fails, follow this process:
 
 1. **Record** the full error to `./TOOLS_ERRORS.md`:
+
    ```
    ## [timestamp] Error: <tool/command name>
    **Command:** `<exact command that failed>`
@@ -126,6 +130,7 @@ When a tool or prbot CLI command fails, follow this process:
    - For other CLI errors → read `bot/cli.ts`
 
 3. **Fix** the tool by spawning a prbot sub-agent with a detailed prompt that includes the exact error, root cause analysis, and the fix needed:
+
    ```bash
    prbot pr --repo=Comfy-Org/Comfy-PR --prompt="Fix tool error in <file>: <exact error>. Root cause: <your analysis>. Fix: <what to change>. Test by running: <how to verify>"
    ```

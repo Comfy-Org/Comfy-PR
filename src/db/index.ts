@@ -66,4 +66,4 @@ if (import.meta.main) {
   );
 }
 
-export { $flatten as $flatten, $fresh, $stale };
+export { $flatten, $fresh, $stale };

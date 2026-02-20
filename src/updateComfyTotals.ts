@@ -36,7 +36,7 @@ export async function updateComfyTotals({ notify = true, fresh = "30m" } = {}) {
         .otherwise(() => null);
   }
 
-  const insertResult = await Totals.insertOne({ totals });
+  const _insertResult = await Totals.insertOne({ totals });
   return [
     tsmatch(totals)
       .with($OK, ({ data }) => data)

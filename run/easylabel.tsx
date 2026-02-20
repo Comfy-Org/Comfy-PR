@@ -85,11 +85,13 @@ const saveTask = async (task: Partial<GithubIssueLabelOps> & { target_url: strin
     $or: [{ target_url: normalizedTask.target_url }, { target_url: oldUrl }],
   });
 
-  return (await GithubIssueLabelOps.findOneAndUpdate(
-    existing ? { _id: existing._id } : { target_url: normalizedTask.target_url },
-    { $set: normalizedTask },
-    { upsert: true, returnDocument: "after" },
-  )) || DIE("fail to save task");
+  return (
+    (await GithubIssueLabelOps.findOneAndUpdate(
+      existing ? { _id: existing._id } : { target_url: normalizedTask.target_url },
+      { $set: normalizedTask },
+      { upsert: true, returnDocument: "after" },
+    )) || DIE("fail to save task")
+  );
 };
 
 if (import.meta.main) {
@@ -155,7 +157,7 @@ async function runLabelOpPolling() {
  * It's safe to run multiple time as it's idempotent.
  *
  */
-async function runLabelOpInitializeScan() {
+async function _runLabelOpInitializeScan() {
   console.log(chalk.bgBlue("Start Label Ops Initialization Scan..."));
   await sflow(cfg.REPOLIST)
     .map((repoUrl) =>

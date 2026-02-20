@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { slack } from "@/lib";
 import { parseArgs } from "util";
-import fs from "fs";
 
 /**
  * Upload a file to Slack

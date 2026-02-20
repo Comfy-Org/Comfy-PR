@@ -7,7 +7,6 @@ import { pageFlow } from "sflow";
 import sflow from "sflow";
 import { parseSlackMessageToMarkdown } from "./parseSlackMessageToMarkdown";
 import { slackTsToISO } from "./slackTsToISO";
-import yaml from "yaml";
 
 const BOT_USER_ID = process.env.SLACK_BOT_USER_ID || "U078499LK5K"; // ComfyPR-Bot user ID
 const DAILY_UPDATES_CHANNEL = "daily-updates";
