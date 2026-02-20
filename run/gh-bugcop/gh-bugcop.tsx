@@ -492,8 +492,9 @@ async function processIssue(issue: GH["issue"]) {
 
   const latestLabeledEvent = lastLabeled(BUGCOP_ASKING_FOR_INFO) || lastLabeled(BUGCOP_ANSWERED);
   if (!latestLabeledEvent) {
-    lastLabeled(BUGCOP_RESPONSE_RECEIVED) ||
+    if (!lastLabeled(BUGCOP_RESPONSE_RECEIVED)) {
       DIE`No labeled event found, this should not happen since we are filtering issues by those label, ${JSON.stringify(task.labels)}`;
+    }
 
     return task;
   }
@@ -541,8 +542,8 @@ async function processIssue(issue: GH["issue"]) {
   ); // remove the triggering label if it exists on the issue
 
   if (isResponseReceived) {
-    addLabels.length && console.log(chalk.bgBlue("Adding:"), addLabels);
-    removeLabels.length && console.log(chalk.bgBlue("Removing:"), removeLabels);
+    if (addLabels.length) console.log(chalk.bgBlue("Adding:"), addLabels);
+    if (removeLabels.length) console.log(chalk.bgBlue("Removing:"), removeLabels);
   }
 
   if (isDryRun) return task;

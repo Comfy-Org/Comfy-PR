@@ -56,11 +56,12 @@ export async function getGCloudOAuth2Client({
   const auth = await getAuthenticatedClient({
     scope: scopes,
     authorize: async (authorizeUrl) => {
-      fromUrl &&
-        (await GCloudOAuth2Credentials.updateOne(
+      if (fromUrl) {
+        await GCloudOAuth2Credentials.updateOne(
           { email, scopes: { $all: scopes } },
           { $set: { fromUrl } },
-        ));
+        );
+      }
       const cred = await GCloudOAuth2Credentials.findOne({
         email,
         scopes: { $all: scopes },
@@ -95,7 +96,7 @@ export async function handleGCloudOAuth2Callback(req: Request, redirect?: Redire
     { $set: { credentials, scopes } },
     { upsert: true, returnDocument: "after" },
   );
-  cred?.fromUrl && (await redirect?.(cred.fromUrl)); // redirect user back if possible
+  if (cred?.fromUrl) await redirect?.(cred.fromUrl); // redirect user back if possible
   return new Response(`Authentication for ${email} was successful!`);
 }
 

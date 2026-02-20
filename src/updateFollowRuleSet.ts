@@ -56,7 +56,7 @@ export async function updateFollowRuleSet({
   return await (async function () {
     if (enable === false) {
       await FollowRuleSets.updateOne({ name }, { $set: { enabled: false, yamlWhenEnabled: "" } });
-      DIE`ruleset is disabled, no need to run`;
+      throw new Error("ruleset is disabled, no need to run");
     }
 
     // must parse while run, because the date in code is dynamic generated
@@ -86,14 +86,13 @@ export async function updateFollowRuleSet({
             const comments = await fetchIssueComments(repository, { number: pull_number })
               .then(TaskOK)
               .catch(TaskError);
-            (
-              await CNRepos.updateOne(
-                $flatten({ repository, crPulls: { data: { pull: { html_url } } } }),
-                {
-                  $set: { "crPulls.data.$.comments": comments },
-                },
-              )
-            ).matchedCount ?? DIE("pre-matched comments is not found");
+            const updateResult = await CNRepos.updateOne(
+              $flatten({ repository, crPulls: { data: { pull: { html_url } } } }),
+              {
+                $set: { "crPulls.data.$.comments": comments },
+              },
+            );
+            if (!updateResult.matchedCount) DIE("pre-matched comments is not found");
           });
         }
 

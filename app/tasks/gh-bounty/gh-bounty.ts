@@ -91,11 +91,12 @@ export default async function runGithubBountyTask() {
         )
       ) {
         console.log(`Adding label 'Bounty' to issue ${issue.html_url}`);
-        !isDryRun &&
-          (await gh.issues.addLabels({
+        if (!isDryRun) {
+          await gh.issues.addLabels({
             ...parseIssueUrl(issue.html_url),
             labels: ["Bounty"],
-          }));
+          });
+        }
       }
 
       // add comment
@@ -105,30 +106,33 @@ export default async function runGithubBountyTask() {
       if (outdatedComment) {
         if (outdatedComment.user?.login === (await ghUser()).login) {
           console.log(`Updating comment in issue ${issue.html_url}`);
-          !isDryRun &&
-            (await gh.issues.updateComment({
+          if (!isDryRun) {
+            await gh.issues.updateComment({
               ...parseIssueUrl(issue.html_url),
               comment_id: outdatedComment.id,
               body: bountyMessage,
-            }));
+            });
+          }
         }
       } else if (!comments.data.some((c) => c.body === bountyMessage)) {
         console.log(`Adding comment to issue ${issue.html_url}`);
-        !isDryRun &&
-          (await gh.issues.createComment({
+        if (!isDryRun) {
+          await gh.issues.createComment({
             ...parseIssueUrl(issue.html_url),
             body: bountyMessage,
-          }));
+          });
+        }
       }
       console.log(`Issue ${issue.html_url} processed successfully.`);
 
       // mark this issue as done in db.
-      !isDryRun &&
-        (await GithubBountyTask.updateOne(
+      if (!isDryRun) {
+        await GithubBountyTask.updateOne(
           { issueUrl: issue.html_url },
           { $set: { status: "done-2025-05-29" } },
           { upsert: true },
-        ));
+        );
+      }
     })
     .run();
   console.log("All issues processed successfully.");

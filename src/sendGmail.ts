@@ -91,9 +91,9 @@ export async function sendGmail({
   msg.setSender({ name: name, addr: from });
   msg.setRecipient(to);
   msg.setSubject(subject);
-  text && msg.addMessage({ contentType: "text/plain", data: text });
-  html && msg.addMessage({ contentType: "text/html", data: html });
-  text || html || DIE("Missing msg body");
+  if (text) msg.addMessage({ contentType: "text/plain", data: text });
+  if (html) msg.addMessage({ contentType: "text/html", data: html });
+  if (!text && !html) DIE("Missing msg body");
 
   const result = await new GoogleApis().gmail("v1").users.messages.send({
     auth,

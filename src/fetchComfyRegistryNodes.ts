@@ -36,6 +36,6 @@ export async function fetchCRNodes(): Promise<
   const r = (await fetchJson<typeof mockPublishedNodes>(
     "https://api.comfy.org/nodes?page=1&limit=99999999",
   )) as typeof mockPublishedNodes;
-  r.totalPages === 1 || DIE("FAIL TO FETCH ALL NODES");
+  if (r.totalPages !== 1) DIE("FAIL TO FETCH ALL NODES");
   return r.nodes;
 }

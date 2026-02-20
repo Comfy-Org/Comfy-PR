@@ -51,8 +51,8 @@ export async function getAuthenticatedClient({
     const tokens = (await getOAuth2Client().getToken(code)).tokens;
     // console.log("got token ", tokens);
     const oAuth2Client = getOAuth2Client();
-    tokens.access_token || DIE("missing access_token");
-    tokens.refresh_token || DIE("missing refresh_token");
+    if (!tokens.access_token) DIE("missing access_token");
+    if (!tokens.refresh_token) DIE("missing refresh_token");
     oAuth2Client.setCredentials(tokens);
     return oAuth2Client;
   }
@@ -60,8 +60,8 @@ export async function getAuthenticatedClient({
     const tokens = cred;
     // console.log("got token ", tokens);
     const oAuth2Client = getOAuth2Client();
-    tokens.access_token || DIE("missing access_token");
-    tokens.refresh_token || DIE("missing refresh_token");
+    if (!tokens.access_token) DIE("missing access_token");
+    if (!tokens.refresh_token) DIE("missing refresh_token");
     oAuth2Client.setCredentials(tokens);
     return oAuth2Client;
   }

@@ -29,7 +29,8 @@ export function ApprovePRButton(e: { repo: string; branchVersionHash?: string })
             btns[btns.indexOf(e.currentTarget) + offset]?.scrollIntoView({ block: "start" });
             btns[btns.indexOf(e.currentTarget) + offset]?.focus();
 
-            (e.stopPropagation(), e.preventDefault());
+            e.stopPropagation();
+            e.preventDefault();
           };
           if (isHotkey("ArrowUp")(e)) mv(-1);
           if (isHotkey("ArrowDown")(e)) mv(1);
