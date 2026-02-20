@@ -1,7 +1,6 @@
 #!/usr/bin/env bun --watch
 import { anthropic } from "@ai-sdk/anthropic";
-import { generateText, streamText, tool } from "ai";
-import { sleep } from "bun";
+import { streamText, tool } from "ai";
 import { fromWritable } from "from-node-stream";
 import sflow from "sflow";
 import { z } from "zod";

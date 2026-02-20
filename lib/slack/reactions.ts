@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 import { slack } from "@/lib";
-import DIE from "@snomiao/die";
 import { parseArgs } from "util";
 import yaml from "yaml";
 import { parseSlackUrl } from "./parseSlackUrl";

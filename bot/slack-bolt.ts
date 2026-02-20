@@ -7,20 +7,11 @@
  * instead of raw SocketModeClient
  */
 import { App, LogLevel } from "@slack/bolt";
-import type {
-  AllMiddlewareArgs,
-  SlackEventMiddlewareArgs,
-  BlockAction,
-  SlackActionMiddlewareArgs,
-} from "@slack/bolt";
 import { slack, slackCached } from "@/lib";
 import winston from "winston";
 import { parseSlackMessageToMarkdown } from "@/lib/slack/parseSlackMessageToMarkdown";
 import sflow from "sflow";
 import {
-  jsonSchema,
-  parseJsonEventStream,
-  stepCountIs,
   streamText,
   tool,
   type ModelMessage,
@@ -28,7 +19,7 @@ import {
 } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { tsmatch } from "@/packages/mongodb-pipeline-ts/Task";
-import { tap, type } from "rambda";
+// tap and type imports removed (unused)
 import { DIE } from "@snomiao/die";
 import KeyvNedbStore from "keyv-nedb-store";
 import { Keyv } from "keyv";
@@ -38,9 +29,7 @@ import deferClose from "defer-close";
 import { throttle } from "lodash-es";
 import { compareBy } from "comparing";
 import { z } from "zod";
-import { getConsoleLocation } from "next/dist/server/dev/browser-logs/source-map";
 import { yaml } from "@/src/utils/yaml";
-import { SHA256 } from "bun";
 import { formatMessage, formatMessages } from "@/lib/ai/format-message";
 
 const SlackReplies = new Keyv<{
@@ -526,7 +515,7 @@ export async function startSlackBoltApp() {
       );
 
       await upsertReply([]);
-      const respId = `resp-${Date.now()}`;
+      const _respId = `resp-${Date.now()}`;
 
       // read replies if have thread_ts, else read channel history.
       const thread_ts =
@@ -634,10 +623,10 @@ ${(await SlackUserPreferences.get(userinfo.user?.id || ""))?.preferences || "# N
                 //   arguments: {},
                 // });
               })
-              .with({ type: "tool-input-delta" }, (e) => {
+              .with({ type: "tool-input-delta" }, (_e) => {
                 // ui.findLast((u) => u.id === e.id)!.text += e.delta;
               })
-              .with({ type: "tool-input-end" }, (e) => {
+              .with({ type: "tool-input-end" }, (_e) => {
                 // ui.findLast((u) => u.id === e.id)!.status = "done";
               })
               // .with({ type: "file" }, async (f) => {

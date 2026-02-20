@@ -10,13 +10,12 @@ import { slack } from "@/lib";
 import { yaml } from "@/src/utils/yaml";
 import { SocketModeClient } from "@slack/socket-mode";
 import {} from "@slack/bolt";
-import Slack from "@slack/web-api";
 import DIE from "@snomiao/die";
-import { exec, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { compareBy } from "comparing";
-import { fromStdio, fromWritable } from "from-node-stream";
+import { fromStdio } from "from-node-stream";
 import { mkdir } from "fs/promises";
-import sflow, { pageFlow } from "sflow";
+import sflow from "sflow";
 import winston from "winston";
 // @ts-ignore
 import zChatCompletion from "z-chat-completion";
@@ -26,18 +25,14 @@ import { RestartManager } from "./RestartManager";
 import { parseSlackMessageToMarkdown } from "@/lib/slack/parseSlackMessageToMarkdown";
 import { slackTsToISO } from "@/lib/slack/slackTsToISO";
 import { safeSlackPostMessage, safeSlackUpdateMessage } from "@/lib/slack/safeSlackMessage";
-import { tap } from "rambda";
 import { slackMessageUrlParse } from "@/app/tasks/gh-design/slackMessageUrlParse";
-import { execa, execaCommand } from "execa";
 import { TerminalTextRender } from "terminal-render";
 import minimist from "minimist";
 import { loadClaudeMd, loadSkills } from "./templateLoader";
 import path from "path";
 import { appendFile } from "fs/promises";
-import { existsSync } from "fs";
 import fsp from "fs/promises";
 import { mdFmt } from "@/app/tasks/gh-desktop-release-notification/upsertSlackMessage";
-import { getSlackChannel } from "@/lib/slack/channels";
 import { getSlackChannelName } from "@/lib/slack";
 import { SlackBotState } from "./state";
 import { ErrorCollector } from "./error-collector";
@@ -1066,7 +1061,10 @@ IMPORTANT WORKSPACE CONVENTIONS:
   })();
 
   // Write initial status
-  await Bun.write(statusLogPath, `Started: ${new Date().toISOString()}\nPID: ${sh.pid}\nStatus: Running\nLog: ${stdoutLogPath}\n`);
+  await Bun.write(
+    statusLogPath,
+    `Started: ${new Date().toISOString()}\nPID: ${sh.pid}\nStatus: Running\nLog: ${stdoutLogPath}\n`,
+  );
 
   const isDebugMode = process.env.DEBUG === "true" || process.env.DEBUG === "1";
 
@@ -1082,10 +1080,12 @@ IMPORTANT WORKSPACE CONVENTIONS:
   const errorCollector = new ErrorCollector({
     workspaceDir: botWorkingDir,
     outputLogPath: errorLogPath,
-    onError: isDebugMode ? (errorPath, content) => {
-      logger.warn(`⚠️  Error detected in workspace: ${errorPath}`);
-      logger.warn(`Error content preview: ${content.substring(0, 500)}...`);
-    } : undefined,
+    onError: isDebugMode
+      ? (errorPath, content) => {
+          logger.warn(`⚠️  Error detected in workspace: ${errorPath}`);
+          logger.warn(`Error content preview: ${content.substring(0, 500)}...`);
+        }
+      : undefined,
     checkInterval: 10000, // Check every 10 seconds
   });
   await errorCollector.start();
@@ -1333,7 +1333,10 @@ ${yaml.stringify(contexts)}
 
   // Update final status
   const finalStatus = exitCode === 0 ? "Completed Successfully" : `Failed (exit code ${exitCode})`;
-  await Bun.write(statusLogPath, `Started: ${new Date().toISOString()}\nPID: ${sh.pid}\nStatus: ${finalStatus}\nExit Code: ${exitCode}\nEnded: ${new Date().toISOString()}\nLogs: ${stdoutLogPath}\nErrors: ${errorLogPath}\n`).catch(() => {});
+  await Bun.write(
+    statusLogPath,
+    `Started: ${new Date().toISOString()}\nPID: ${sh.pid}\nStatus: ${finalStatus}\nExit Code: ${exitCode}\nEnded: ${new Date().toISOString()}\nLogs: ${stdoutLogPath}\nErrors: ${errorLogPath}\n`,
+  ).catch(() => {});
 
   if (exitCode !== 0) {
     logger.error(`claude-yes process for task ${workspaceId} exited with code ${exitCode}`);

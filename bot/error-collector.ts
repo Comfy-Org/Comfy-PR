@@ -2,7 +2,6 @@
  * Error Collector - Monitors child workspace for errors and collects them
  */
 
-import { watch } from "fs";
 import { readdir, readFile, appendFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
@@ -65,7 +64,7 @@ export class ErrorCollector {
     }
   }
 
-  private async findAndProcessErrors(pattern: string) {
+  private async findAndProcessErrors(_pattern: string) {
     try {
       // Simple glob-like search - check common locations
       const logsDir = path.join(this.workspaceDir, ".logs");

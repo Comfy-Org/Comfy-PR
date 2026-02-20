@@ -1,20 +1,14 @@
 #!/usr/bin/env bun --hot
 import { db } from "@/src/db";
-import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import DIE from "@snomiao/die";
 import isCI from "is-ci";
 import sflow from "sflow";
-import {
-  upsertSlackMarkdownMessage,
-  upsertSlackMessage,
-} from "../gh-desktop-release-notification/upsertSlackMessage";
+import { upsertSlackMarkdownMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
 import urlRegexSafe from "url-regex-safe";
 import { ghc } from "@/lib/github/githubCached";
 import { logger } from "@/src/logger";
-import { map, maxLength } from "zod";
 import prettier from "prettier";
-import { slackBot } from "@/lib/slack";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { match as tsmatch } from "ts-pattern";
 
@@ -318,7 +312,7 @@ async function processTask(
             labels.filter((l) => config.reBackportTargets.test(l)),
           )
             // only when this pr is needed to backport
-            .filter((e) => backportStatusRaw === "needed")
+            .filter((_e) => backportStatusRaw === "needed")
             // only when this branch is in PR labels
             .filter((branchName) =>
               labels.some((l) => l.toLowerCase().includes(branchName.toLowerCase())),
@@ -491,7 +485,7 @@ ${
         e.backportTargetStatus?.length &&
         e.backportTargetStatus.every((e) => e.status === "completed"),
     )
-    .filter((e) => false)
+    .filter((_e) => false)
     // .filter((e) => false) // show nothing for now
     .map((bf) => {
       const targetsStatuses = bf.backportTargetStatus
