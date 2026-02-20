@@ -23,7 +23,7 @@ export async function createComfyRegistryPullRequests(upstreamRepoUrl: string) {
   const PR_REQUESTS = await clone_modify_push_Branches(upstreamRepoUrl, forkedRepo.html_url);
   const prs = await pMap(
     PR_REQUESTS,
-    async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }),
+    async ({ type: _type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }),
   );
 
   console.log("Registry PRs DONE");

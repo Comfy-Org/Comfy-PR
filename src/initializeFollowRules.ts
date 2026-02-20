@@ -6,7 +6,7 @@ import { createLogger } from "./logger";
 const logger = createLogger("initializeFollowRules");
 
 if (import.meta.main) {
-  const followRules = await initializeFollowRules();
+  const _followRules = await initializeFollowRules();
   const ruleset =
     (await FollowRuleSets.findOne({ name: "default" })) ?? DIE("default ruleset not found");
   if (!ruleset?.enabled) DIE("default ruleset not enabled");

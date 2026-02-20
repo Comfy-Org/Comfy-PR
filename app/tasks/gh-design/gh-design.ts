@@ -171,7 +171,7 @@ export async function runGithubDesignTask() {
   // console.log("Using Slack message template:", JSON.stringify(slackMessageTemplate));
 
   // Start processing design items
-  const designItemsFlow = await sflow(REPOURLS)
+  const _designItemsFlow = await sflow(REPOURLS)
     .map((url) =>
       ghPageFlow(gh.issues.listForRepo)({
         ...parseGithubRepoUrl(url),

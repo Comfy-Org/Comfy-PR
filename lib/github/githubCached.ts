@@ -65,7 +65,7 @@ async function getKeyv() {
         store: new KeyvSqlite(CACHE_FILE),
         ttl: DEFAULT_TTL,
       });
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       // If SQLite fails, silently fall back to in-memory cache
       // This is expected when running from directories without write access
       keyv = new Keyv({

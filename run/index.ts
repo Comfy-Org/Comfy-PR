@@ -32,15 +32,15 @@ interface RepoMonitorState {
 type WebhookIssue = GH[`webhook-issues-${string}` & keyof GH];
 type WebhookIssueComment = GH[`webhook-issue-comment-${string}` & keyof GH];
 type WebhookPullRequest = GH[`webhook-pull-request-${string}` & keyof GH];
-type WebhookPullRequestReview = GH[`webhook-pull-request-review${string}` & keyof GH];
-type WebhookPullRequestReviewComment = GH[`webhook-pull-request-review-comment-${string}` &
+type _WebhookPullRequestReview = GH[`webhook-pull-request-review${string}` & keyof GH];
+type _WebhookPullRequestReviewComment = GH[`webhook-pull-request-review-comment-${string}` &
   keyof GH];
-type HaveBody<T> = T extends { issue: { body: string } } ? T : never;
-type test = HaveBody<GH[`webhook-${string}-${string}` & keyof GH]>;
-type WebhookAll = GH[`webhook-${string}-${string}` & keyof GH];
+type _HaveBody<T> = T extends { issue: { body: string } } ? T : never;
+type _test = _HaveBody<GH[`webhook-${string}-${string}` & keyof GH]>;
+type _WebhookAll = GH[`webhook-${string}-${string}` & keyof GH];
 // Extract webhook payloads that include textual bodies on issue or pull_request
-type WebhookIntersection = UnionToIntersection<{ a: 1 } | { b: 1 }>;
-type Webhook =
+type _WebhookIntersection = UnionToIntersection<{ a: 1 } | { b: 1 }>;
+type _Webhook =
   | WebhookIssue
   | WebhookIssueComment
   | WebhookPullRequest // including review comment
@@ -161,7 +161,7 @@ class RepoEventMonitor {
   }
 
   private async handleWebhookEvent(eventMap: WebhookEventMap) {
-    const timestamp = this.formatTimestamp();
+    const _timestamp = this.formatTimestamp();
     match(eventMap)
       .with({ issue_comment: P.select() }, async ({ issue, comment }) =>
         processIssueCommentForLableops({

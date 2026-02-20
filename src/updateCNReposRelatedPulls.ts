@@ -13,7 +13,7 @@ export async function updateCNReposRelatedPulls() {
   await CNRepos.createIndex({ "pulls.state": 1, "crPulls.mtime": 1 });
   return await pMap(
     CNRepos.find($flatten({ pulls: { state: "ok" }, crPulls: { mtime: $stale("1d") } })),
-    async (repo, i) => {
+    async (repo, _i) => {
       const { repository } = repo;
       const pulls = match(repo.pulls)
         .with($OK, (e) => e.data)

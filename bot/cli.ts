@@ -58,7 +58,7 @@ async function loadEnvLocal() {
         }
       }
     });
-  } catch (e) {
+  } catch (_e) {
     // .env.local doesn't exist or can't be read, continue anyway
   }
 }
@@ -377,14 +377,32 @@ async function main() {
           "Smart-post: short text as a message, long markdown as a file upload (auto-detected at 2900 chars)",
           (y) =>
             y
-              .option("channel", { alias: "c", type: "string", demandOption: true, describe: "Channel ID" })
-              .option("text", { alias: "m", type: "string", describe: "Text to post (or omit to read --file)" })
-              .option("file", { alias: "f", type: "string", describe: "File path to read content from" })
+              .option("channel", {
+                alias: "c",
+                type: "string",
+                demandOption: true,
+                describe: "Channel ID",
+              })
+              .option("text", {
+                alias: "m",
+                type: "string",
+                describe: "Text to post (or omit to read --file)",
+              })
+              .option("file", {
+                alias: "f",
+                type: "string",
+                describe: "File path to read content from",
+              })
               .option("title", { type: "string", describe: "Title used when uploading as a file" })
               .option("comment", { type: "string", describe: "Comment to accompany file upload" })
-              .option("thread", { alias: "t", type: "string", describe: "Thread timestamp to reply in" })
+              .option("thread", {
+                alias: "t",
+                type: "string",
+                describe: "Thread timestamp to reply in",
+              })
               .check((argv) => {
-                if (!argv.text && !argv.file) throw new Error("Either --text or --file is required");
+                if (!argv.text && !argv.file)
+                  throw new Error("Either --text or --file is required");
                 return true;
               }),
           async (args) => {

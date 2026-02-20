@@ -50,7 +50,7 @@ import KeyvNedbStore from "keyv-nedb-store";
 import KeyvNest from "keyv-nest";
 import sflow, { pageFlow } from "sflow";
 
-const DEBUG_CACHE = !!process.env.VERBOSE;
+const _DEBUG_CACHE = !!process.env.VERBOSE;
 
 type IssuesState = {
   page_id?: string;
@@ -305,7 +305,7 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
       .map((ev) => ({ name: ev.label.name, created_at: ev.created_at }))
       ?.at(-1)?.created_at || null;
   const desiredNotionPriority =
-    Object.entries(notionPriorityToGithubLabelsMap).find(([k, v]) =>
+    Object.entries(notionPriorityToGithubLabelsMap).find(([_k, v]) =>
       currentPriorityLabels.includes(v),
     )?.[0] || null; // when multiple exists, pick highest priority
   const desiredPriorityLabels = Priority ? [mapNotionPriorityToGithubLabel(Priority)] : [];
@@ -340,8 +340,9 @@ async function ComfyTaskPrioritySync(e: Notion.PageObjectResponse) {
       );
 
       // labels op
-      addLabels.length &&
-        (await github.rest.issues.addLabels({ ...parseIssueUrl(issueUrl), labels: addLabels }));
+      if (addLabels.length) {
+        await github.rest.issues.addLabels({ ...parseIssueUrl(issueUrl), labels: addLabels });
+      }
       await sflow(removeLabels)
         .map((l) => github.rest.issues.removeLabel({ ...parseIssueUrl(issueUrl), name: l }))
         .run();
@@ -537,7 +538,7 @@ async function repoIssueLabelsFlow(
           updatedAt: issue.updatedAt,
           state: issue.state,
         });
-        issue.updatedAt && (await State.set(checkpointKey, issue.updatedAt));
+        if (issue.updatedAt) await State.set(checkpointKey, issue.updatedAt);
       })
       // flat the info for further processing
       .map((issue) => {

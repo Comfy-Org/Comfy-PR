@@ -36,7 +36,7 @@ export async function updateAuthorsForGithub() {
     )
     .map((e) => TaskDataOrNull(e))
     .filter()
-    .map(({ email, avatar_url, blog, updated_at, location, company, hireable, bio, login }) =>
+    .map(({ email, avatar_url: _avatar_url, blog: _blog, updated_at: _updated_at, location: _location, company: _company, hireable, bio, login }) =>
       Authors.findOneAndUpdate(
         { githubId: login },
         {

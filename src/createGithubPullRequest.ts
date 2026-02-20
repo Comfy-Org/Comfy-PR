@@ -13,7 +13,7 @@ if (import.meta.main) {
   const dstUrl = "https://github.com/54rt1n/ComfyUI-DareMerge";
   const src = parseGithubRepoUrl(srcUrl);
   const dst = parseGithubRepoUrl(dstUrl);
-  const branch = "licence-update";
+  const _branch = "licence-update";
   const repo = (await gh.repos.get({ ...dst })).data;
   const head_repo = `${src.owner}/${src.repo}`;
   // const head = `${src.owner}:${branch}`;
@@ -102,7 +102,7 @@ export async function createGithubPullRequest({
 
   // // TODO: seems has bugs on head_repo
 
-  sameContentPRList.length <= 1 ||
+  if (sameContentPRList.length > 1) {
     DIE(
       new Error(`expect <= 1 same content pr, but got ${sameContentPRList.length}`, {
         cause: {
@@ -110,6 +110,7 @@ export async function createGithubPullRequest({
         },
       }),
     );
+  }
 
   const pr_result =
     // existedList[0] ??
@@ -148,7 +149,7 @@ export async function createGithubPullRequest({
           })
         ).data; // .filter(existed => existed.title === title);
 
-        existedList.length === 1 ||
+        if (existedList.length !== 1) {
           DIE(
             new Error("expect only 1 pr, but got " + existedList.length, {
               cause: {
@@ -165,6 +166,7 @@ export async function createGithubPullRequest({
               },
             }),
           );
+        }
 
         return existedList[0];
       });

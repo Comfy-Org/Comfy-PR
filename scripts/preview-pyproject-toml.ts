@@ -72,7 +72,7 @@ async function previewPyprojectToml() {
           );
         }
       }
-    } catch (e) {
+    } catch (_e) {
       console.log("\n💡 Note: Could not fetch description from ComfyUI-Manager database");
     }
 

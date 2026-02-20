@@ -30,7 +30,7 @@ const LicenseTasks = db.collection<LicenseUpdateTask>("LicenseTasks");
 await LicenseTasks.createIndex({ repository: 1 }, { unique: true });
 
 if (import.meta.main) {
-  const testMapping = {
+  const _testMapping = {
     [`license = "MIT"`]: `license = { text = "MIT" }`,
     [`license = "LICENSE.txt"`]: `license = { file = "LICENSE.txt" }`,
   };
@@ -128,7 +128,7 @@ async function createTomlLicensePR(upstreamUrl: string): Promise<GithubPull> {
         srcUrl: forkUrl,
         dstUrl: upstreamUrl,
       }))
-      .map(async ({ type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }))
+      .map(async ({ type: _type, ...prInfo }) => await createGithubPullRequest({ ...prInfo }))
       .forEach((e) => e || DIE("missing pr result"))
       .toOne()) ?? DIE("never")
   );
@@ -199,8 +199,9 @@ export async function pyprojectTomlUpdateLicenses(tomlFile: string, upstreamRepo
   const outdatedDesiredLicense = license?.match(/^"([^"\n\r]+)"$/i)?.[1];
   const isOutdated = !!outdatedDesiredLicense;
   // const isOutdated = !!raw.match(outdated);
-  license &&
-    (await LicenseTasks.updateOne({ repository: upstreamRepoUrl }, { $set: { license: license } }));
+  if (license) {
+    await LicenseTasks.updateOne({ repository: upstreamRepoUrl }, { $set: { license: license } });
+  }
   if (!licenseLine) throw new Error("no license line was found, please check toml file");
   if (!isOutdated) return { updated: false }; // not outdated
 

@@ -111,7 +111,7 @@ if (import.meta.main) {
 }
 
 export async function githubContributorAnalyze(repoUrl: string) {
-  const branch = "analyze-contributors";
+  const _branch = "analyze-contributors";
   const hash = sha256(repoUrl).slice(0, 16);
   const tmpDir = `./tmp/github-contributor-analyze/${hash}`;
   // const cwd = await gitCheckoutOnBranch({ url: repoUrl, branch, cwd: tmpDir });

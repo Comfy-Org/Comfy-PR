@@ -26,7 +26,7 @@ if (import.meta.main) {
     //         // slack.conversations.list()
     //     }).log()
     //     .run()
-    await pageFlow(undefined as undefined | string, async (cursor, limit = 100) => {
+    await pageFlow(undefined as undefined | string, async (cursor, _limit = 100) => {
       const res = await slackCached.users.list({ limit: 100, cursor });
       return { data: res.members, next: res.response_metadata?.next_cursor || null };
     })

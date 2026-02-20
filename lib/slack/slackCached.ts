@@ -32,7 +32,7 @@ const CACHE_DIR = getCacheDir();
 const CACHE_FILE = path.join(CACHE_DIR, "slack-cache.sqlite");
 const DEFAULT_TTL = process.env.LOCAL_DEV
   ? 30 * 60 * 1000 // cache 30 minutes when local dev
-  : 0 * 60 * 1000; // cache 0 minute in production
+  : 0; // cache 0 minute in production
 
 async function ensureCacheDir() {
   try {
@@ -57,7 +57,7 @@ async function getKeyv() {
         store: new KeyvSqlite(CACHE_FILE),
         ttl: DEFAULT_TTL,
       });
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       // If SQLite fails, silently fall back to in-memory cache
       // This is expected when running from directories without write access
       keyv = new Keyv({
@@ -115,7 +115,7 @@ function createCachedProxy<T extends object>(
   }) as DeepAsyncWrapper<T> & {
     clear: () => Promise<void>;
   };
-  async function clear(): Promise<void> {
+  async function _clear(): Promise<void> {
     const keyvInstance = await getKeyv();
     await keyvInstance.clear();
   }

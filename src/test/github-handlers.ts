@@ -426,7 +426,7 @@ export const githubHandlers = [
   http.post(
     `${GITHUB_API_BASE}/repos/:owner/:repo/pulls/:pull_number/requested_reviewers`,
     async ({ params, request }) => {
-      const { owner, repo, pull_number } = params;
+      const { owner: _owner, repo: _repo, pull_number } = params;
       const body = (await request.json()) as Record<string, unknown>;
 
       return HttpResponse.json({

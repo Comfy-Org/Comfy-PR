@@ -12,7 +12,7 @@ import { updateGithubActionTask } from "./updateGithubActionTask";
 
 if (import.meta.main) {
   // const repo = "https://github.com/54rt1n/ComfyUI-DareMerge";
-  const repo = "https://github.com/snomiao/ComfyUI-DareMerge-test";
+  const _repo = "https://github.com/snomiao/ComfyUI-DareMerge-test";
   // await GithubActionUpdateTask.findOneAndDelete({ repo });
 
   // aprove test

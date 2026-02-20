@@ -10,7 +10,7 @@ export const ghUser = async () =>
   (g.ghUserCache ??= (
     await gh.users.getAuthenticated().catch((error) => {
       throw new Error(
-        `FAIL TO GET AUTHENTICATED USER INFO, CHECK ${!!process.env.GH_TOKEN ? "[?]" : "[ ]"}GH_TOKEN and ${!!process.env.GH_TOKEN_COMFY_PR ? "[?]" : "[ ]"}GH_TOKEN_COMFY_PR`,
+        `FAIL TO GET AUTHENTICATED USER INFO, CHECK ${process.env.GH_TOKEN ? "[?]" : "[ ]"}GH_TOKEN and ${process.env.GH_TOKEN_COMFY_PR ? "[?]" : "[ ]"}GH_TOKEN_COMFY_PR`,
         { cause: error },
       );
     })

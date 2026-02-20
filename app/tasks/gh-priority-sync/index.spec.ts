@@ -10,7 +10,7 @@ const mockMongoCollection = {
     const key = JSON.stringify(filter);
     return dbOperations.get(key) || null;
   },
-  updateOne: async (filter: unknown, update: unknown, options?: unknown) => {
+  updateOne: async (filter: unknown, update: unknown, _options?: unknown) => {
     const key = JSON.stringify(filter);
     const data = { ...filter, ...update.$set };
     dbOperations.set(key, data);
@@ -56,7 +56,7 @@ const mockNotionClient = {
     },
   },
   dataSources: {
-    query: async ({ data_source_id, start_cursor, page_size = 100 }: unknown) => {
+    query: async ({ data_source_id: _data_source_id, start_cursor, page_size = 100 }: unknown) => {
       let results = mockNotionPages;
 
       // If there's a start_cursor (page ID), find that page and return everything after it

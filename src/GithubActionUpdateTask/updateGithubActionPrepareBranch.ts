@@ -126,7 +126,7 @@ export async function updateGithubActionPrepareBranch(repo: string) {
   const origin = await stringifyGithubOrigin(parseGithubRepoUrl(html_url));
   await $`cd ${cwd} && git add . && git commit -am ${commitMessage} && git push -f ${origin} ${branch}`;
   // ensure pr message is parsable
-  const { title, body } = parseTitleBodyOfMarkdown(pullRequestMessage);
+  const { title: _title, body: _body } = parseTitleBodyOfMarkdown(pullRequestMessage);
   if (!pullRequestMessage) {
     throw new Error("pullRequestMessage is empty");
   }

@@ -100,7 +100,7 @@ ${"```"}
                 const auth = await getGCloudOAuth2Client({
                   email: user.email,
                   scope: ["https://www.googleapis.com/auth/gmail.compose"],
-                  authorize: (url) => {
+                  authorize: (_url) => {
                     DIE("not possible to authorize here, plz refresh page");
                   },
                 });

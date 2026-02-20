@@ -64,7 +64,7 @@ export default async function GithubActionUpdateTaskPage() {
     (e) => e.pullRequestVersionHash === referenceActionContentHash, // opened
     (e) => e.approvedBranchVersionHash === referenceActionContentHash, // approved and pending create pr
     (e) => e.branchVersionHash && e.pullRequestMessage, // branch created and pending reviews
-    (e) => true, // all other is processing
+    (_e) => true, // all other is processing
   ]);
 
   const chartData = {
@@ -114,7 +114,7 @@ export default async function GithubActionUpdateTaskPage() {
           <h2>Drafting PRs x{processingData.length}</h2>
         </summary>
         <ol className="flex flex-col max-w-full px-4">
-          {processingData.map((e, i, a) => {
+          {processingData.map((e, i, _a) => {
             return (
               <li key={e.repo}>
                 {i + 1}.{" "}
@@ -292,7 +292,7 @@ export default async function GithubActionUpdateTaskPage() {
           <h2>Errors x{errorData.length}</h2>
         </summary>
         <ol className="flex flex-col max-w-full px-4 gap-4">
-          {errorData.map((e, i, a) => {
+          {errorData.map((e, i, _a) => {
             return (
               <li key={e.repo}>
                 <div className="flex justify-between px-4">
@@ -318,7 +318,7 @@ export default async function GithubActionUpdateTaskPage() {
           <h2>No publish.yaml Error x{noPublishYamlErrorData.length}</h2>
         </summary>
         <ol className="flex flex-col max-w-full px-4 gap-4">
-          {noPublishYamlErrorData.map((e, i, a) => {
+          {noPublishYamlErrorData.map((e, i, _a) => {
             return (
               <li key={e.repo}>
                 <div className="flex justify-between px-4">

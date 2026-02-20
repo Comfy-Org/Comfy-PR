@@ -7,7 +7,7 @@ if (import.meta.main) {
 }
 export async function updateCRRepos() {
   await CRNodes.createIndex({ repo_id: 1 });
-  return await pMap(CRNodes.find({ repo_id: { $exists: false } }), async (cr, i) => {
+  return await pMap(CRNodes.find({ repo_id: { $exists: false } }), async (cr, _i) => {
     const { repository, _id } = cr;
     await CNRepos.updateOne(
       { repository },

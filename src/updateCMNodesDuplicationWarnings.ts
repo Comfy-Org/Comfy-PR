@@ -27,7 +27,7 @@ export async function updateCMNodesDuplicationWarnings(nodes: CMNode[]) {
         toPairs(nodes),
         async ([key, nodesRaw]) => {
           const nodes = nodesRaw?.map((nodeRaw) => {
-            const { hash, ...node } = { ...nodeRaw };
+            const { hash: _hash, ...node } = { ...nodeRaw };
             return node;
           });
           const hashes = nodesRaw?.map(prop("hash"));

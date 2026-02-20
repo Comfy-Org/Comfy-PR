@@ -45,7 +45,7 @@ export function parseSlackUrl(url: string): { channel: string; ts: string } | nu
     }
 
     return null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

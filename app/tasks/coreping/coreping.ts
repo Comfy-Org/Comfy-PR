@@ -547,7 +547,7 @@ async function processPullRequestCorePingTask(
   // save status & lastStatus
 
   const { status, statusAt } = await determinePullRequestReviewStatus(pr, {
-    isUnrelated: (pr) => !task.labels.some((e) => LABELS.includes(e)),
+    isUnrelated: (_pr) => !task.labels.some((e) => LABELS.includes(e)),
   });
   // update lastStatus if status changed
   const statusChanged = task.status !== status;
@@ -705,7 +705,7 @@ async function _cleanSpammyMessages20251117() {
     return;
   }
 
-  const deletedMessages = await sflow(myspammessages)
+  const _deletedMessages = await sflow(myspammessages)
     .forEach(async (e) => await slack.chat.delete({ channel: channelId, ts: e.ts || DIE() }))
     .log(
       (e) =>

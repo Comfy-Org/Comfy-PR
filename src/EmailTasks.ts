@@ -54,7 +54,7 @@ if (import.meta.main) {
  * deduplicated by [from, to, subject].join(' ')
  */
 export async function enqueueEmailTask(task: z.infer<typeof zSendEmailAction>) {
-  const { name, from, to, subject, body, provider } = task;
+  const { name: _name, from, to, subject, body: _body, provider: _provider } = task;
   return (
     (await EmailTasks.findOneAndUpdate(
       { from, to, subject },
@@ -86,8 +86,8 @@ export async function updateEmailTasks() {
 }
 export async function sendEmailTask({
   _id,
-  state,
-  name,
+  state: _state,
+  name: _name,
   from,
   to,
   subject,

@@ -13,7 +13,7 @@ import { slack } from "@/lib";
 const SlackChannelIdsCache = new Keyv<string>(
   new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackChannelIdCache.sqlite"),
 );
-const SlackUserIdsCache = new Keyv<string>(
+const _SlackUserIdsCache = new Keyv<string>(
   new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackUserIdCache.sqlite"),
 );
 
@@ -23,13 +23,13 @@ const SlackUserIdsCache = new Keyv<string>(
  * - Text in markdown blocks: 12,000 characters cumulative
  * - We use conservative limits to be safe
  */
-const SLACK_TEXT_LIMIT = 35000; // Conservative limit for text parameter
-const SLACK_MARKDOWN_BLOCK_LIMIT = 11000; // Conservative limit for markdown blocks
+const _SLACK_TEXT_LIMIT = 35000; // Conservative limit for text parameter
+const _SLACK_MARKDOWN_BLOCK_LIMIT = 11000; // Conservative limit for markdown blocks
 
 /**
  * Truncate text from the middle, preserving start and end
  */
-function truncateFromMiddle(text: string, maxLength: number): string {
+function _truncateFromMiddle(text: string, maxLength: number): string {
   if (text.length <= maxLength) {
     return text;
   }
