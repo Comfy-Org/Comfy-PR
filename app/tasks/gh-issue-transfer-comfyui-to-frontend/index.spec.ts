@@ -28,17 +28,12 @@ mock.module("@/src/db", () => ({
 }));
 
 // Mock parseGithubRepoUrl
-// Include extra URLs to prevent test isolation issues with Bun's mock.module
+// Parse any valid GitHub URL to avoid test isolation issues with Bun's mock.module
 mock.module("@/src/parseOwnerRepo", () => ({
   parseGithubRepoUrl: (url: string) => {
-    if (url === "https://github.com/Comfy-Org/ComfyUI") {
-      return { owner: "Comfy-Org", repo: "ComfyUI" };
-    }
-    if (url === "https://github.com/Comfy-Org/ComfyUI_frontend") {
-      return { owner: "Comfy-Org", repo: "ComfyUI_frontend" };
-    }
-    if (url === "https://github.com/Comfy-Org/desktop") {
-      return { owner: "Comfy-Org", repo: "desktop" };
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (match) {
+      return { owner: match[1], repo: match[2] };
     }
     throw new Error(`Unknown repo URL: ${url}`);
   },
