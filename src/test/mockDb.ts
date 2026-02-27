@@ -263,3 +263,25 @@ export function createMockDb() {
     }),
   };
 }
+
+/**
+ * Get all documents stored in a collection (for test assertions)
+ */
+export function getMockDbDocuments(collectionName: string): unknown[] {
+  const docs = inMemoryDocs.get(collectionName);
+  return docs ? Array.from(docs.values()) : [];
+}
+
+/**
+ * Insert a document into a collection (for setting up test data)
+ */
+export function insertMockDbDocument(collectionName: string, doc: unknown): string {
+  if (!inMemoryDocs.has(collectionName)) {
+    inMemoryDocs.set(collectionName, new Map());
+  }
+  const docs = inMemoryDocs.get(collectionName)!;
+  const id = `mock_id_${++docIdCounter}`;
+  const docWithId = { ...(doc as object), _id: id };
+  docs.set(id, docWithId);
+  return id;
+}
