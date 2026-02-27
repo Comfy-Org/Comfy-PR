@@ -2,28 +2,38 @@ import { server } from "@/src/test/msw-setup";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { http, HttpResponse } from "msw";
 
+// Type definitions for mock database
+type FilterType = { version?: string; $or?: Array<{ url: string }> };
+type UpdateType = { $set: Record<string, unknown> };
+type SlackMessageType = Record<string, unknown>;
+
 // Track database operations
 let dbOperations: { type: string; args: unknown[]; result?: unknown }[] = [];
-let mockSlackMessages: unknown[] = [];
+let mockSlackMessages: SlackMessageType[] = [];
+let createIndexCalls: { keys: unknown; options: unknown }[] = [];
 
 // Mock collection object
 const createMockCollection = () => ({
-  createIndex: async () => ({}),
-  findOne: async (filter: unknown) => {
+  createIndex: async (keys: unknown, options: unknown) => {
+    createIndexCalls.push({ keys, options });
+    return {};
+  },
+  findOne: async (filter: FilterType) => {
     dbOperations.push({ type: "findOne", args: [filter] });
     // Return null by default, tests can modify dbOperations to set up data
     const existingOp = dbOperations.find(
       (op) => op.type === "findOneAndUpdate" && op.result,
     );
-    if (existingOp && filter?.version) {
+    if (existingOp && filter.version) {
       // Check if we have a matching core task
-      if (existingOp.result?.coreVersion === filter.version) {
+      const result = existingOp.result as { coreVersion?: string } | undefined;
+      if (result?.coreVersion === filter.version) {
         return existingOp.result;
       }
     }
     return null;
   },
-  findOneAndUpdate: async (filter: unknown, update: unknown, _options?: unknown) => {
+  findOneAndUpdate: async (filter: FilterType, update: UpdateType, _options?: unknown) => {
     const result = { ...update.$set };
     dbOperations.push({ type: "findOneAndUpdate", args: [filter, update], result });
     return result;
@@ -53,7 +63,7 @@ mock.module("@/lib/slack/channels", () => ({
 
 // Mock upsertSlackMessage
 mock.module("./upsertSlackMessage", () => ({
-  upsertSlackMessage: async (msg: unknown) => {
+  upsertSlackMessage: async (msg: SlackMessageType) => {
     mockSlackMessages.push(msg);
     return {
       ...msg,
@@ -391,8 +401,11 @@ describe("GithubDesktopReleaseNotificationTask", () => {
   describe("Database Index", () => {
     it("should create unique index on url field", async () => {
       // The createIndex is called at module import time
-      // We just verify the module loads without error
-      expect(true).toBe(true);
+      // Verify it was called with the expected arguments
+      expect(createIndexCalls.length).toBeGreaterThanOrEqual(1);
+      const indexCall = createIndexCalls[0];
+      expect(indexCall.keys).toEqual({ url: 1 });
+      expect(indexCall.options).toEqual({ unique: true });
     });
   });
 });
