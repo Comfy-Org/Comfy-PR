@@ -12,37 +12,92 @@ let dbOperations: { type: string; args: unknown[]; result?: unknown }[] = [];
 let mockSlackMessages: SlackMessageType[] = [];
 let createIndexCalls: { keys: unknown; options: unknown }[] = [];
 
+// In-memory document storage to simulate MongoDB for test isolation
+const inMemoryDocs = new Map<string, Map<string, unknown>>();
+let docIdCounter = 0;
+
 // Mock collection object
-const createMockCollection = () => ({
-  createIndex: async (keys: unknown, options: unknown) => {
-    createIndexCalls.push({ keys, options });
-    return {};
-  },
-  findOne: async (filter: FilterType) => {
-    dbOperations.push({ type: "findOne", args: [filter] });
-    // Return null by default, tests can modify dbOperations to set up data
-    const existingOp = dbOperations.find(
-      (op) => op.type === "findOneAndUpdate" && op.result,
-    );
-    if (existingOp && filter.version) {
-      // Check if we have a matching core task
-      const result = existingOp.result as { coreVersion?: string } | undefined;
-      if (result?.coreVersion === filter.version) {
-        return existingOp.result;
+// Include all methods needed by any test to prevent Bun mock isolation issues
+const createMockCollection = (collectionName?: string) => {
+  const name = collectionName || "default";
+  if (!inMemoryDocs.has(name)) {
+    inMemoryDocs.set(name, new Map());
+  }
+  const docs = inMemoryDocs.get(name)!;
+
+  return {
+    createIndex: async (keys: unknown, options: unknown) => {
+      createIndexCalls.push({ keys, options });
+      return {};
+    },
+    findOne: async (filter: FilterType) => {
+      dbOperations.push({ type: "findOne", args: [filter] });
+      // Check in-memory docs first
+      for (const doc of docs.values()) {
+        const d = doc as Record<string, unknown>;
+        if (filter.version && d.version === filter.version) return doc;
+        if (filter.$or) {
+          for (const condition of filter.$or) {
+            if (d.url === condition.url) return doc;
+          }
+        }
+        // Check for deliveryId (webhook tests)
+        if ((filter as { deliveryId?: string }).deliveryId && d.deliveryId === (filter as { deliveryId?: string }).deliveryId) return doc;
       }
-    }
-    return null;
-  },
-  findOneAndUpdate: async (filter: FilterType, update: UpdateType, _options?: unknown) => {
-    const result = { ...update.$set };
-    dbOperations.push({ type: "findOneAndUpdate", args: [filter, update], result });
-    return result;
-  },
-});
+      // Fallback to findOneAndUpdate results for backward compatibility
+      const existingOp = dbOperations.find(
+        (op) => op.type === "findOneAndUpdate" && op.result,
+      );
+      if (existingOp && filter.version) {
+        const result = existingOp.result as { coreVersion?: string } | undefined;
+        if (result?.coreVersion === filter.version) {
+          return existingOp.result;
+        }
+      }
+      return null;
+    },
+    findOneAndUpdate: async (filter: FilterType, update: UpdateType, _options?: unknown) => {
+      const result = { ...update.$set };
+      dbOperations.push({ type: "findOneAndUpdate", args: [filter, update], result });
+      return result;
+    },
+    // Methods needed by other tests (prevent mock isolation issues)
+    deleteMany: async () => {
+      const count = docs.size;
+      docs.clear();
+      return { deletedCount: count };
+    },
+    insertOne: async (doc: unknown) => {
+      const id = `mock_id_${++docIdCounter}`;
+      const docWithId = { ...doc as object, _id: id };
+      docs.set(id, docWithId);
+      return { insertedId: id };
+    },
+    find: () => ({
+      toArray: async () => Array.from(docs.values()),
+    }),
+    countDocuments: async () => docs.size,
+    deleteOne: async (filter: Record<string, unknown>) => {
+      for (const [id, doc] of docs.entries()) {
+        const d = doc as Record<string, unknown>;
+        for (const key of Object.keys(filter)) {
+          if (d[key] === filter[key]) {
+            docs.delete(id);
+            return { deletedCount: 1 };
+          }
+        }
+      }
+      return { deletedCount: 0 };
+    },
+  };
+};
 
 // Mock database
 const trackingMockDb = {
-  collection: () => createMockCollection(),
+  collection: (name: string) => createMockCollection(name),
+  admin: () => ({
+    ping: async () => ({ ok: 1 }),
+  }),
 };
 
 // Use bun's mock.module

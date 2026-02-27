@@ -4,20 +4,74 @@ import { http, HttpResponse } from "msw";
 
 // Track database operations
 let dbOperations: unknown[] = [];
-const trackingMockDb = {
-  collection: () => ({
+// In-memory document storage to simulate MongoDB for test isolation
+const inMemoryDocs = new Map<string, Map<string, unknown>>();
+let docIdCounter = 0;
+
+const createMockCollection = (collectionName?: string) => {
+  const name = collectionName || "default";
+  if (!inMemoryDocs.has(name)) {
+    inMemoryDocs.set(name, new Map());
+  }
+  const docs = inMemoryDocs.get(name)!;
+
+  return {
     createIndex: async () => ({}),
     findOne: async (filter: unknown) => {
+      const f = filter as Record<string, unknown>;
+      // Check operations first for backward compatibility
       const op = dbOperations.find(
-        (op) => op.filter?.sourceIssueNumber === filter?.sourceIssueNumber,
+        (op) => (op as { filter?: { sourceIssueNumber?: number } }).filter?.sourceIssueNumber === f?.sourceIssueNumber,
       );
-      return op?.data || null;
+      if (op) return (op as { data?: unknown }).data || null;
+      // Check in-memory docs
+      for (const doc of docs.values()) {
+        const d = doc as Record<string, unknown>;
+        if (f.deliveryId && d.deliveryId === f.deliveryId) return doc;
+        if (f.sourceIssueNumber && d.sourceIssueNumber === f.sourceIssueNumber) return doc;
+      }
+      return null;
     },
     findOneAndUpdate: async (filter: unknown, update: unknown) => {
-      const data = { ...filter, ...update.$set };
+      const data = { ...filter as object, ...(update as { $set?: object }).$set };
       dbOperations.push({ filter, data });
       return data;
     },
+    // Methods needed by other tests (prevent mock isolation issues)
+    deleteMany: async () => {
+      const count = docs.size;
+      docs.clear();
+      return { deletedCount: count };
+    },
+    insertOne: async (doc: unknown) => {
+      const id = `mock_id_${++docIdCounter}`;
+      const docWithId = { ...doc as object, _id: id };
+      docs.set(id, docWithId);
+      return { insertedId: id };
+    },
+    find: () => ({
+      toArray: async () => Array.from(docs.values()),
+    }),
+    countDocuments: async () => docs.size,
+    deleteOne: async (filter: Record<string, unknown>) => {
+      for (const [id, doc] of docs.entries()) {
+        const d = doc as Record<string, unknown>;
+        for (const key of Object.keys(filter)) {
+          if (d[key] === filter[key]) {
+            docs.delete(id);
+            return { deletedCount: 1 };
+          }
+        }
+      }
+      return { deletedCount: 0 };
+    },
+  };
+};
+
+const trackingMockDb = {
+  collection: (name: string) => createMockCollection(name),
+  admin: () => ({
+    ping: async () => ({ ok: 1 }),
   }),
 };
 
