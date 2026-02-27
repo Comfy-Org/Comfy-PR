@@ -1,31 +1,18 @@
 import { server } from "@/src/test/msw-setup";
+import { createMockDb, resetMockDb } from "@/src/test/mockDb";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { http, HttpResponse } from "msw";
 
-// Track database operations
+// Track database operations for assertions
 let dbOperations: Map<string, unknown> = new Map();
-const mockMongoCollection = {
-  createIndex: async () => ({}),
-  findOne: async (filter: unknown) => {
-    const key = JSON.stringify(filter);
-    return dbOperations.get(key) || null;
-  },
-  updateOne: async (filter: unknown, update: unknown, _options?: unknown) => {
-    const key = JSON.stringify(filter);
-    const data = { ...filter, ...update.$set };
-    dbOperations.set(key, data);
-    return { modifiedCount: 1 };
-  },
-};
-
-const trackingMockDb = {
-  collection: () => mockMongoCollection,
-};
 
 // Use bun's mock.module
 const { mock } = await import("bun:test");
+
+// Use shared mock db to prevent test isolation issues
+const mockDb = createMockDb();
 mock.module("@/src/db", () => ({
-  db: trackingMockDb,
+  db: mockDb,
 }));
 
 // Mock parseIssueUrl
@@ -128,8 +115,9 @@ const { default: GithubIssuePrioritiesLabler } = await import("./index");
 
 describe("GithubIssuePrioritiesLabeler", () => {
   beforeEach(() => {
-    // Reset database operations
+    // Reset database operations and mock db
     dbOperations = new Map();
+    resetMockDb();
 
     // Reset Keyv storage
     keyvStorage.clear();

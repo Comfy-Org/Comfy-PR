@@ -1,40 +1,26 @@
 import { server } from "@/src/test/msw-setup";
+import { createMockDb, resetMockDb } from "@/src/test/mockDb";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { http, HttpResponse } from "msw";
 
-// Track database operations
+// Track database operations for test assertions
 let dbOperations: unknown[] = [];
-const trackingMockDb = {
-  collection: () => ({
-    createIndex: async () => ({}),
-    findOne: async (filter: unknown) => {
-      const op = dbOperations.find(
-        (op) => op.filter?.sourceIssueNumber === filter?.sourceIssueNumber,
-      );
-      return op?.data || null;
-    },
-    findOneAndUpdate: async (filter: unknown, update: unknown) => {
-      const data = { ...filter, ...update.$set };
-      dbOperations.push({ filter, data });
-      return data;
-    },
-  }),
-};
 
 // Use bun's mock.module
 const { mock } = await import("bun:test");
+
+// Use shared mock db to prevent test isolation issues
+const mockDb = createMockDb();
 mock.module("@/src/db", () => ({
-  db: trackingMockDb,
+  db: mockDb,
 }));
 
-// Mock parseGithubRepoUrl
+// Mock parseGithubRepoUrl - parse any valid GitHub URL
 mock.module("@/src/parseOwnerRepo", () => ({
   parseGithubRepoUrl: (url: string) => {
-    if (url === "https://github.com/Comfy-Org/desktop") {
-      return { owner: "Comfy-Org", repo: "desktop" };
-    }
-    if (url === "https://github.com/Comfy-Org/ComfyUI_frontend") {
-      return { owner: "Comfy-Org", repo: "ComfyUI_frontend" };
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (match) {
+      return { owner: match[1], repo: match[2] };
     }
     throw new Error(`Unknown repo URL: ${url}`);
   },
@@ -44,8 +30,9 @@ const { default: runGithubDesktopIssueTransferTask } = await import("./index");
 
 describe("GithubDesktopIssueTransferTask", () => {
   beforeEach(() => {
-    // Reset database operations
+    // Reset database operations and mock db
     dbOperations = [];
+    resetMockDb();
   });
 
   afterEach(() => {

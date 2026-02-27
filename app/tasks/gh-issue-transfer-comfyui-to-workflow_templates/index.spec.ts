@@ -1,40 +1,26 @@
 import { server } from "@/src/test/msw-setup";
+import { createMockDb, resetMockDb } from "@/src/test/mockDb";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { http, HttpResponse } from "msw";
 
-// Track database operations
+// Track database operations for test assertions
 let dbOperations: unknown[] = [];
-const trackingMockDb = {
-  collection: () => ({
-    createIndex: async () => ({}),
-    findOne: async (filter: unknown) => {
-      const op = dbOperations.find(
-        (op) => op.filter?.sourceIssueNumber === filter?.sourceIssueNumber,
-      );
-      return op?.data || null;
-    },
-    findOneAndUpdate: async (filter: unknown, update: unknown) => {
-      const data = { ...filter, ...update.$set };
-      dbOperations.push({ filter, data });
-      return data;
-    },
-  }),
-};
 
 // Use bun's mock.module
 const { mock } = await import("bun:test");
+
+// Use shared mock db to prevent test isolation issues
+const mockDb = createMockDb();
 mock.module("@/src/db", () => ({
-  db: trackingMockDb,
+  db: mockDb,
 }));
 
-// Mock parseGithubRepoUrl
+// Mock parseGithubRepoUrl - parse any valid GitHub URL
 mock.module("@/src/parseOwnerRepo", () => ({
   parseGithubRepoUrl: (url: string) => {
-    if (url === "https://github.com/comfyanonymous/ComfyUI") {
-      return { owner: "comfyanonymous", repo: "ComfyUI" };
-    }
-    if (url === "https://github.com/Comfy-Org/workflow_templates") {
-      return { owner: "Comfy-Org", repo: "workflow_templates" };
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (match) {
+      return { owner: match[1], repo: match[2] };
     }
     throw new Error(`Unknown repo URL: ${url}`);
   },
@@ -44,8 +30,9 @@ const { default: runGithubWorkflowTemplatesIssueTransferTask } = await import(".
 
 describe("GithubWorkflowTemplatesIssueTransferTask", () => {
   beforeEach(() => {
-    // Reset database operations
+    // Reset database operations and mock db
     dbOperations = [];
+    resetMockDb();
   });
 
   afterEach(() => {
@@ -56,7 +43,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
   it("should handle no workflow_templates issues", async () => {
     // Override default handler to return empty array
     server.use(
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues", ({ request }) => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues", ({ request }) => {
         const url = new URL(request.url);
         const labels = url.searchParams.get("labels");
         if (labels === "workflow_templates") {
@@ -77,7 +64,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
       number: 123,
       title: "Workflow Templates Request",
       body: "This is a workflow_templates issue",
-      html_url: "https://github.com/comfyanonymous/ComfyUI/issues/123",
+      html_url: "https://github.com/Comfy-Org/ComfyUI/issues/123",
       labels: [
         { name: "workflow_templates", color: "ededed" },
         { name: "enhancement", color: "a2eeef" },
@@ -96,7 +83,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
 
     server.use(
       // Mock source repo issues list
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues", ({ request }) => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues", ({ request }) => {
         const url = new URL(request.url);
         const labels = url.searchParams.get("labels");
         if (labels === "workflow_templates") {
@@ -105,7 +92,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
         return HttpResponse.json([]);
       }),
       // Mock fetching comments
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments", () => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/123/comments", () => {
         return HttpResponse.json([
           {
             id: 1,
@@ -135,20 +122,20 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
       ),
       // Mock creating comment on source issue
       http.post(
-        "https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123/comments",
+        "https://api.github.com/repos/Comfy-Org/ComfyUI/issues/123/comments",
         async ({ request }) => {
           createdComment = await request.json();
           return HttpResponse.json({
             id: 999,
             body: createdComment.body,
             user: { login: "test-user", id: 1 },
-            html_url: "https://github.com/comfyanonymous/ComfyUI/issues/123#issuecomment-999",
+            html_url: "https://github.com/Comfy-Org/ComfyUI/issues/123#issuecomment-999",
             created_at: new Date().toISOString(),
           });
         },
       ),
       // Mock closing the issue
-      http.patch("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/123", () => {
+      http.patch("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/123", () => {
         return HttpResponse.json({});
       }),
     );
@@ -160,7 +147,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
     expect(createdIssue.title).toBe("Workflow Templates Request");
     expect(createdIssue.body).toContain("This is a workflow_templates issue");
     expect(createdIssue.body).toContain(
-      "*This issue is transferred from: https://github.com/comfyanonymous/ComfyUI/issues/123*",
+      "*This issue is transferred from: https://github.com/Comfy-Org/ComfyUI/issues/123*",
     );
     expect(createdIssue.labels).toEqual(["enhancement"]);
     expect(createdIssue.assignees).toEqual(["testuser"]);
@@ -183,10 +170,10 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
       number: 789,
       title: "Workflow Templates PR",
       body: "This is a PR",
-      html_url: "https://github.com/comfyanonymous/ComfyUI/pull/789",
+      html_url: "https://github.com/Comfy-Org/ComfyUI/pull/789",
       labels: [{ name: "workflow_templates", color: "ededed" }],
       assignees: [],
-      pull_request: { url: "https://api.github.com/repos/comfyanonymous/ComfyUI/pulls/789" },
+      pull_request: { url: "https://api.github.com/repos/Comfy-Org/ComfyUI/pulls/789" },
       state: "open",
       user: { login: "test-user", id: 1 },
       created_at: "2025-01-10T10:00:00Z",
@@ -198,7 +185,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
     let issueCreated = false;
 
     server.use(
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues", () => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues", () => {
         return HttpResponse.json([pullRequest]);
       }),
       http.post("https://api.github.com/repos/Comfy-Org/workflow_templates/issues", () => {
@@ -218,7 +205,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
       filter: { sourceIssueNumber: 999 },
       data: {
         sourceIssueNumber: 999,
-        sourceIssueUrl: "https://github.com/comfyanonymous/ComfyUI/issues/999",
+        sourceIssueUrl: "https://github.com/Comfy-Org/ComfyUI/issues/999",
         targetIssueNumber: 888,
         targetIssueUrl: "https://github.com/Comfy-Org/workflow_templates/issues/888",
         transferredAt: new Date(),
@@ -230,7 +217,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
       number: 999,
       title: "Already Transferred",
       body: "This was already transferred",
-      html_url: "https://github.com/comfyanonymous/ComfyUI/issues/999",
+      html_url: "https://github.com/Comfy-Org/ComfyUI/issues/999",
       labels: [{ name: "workflow_templates", color: "ededed" }],
       assignees: [],
       state: "open",
@@ -244,7 +231,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
     let issueCreated = false;
 
     server.use(
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues", () => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues", () => {
         return HttpResponse.json([alreadyTransferredIssue]);
       }),
       http.post("https://api.github.com/repos/Comfy-Org/workflow_templates/issues", () => {
@@ -263,7 +250,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
       number: 555,
       title: "Error Issue",
       body: "This will fail",
-      html_url: "https://github.com/comfyanonymous/ComfyUI/issues/555",
+      html_url: "https://github.com/Comfy-Org/ComfyUI/issues/555",
       labels: [{ name: "workflow_templates", color: "ededed" }],
       assignees: [],
       state: "open",
@@ -277,10 +264,10 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
     let createAttempts = 0;
 
     server.use(
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues", () => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues", () => {
         return HttpResponse.json([sourceIssue]);
       }),
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/555/comments", () => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/555/comments", () => {
         return HttpResponse.json([]);
       }),
       http.post("https://api.github.com/repos/Comfy-Org/workflow_templates/issues", () => {
@@ -306,7 +293,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
       number: 666,
       title: "Comment Error",
       body: "Comment will fail",
-      html_url: "https://github.com/comfyanonymous/ComfyUI/issues/666",
+      html_url: "https://github.com/Comfy-Org/ComfyUI/issues/666",
       labels: [{ name: "workflow_templates", color: "ededed" }],
       assignees: [],
       state: "open",
@@ -318,10 +305,10 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
     };
 
     server.use(
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues", () => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues", () => {
         return HttpResponse.json([sourceIssue]);
       }),
-      http.get("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/666/comments", () => {
+      http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/666/comments", () => {
         return HttpResponse.json([]);
       }),
       http.post("https://api.github.com/repos/Comfy-Org/workflow_templates/issues", () => {
@@ -330,7 +317,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
           html_url: "https://github.com/Comfy-Org/workflow_templates/issues/777",
         });
       }),
-      http.post("https://api.github.com/repos/comfyanonymous/ComfyUI/issues/666/comments", () => {
+      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/666/comments", () => {
         return HttpResponse.json({ message: "Comment Error" }, { status: 403 });
       }),
     );
