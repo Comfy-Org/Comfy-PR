@@ -6,8 +6,8 @@ import { server } from "./test/msw-setup";
 process.env.GH_TOKEN = "test-token-for-gh-spec";
 
 // Dynamic import to ensure env var is set
-const ghModule = await import("./ghc");
-const { gh } = await import("./ghc");
+const ghModule = await import("../lib/github/githubCached");
+const { gh } = await import("../lib/github/githubCached");
 const { ghc, clearGhCache } = ghModule;
 
 describe("GitHub API Client (gh)", () => {
