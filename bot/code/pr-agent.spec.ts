@@ -5,7 +5,8 @@ import path from "path";
 
 describe("pr-agent", () => {
   const testRepoDir = path.join(process.cwd(), "repos", "test-owner", "test-repo", "tree", "main");
-  const originalGhToken = process.env.GH_TOKEN_COMFY_PR_BOT;
+  const originalGhTokenBot = process.env.GH_TOKEN_COMFY_PR_BOT;
+  const originalGhToken = process.env.GH_TOKEN;
 
   // Clean up test directory before and after tests
   beforeEach(() => {
@@ -20,11 +21,15 @@ describe("pr-agent", () => {
     if (existsSync(testRepoDir)) {
       rmSync(testRepoDir, { recursive: true, force: true });
     }
-    // Restore original token
-    if (originalGhToken) {
-      process.env.GH_TOKEN_COMFY_PR_BOT = originalGhToken;
+    // Restore original tokens
+    if (originalGhTokenBot) {
+      process.env.GH_TOKEN_COMFY_PR_BOT = originalGhTokenBot;
     } else {
       delete process.env.GH_TOKEN_COMFY_PR_BOT;
+    }
+    // Also restore GH_TOKEN since some tests delete it
+    if (originalGhToken) {
+      process.env.GH_TOKEN = originalGhToken;
     }
   });
 
