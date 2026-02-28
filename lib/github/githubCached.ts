@@ -1,4 +1,3 @@
-import KeyvSqlite from "@keyv/sqlite";
 import type { components as ghComponents } from "@octokit/openapi-types";
 import * as crypto from "crypto";
 import { promises as fs } from "fs";
@@ -61,6 +60,8 @@ async function getKeyv() {
   if (!keyv) {
     await ensureCacheDir();
     try {
+      // Dynamically import KeyvSqlite to avoid module-level errors in CI
+      const KeyvSqlite = (await import("@keyv/sqlite")).default;
       keyv = new Keyv({
         store: new KeyvSqlite(CACHE_FILE),
         ttl: DEFAULT_TTL,

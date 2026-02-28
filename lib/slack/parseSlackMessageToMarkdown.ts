@@ -39,7 +39,7 @@ export async function parseSlackMessageToMarkdown(text: string): Promise<string>
           }
         } catch (_error) {
           // Fallback to user ID if fetch fails
-          userInfoMap.set(userId, `<@${userId}>`);
+          userInfoMap.set(userId, `@${userId}`);
         }
       }),
     );
@@ -47,7 +47,7 @@ export async function parseSlackMessageToMarkdown(text: string): Promise<string>
 
   // Replace user mentions with fetched info
   markdown = markdown.replace(/<@([A-Z0-9]+)>/g, (match, userId) => {
-    return userInfoMap.get(userId) || `<@${userId}>`;
+    return userInfoMap.get(userId) || `@${userId}`;
   });
 
   // Convert channel mentions <#C123|channel-name> or <#C123>
@@ -106,7 +106,7 @@ export async function parseSlackMessageToMarkdown(text: string): Promise<string>
 
   // Now convert bold and italic
   markdown = markdown.replace(/\*([^*]+)\*/g, "**$1**");
-  markdown = markdown.replace(/_([^_]+)_/g, "_$1_");
+  markdown = markdown.replace(/_([^_]+)_/g, "*$1*");
 
   // Restore code blocks and inline code
   markdown = markdown.replace(

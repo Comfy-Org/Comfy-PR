@@ -42,8 +42,7 @@ describe("Template Loader", () => {
     const result = loadClaudeMd(slots);
     expect(result).toContain("ComfyPR-Bot");
     expect(result).toContain("C123");
-    expect(result).toContain("testuser");
-    expect(result).toContain("test intent");
+    // Note: USERNAME and USER_INTENT slots are not used in the current CLAUDE.md template
     expect(result).not.toContain("${");
   });
 
@@ -57,7 +56,7 @@ describe("Template Loader", () => {
     expect(Object.keys(skills).length).toBeGreaterThan(0);
     expect(skills["slack-messaging"]).toBeDefined();
     expect(skills["slack-file-sharing"]).toBeDefined();
-    expect(skills["github-prbot"]).toBeDefined();
+    expect(skills["github-pr-bot"]).toBeDefined();
     expect(skills["slack-messaging"]).toContain("C123");
     expect(skills["slack-messaging"]).not.toContain("${");
   });
