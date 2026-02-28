@@ -1,5 +1,4 @@
 import { createOctokit } from "@/lib/github/createOctokit";
-import KeyvSqlite from "@keyv/sqlite";
 import { Client as Notion } from "@notionhq/client";
 import { WebClient } from "@slack/web-api";
 import DIE from "@snomiao/die";
@@ -29,10 +28,11 @@ export const github = KeyvCacheProxy({
 );
 
 export const notion = KeyvCacheProxy({
-  store: globalThisCached(
-    "notion",
-    () => new Keyv(KeyvNest(new Map(), new KeyvSqlite("./.cache/notion.sqlite"))),
-  ),
+  store: globalThisCached("notion", () => {
+    // Lazy require to avoid module-level initialization errors in CI
+    const KeyvSqlite = require("@keyv/sqlite").default;
+    return new Keyv(KeyvNest(new Map(), new KeyvSqlite("./.cache/notion.sqlite")));
+  }),
   prefix: "notion.",
   onFetched: (key, val) => {
     // for dataSources query endpoint, only results with max-size with next_cursor
