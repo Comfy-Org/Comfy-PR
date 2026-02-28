@@ -1,0 +1,186 @@
+{
+  "$comment": "Atlas Search Static Mappings - Use these in MongoDB Atlas UI to fix the high field count issue",
+  "GithubWebhookEvents": {
+    "mappings": {
+      "dynamic": false,
+      "fields": {
+        "eventType": {
+          "type": "string",
+          "analyzer": "lucene.keyword"
+        },
+        "deliveryId": {
+          "type": "string",
+          "analyzer": "lucene.keyword"
+        },
+        "receivedAt": {
+          "type": "date"
+        },
+        "processed": {
+          "type": "boolean"
+        },
+        "payload": {
+          "type": "document",
+          "dynamic": false,
+          "fields": {
+            "action": {
+              "type": "string",
+              "analyzer": "lucene.keyword"
+            },
+            "repository": {
+              "type": "document",
+              "dynamic": false,
+              "fields": {
+                "full_name": {
+                  "type": "string",
+                  "analyzer": "lucene.keyword"
+                },
+                "name": {
+                  "type": "string",
+                  "analyzer": "lucene.keyword"
+                },
+                "owner": {
+                  "type": "document",
+                  "dynamic": false,
+                  "fields": {
+                    "login": {
+                      "type": "string",
+                      "analyzer": "lucene.keyword"
+                    }
+                  }
+                }
+              }
+            },
+            "sender": {
+              "type": "document",
+              "dynamic": false,
+              "fields": {
+                "login": {
+                  "type": "string",
+                  "analyzer": "lucene.keyword"
+                }
+              }
+            },
+            "pull_request": {
+              "type": "document",
+              "dynamic": false,
+              "fields": {
+                "number": {
+                  "type": "number"
+                },
+                "title": {
+                  "type": "string",
+                  "analyzer": "lucene.standard"
+                },
+                "state": {
+                  "type": "string",
+                  "analyzer": "lucene.keyword"
+                }
+              }
+            },
+            "issue": {
+              "type": "document",
+              "dynamic": false,
+              "fields": {
+                "number": {
+                  "type": "number"
+                },
+                "title": {
+                  "type": "string",
+                  "analyzer": "lucene.standard"
+                },
+                "state": {
+                  "type": "string",
+                  "analyzer": "lucene.keyword"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "CNRepos": {
+    "mappings": {
+      "dynamic": false,
+      "fields": {
+        "repository": {
+          "type": "string",
+          "analyzer": "lucene.keyword"
+        },
+        "info": {
+          "type": "document",
+          "dynamic": false,
+          "fields": {
+            "state": {
+              "type": "string",
+              "analyzer": "lucene.keyword"
+            }
+          }
+        },
+        "crPulls": {
+          "type": "document",
+          "dynamic": false,
+          "fields": {
+            "state": {
+              "type": "string",
+              "analyzer": "lucene.keyword"
+            }
+          }
+        },
+        "candidate": {
+          "type": "document",
+          "dynamic": false,
+          "fields": {
+            "state": {
+              "type": "string",
+              "analyzer": "lucene.keyword"
+            }
+          }
+        },
+        "on_registry": {
+          "type": "document",
+          "dynamic": false,
+          "fields": {
+            "state": {
+              "type": "string",
+              "analyzer": "lucene.keyword"
+            }
+          }
+        }
+      }
+    }
+  },
+  "SlackMsgs": {
+    "mappings": {
+      "dynamic": false,
+      "fields": {
+        "text": {
+          "type": "string",
+          "analyzer": "lucene.standard"
+        },
+        "channel": {
+          "type": "string",
+          "analyzer": "lucene.keyword"
+        },
+        "ts": {
+          "type": "string",
+          "analyzer": "lucene.keyword"
+        },
+        "status": {
+          "type": "string",
+          "analyzer": "lucene.keyword"
+        },
+        "mtime": {
+          "type": "date"
+        }
+      }
+    }
+  },
+  "_alternative_disable_search": {
+    "$comment": "If Atlas Search is not being used at all, use this empty mapping or delete the search indexes entirely",
+    "mappings": {
+      "dynamic": false,
+      "fields": {}
+    }
+  }
+}
