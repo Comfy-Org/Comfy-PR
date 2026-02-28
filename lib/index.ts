@@ -29,9 +29,14 @@ export const github = KeyvCacheProxy({
 
 export const notion = KeyvCacheProxy({
   store: globalThisCached("notion", () => {
-    // Lazy require to avoid module-level initialization errors in CI
-    const KeyvSqlite = require("@keyv/sqlite").default;
-    return new Keyv(KeyvNest(new Map(), new KeyvSqlite("./.cache/notion.sqlite")));
+    try {
+      // Lazy require to avoid module-level initialization errors in CI
+      const KeyvSqlite = require("@keyv/sqlite").default;
+      return new Keyv(KeyvNest(new Map(), new KeyvSqlite("./.cache/notion.sqlite")));
+    } catch {
+      // Fall back to in-memory cache if SQLite fails
+      return new Keyv(KeyvNest(new Map(), new Map()));
+    }
   }),
   prefix: "notion.",
   onFetched: (key, val) => {
