@@ -1,8 +1,77 @@
-import { db } from "@/src/db";
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { createHmac } from "crypto";
-import { GET, POST } from "./route";
 import { NextRequest } from "next/server";
+
+// In-memory storage for mock db
+let mockStorage: Map<string, unknown[]> = new Map();
+const trackingMockDb = {
+  admin: () => ({
+    ping: async () => ({ ok: 1 }),
+  }),
+  collection: (name: string) => {
+    if (!mockStorage.has(name)) {
+      mockStorage.set(name, []);
+    }
+    const store = mockStorage.get(name)!;
+    return {
+      insertOne: async (doc: unknown) => {
+        const docWithId = { ...doc, _id: `mock-id-${Date.now()}-${Math.random()}` };
+        store.push(docWithId);
+        return { insertedId: docWithId._id };
+      },
+      findOne: async (filter: Record<string, unknown>) => {
+        return store.find((doc) =>
+          Object.entries(filter).every(([key, value]) => doc[key] === value),
+        );
+      },
+      countDocuments: async (filter?: Record<string, unknown>) => {
+        if (!filter) return store.length;
+        if (filter.deliveryId?.$in) {
+          const ids = filter.deliveryId.$in as string[];
+          return store.filter((doc) => ids.includes(doc.deliveryId)).length;
+        }
+        return store.filter((doc) =>
+          Object.entries(filter).every(([key, value]) => doc[key] === value),
+        ).length;
+      },
+      deleteMany: async (filter: Record<string, unknown>) => {
+        if (!filter || Object.keys(filter).length === 0) {
+          const count = store.length;
+          store.length = 0;
+          return { deletedCount: count };
+        }
+        if (filter.deliveryId?.$in) {
+          const ids = filter.deliveryId.$in as string[];
+          const before = store.length;
+          const remaining = store.filter((doc) => !ids.includes(doc.deliveryId));
+          store.length = 0;
+          store.push(...remaining);
+          return { deletedCount: before - remaining.length };
+        }
+        return { deletedCount: 0 };
+      },
+      deleteOne: async (filter: Record<string, unknown>) => {
+        const idx = store.findIndex((doc) =>
+          Object.entries(filter).every(([key, value]) => doc[key] === value),
+        );
+        if (idx !== -1) {
+          store.splice(idx, 1);
+          return { deletedCount: 1 };
+        }
+        return { deletedCount: 0 };
+      },
+      createIndex: async () => ({}),
+    };
+  },
+};
+
+// Use bun's mock.module
+const { mock } = await import("bun:test");
+mock.module("@/src/db", () => ({
+  db: trackingMockDb,
+}));
+
+const { GET, POST } = await import("./route");
 
 // Mock environment
 const TEST_SECRET = "test-webhook-secret-key";
@@ -12,13 +81,13 @@ describe("GitHub Webhook Route", () => {
   const testCollection = "GithubWebhookEvents_test";
 
   beforeEach(async () => {
-    // Clean up test collection
-    await db.collection(testCollection).deleteMany({});
+    // Clean up mock storage
+    mockStorage = new Map();
   });
 
   afterEach(async () => {
     // Clean up after tests
-    await db.collection(testCollection).deleteMany({});
+    mockStorage = new Map();
   });
 
   describe("POST /api/webhook/github", () => {
@@ -125,8 +194,11 @@ describe("GitHub Webhook Route", () => {
       expect(response.status).toBe(200);
 
       // Verify stored document
-      const collection = db.collection("GithubWebhookEvents");
-      const stored = await collection.findOne({ deliveryId: "test-delivery-123" });
+      const collection = trackingMockDb.collection("GithubWebhookEvents");
+      const stored = (await collection.findOne({ deliveryId: "test-delivery-123" })) as Record<
+        string,
+        unknown
+      >;
 
       expect(stored).toBeDefined();
       expect(stored?.eventType).toBe("push");
@@ -166,7 +238,7 @@ describe("GitHub Webhook Route", () => {
 
       expect(responses.every((r) => r.status === 200)).toBe(true);
 
-      const collection = db.collection("GithubWebhookEvents");
+      const collection = trackingMockDb.collection("GithubWebhookEvents");
       const count = await collection.countDocuments({
         deliveryId: { $in: requests.map((_, i) => `delivery-${i}`) },
       });
@@ -199,7 +271,7 @@ describe("GitHub Webhook Route", () => {
       expect(response.status).toBe(200);
 
       // Cleanup
-      const collection = db.collection("GithubWebhookEvents");
+      const collection = trackingMockDb.collection("GithubWebhookEvents");
       await collection.deleteOne({ deliveryId: "no-secret-test" });
 
       // Restore

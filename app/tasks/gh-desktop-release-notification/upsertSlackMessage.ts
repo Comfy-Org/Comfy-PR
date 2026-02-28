@@ -10,12 +10,15 @@ import { COMFY_PR_CACHE_DIR } from "./COMFY_PR_CACHE_DIR";
 import * as prettier from "prettier";
 import { slack } from "@/lib";
 
-const SlackChannelIdsCache = new Keyv<string>(
-  new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackChannelIdCache.sqlite"),
-);
-const _SlackUserIdsCache = new Keyv<string>(
-  new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackUserIdCache.sqlite"),
-);
+// Detect test environment - use in-memory cache to avoid SQLite issues
+const isTestEnv = process.env.NODE_ENV === "test" || process.env.CI === "true" || !!process.env.CI;
+
+const SlackChannelIdsCache = isTestEnv
+  ? new Keyv<string>()
+  : new Keyv<string>(new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackChannelIdCache.sqlite"));
+const _SlackUserIdsCache = isTestEnv
+  ? new Keyv<string>()
+  : new Keyv<string>(new KeyvSqlite("sqlite://" + COMFY_PR_CACHE_DIR + "/slackUserIdCache.sqlite"));
 
 /**
  * Slack message length limits

@@ -167,15 +167,16 @@ describe("GithubFrontendBackportCheckerTask", () => {
       const summary = generateTestSlackSummary(bugfixes);
       const lines = summary.split("\n");
 
-      // Find the order of status emojis
+      // Find the order of status emojis (item lines start with 2 spaces)
       const emojiOrder = lines
         .filter(
           (line) =>
-            line.trim().startsWith("❌") ||
-            line.trim().startsWith("🔄") ||
-            line.trim().startsWith("✅"),
+            line.startsWith("  ") &&
+            (line.trim().startsWith("❌") ||
+              line.trim().startsWith("🔄") ||
+              line.trim().startsWith("✅")),
         )
-        .map((line) => line.trim()[0]);
+        .map((line) => [...line.trim()][0]);
 
       // Should be ordered: needed (❌), in-progress (🔄), completed (✅)
       const expectedOrder = ["❌", "🔄", "✅"];

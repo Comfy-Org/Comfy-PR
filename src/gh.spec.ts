@@ -6,8 +6,8 @@ import { server } from "./test/msw-setup";
 process.env.GH_TOKEN = "test-token-for-gh-spec";
 
 // Dynamic import to ensure env var is set
-const ghModule = await import("./ghc");
-const { gh } = await import("./ghc");
+const ghModule = await import("../lib/github/githubCached");
+const { gh } = await import("../lib/github/githubCached");
 const { ghc, clearGhCache } = ghModule;
 
 describe("GitHub API Client (gh)", () => {
@@ -344,27 +344,10 @@ describe("GitHub API Client (gh)", () => {
     });
 
     it("should handle non-annotated tag errors gracefully", async () => {
-      // Mock a 404 response for lightweight tags
-      server.use(
-        http.get("https://api.github.com/repos/:owner/:repo/git/tags/:tag_sha", () => {
-          return new HttpResponse(null, {
-            status: 404,
-            statusText: "Not Found",
-          });
-        }),
-      );
-
-      try {
-        await gh.git.getTag({
-          owner: "comfyanonymous",
-          repo: "ComfyUI",
-          tag_sha: "lightweight-tag",
-        });
-        // Should not reach here
-        expect(true).toBe(false);
-      } catch (error: unknown) {
-        expect(error.status).toBe(404);
-      }
+      // tag_sha="lightweight-tag" is handled by github-handlers.ts to return 404
+      await expect(
+        gh.git.getTag({ owner: "comfyanonymous", repo: "ComfyUI", tag_sha: "lightweight-tag" }),
+      ).rejects.toMatchObject({ status: 404 });
     });
   });
 
@@ -389,66 +372,17 @@ describe("GitHub API Client (gh)", () => {
 
   describe("Error Handling", () => {
     it("should handle 404 errors", async () => {
-      server.use(
-        http.get("https://api.github.com/repos/:owner/:repo", () => {
-          return new HttpResponse(
-            JSON.stringify({
-              message: "Not Found",
-              documentation_url: "https://docs.github.com/rest",
-            }),
-            {
-              status: 404,
-              headers: {
-                "Content-Type": "application/json",
-              },
-            },
-          );
-        }),
-      );
-
-      try {
-        await gh.repos.get({
-          owner: "nonexistent",
-          repo: "nonexistent",
-        });
-        // Should not reach here
-        expect(true).toBe(false);
-      } catch (error: unknown) {
-        expect(error.status).toBe(404);
-      }
+      // owner="error-404" is handled by github-handlers.ts to return 404
+      await expect(gh.repos.get({ owner: "error-404", repo: "any" })).rejects.toMatchObject({
+        status: 404,
+      });
     });
 
     it("should handle rate limit errors", async () => {
-      server.use(
-        http.get("https://api.github.com/repos/:owner/:repo", () => {
-          return new HttpResponse(
-            JSON.stringify({
-              message: "API rate limit exceeded",
-              documentation_url:
-                "https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting",
-            }),
-            {
-              status: 403,
-              headers: {
-                "Content-Type": "application/json",
-                "X-RateLimit-Limit": "60",
-                "X-RateLimit-Remaining": "0",
-              },
-            },
-          );
-        }),
-      );
-
-      try {
-        await gh.repos.get({
-          owner: "octocat",
-          repo: "Hello-World",
-        });
-        // Should not reach here
-        expect(true).toBe(false);
-      } catch (error: unknown) {
-        expect(error.status).toBe(403);
-      }
+      // owner="rate-limited" is handled by github-handlers.ts to return 403
+      await expect(gh.repos.get({ owner: "rate-limited", repo: "any" })).rejects.toMatchObject({
+        status: 403,
+      });
     });
   });
 });

@@ -32,7 +32,7 @@ export function createOctokit({ auth, maxRetries = 3 }: OctokitOptions) {
       },
     },
     retry: {
-      doNotRetry: ["429"], // Let throttling plugin handle rate limits
+      doNotRetry: [400, 401, 403, 404, 422, 429], // 429 handled by throttling plugin
     },
   });
 }

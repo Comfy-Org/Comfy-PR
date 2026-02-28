@@ -21,6 +21,9 @@ const trackingMockDb = {
   }),
 };
 
+// Set GH_TOKEN before any imports to prevent @/lib/github from throwing in CI
+process.env.GH_TOKEN = process.env.GH_TOKEN || "test-token-for-ci";
+
 // Use bun's mock.module
 const { mock } = await import("bun:test");
 mock.module("@/src/db", () => ({

@@ -87,9 +87,8 @@ describe("parseIssueUrl", () => {
   });
 
   it("should handle URLs with trailing slashes", () => {
-    // Note: The current regex doesn't handle trailing slashes, so this should fail
     const url = "https://github.com/owner/repo/pull/123/";
 
-    expect(() => parseIssueUrl(url)).toThrow();
+    expect(parseIssueUrl(url)).toMatchObject({ owner: "owner", repo: "repo", issue_number: 123 });
   });
 });

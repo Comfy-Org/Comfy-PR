@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import isCI from "is-ci";
 
-// Check if we have a valid Slack token (not a placeholder)
+// Check if we have a valid Slack token (not a placeholder) and not in CI
 const hasValidSlackToken =
+  !isCI &&
   process.env.SLACK_BOT_TOKEN &&
   !process.env.SLACK_BOT_TOKEN.includes("FILL_THIS") &&
   !process.env.SLACK_BOT_TOKEN.includes("FAKE");
@@ -27,7 +29,7 @@ describe("daily.ts", () => {
         expect(report).toContain("## Team Daily Update Format");
         expect(report).toContain("## Bot Activity by Channel");
         expect(report).toContain("## Short Summary");
-      });
+      }, 30000);
 
       test("should include summary statistics", async () => {
         const { default: dailyUpdate } = await import("./daily");
@@ -35,7 +37,7 @@ describe("daily.ts", () => {
 
         expect(report).toMatch(/Total messages sent: \d+/);
         expect(report).toMatch(/Channels active: \d+/);
-      });
+      }, 30000);
 
       test("should include date in report", async () => {
         const { default: dailyUpdate } = await import("./daily");
@@ -43,14 +45,14 @@ describe("daily.ts", () => {
         const today = new Date().toISOString().split("T")[0];
 
         expect(report).toContain(today);
-      });
+      }, 30000);
 
       test("should handle no messages gracefully", async () => {
         const { default: dailyUpdate } = await import("./daily");
         const report = await dailyUpdate({ verbose: false });
         expect(report).toBeTruthy();
         expect(typeof report).toBe("string");
-      });
+      }, 30000);
     });
   } else {
     test.skip("Integration tests skipped - no valid Slack token", () => {

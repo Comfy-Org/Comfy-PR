@@ -10,6 +10,9 @@ import KeyvNest from "keyv-nest";
 import { lazyInstantiate } from "@/src/utils/lazyProxy";
 import { logger } from "@/src/logger";
 
+// Detect test environment - use in-memory cache to avoid SQLite issues
+const isTestEnv = process.env.NODE_ENV === "test" || process.env.CI === "true" || !!process.env.CI;
+
 export const github = KeyvCacheProxy({
   store: globalThisCached(
     "github",
@@ -29,9 +32,10 @@ export const github = KeyvCacheProxy({
 );
 
 export const notion = KeyvCacheProxy({
-  store: globalThisCached(
-    "notion",
-    () => new Keyv(KeyvNest(new Map(), new KeyvSqlite("./.cache/notion.sqlite"))),
+  store: globalThisCached("notion", () =>
+    isTestEnv
+      ? new Keyv()
+      : new Keyv(KeyvNest(new Map(), new KeyvSqlite("./.cache/notion.sqlite"))),
   ),
   prefix: "notion.",
   onFetched: (key, val) => {

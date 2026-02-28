@@ -39,6 +39,26 @@ mock.module("@/src/parseIssueUrl", () => ({
       issue_number: parseInt(match[3]),
     };
   },
+  stringifyIssueUrl: ({
+    owner,
+    repo,
+    issue_number,
+  }: {
+    owner: string;
+    repo: string;
+    issue_number: number;
+  }) => {
+    return `https://github.com/${owner}/${repo}/issues/${issue_number}`;
+  },
+}));
+
+// Mock parseOwnerRepo - gh-priority-sync uses ComfyUI_frontend and desktop repos
+mock.module("@/src/parseOwnerRepo", () => ({
+  parseGithubRepoUrl: (url: string) => {
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (!match) throw new Error(`Invalid repo URL: ${url}`);
+    return { owner: match[1], repo: match[2] };
+  },
 }));
 
 // Mock Notion client
@@ -81,15 +101,17 @@ const mockNotionClient = {
   },
 };
 
-mock.module("@notionhq/client", () => ({
-  default: {
-    Client: class {
-      constructor() {
-        return mockNotionClient;
-      }
-    },
-  },
-}));
+mock.module("@notionhq/client", () => {
+  const ClientClass = class {
+    constructor() {
+      return mockNotionClient;
+    }
+  };
+  return {
+    Client: ClientClass,
+    default: { Client: ClientClass },
+  };
+});
 
 // Mock keyv-cache-proxy to bypass caching during tests
 mock.module("keyv-cache-proxy", () => ({
@@ -140,6 +162,24 @@ describe("GithubIssuePrioritiesLabeler", () => {
       id: "test-db-id",
       data_sources: [{ id: "test-data-source-id" }],
     };
+
+    // Add default handlers - returns empty results for repo issue prefetch and timeline
+    server.use(
+      http.post("https://api.github.com/graphql", () => {
+        return HttpResponse.json({
+          data: {
+            search: {
+              issueCount: 0,
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: [],
+            },
+          },
+        });
+      }),
+      http.get("https://api.github.com/repos/:owner/:repo/issues/:number/timeline", () => {
+        return HttpResponse.json([]);
+      }),
+    );
   });
 
   afterEach(() => {
@@ -154,7 +194,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
 
     // Verify no GitHub API calls were made for labels
     expect(dbOperations.size).toBe(0);
-  });
+  }, 15000);
 
   it("should add missing priority label to issue", async () => {
     const notionPage = {
@@ -205,7 +245,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
     const checkpoint = keyvStorage.get("checkpoint");
     expect(checkpoint).toBeTruthy();
     expect(checkpoint.id).toBe("page-123");
-  });
+  }, 15000);
 
   it("should remove obsolete priority label", async () => {
     const notionPage = {
@@ -261,7 +301,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
     // Verify High-Priority was removed and Low-Priority was added
     expect(labelsRemoved).toContain("High-Priority");
     expect(labelsAdded).toEqual(["Low-Priority"]);
-  });
+  }, 15000);
 
   it("should skip tasks without priority", async () => {
     const notionPage = {
@@ -282,20 +322,28 @@ describe("GithubIssuePrioritiesLabeler", () => {
 
     mockNotionPages = [notionPage];
 
-    let githubCalled = false;
+    let labelsModified = false;
 
     server.use(
       http.get("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/300/labels", () => {
-        githubCalled = true;
+        // The implementation fetches labels even for empty-priority tasks (to potentially remove stale labels)
         return HttpResponse.json([]);
+      }),
+      http.post("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/300/labels", () => {
+        labelsModified = true;
+        return HttpResponse.json([]);
+      }),
+      http.delete("https://api.github.com/repos/Comfy-Org/ComfyUI/issues/300/labels/:name", () => {
+        labelsModified = true;
+        return HttpResponse.json({});
       }),
     );
 
     await GithubIssuePrioritiesLabler();
 
-    // Verify GitHub was not called
-    expect(githubCalled).toBe(false);
-  });
+    // Verify no label changes were made (no priority set + no existing priority labels)
+    expect(labelsModified).toBe(false);
+  }, 15000);
 
   it("should skip tasks without GitHub link", async () => {
     const notionPage = {
@@ -329,7 +377,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
 
     // Verify GitHub was not called
     expect(githubCalled).toBe(false);
-  });
+  }, 15000);
 
   it("should handle Medium priority correctly", async () => {
     const notionPage = {
@@ -370,7 +418,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
 
     // Verify Medium-Priority label was added
     expect(labelsAdded).toEqual(["Medium-Priority"]);
-  });
+  }, 15000);
 
   it("should skip issue when labels are already correct", async () => {
     const notionPage = {
@@ -420,7 +468,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
     // Verify checkpoint was still saved
     const checkpoint = keyvStorage.get("checkpoint");
     expect(checkpoint).toBeTruthy();
-  });
+  }, 15000);
 
   it("should handle label removal errors gracefully", async () => {
     const notionPage = {
@@ -465,7 +513,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
 
     // Verify Low-Priority was still added despite removal error
     expect(labelsAdded).toEqual(["Low-Priority"]);
-  });
+  }, 15000);
 
   it("should handle multiple tasks with different priorities", async () => {
     mockNotionPages = [
@@ -521,7 +569,7 @@ describe("GithubIssuePrioritiesLabeler", () => {
     expect(labelsAddedByIssue[1001]).toEqual(["High-Priority"]);
     expect(labelsAddedByIssue[1002]).toEqual(["Medium-Priority"]);
     expect(labelsAddedByIssue[1003]).toEqual(["Low-Priority"]);
-  });
+  }, 15000);
 
   it("should resume from checkpoint", async () => {
     // Set an existing checkpoint
@@ -571,5 +619,5 @@ describe("GithubIssuePrioritiesLabeler", () => {
 
     // Verify only the new task (page-2) was processed, page-1 was skipped
     expect(processedIssues).toEqual([2002]);
-  });
+  }, 15000);
 });

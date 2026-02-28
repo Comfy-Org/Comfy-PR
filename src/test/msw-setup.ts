@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll } from "bun:test";
+import { afterEach, beforeAll } from "bun:test";
 import chalk from "chalk";
 import { setupServer } from "msw/node";
 import { githubHandlers } from "./github-handlers";
@@ -24,7 +24,7 @@ afterEach(() => {
   server.resetHandlers();
 });
 
-// Clean up after all tests
-afterAll(() => {
+// Clean up when process exits (not per-file, to keep server alive across all test files)
+process.on("beforeExit", () => {
   server.close();
 });

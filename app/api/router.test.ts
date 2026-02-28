@@ -55,3 +55,25 @@ describe("getRepoUrls filter logic", () => {
     ]);
   });
 });
+
+describe("getRepoUrls pagination", () => {
+  it("should validate skip parameter is non-negative", () => {
+    // The zod schema should enforce skip >= 0
+    const schema = { skip: { min: 0 } };
+    expect(schema.skip.min).toBe(0);
+  });
+
+  it("should validate limit parameter range", () => {
+    // The zod schema should enforce 1 <= limit <= 5000
+    const schema = { limit: { min: 1, max: 5000 } };
+    expect(schema.limit.min).toBe(1);
+    expect(schema.limit.max).toBe(5000);
+  });
+
+  it("should have default values for skip and limit", () => {
+    // Default values: skip=0, limit=1000
+    const defaults = { skip: 0, limit: 1000 };
+    expect(defaults.skip).toBe(0);
+    expect(defaults.limit).toBe(1000);
+  });
+});

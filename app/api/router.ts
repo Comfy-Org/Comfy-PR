@@ -45,16 +45,38 @@ export const router = t.router({
       return await analyzePullsStatus({ limit, skip });
     }),
   getRepoUrls: t.procedure
-    .meta({ openapi: { method: "GET", path: "/repo-urls", description: "Get repo urls" } })
-    .input(z.object({}))
-    .output(z.array(z.string()))
-    .query(async () => {
+    .meta({
+      openapi: { method: "GET", path: "/repo-urls", description: "Get repo urls with pagination" },
+    })
+    .input(
+      z.object({
+        skip: z.number().min(0).default(0),
+        limit: z.number().min(1).max(5000).default(1000),
+      }),
+    )
+    .output(
+      z.object({
+        repos: z.array(z.string()),
+        total: z.number(),
+        skip: z.number(),
+        limit: z.number(),
+      }),
+    )
+    .query(async ({ input: { skip, limit } }) => {
       const sflow = (await import("sflow")).default;
       const { CNRepos } = await import("@/src/CNRepos");
-      return await sflow(CNRepos.find({}, { projection: { repository: 1 } }))
+      const [repos, total] = await Promise.all([
+        CNRepos.find({}, { projection: { repository: 1 } })
+          .skip(skip)
+          .limit(limit)
+          .toArray(),
+        CNRepos.countDocuments({ repository: { $type: "string", $ne: "" } }),
+      ]);
+      const filteredRepos = await sflow(repos)
         .map((e) => (e as unknown as { repository: string }).repository)
         .filter((repo) => typeof repo === "string" && repo.length > 0)
         .toArray();
+      return { repos: filteredRepos, total, skip, limit };
     }),
   GithubContributorAnalyzeTask: t.procedure
     .meta({

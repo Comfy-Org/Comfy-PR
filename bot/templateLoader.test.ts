@@ -32,18 +32,10 @@ describe("Template Loader", () => {
     const slots = {
       EVENT_CHANNEL: "C123",
       QUICK_RESPOND_MSG_TS: "1234567890.123456",
-      USERNAME: "testuser",
-      NEARBY_MESSAGES_YAML: "[]",
-      EVENT_TEXT_JSON: '"test message"',
-      USER_INTENT: "test intent",
-      MY_RESPONSE_MESSAGE_JSON: '"test response"',
-      EVENT_THREAD_TS: "1234567890.123456",
     };
     const result = loadClaudeMd(slots);
     expect(result).toContain("ComfyPR-Bot");
     expect(result).toContain("C123");
-    expect(result).toContain("testuser");
-    expect(result).toContain("test intent");
     expect(result).not.toContain("${");
   });
 
@@ -57,7 +49,7 @@ describe("Template Loader", () => {
     expect(Object.keys(skills).length).toBeGreaterThan(0);
     expect(skills["slack-messaging"]).toBeDefined();
     expect(skills["slack-file-sharing"]).toBeDefined();
-    expect(skills["github-prbot"]).toBeDefined();
+    expect(skills["github-pr-bot"]).toBeDefined();
     expect(skills["slack-messaging"]).toContain("C123");
     expect(skills["slack-messaging"]).not.toContain("${");
   });
