@@ -115,12 +115,16 @@ function createCachedProxy(target: object, basePath: string[] = []): unknown {
           }
 
           // Call the original function
-          const result = await (value as (...args: unknown[]) => unknown).apply(obj, args);
-
-          // Cache the result
-          await keyvInstance.set(cacheKey, result);
-
-          return result;
+          // If it throws an error, don't cache it - just let it propagate
+          try {
+            const result = await (value as (...args: unknown[]) => unknown).apply(obj, args);
+            // Only cache successful results
+            await keyvInstance.set(cacheKey, result);
+            return result;
+          } catch (error) {
+            // Don't cache errors, just re-throw
+            throw error;
+          }
         };
       } else if (typeof value === "object" && value !== null) {
         // Recursively wrap nested objects
@@ -139,6 +143,13 @@ export const ghc = createCachedProxy(gh) as typeof gh;
 export async function clearGhCache(): Promise<void> {
   const keyvInstance = await getKeyv();
   await keyvInstance.clear();
+}
+
+export async function closeGhCache(): Promise<void> {
+  if (keyv) {
+    await keyv.disconnect();
+    keyv = null;
+  }
 }
 
 export async function getGhCacheStats(): Promise<{ size: number; keys: string[] }> {

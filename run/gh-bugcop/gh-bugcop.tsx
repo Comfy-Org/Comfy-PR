@@ -57,7 +57,7 @@ const DEBUG_CACHE = !!process.env.VERBOSE;
 const State = new Keyv(
   KeyvNest(
     new Map(),
-    // new KeyvNedbStore(".cache/bugcop-state.jsonl"),
+    // new KeyvNedbStore(".cache/bugcop-state.nedb.yaml"),
     new KeyvMongodbStore(db.collection("TaskMetaStore"), { namespace: "GithubBugcopTask" }),
   ),
 );

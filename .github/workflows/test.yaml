@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 jobs:
   run_comfy_pr:
     runs-on: ubuntu-latest

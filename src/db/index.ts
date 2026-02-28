@@ -14,9 +14,16 @@ const MONGODB_URI = process.env.MONGODB_URI ?? "mongodb://PLEASE_SET_MONGODB_URI
 // Skip actual DB connection during Next.js build
 const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
+// In test environments, use regular MongoClient without hot-resource
+// hot-resource is designed for hot-reloading and keeps resources alive globally
+// which prevents tests from exiting cleanly
+const isTestEnvironment = process.env.NODE_ENV === "test" || Bun.argv.some((arg) => arg.includes("test"));
+
 export const mongo = await (isBuildPhase
   ? Promise.resolve(null as unknown as MongoClient)
-  : hotResource(async () => [new MongoClient(MONGODB_URI), (conn) => conn.close()]));
+  : isTestEnvironment
+    ? new MongoClient(MONGODB_URI).connect()
+    : hotResource(async () => [new MongoClient(MONGODB_URI), (conn) => conn.close()]));
 
 // Create a Proxy for db during build that returns dummy collection objects
 const buildTimeDb = new Proxy({} as Record<string, unknown>, {
@@ -42,15 +49,23 @@ export const db = isBuildPhase
     });
 
 // allow db conn for 45 mins in CI env to prevent long running CI jobs
-if (isCI) {
-  setTimeout(
+// but not during tests (tests should clean up properly)
+if (isCI && !isTestEnvironment) {
+  const timeout = setTimeout(
     async () => {
+      // this should not happen often
+      // best to fix the long running jobs by db.close() after tests done or job done
+      console.error("[WARNING] Closing long running DB connection in CI after 45 mins");
+      console.error("Please fix your tests/jobs to close the DB connection when done to prevent this warning");
       await mongo.close();
       // should not be needed, but just in case
       process.exit(0);
     },
     45 * 60 * 1000,
   );
+  // Don't keep the process alive just for this timeout
+  // This allows tests to exit cleanly if all other work is done
+  timeout.unref();
 }
 
 if (import.meta.main) {

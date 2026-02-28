@@ -25,6 +25,16 @@ afterEach(() => {
 });
 
 // Clean up after all tests
-afterAll(() => {
+afterAll(async () => {
   server.close();
+
+  // Close database connection if it was imported
+  try {
+    const { db } = await import("@/src/db");
+    await db.close();
+    console.log(chalk.green("[CLEANUP] Database connection closed"));
+  } catch (error) {
+    // db module might not have been imported, which is fine
+    console.log(chalk.yellow("[CLEANUP] No database connection to close"));
+  }
 });
