@@ -1,4 +1,4 @@
-import type { gh } from "@/lib/github";
+import { gh } from "@/lib/github";
 
 type GithubRepo = Awaited<ReturnType<typeof gh.repos.get>>["data"];
 

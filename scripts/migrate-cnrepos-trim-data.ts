@@ -108,19 +108,25 @@ function trimCrPullsArray(
       ...item,
       pull: trimPullData(item.pull),
       // Keep comments but trim each comment's user
+      // Preserve undefined when original comments.data is undefined (not fetched vs empty)
       comments: item.comments
-        ? {
-            ...(item.comments as object),
-            data:
-              (item.comments as { data?: Array<Record<string, unknown>> }).data?.map((c) => ({
-                body: c.body,
-                updated_at: c.updated_at,
-                created_at: c.created_at,
-                user: c.user
-                  ? { login: (c.user as { login?: string }).login }
-                  : undefined,
-              })) ?? [],
-          }
+        ? (() => {
+            const comments = item.comments as { data?: Array<Record<string, unknown>> } & object;
+            const data = Array.isArray(comments.data)
+              ? comments.data.map((c) => ({
+                  body: c.body,
+                  updated_at: c.updated_at,
+                  created_at: c.created_at,
+                  user: c.user
+                    ? { login: (c.user as { login?: string }).login }
+                    : undefined,
+                }))
+              : comments.data; // Preserve undefined
+            return {
+              ...comments,
+              data,
+            };
+          })()
         : item.comments,
     })),
   };
