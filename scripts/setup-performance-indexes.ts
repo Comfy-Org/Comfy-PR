@@ -105,6 +105,7 @@ async function setupPerformanceIndexes() {
       {
         name: "idx_forkedRepo_repo",
         background: true,
+        unique: true,
       },
     );
     console.log("  ✅ Created compound index: idx_forkedRepo_repo");

@@ -8,18 +8,27 @@
  * Expected reduction: ~539 MB → ~10 MB (98%)
  *
  * Usage:
- *   bun scripts/migrate-cnrepos-trim-data.ts [--dry-run] [--limit N]
+ *   bun scripts/migrate-cnrepos-trim-data.ts [--dry-run] [--limit=N]
  *
  * Options:
- *   --dry-run   Preview changes without modifying data
- *   --limit N   Process only N documents (for testing)
+ *   --dry-run     Preview changes without modifying data
+ *   --limit=N     Process only N documents (for testing)
  */
 
 import { db } from "@/src/db";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const LIMIT_ARG = process.argv.find((a) => a.startsWith("--limit="));
-const LIMIT = LIMIT_ARG ? parseInt(LIMIT_ARG.split("=")[1]) : 0;
+const LIMIT = (() => {
+  if (!LIMIT_ARG) return 0;
+  const value = LIMIT_ARG.split("=")[1];
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    console.error(`Invalid --limit value "${value}". Please provide an integer.`);
+    process.exit(1);
+  }
+  return parsed;
+})();
 
 // Fields to keep in info.data
 const INFO_FIELDS = [
@@ -256,9 +265,12 @@ async function migrate() {
     console.log(`  Data size: ${(statsAfter.size / 1024 / 1024).toFixed(2)} MB`);
     console.log(`  Avg doc size: ${statsAfter.avgObjSize.toLocaleString()} bytes`);
   }
-
-  await db.close();
 }
 
-// Run
-await migrate();
+if (import.meta.main) {
+  try {
+    await migrate();
+  } finally {
+    await db.close();
+  }
+}
