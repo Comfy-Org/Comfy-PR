@@ -1,5 +1,4 @@
 import { createOctokit } from "@/lib/github/createOctokit";
-import KeyvSqlite from "@keyv/sqlite";
 import { Client as Notion } from "@notionhq/client";
 import { WebClient } from "@slack/web-api";
 import DIE from "@snomiao/die";
@@ -31,7 +30,8 @@ export const github = KeyvCacheProxy({
 export const notion = KeyvCacheProxy({
   store: globalThisCached(
     "notion",
-    () => new Keyv(KeyvNest(new Map(), new KeyvSqlite("./.cache/notion.sqlite"))),
+    // Use KeyvNedbStore instead of KeyvSqlite to avoid CI initialization issues
+    () => new Keyv(KeyvNest(new Map(), new KeyvNedbStore("./.cache/notion.jsonl"))),
   ),
   prefix: "notion.",
   onFetched: (key, val) => {

@@ -167,15 +167,24 @@ describe("GithubFrontendBackportCheckerTask", () => {
       const summary = generateTestSlackSummary(bugfixes);
       const lines = summary.split("\n");
 
-      // Find the order of status emojis
+      // Find the order of status emojis (lines with bugfix entries have format "  EMOJI ...")
+      // Filter for indented lines only to exclude the header "🔄 *ComfyUI_frontend..."
       const emojiOrder = lines
         .filter(
           (line) =>
-            line.trim().startsWith("❌") ||
-            line.trim().startsWith("🔄") ||
-            line.trim().startsWith("✅"),
+            line.startsWith("  ") &&
+            (line.includes("❌") ||
+              line.includes("🔄") ||
+              line.includes("✅")),
         )
-        .map((line) => line.trim()[0]);
+        .map((line) => {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("❌")) return "❌";
+          if (trimmed.startsWith("🔄")) return "🔄";
+          if (trimmed.startsWith("✅")) return "✅";
+          return "";
+        })
+        .filter((emoji) => emoji !== "");
 
       // Should be ordered: needed (❌), in-progress (🔄), completed (✅)
       const expectedOrder = ["❌", "🔄", "✅"];

@@ -1,4 +1,3 @@
-import KeyvSqlite from "@keyv/sqlite";
 import { WebClient } from "@slack/web-api";
 import crypto from "crypto";
 import fs from "fs/promises";
@@ -53,6 +52,8 @@ async function getKeyv() {
   if (!keyv) {
     await ensureCacheDir();
     try {
+      // Dynamically import KeyvSqlite to avoid module-level errors in CI
+      const KeyvSqlite = (await import("@keyv/sqlite")).default;
       keyv = new Keyv({
         store: new KeyvSqlite(CACHE_FILE),
         ttl: DEFAULT_TTL,

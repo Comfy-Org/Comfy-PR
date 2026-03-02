@@ -8,6 +8,7 @@ import { $flatten, $stale } from "./db";
 import { gh } from "@/lib/github";
 import { parseGithubRepoUrl } from "./parseOwnerRepo";
 import { tLog } from "./utils/tLog";
+import { pickRepoInfo } from "./pickRepoInfo";
 
 if (import.meta.main) {
   await getWorkerInstance("updateCNReposInfo");
@@ -31,7 +32,7 @@ export async function updateCNReposInfo() {
         console.log("[INFO] Fetching meta info from " + repository);
         const _info = await gh.repos
           .get({ ...parseGithubRepoUrl(repository) })
-          .then(({ data }) => data)
+          .then(({ data }) => pickRepoInfo(data))
           .then(TaskOK)
           .catch(TaskError);
         // Handle renamed repos

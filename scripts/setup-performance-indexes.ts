@@ -3,11 +3,12 @@
  * Performance Index Migration Script
  *
  * This script creates critical indexes identified by MongoDB Performance Advisor
- * to dramatically improve query performance for SlackMsgs and CNRepos collections.
+ * to dramatically improve query performance for SlackMsgs, CNRepos, and ForkedRepo collections.
  *
  * Expected Impact:
  * - SlackMsgs: 637ms → <50ms query time (92% improvement)
  * - CNRepos: 420ms → <100ms query time (76% improvement)
+ * - ForkedRepo: 151ms → <10ms query time (93% improvement)
  * - Disk I/O reduction: ~823.8 MB per query cycle
  * - Query targeting: 79,841:1 → ~1:1 ratio
  *
@@ -21,6 +22,11 @@
 import { db } from "@/src/db";
 import { SlackMsgs } from "@/lib/slack/SlackMsgs";
 import { CNRepos } from "@/src/CNRepos";
+
+// ForkedRepo collection (defined inline in src/createGithubForkForRepo.ts)
+const ForkedRepo = db.collection<{ repo: string; forkedRepo: string; updatedAt: Date }>(
+  "ForkedRepo",
+);
 
 async function setupPerformanceIndexes() {
   console.log("🚀 Setting up performance-critical indexes...\n");
@@ -86,6 +92,34 @@ async function setupPerformanceIndexes() {
   }
 
   // ===================================================================
+  // ISSUE #3: ForkedRepo - Missing compound index for lookups
+  // ===================================================================
+  console.log("📊 ForkedRepo Collection");
+  console.log("  Problem: Queries scanning 3830 docs to return 1");
+  console.log("  Query Pattern: { repo: ..., forkedRepo: ... }");
+  console.log("  Creating: idx_forkedRepo_repo");
+
+  try {
+    await ForkedRepo.createIndex(
+      { forkedRepo: 1, repo: 1 },
+      {
+        name: "idx_forkedRepo_repo",
+        background: true,
+        unique: true,
+      },
+    );
+    console.log("  ✅ Created compound index: idx_forkedRepo_repo");
+    console.log("  Expected improvement: 151ms → <10ms (93% faster)\n");
+  } catch (error) {
+    if ((error as Error).message.includes("already exists")) {
+      console.log("  ℹ️  Index idx_forkedRepo_repo already exists\n");
+    } else {
+      console.error("  ❌ Error creating idx_forkedRepo_repo:", error);
+      throw error;
+    }
+  }
+
+  // ===================================================================
   // Verification
   // ===================================================================
   console.log("🔍 Verifying indexes...\n");
@@ -105,6 +139,15 @@ async function setupPerformanceIndexes() {
   cnReposIndexes.forEach((idx) => {
     const keys = JSON.stringify(idx.key);
     const highlight = idx.name === "idx_states_mtimes" ? " ⭐" : "";
+    console.log(`  - ${idx.name}: ${keys}${highlight}`);
+  });
+
+  // List ForkedRepo indexes
+  console.log("\n📋 ForkedRepo indexes:");
+  const forkedRepoIndexes = await ForkedRepo.listIndexes().toArray();
+  forkedRepoIndexes.forEach((idx) => {
+    const keys = JSON.stringify(idx.key);
+    const highlight = idx.name === "idx_forkedRepo_repo" ? " ⭐" : "";
     console.log(`  - ${idx.name}: ${keys}${highlight}`);
   });
 
