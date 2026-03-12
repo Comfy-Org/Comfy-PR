@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { BackportStatus } from "./index";
+import { parseMinorVersion } from "./index";
 
 describe("GithubFrontendBackportCheckerTask", () => {
   describe("bugfix detection", () => {
@@ -253,6 +254,111 @@ describe("GithubFrontendBackportCheckerTask", () => {
       expect(config.slackChannel).toBe("frontend");
       expect(config.backportLabels.length).toBeGreaterThan(0);
       expect(config.maxReleasesToCheck).toBeGreaterThan(0);
+    });
+  });
+
+  describe("parseMinorVersion", () => {
+    it("should parse minor version from standard semver tags", () => {
+      expect(parseMinorVersion("v1.38.1")).toBe(38);
+      expect(parseMinorVersion("v1.0.0")).toBe(0);
+      expect(parseMinorVersion("v2.5.3")).toBe(5);
+      expect(parseMinorVersion("v1.100.0")).toBe(100);
+    });
+
+    it("should parse tags without v prefix", () => {
+      expect(parseMinorVersion("1.38.1")).toBe(38);
+      expect(parseMinorVersion("1.0.0")).toBe(0);
+    });
+
+    it("should return null for unparseable tags", () => {
+      expect(parseMinorVersion("latest")).toBeNull();
+      expect(parseMinorVersion("nightly")).toBeNull();
+      expect(parseMinorVersion("")).toBeNull();
+    });
+  });
+
+  describe("version-based release filtering", () => {
+    it("should include releases within maxMinorVersionsBehind of latest", () => {
+      const maxMinorVersionsBehind = 4;
+      const latestMinor = 40;
+      const releases = [
+        { tag: "v1.40.0", minor: 40 },
+        { tag: "v1.39.2", minor: 39 },
+        { tag: "v1.38.1", minor: 38 },
+        { tag: "v1.37.0", minor: 37 },
+        { tag: "v1.36.0", minor: 36 }, // exactly 4 behind, should be excluded
+        { tag: "v1.35.0", minor: 35 }, // 5 behind, should be excluded
+      ];
+
+      const included = releases.filter((r) => latestMinor - r.minor < maxMinorVersionsBehind);
+      expect(included.map((r) => r.tag)).toEqual(["v1.40.0", "v1.39.2", "v1.38.1", "v1.37.0"]);
+    });
+  });
+
+  describe("backport-not-needed labels", () => {
+    const backportNotNeededLabels: Record<string, string> = {
+      core: "core-backport-not-needed",
+      cloud: "cloud-backport-not-needed",
+    };
+
+    function hasBackportNotNeededLabel(labels: string[], targetPrefix: string): boolean {
+      const notNeededLabel = backportNotNeededLabels[targetPrefix];
+      if (!notNeededLabel) return false;
+      return labels.some((l) => l.toLowerCase() === notNeededLabel.toLowerCase());
+    }
+
+    it("should detect core-backport-not-needed label", () => {
+      const labels = ["bug", "core-backport-not-needed", "core/1.4"];
+      expect(hasBackportNotNeededLabel(labels, "core")).toBe(true);
+      expect(hasBackportNotNeededLabel(labels, "cloud")).toBe(false);
+    });
+
+    it("should detect cloud-backport-not-needed label", () => {
+      const labels = ["bug", "cloud-backport-not-needed", "cloud/1.36"];
+      expect(hasBackportNotNeededLabel(labels, "cloud")).toBe(true);
+      expect(hasBackportNotNeededLabel(labels, "core")).toBe(false);
+    });
+
+    it("should be case insensitive", () => {
+      const labels = ["Core-Backport-Not-Needed"];
+      expect(hasBackportNotNeededLabel(labels, "core")).toBe(true);
+    });
+
+    it("should return false when no matching label", () => {
+      const labels = ["bug", "needs-backport"];
+      expect(hasBackportNotNeededLabel(labels, "core")).toBe(false);
+      expect(hasBackportNotNeededLabel(labels, "cloud")).toBe(false);
+    });
+
+    it("should return false for unknown target prefix", () => {
+      const labels = ["core-backport-not-needed"];
+      expect(hasBackportNotNeededLabel(labels, "unknown")).toBe(false);
+    });
+  });
+
+  describe("release sheriff parsing", () => {
+    it("should parse Slack user ID from channel description", () => {
+      const text = "Current Release Sheriff: <@U12345678>";
+      const match = text.match(/Release Sheriff:?\s*<@(\w+)>/i);
+      expect(match?.[1]).toBe("U12345678");
+    });
+
+    it("should handle description without sheriff", () => {
+      const text = "Frontend releases channel";
+      const match = text.match(/Release Sheriff:?\s*<@(\w+)>/i);
+      expect(match).toBeNull();
+    });
+
+    it("should handle various formatting", () => {
+      const formats = [
+        "Release Sheriff: <@U999>",
+        "Current Release Sheriff: <@UABC123>",
+        "release sheriff <@U111>",
+      ];
+      for (const text of formats) {
+        const match = text.match(/Release Sheriff:?\s*<@(\w+)>/i);
+        expect(match?.[1]).toBeTruthy();
+      }
     });
   });
 });

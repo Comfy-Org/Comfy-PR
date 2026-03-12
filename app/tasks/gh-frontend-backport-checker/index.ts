@@ -11,6 +11,9 @@ import { logger } from "@/src/logger";
 import prettier from "prettier";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { match as tsmatch } from "ts-pattern";
+import { getChannelInfo } from "@/lib/slack/channel-info";
+import { getSlackChannel } from "@/lib/slack/channels";
+import { slack } from "@/lib";
 
 /**
  * GitHub Frontend Backport Checker Task
@@ -28,7 +31,8 @@ import { match as tsmatch } from "ts-pattern";
 const config = {
   // 1. monitor releases from this repo
   repo: "https://github.com/Comfy-Org/ComfyUI_frontend",
-  maxReleasesToCheck: 3,
+  maxReleasesToCheck: 10, // fetch more releases, then filter by version distance
+  maxMinorVersionsBehind: 4, // stop showing backport warnings after this many minor versions behind latest
   processSince: new Date("2026-01-06T00:00:00Z").toISOString(), // only process releases since this date, to avoid posting too msgs in old releases
 
   // 2. identify bugfix commits
@@ -39,6 +43,12 @@ const config = {
 
   // 3. backport labels on PRs
   backportLabels: ["needs-backport"],
+
+  // labels that dismiss backport requirements per target
+  backportNotNeededLabels: {
+    core: "core-backport-not-needed",
+    cloud: "cloud-backport-not-needed",
+  } as Record<string, string>,
 
   // 5. detect backport mentions
   reBackportMentionPatterns: /\b(backports?|stable)\b/i,
@@ -64,6 +74,7 @@ export type GithubFrontendBackportCheckerTask = {
     prNumber?: number;
     prTitle?: string;
     prLabels?: string[];
+    prAuthor?: string; // GitHub username of PR author
 
     backportStatus: BackportStatus; // overall status, derived from backportTargetStatus, calculated by backport targets (core/1.**, cloud/1.**)
     backportStatusRaw: BackportStatus; // raw status from bugfix PR analysis, before checking backport targets status
@@ -130,7 +141,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
   // throw 'check'
 
   // Fetch recent releases
-  const releases = await ghPageFlow(ghc.repos.listReleases, { per_page: 3 })({
+  const releases = await ghPageFlow(ghc.repos.listReleases, { per_page: 10 })({
     ...parseGithubRepoUrl(config.repo),
   })
     .limit(config.maxReleasesToCheck)
@@ -138,9 +149,22 @@ export default async function runGithubFrontendBackportCheckerTask() {
 
   logger.debug(`Found ${releases.length} recent releases to check`);
 
+  // Find latest minor version for version-based filtering
+  const latestMinor = releases
+    .map((r) => parseMinorVersion(r.tag_name))
+    .filter((v): v is number => v !== null)
+    .reduce((a, b) => Math.max(a, b), 0);
+  logger.info(`Latest minor version: ${latestMinor}, will show releases within ${config.maxMinorVersionsBehind} minor versions`);
+
   // Process each release
   const processedReleases = await sflow(releases)
     .filter((release) => +new Date(release.created_at) >= +new Date(config.processSince))
+    // Filter by version distance: only show releases within maxMinorVersionsBehind of latest
+    .filter((release) => {
+      const minor = parseMinorVersion(release.tag_name);
+      if (minor === null) return true; // can't parse, include it
+      return latestMinor - minor < config.maxMinorVersionsBehind;
+    })
     .map(async function convertReleaseToTask(release) {
       const compareLink =
         (
@@ -196,6 +220,87 @@ function middleTruncated(maxLength: number, str: string): string {
   if (str.length <= maxLength) return str;
   const half = Math.floor((maxLength - 3) / 2);
   return `${str.slice(0, half)}...${str.slice(-half)}`;
+}
+
+/** Parse semver minor version from a release tag like "v1.38.1" → 38 */
+export function parseMinorVersion(tag: string): number | null {
+  const match = tag.match(/v?\d+\.(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Get the current release sheriff's Slack user ID from the #frontend-releases channel description.
+ * Expects format: "Current Release Sheriff: <@U12345678>" in channel purpose or topic.
+ */
+export async function getReleaseSheriffUserId(): Promise<string | null> {
+  try {
+    const channel = await getSlackChannel(config.slackChannelName);
+    if (!channel?.id) return null;
+    const info = await getChannelInfo(channel.id as string);
+    // Slack stores mentions as <@U12345678> in description
+    const text = `${info.purpose?.value || ""} ${info.topic?.value || ""}`;
+    const match = text.match(/Release Sheriff:?\s*<@(\w+)>/i);
+    return match?.[1] || null;
+  } catch (e) {
+    logger.warn("Failed to get release sheriff from channel description", { error: e });
+    return null;
+  }
+}
+
+/**
+ * Try to find a Slack user ID for a GitHub username.
+ * Matches against Slack display_name, name, and real_name (case-insensitive).
+ * Returns null if no match found.
+ */
+export async function findSlackUserIdByGithubUsername(
+  githubUsername: string,
+): Promise<string | null> {
+  try {
+    const result = await slack.users.list({ limit: 500 });
+    const members = result.members || [];
+    const lowerGh = githubUsername.toLowerCase();
+    const found = members.find((m) => {
+      if (m.deleted || m.is_bot) return false;
+      const profile = m.profile as Record<string, unknown> | undefined;
+      return (
+        m.name?.toLowerCase() === lowerGh ||
+        (profile?.display_name as string)?.toLowerCase() === lowerGh ||
+        (profile?.real_name as string)
+          ?.toLowerCase()
+          .replace(/\s+/g, "")
+          .includes(lowerGh)
+      );
+    });
+    return (found?.id as string) || null;
+  } catch (e) {
+    logger.warn("Failed to look up Slack user for GitHub username", {
+      githubUsername,
+      error: e,
+    });
+    return null;
+  }
+}
+
+/**
+ * Resolve who to tag in Slack for a backport notification.
+ * Tries the PR author first, falls back to release sheriff.
+ */
+async function resolveSlackTagForAuthor(githubUsername?: string): Promise<string> {
+  if (githubUsername) {
+    const slackUserId = await findSlackUserIdByGithubUsername(githubUsername);
+    if (slackUserId) return `<@${slackUserId}>`;
+  }
+  // Fall back to release sheriff
+  const sheriffId = await getReleaseSheriffUserId();
+  if (sheriffId) return `<@${sheriffId}>`;
+  return ""; // no one to tag
+}
+
+/** Check if a PR has a backport-not-needed label for a given target prefix (e.g. "core" or "cloud") */
+function hasBackportNotNeededLabel(labels: string[], targetPrefix: string): boolean {
+  const notNeededLabel = config.backportNotNeededLabels[targetPrefix];
+  if (!notNeededLabel) return false;
+  return labels.some((l) => l.toLowerCase() === notNeededLabel.toLowerCase());
 }
 
 async function processTask(
@@ -259,7 +364,7 @@ async function processTask(
           logger.debug(`      Processing PR #${prNumber}: ${prTitle}`);
 
           // Check labels
-          const labels = pr.labels.map((l) => (typeof l === "string" ? l : l.name));
+          const labels = pr.labels.map((l) => (typeof l === "string" ? l : l.name)).filter((l): l is string => !!l);
           const backportLabels = labels.filter((l) => config.reBackportTargets.test(l));
 
           // Check PR body and comments for backport mentions
@@ -308,19 +413,23 @@ async function processTask(
             )})`,
           );
           // check each backport target branch status
-          const backportTargetStatus = await sflow(
-            labels.filter((l) => config.reBackportTargets.test(l)),
-          )
-            // only when this pr is needed to backport
+          const targetBranches = labels
+            .filter((l) => config.reBackportTargets.test(l))
             .filter((_e) => backportStatusRaw === "needed")
-            // only when this branch is in PR labels
             .filter((branchName) =>
               labels.some((l) => l.toLowerCase().includes(branchName.toLowerCase())),
-            )
-            // now check if the commit is in the branch
+            );
+
+          const backportTargetStatus = await sflow(targetBranches)
             .map(async (branchName) => {
-              // let status: BackportStatus = "unknown";
-              // check if the commit is in the branch
+              // Check for *-backport-not-needed labels first (e.g. "core/1.4" → prefix "core")
+              const targetPrefix = branchName.split("/")[0];
+              if (hasBackportNotNeededLabel(labels, targetPrefix)) {
+                logger.debug(`          Backport target branch ${branchName} marked not-needed by label`);
+                return { branch: branchName, status: "not-needed" as BackportStatus, prs: [] as { prUrl?: string; prNumber?: number; prTitle?: string; prStatus?: "open" | "closed" | "merged"; lastCheckedAt?: Date }[] };
+              }
+
+              // now check if the commit is in the branch
               const comparing = await ghc.repos
                 .compareCommits({
                   owner,
@@ -330,51 +439,39 @@ async function processTask(
                 })
                 .then((e) => e.data);
               let PRs: {
-                prUrl?: string; // if backport PR exists
+                prUrl?: string;
                 prNumber?: number;
                 prTitle?: string;
                 prStatus?: "open" | "closed" | "merged";
                 lastCheckedAt?: Date;
               }[] = [];
               const status: BackportStatus = await tsmatch(comparing.status)
-                .with("ahead", () => "needed" as const) // not yet backported
-                .with("identical", () => "completed" as const) // completed, because fix commit is already in the target branch
-                .with("behind", () => "completed" as const) // completed, because fix commit is already in the target branch
-
-                // diverged means we need to determine backport PR status:
-                //    when PR not exists, we need to backport
-                //    when PR exists, merged: already backport
-                //    when PR exists, open:   in progress
+                .with("ahead", () => "needed" as const)
+                .with("identical", () => "completed" as const)
+                .with("behind", () => "completed" as const)
                 .with("diverged", async () => {
-                  // search the backport pr and check its status
-                  // e.g. backport-7974-to-cloud-1.36, this branch name is autogenerated by ci
                   const backportBranch = `backport-${prNumber}-to-${branchName.replaceAll("/", "-")}`;
                   const backportPRs = await ghPageFlow(ghc.pulls.list)({
                     owner,
                     repo,
                     head: backportBranch,
                     base: branchName,
-                    state: "all", // include closed/merged prs
+                    state: "all",
                   })
-                    .filter((e) => e.head.ref === backportBranch) // hack bug: github api seems also returns other prs
+                    .filter((e) => e.head.ref === backportBranch)
                     .toArray();
 
-                  PRs = backportPRs.map((pr) => ({
-                    prUrl: pr.html_url,
-                    prNumber: pr.number,
-                    prTitle: pr.title,
-                    prStatus: pr.merged_at ? "merged" : pr.state === "open" ? "open" : "closed",
+                  PRs = backportPRs.map((bpr) => ({
+                    prUrl: bpr.html_url,
+                    prNumber: bpr.number,
+                    prTitle: bpr.title,
+                    prStatus: bpr.merged_at ? "merged" : bpr.state === "open" ? "open" : "closed",
                     lastCheckedAt: new Date(),
                   }));
 
-                  // if pr is merged
-                  if (backportPRs.some((e) => e.merged_at)) return "completed" as const; // some of backport prs are merged
-                  if (backportPRs.some((e) => e.state.toUpperCase() === "OPEN")) {
-                    return "in-progress" as const; // some of backport prs are open
-                  }
-                  // backportPRs[0].closed_at
-                  // if pr is merged
-                  // return comparing.status;
+                  if (backportPRs.some((e) => e.merged_at)) return "completed" as const;
+                  if (backportPRs.some((e) => e.state.toUpperCase() === "OPEN"))
+                    return "in-progress" as const;
                   return "needed" as const;
                 })
                 .otherwise(() => {
@@ -384,26 +481,24 @@ async function processTask(
                   return "unknown" as const;
                 });
 
-              // if (isInBranch) {
-              //   status = "completed";
-              // } else {j
-              //   status = "needed";
-              // }
               logger.debug(`          Backport target branch ${branchName} status: ${status}`);
               return { branch: branchName, status, prs: PRs };
             })
             .toArray();
 
+          // Determine overall backport status (ignoring "not-needed" targets)
+          const activeTargets = backportTargetStatus.filter((t) => t.status !== "not-needed");
           const backportStatus: BackportStatus =
-            backportTargetStatus.length &&
-            backportTargetStatus.every((t) => t.status === "completed")
+            activeTargets.length && activeTargets.every((t) => t.status === "completed")
               ? "completed"
-              : backportTargetStatus.some((t) => t.status === "in-progress")
+              : activeTargets.some((t) => t.status === "in-progress")
                 ? "in-progress"
-                : backportTargetStatus.some((t) => t.status === "needed")
+                : activeTargets.some((t) => t.status === "needed")
                   ? "needed"
-                  : "unknown";
-          // Save to database
+                  : backportTargetStatus.length && !activeTargets.length
+                    ? "not-needed" // all targets have backport-not-needed labels
+                    : "unknown";
+
           return {
             commitSha,
             commitMessage,
@@ -411,6 +506,7 @@ async function processTask(
             prNumber,
             prTitle,
             prLabels: labels,
+            prAuthor: pr.user?.login,
 
             backportStatus,
             backportStatusRaw,
@@ -425,18 +521,31 @@ async function processTask(
     .toArray();
 
   if (!bugfixCommits.length) {
-    // no need to report
     return await save({ ...task, bugfixCommits, taskStatus: "completed" });
+  }
+
+  // Resolve Slack tags for authors who have unresolved backports
+  const authorTags = new Map<string, string>();
+  for (const bf of bugfixCommits) {
+    if (
+      bf.prAuthor &&
+      !authorTags.has(bf.prAuthor) &&
+      bf.backportStatus !== "completed" &&
+      bf.backportStatus !== "not-needed"
+    ) {
+      authorTags.set(bf.prAuthor, await resolveSlackTagForAuthor(bf.prAuthor));
+    }
   }
 
   const statuses = bugfixCommits.map((e) => ({
     ...e,
     status: !e.backportTargetStatus.length
       ? ("not-mentioned" as const)
-      : e.backportTargetStatus.some((e) => e.status !== "completed")
+      : e.backportTargetStatus.some((t) => t.status !== "completed" && t.status !== "not-needed")
         ? ("in-progress" as const)
         : ("completed" as const),
   }));
+
   // - generate report based on commits, note: slack's markdown not support table
   const rawReport = `**Release [${task.releaseTag}](${task.releaseUrl}) Backport Status:${
     statuses.filter((e) => e.status !== "completed").length ? "" : " Completed"
@@ -446,67 +555,40 @@ ${
   // not mentioned, show might need
   statuses
     .filter((e) => !e.backportTargetStatus.length)
-    .map(
-      (bf) => `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ _❗ Might need backport_`,
-    )
+    .map((bf) => {
+      const tag = bf.prAuthor ? authorTags.get(bf.prAuthor) || "" : "";
+      return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ _❗ Might need backport_ ${tag}`.trim();
+    })
     .join("\n")
 }
 ${
-  // in-progress, show detailed status
+  // in-progress/needed, show detailed status with author tags
   bugfixCommits
     .filter(
       (e) =>
         e.backportTargetStatus?.length &&
-        e.backportTargetStatus.some((e) => e.status !== "completed"),
+        e.backportTargetStatus.some((t) => t.status !== "completed" && t.status !== "not-needed"),
     )
     .map((bf) => {
       const targetsStatuses = bf.backportTargetStatus
         .map((ts) => {
+          if (ts.status === "not-needed") return `${ts.branch}: ➖`;
           const prStatus = ts.prs
             .map((pr) =>
               pr.prUrl ? `[:pr-${pr.prStatus?.toLowerCase()}: #${pr.prNumber}](${pr.prUrl})` : "",
             )
             .filter(Boolean)
             .join(", ");
-          // show pr status if exists
           return `${ts.branch}: ${prStatus || getBackportStatusEmoji(ts.status)}`;
         })
         .join(", ");
-      return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ ${targetsStatuses}`;
+      const tag = bf.prAuthor ? authorTags.get(bf.prAuthor) || "" : "";
+      return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ ${targetsStatuses} ${tag}`.trim();
     })
     .join("\n")
-}
-
-${
-  // finished, show pr numbers inline and
-  bugfixCommits
-    .filter(
-      (e) =>
-        e.backportTargetStatus?.length &&
-        e.backportTargetStatus.every((e) => e.status === "completed"),
-    )
-    .filter((_e) => false)
-    // .filter((e) => false) // show nothing for now
-    .map((bf) => {
-      const targetsStatuses = bf.backportTargetStatus
-        .map((ts) => {
-          const prStatus = ts.prs
-            .map((pr) =>
-              pr.prUrl ? `[:pr-${pr.prStatus?.toLowerCase()}: #${pr.prNumber}](${pr.prUrl})` : "",
-            )
-            .filter(Boolean)
-            .join(", ");
-          // show pr status if exists
-          return `${ts.branch}: ${prStatus || getBackportStatusEmoji(ts.status)}`;
-        })
-        .join(", ");
-      return `[#${bf.prNumber}](${bf.prUrl}) ➡️ ${targetsStatuses}`;
-    })
-    .join(", ")
 }
 
 `;
-  // _by [backport-checker](https://github.com/Comfy-Org/Comfy-PR/tree/HEAD/app/tasks/gh-frontend-backport-checker/index.ts)_
 
   const formattedReport = await prettier.format(rawReport, { parser: "markdown" });
   logger.info(formattedReport);

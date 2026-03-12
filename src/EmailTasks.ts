@@ -87,7 +87,7 @@ export async function updateEmailTasks() {
 export async function sendEmailTask({
   _id,
   state: _state,
-  name: _name,
+  name,
   from,
   to,
   subject,
