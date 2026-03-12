@@ -116,9 +116,12 @@ const save = async (task: { releaseUrl: string } & Partial<GithubFrontendBackpor
     { upsert: true, returnDocument: "after" },
   )) || DIE("never");
 
+const isDryRun = process.argv.includes("--dry-run");
+
 if (import.meta.main) {
+  if (isDryRun) logger.info("🏃 DRY RUN MODE - will not send Slack messages");
   await runGithubFrontendBackportCheckerTask();
-  if (isCI) {
+  if (isCI || isDryRun) {
     await db.close();
     process.exit(0);
   }
@@ -154,7 +157,9 @@ export default async function runGithubFrontendBackportCheckerTask() {
     .map((r) => parseMinorVersion(r.tag_name))
     .filter((v): v is number => v !== null)
     .reduce((a, b) => Math.max(a, b), 0);
-  logger.info(`Latest minor version: ${latestMinor}, will show releases within ${config.maxMinorVersionsBehind} minor versions`);
+  logger.info(
+    `Latest minor version: ${latestMinor}, will show releases within ${config.maxMinorVersionsBehind} minor versions`,
+  );
 
   // Process each release
   const processedReleases = await sflow(releases)
@@ -265,10 +270,7 @@ export async function findSlackUserIdByGithubUsername(
       return (
         m.name?.toLowerCase() === lowerGh ||
         (profile?.display_name as string)?.toLowerCase() === lowerGh ||
-        (profile?.real_name as string)
-          ?.toLowerCase()
-          .replace(/\s+/g, "")
-          .includes(lowerGh)
+        (profile?.real_name as string)?.toLowerCase().replace(/\s+/g, "").includes(lowerGh)
       );
     });
     return (found?.id as string) || null;
@@ -286,6 +288,7 @@ export async function findSlackUserIdByGithubUsername(
  * Tries the PR author first, falls back to release sheriff.
  */
 async function resolveSlackTagForAuthor(githubUsername?: string): Promise<string> {
+  if (isDryRun) return githubUsername ? `@${githubUsername}` : "";
   if (githubUsername) {
     const slackUserId = await findSlackUserIdByGithubUsername(githubUsername);
     if (slackUserId) return `<@${slackUserId}>`;
@@ -314,10 +317,15 @@ async function processTask(
       /github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/compare\/(?<base>\S+)\.\.\.(?<head>\S+)/,
     )?.groups || DIE(`Failed to parse compare link: ${compareLink}`);
   logger.debug(`  Comparing to head: ${head}`);
-  // const compareApiUrl = compareLink
-  const compareResult = await ghc.repos
-    .compareCommits({ owner, repo, base, head })
-    .then((e) => e.data.commits);
+  let compareResult;
+  try {
+    compareResult = await ghc.repos
+      .compareCommits({ owner, repo, base, head })
+      .then((e) => e.data.commits);
+  } catch (e) {
+    logger.warn(`  Failed to compare ${base}...${head}, skipping release ${task.releaseTag}`, { error: e });
+    return await save({ ...task, taskStatus: "failed" });
+  }
   logger.debug(`  Found ${compareResult.length} commits in release`);
 
   // // collect already backported commits, for logging purpose
@@ -364,7 +372,9 @@ async function processTask(
           logger.debug(`      Processing PR #${prNumber}: ${prTitle}`);
 
           // Check labels
-          const labels = pr.labels.map((l) => (typeof l === "string" ? l : l.name)).filter((l): l is string => !!l);
+          const labels = pr.labels
+            .map((l) => (typeof l === "string" ? l : l.name))
+            .filter((l): l is string => !!l);
           const backportLabels = labels.filter((l) => config.reBackportTargets.test(l));
 
           // Check PR body and comments for backport mentions
@@ -425,8 +435,20 @@ async function processTask(
               // Check for *-backport-not-needed labels first (e.g. "core/1.4" → prefix "core")
               const targetPrefix = branchName.split("/")[0];
               if (hasBackportNotNeededLabel(labels, targetPrefix)) {
-                logger.debug(`          Backport target branch ${branchName} marked not-needed by label`);
-                return { branch: branchName, status: "not-needed" as BackportStatus, prs: [] as { prUrl?: string; prNumber?: number; prTitle?: string; prStatus?: "open" | "closed" | "merged"; lastCheckedAt?: Date }[] };
+                logger.debug(
+                  `          Backport target branch ${branchName} marked not-needed by label`,
+                );
+                return {
+                  branch: branchName,
+                  status: "not-needed" as BackportStatus,
+                  prs: [] as {
+                    prUrl?: string;
+                    prNumber?: number;
+                    prTitle?: string;
+                    prStatus?: "open" | "closed" | "merged";
+                    lastCheckedAt?: Date;
+                  }[],
+                };
               }
 
               // now check if the commit is in the branch
@@ -596,19 +618,22 @@ ${
   task = await save({ ...task, bugfixCommits });
 
   // - now lets upsert slack message
+  if (isDryRun) {
+    logger.info("DRY RUN: Would send/update Slack message to #" + config.slackChannelName);
+  } else {
+    process.env.DRY_RUN = "";
 
-  process.env.DRY_RUN = "";
-
-  if (formattedReport.trim() !== task.slackMessage?.text?.trim()) {
-    const msg = await upsertSlackMarkdownMessage({
-      channelName: config.slackChannelName,
-      markdown: formattedReport,
-      url: task.slackMessage?.url,
-    });
-    task = await save({
-      ...task,
-      slackMessage: { text: msg.text, channel: msg.channel, url: msg.url },
-    });
+    if (formattedReport.trim() !== task.slackMessage?.text?.trim()) {
+      const msg = await upsertSlackMarkdownMessage({
+        channelName: config.slackChannelName,
+        markdown: formattedReport,
+        url: task.slackMessage?.url,
+      });
+      task = await save({
+        ...task,
+        slackMessage: { text: msg.text, channel: msg.channel, url: msg.url },
+      });
+    }
   }
   return {
     ...task,
