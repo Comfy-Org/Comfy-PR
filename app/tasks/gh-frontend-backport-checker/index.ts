@@ -261,8 +261,14 @@ export async function findSlackUserIdByGithubUsername(
   githubUsername: string,
 ): Promise<string | null> {
   try {
-    const result = await slack.users.list({ limit: 500 });
-    const members = result.members || [];
+    const firstPage = await slack.users.list({ limit: 500 });
+    const members = [...(firstPage.members || [])];
+    let cursor = firstPage.response_metadata?.next_cursor || undefined;
+    while (cursor) {
+      const page = await slack.users.list({ limit: 500, cursor });
+      members.push(...(page.members || []));
+      cursor = page.response_metadata?.next_cursor || undefined;
+    }
     const lowerGh = githubUsername.toLowerCase();
     const found = members.find((m) => {
       if (m.deleted || m.is_bot) return false;
@@ -270,7 +276,10 @@ export async function findSlackUserIdByGithubUsername(
       return (
         m.name?.toLowerCase() === lowerGh ||
         (profile?.display_name as string)?.toLowerCase() === lowerGh ||
-        ((profile?.real_name as string | undefined) || "").toLowerCase().replace(/\s+/g, "").includes(lowerGh)
+        ((profile?.real_name as string | undefined) || "")
+          .toLowerCase()
+          .replace(/\s+/g, "")
+          .includes(lowerGh)
       );
     });
     return (found?.id as string) || null;
