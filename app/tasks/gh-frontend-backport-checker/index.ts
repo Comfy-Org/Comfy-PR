@@ -270,7 +270,7 @@ export async function findSlackUserIdByGithubUsername(
       return (
         m.name?.toLowerCase() === lowerGh ||
         (profile?.display_name as string)?.toLowerCase() === lowerGh ||
-        (profile?.real_name as string)?.toLowerCase().replace(/\s+/g, "").includes(lowerGh)
+        ((profile?.real_name as string | undefined) || "").toLowerCase().replace(/\s+/g, "").includes(lowerGh)
       );
     });
     return (found?.id as string) || null;
@@ -323,7 +323,9 @@ async function processTask(
       .compareCommits({ owner, repo, base, head })
       .then((e) => e.data.commits);
   } catch (e) {
-    logger.warn(`  Failed to compare ${base}...${head}, skipping release ${task.releaseTag}`, { error: e });
+    logger.warn(`  Failed to compare ${base}...${head}, skipping release ${task.releaseTag}`, {
+      error: e,
+    });
     return await save({ ...task, taskStatus: "failed" });
   }
   logger.debug(`  Found ${compareResult.length} commits in release`);
