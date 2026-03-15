@@ -42,12 +42,14 @@ const createMockCollection = (collectionName?: string) => {
           }
         }
         // Check for deliveryId (webhook tests)
-        if ((filter as { deliveryId?: string }).deliveryId && d.deliveryId === (filter as { deliveryId?: string }).deliveryId) return doc;
+        if (
+          (filter as { deliveryId?: string }).deliveryId &&
+          d.deliveryId === (filter as { deliveryId?: string }).deliveryId
+        )
+          return doc;
       }
       // Fallback to findOneAndUpdate results for backward compatibility
-      const existingOp = dbOperations.find(
-        (op) => op.type === "findOneAndUpdate" && op.result,
-      );
+      const existingOp = dbOperations.find((op) => op.type === "findOneAndUpdate" && op.result);
       if (existingOp && filter.version) {
         const result = existingOp.result as { coreVersion?: string } | undefined;
         if (result?.coreVersion === filter.version) {
@@ -69,7 +71,7 @@ const createMockCollection = (collectionName?: string) => {
     },
     insertOne: async (doc: unknown) => {
       const id = `mock_id_${++docIdCounter}`;
-      const docWithId = { ...doc as object, _id: id };
+      const docWithId = { ...(doc as object), _id: id };
       docs.set(id, docWithId);
       return { insertedId: id };
     },
@@ -125,6 +127,14 @@ mock.module("./upsertSlackMessage", () => ({
       url: `https://slack.com/message/${Date.now()}`,
     };
   },
+  upsertSlackMarkdownMessage: async (msg: SlackMessageType) => {
+    mockSlackMessages.push(msg);
+    return {
+      ...msg,
+      url: `https://slack.com/message/${Date.now()}`,
+    };
+  },
+  mdFmt: async (md: string) => md,
 }));
 
 // Now import the module to test (after all mocks are set up)
@@ -174,9 +184,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       expect(saveOps.length).toBeGreaterThanOrEqual(1);
 
       // Check if any save operation has slackMessageDrafting
-      const hasDraftingMessage = saveOps.some(
-        (op) => op.args[1]?.$set?.slackMessageDrafting,
-      );
+      const hasDraftingMessage = saveOps.some((op) => op.args[1]?.$set?.slackMessageDrafting);
       expect(hasDraftingMessage).toBe(true);
 
       // Ensure slackMessage was NOT set for draft
@@ -261,9 +269,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       expect(saveOps.length).toBeGreaterThanOrEqual(1);
 
       // Check if any save operation has slackMessage
-      const hasStableMessage = saveOps.some(
-        (op) => op.args[1]?.$set?.slackMessage,
-      );
+      const hasStableMessage = saveOps.some((op) => op.args[1]?.$set?.slackMessage);
       expect(hasStableMessage).toBe(true);
     });
 
@@ -343,9 +349,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
       expect(saveOps.length).toBeGreaterThanOrEqual(1);
 
       // Check if any save operation has slackMessageDrafting
-      const hasDraftingMessage = saveOps.some(
-        (op) => op.args[1]?.$set?.slackMessageDrafting,
-      );
+      const hasDraftingMessage = saveOps.some((op) => op.args[1]?.$set?.slackMessageDrafting);
       expect(hasDraftingMessage).toBe(true);
     });
   });
@@ -372,9 +376,7 @@ describe("GithubDesktopReleaseNotificationTask", () => {
 
       // Verify coreVersion was extracted
       const saveOps = dbOperations.filter((op) => op.type === "findOneAndUpdate");
-      const hasCoreVersion = saveOps.some(
-        (op) => op.args[1]?.$set?.coreVersion === "v0.2.0",
-      );
+      const hasCoreVersion = saveOps.some((op) => op.args[1]?.$set?.coreVersion === "v0.2.0");
       expect(hasCoreVersion).toBe(true);
     });
   });
