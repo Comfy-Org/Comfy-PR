@@ -34,7 +34,6 @@ const DEBUG_PATTERNS = [
 
   // ANSI escape codes (terminal colors/formatting)
   /\x1b\[[0-9;]*[mGKHf]/g,
-  /\x1b\[[0-9;]*[mGKHf]/g, // ANSI escape codes (alternative pattern)
 
   // Terminal control characters
   /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g,
