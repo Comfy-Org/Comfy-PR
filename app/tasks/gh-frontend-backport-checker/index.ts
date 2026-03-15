@@ -164,11 +164,11 @@ export default async function runGithubFrontendBackportCheckerTask() {
   // Process each release
   const processedReleases = await sflow(releases)
     .filter((release) => +new Date(release.created_at) >= +new Date(config.processSince))
-    // Filter by version distance: only show releases within maxMinorVersionsBehind of latest
+    // Filter by version distance: show releases up to and including maxMinorVersionsBehind behind latest
     .filter((release) => {
       const minor = parseMinorVersion(release.tag_name);
       if (minor === null) return true; // can't parse, include it
-      return latestMinor - minor < config.maxMinorVersionsBehind;
+      return latestMinor - minor <= config.maxMinorVersionsBehind;
     })
     .map(async function convertReleaseToTask(release) {
       const compareLink =
