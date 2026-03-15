@@ -436,10 +436,7 @@ async function processTask(
           // check each backport target branch status
           const targetBranches = labels
             .filter((l) => config.reBackportTargets.test(l))
-            .filter((_e) => backportStatusRaw === "needed")
-            .filter((branchName) =>
-              labels.some((l) => l.toLowerCase().includes(branchName.toLowerCase())),
-            );
+            .filter((_e) => backportStatusRaw === "needed");
 
           const backportTargetStatus = await sflow(targetBranches)
             .map(async (branchName) => {
