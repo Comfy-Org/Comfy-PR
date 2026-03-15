@@ -284,12 +284,18 @@ describe("GithubFrontendBackportCheckerTask", () => {
         { tag: "v1.39.2", minor: 39 },
         { tag: "v1.38.1", minor: 38 },
         { tag: "v1.37.0", minor: 37 },
-        { tag: "v1.36.0", minor: 36 }, // exactly 4 behind, should be excluded
+        { tag: "v1.36.0", minor: 36 }, // exactly 4 behind, should be included (<=)
         { tag: "v1.35.0", minor: 35 }, // 5 behind, should be excluded
       ];
 
-      const included = releases.filter((r) => latestMinor - r.minor < maxMinorVersionsBehind);
-      expect(included.map((r) => r.tag)).toEqual(["v1.40.0", "v1.39.2", "v1.38.1", "v1.37.0"]);
+      const included = releases.filter((r) => latestMinor - r.minor <= maxMinorVersionsBehind);
+      expect(included.map((r) => r.tag)).toEqual([
+        "v1.40.0",
+        "v1.39.2",
+        "v1.38.1",
+        "v1.37.0",
+        "v1.36.0",
+      ]);
     });
   });
 
