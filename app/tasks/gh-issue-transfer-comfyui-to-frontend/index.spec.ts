@@ -21,7 +21,9 @@ const createMockCollection = (collectionName?: string) => {
       const f = filter as Record<string, unknown>;
       // Check operations first for backward compatibility
       const op = dbOperations.find(
-        (op) => (op as { filter?: { sourceIssueNumber?: number } }).filter?.sourceIssueNumber === f?.sourceIssueNumber,
+        (op) =>
+          (op as { filter?: { sourceIssueNumber?: number } }).filter?.sourceIssueNumber ===
+          f?.sourceIssueNumber,
       );
       if (op) return (op as { data?: unknown }).data || null;
       // Check in-memory docs
@@ -33,7 +35,7 @@ const createMockCollection = (collectionName?: string) => {
       return null;
     },
     findOneAndUpdate: async (filter: unknown, update: unknown) => {
-      const data = { ...filter as object, ...(update as { $set?: object }).$set };
+      const data = { ...(filter as object), ...(update as { $set?: object }).$set };
       dbOperations.push({ filter, data });
       return data;
     },
@@ -45,7 +47,7 @@ const createMockCollection = (collectionName?: string) => {
     },
     insertOne: async (doc: unknown) => {
       const id = `mock_id_${++docIdCounter}`;
-      const docWithId = { ...doc as object, _id: id };
+      const docWithId = { ...(doc as object), _id: id };
       docs.set(id, docWithId);
       return { insertedId: id };
     },

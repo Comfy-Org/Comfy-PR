@@ -11,12 +11,7 @@ import { slack, slackCached } from "@/lib";
 import winston from "winston";
 import { parseSlackMessageToMarkdown } from "@/lib/slack/parseSlackMessageToMarkdown";
 import sflow from "sflow";
-import {
-  streamText,
-  tool,
-  type ModelMessage,
-  type ToolSet,
-} from "ai";
+import { streamText, tool, type ModelMessage, type ToolSet } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { tsmatch } from "@/packages/mongodb-pipeline-ts/Task";
 // tap and type imports removed (unused)

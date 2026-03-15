@@ -78,7 +78,7 @@ function createMockCollection(collectionName: string) {
       }
 
       if (existing) {
-        const updated = { ...existing.doc as object, ...update.$set };
+        const updated = { ...(existing.doc as object), ...update.$set };
         docs.set(existing.id, updated);
         return updated;
       } else if (options?.upsert) {

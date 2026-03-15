@@ -174,9 +174,7 @@ describe("GithubFrontendBackportCheckerTask", () => {
         .filter(
           (line) =>
             line.startsWith("  ") &&
-            (line.includes("❌") ||
-              line.includes("🔄") ||
-              line.includes("✅")),
+            (line.includes("❌") || line.includes("🔄") || line.includes("✅")),
         )
         .map((line) => {
           const trimmed = line.trim();

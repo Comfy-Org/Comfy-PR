@@ -584,7 +584,10 @@ The user sent a new message in a Slack thread where I am already assisting them 
 ${event.text}
 
 The thread's recent messages are:
-${((data: string) => { logger.debug("Thread messages:", { data }); return data; })(
+${((data: string) => {
+  logger.debug("Thread messages:", { data });
+  return data;
+})(
   yaml.stringify(
     nearbyMessages.toSorted(compareBy((e) => +(e.ts || 0))), // sort by ts asc
   ),

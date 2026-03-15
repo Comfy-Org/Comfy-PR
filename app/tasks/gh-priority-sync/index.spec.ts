@@ -26,7 +26,15 @@ mock.module("@/src/parseIssueUrl", () => ({
       issue_number: parseInt(match[3]),
     };
   },
-  stringifyIssueUrl: ({ owner, repo, issue_number }: { owner: string; repo: string; issue_number: number }) => {
+  stringifyIssueUrl: ({
+    owner,
+    repo,
+    issue_number,
+  }: {
+    owner: string;
+    repo: string;
+    issue_number: number;
+  }) => {
     return `https://github.com/${owner}/${repo}/issues/${issue_number}`;
   },
 }));

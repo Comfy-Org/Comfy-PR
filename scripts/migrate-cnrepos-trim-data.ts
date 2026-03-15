@@ -107,7 +107,11 @@ function trimPullsArray(
 
 function trimCrPullsArray(
   crPulls:
-    | { data?: Array<{ pull?: Record<string, unknown>; [key: string]: unknown }>; state?: string; mtime?: Date }
+    | {
+        data?: Array<{ pull?: Record<string, unknown>; [key: string]: unknown }>;
+        state?: string;
+        mtime?: Date;
+      }
     | undefined,
 ) {
   if (!crPulls?.data) return crPulls;
@@ -126,9 +130,7 @@ function trimCrPullsArray(
                   body: c.body,
                   updated_at: c.updated_at,
                   created_at: c.created_at,
-                  user: c.user
-                    ? { login: (c.user as { login?: string }).login }
-                    : undefined,
+                  user: c.user ? { login: (c.user as { login?: string }).login } : undefined,
                 }))
               : comments.data; // Preserve undefined
             return {
