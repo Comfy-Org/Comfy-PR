@@ -42,7 +42,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           if ! git diff --quiet; then
             git add -A
-            git commit -m "style: auto-fix lint and formatting"
+            HUSKY=0 git commit -m "style: auto-fix lint and formatting"
             git push
           fi
       - run: bun test
