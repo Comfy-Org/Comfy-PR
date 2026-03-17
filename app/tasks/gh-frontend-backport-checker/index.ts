@@ -335,7 +335,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
     })
     .map(processTask)
     .toArray();
-    return await save({ ...task, taskStatus: "failed", bugfixCommits: [] });
+
   logger.info(
     `\nProcessed ${processedReleases.length} releases, checked ${
       processedReleases.flatMap((r) => r.bugfixCommits).length
