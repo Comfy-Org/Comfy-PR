@@ -343,7 +343,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
   );
 }
 
-function getBackportStatusEmoji(status: BackportStatus): string {
+export function getBackportStatusEmoji(status: BackportStatus): string {
   switch (status) {
     case "completed":
       return ":pr-merged:";
@@ -360,7 +360,7 @@ function getBackportStatusEmoji(status: BackportStatus): string {
   }
 }
 
-function middleTruncated(maxLength: number, str: string): string {
+export function middleTruncated(maxLength: number, str: string): string {
   if (str.length <= maxLength) return str;
   const half = Math.floor((maxLength - 3) / 2);
   return `${str.slice(0, half)}...${str.slice(-half)}`;
@@ -392,7 +392,9 @@ export async function getReleaseSheriffUserId(): Promise<string | null> {
 }
 
 /** Cached promise for all Slack workspace members — fetched once per run. */
-let slackMembersCache: Promise<NonNullable<Awaited<ReturnType<typeof slack.users.list>>["members"]>> | null = null;
+let slackMembersCache: Promise<
+  NonNullable<Awaited<ReturnType<typeof slack.users.list>>["members"]>
+> | null = null;
 
 async function getAllSlackMembers() {
   if (!slackMembersCache) {
@@ -449,7 +451,6 @@ export async function findSlackUserIdByGithubUsername(
  * Tries the PR author first, falls back to release sheriff.
  */
 async function resolveSlackTagForAuthor(githubUsername?: string): Promise<string> {
-  if (isDryRun) return githubUsername ? `@${githubUsername}` : "";
   if (githubUsername) {
     const slackUserId = await findSlackUserIdByGithubUsername(githubUsername);
     if (slackUserId) return `<@${slackUserId}>`;

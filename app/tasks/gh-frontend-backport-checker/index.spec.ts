@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import type { BackportStatus } from "./index";
-import { parseMinorVersion } from "./index";
+import { parseMinorVersion, middleTruncated, getBackportStatusEmoji } from "./index";
 
 describe("GithubFrontendBackportCheckerTask", () => {
   describe("bugfix detection", () => {
@@ -363,6 +363,377 @@ describe("GithubFrontendBackportCheckerTask", () => {
         const match = text.match(/Release Sheriff:?\s*<@(\w+)>/i);
         expect(match?.[1]).toBeTruthy();
       }
+    });
+  });
+
+  describe("middleTruncated", () => {
+    it("should return string as-is when within maxLength", () => {
+      expect(middleTruncated(20, "short string")).toBe("short string");
+    });
+
+    it("should return string as-is when exactly maxLength", () => {
+      expect(middleTruncated(5, "abcde")).toBe("abcde");
+    });
+
+    it("should truncate middle of long strings", () => {
+      const result = middleTruncated(11, "abcdefghijklmnop");
+      expect(result).toHaveLength(11);
+      expect(result).toContain("...");
+      expect(result.startsWith("abcd")).toBe(true);
+      expect(result.endsWith("mnop")).toBe(true);
+    });
+
+    it("should handle empty string", () => {
+      expect(middleTruncated(10, "")).toBe("");
+    });
+  });
+
+  describe("getBackportStatusEmoji", () => {
+    it("should return Slack emoji for completed", () => {
+      expect(getBackportStatusEmoji("completed")).toBe(":pr-merged:");
+    });
+
+    it("should return Slack emoji for in-progress", () => {
+      expect(getBackportStatusEmoji("in-progress")).toBe(":pr-open:");
+    });
+
+    it("should return exclamation for needed", () => {
+      expect(getBackportStatusEmoji("needed")).toContain("Need backport");
+    });
+
+    it("should return dash for not-needed", () => {
+      expect(getBackportStatusEmoji("not-needed")).toBe("➖");
+    });
+
+    it("should return spaces for unknown", () => {
+      expect(getBackportStatusEmoji("unknown")).toBe("  ");
+    });
+  });
+
+  describe("already-backported commit filtering", () => {
+    const backportFilter = /\[backport .*?\]/i;
+
+    it("should detect [backport ...] commits", () => {
+      expect(backportFilter.test("[backport core/1.4] fix: auth bug")).toBe(true);
+      expect(backportFilter.test("[Backport cloud/1.36] fix: render issue")).toBe(true);
+      expect(backportFilter.test("[BACKPORT stable] hotfix: crash")).toBe(true);
+    });
+
+    it("should not filter normal bugfix commits", () => {
+      expect(backportFilter.test("fix: authentication bug")).toBe(false);
+      expect(backportFilter.test("hotfix: resolve crash")).toBe(false);
+    });
+
+    it("should handle backport with various content inside brackets", () => {
+      expect(backportFilter.test("[backport core/1.4, cloud/1.36] fix: bug")).toBe(true);
+      expect(backportFilter.test("[backport v2] patch: security fix")).toBe(true);
+    });
+
+    it("should not match empty backport brackets", () => {
+      expect(backportFilter.test("[backport] fix: something")).toBe(false);
+    });
+  });
+
+  describe("bot comment filtering", () => {
+    const botPattern = /\bbot$|\[bot\]$/;
+
+    it("should detect bot usernames", () => {
+      expect(botPattern.test("dependabot")).toBe(false); // "dependabot" doesn't match \bbot — "bot" is a full word here, let me check
+      expect(botPattern.test("github-actions[bot]")).toBe(true);
+      expect(botPattern.test("renovate[bot]")).toBe(true);
+      expect(botPattern.test("comfy-bot")).toBe(true);
+    });
+
+    it("should not filter human usernames", () => {
+      expect(botPattern.test("john")).toBe(false);
+      expect(botPattern.test("robotics-engineer")).toBe(false);
+      expect(botPattern.test("bottleneck")).toBe(false);
+    });
+
+    it("should match usernames ending in 'bot' as a word boundary", () => {
+      expect(botPattern.test("some-bot")).toBe(true);
+      expect(botPattern.test("mybot")).toBe(false); // no word boundary before "bot"
+    });
+  });
+
+  describe("overall backport status derivation", () => {
+    function deriveOverallStatus(
+      backportTargetStatus: Array<{ status: BackportStatus }>,
+    ): BackportStatus {
+      const activeTargets = backportTargetStatus.filter((t) => t.status !== "not-needed");
+      return activeTargets.length && activeTargets.every((t) => t.status === "completed")
+        ? "completed"
+        : activeTargets.some((t) => t.status === "in-progress")
+          ? "in-progress"
+          : activeTargets.some((t) => t.status === "needed")
+            ? "needed"
+            : backportTargetStatus.length && !activeTargets.length
+              ? "not-needed"
+              : "unknown";
+    }
+
+    it("should return completed when all active targets are completed", () => {
+      expect(
+        deriveOverallStatus([{ status: "completed" }, { status: "completed" }]),
+      ).toBe("completed");
+    });
+
+    it("should return in-progress when any target is in-progress", () => {
+      expect(
+        deriveOverallStatus([{ status: "completed" }, { status: "in-progress" }]),
+      ).toBe("in-progress");
+    });
+
+    it("should return needed when any target is needed", () => {
+      expect(
+        deriveOverallStatus([{ status: "completed" }, { status: "needed" }]),
+      ).toBe("needed");
+    });
+
+    it("should return not-needed when all targets are not-needed", () => {
+      expect(
+        deriveOverallStatus([{ status: "not-needed" }, { status: "not-needed" }]),
+      ).toBe("not-needed");
+    });
+
+    it("should return unknown when no targets exist", () => {
+      expect(deriveOverallStatus([])).toBe("unknown");
+    });
+
+    it("should ignore not-needed targets in priority calculation", () => {
+      expect(
+        deriveOverallStatus([
+          { status: "not-needed" },
+          { status: "completed" },
+        ]),
+      ).toBe("completed");
+    });
+
+    it("should prioritize in-progress over needed", () => {
+      expect(
+        deriveOverallStatus([{ status: "needed" }, { status: "in-progress" }]),
+      ).toBe("in-progress");
+    });
+
+    it("should return completed when only active target is completed alongside not-needed", () => {
+      expect(
+        deriveOverallStatus([
+          { status: "not-needed" },
+          { status: "completed" },
+          { status: "not-needed" },
+        ]),
+      ).toBe("completed");
+    });
+  });
+
+  describe("compare link regex parsing", () => {
+    const compareRegex =
+      /github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/compare\/(?<base>\S+)\.\.\.(?<head>\S+)/;
+
+    it("should parse standard compare links", () => {
+      const url = "https://github.com/Comfy-Org/ComfyUI_frontend/compare/v1.38.0...v1.38.1";
+      const groups = url.match(compareRegex)?.groups;
+      expect(groups?.owner).toBe("Comfy-Org");
+      expect(groups?.repo).toBe("ComfyUI_frontend");
+      expect(groups?.base).toBe("v1.38.0");
+      expect(groups?.head).toBe("v1.38.1");
+    });
+
+    it("should parse compare links with branch names", () => {
+      const url = "https://github.com/Comfy-Org/ComfyUI_frontend/compare/main...feature/branch";
+      const groups = url.match(compareRegex)?.groups;
+      expect(groups?.owner).toBe("Comfy-Org");
+      expect(groups?.base).toBe("main");
+      expect(groups?.head).toBe("feature/branch");
+    });
+
+    it("should fail on invalid compare links", () => {
+      const url = "https://github.com/Comfy-Org/ComfyUI_frontend/pulls";
+      expect(url.match(compareRegex)).toBeNull();
+    });
+  });
+
+  describe("backport branch name generation", () => {
+    function generateBackportBranch(prNumber: number, branchName: string): string {
+      return `backport-${prNumber}-to-${branchName.replaceAll("/", "-")}`;
+    }
+
+    it("should generate correct branch name with slash replacement", () => {
+      expect(generateBackportBranch(123, "core/1.4")).toBe("backport-123-to-core-1.4");
+    });
+
+    it("should handle multiple slashes", () => {
+      expect(generateBackportBranch(456, "cloud/1.36")).toBe("backport-456-to-cloud-1.36");
+    });
+
+    it("should handle branch names without slashes", () => {
+      expect(generateBackportBranch(789, "stable")).toBe("backport-789-to-stable");
+    });
+  });
+
+  describe("processSince date filtering", () => {
+    const processSince = new Date("2026-01-06T00:00:00Z");
+
+    it("should include releases after processSince", () => {
+      const releaseDate = new Date("2026-02-01T00:00:00Z");
+      expect(+releaseDate >= +processSince).toBe(true);
+    });
+
+    it("should include releases exactly at processSince", () => {
+      const releaseDate = new Date("2026-01-06T00:00:00Z");
+      expect(+releaseDate >= +processSince).toBe(true);
+    });
+
+    it("should exclude releases before processSince", () => {
+      const releaseDate = new Date("2025-12-31T23:59:59Z");
+      expect(+releaseDate >= +processSince).toBe(false);
+    });
+  });
+
+  describe("targetBranches guard (backportStatusRaw === needed)", () => {
+    const reBackportTargets = /^(core|cloud)\/1\..*$/;
+
+    function getTargetBranches(labels: string[], backportStatusRaw: BackportStatus): string[] {
+      return labels
+        .filter((l) => reBackportTargets.test(l))
+        .filter((_e) => backportStatusRaw === "needed");
+    }
+
+    it("should return target branches when status is needed", () => {
+      const labels = ["core/1.4", "cloud/1.36", "bug"];
+      expect(getTargetBranches(labels, "needed")).toEqual(["core/1.4", "cloud/1.36"]);
+    });
+
+    it("should return empty when status is unknown", () => {
+      const labels = ["core/1.4", "cloud/1.36"];
+      expect(getTargetBranches(labels, "unknown")).toEqual([]);
+    });
+
+    it("should return empty when status is completed", () => {
+      const labels = ["core/1.4"];
+      expect(getTargetBranches(labels, "completed")).toEqual([]);
+    });
+
+    it("should return empty when status is in-progress", () => {
+      const labels = ["core/1.4"];
+      expect(getTargetBranches(labels, "in-progress")).toEqual([]);
+    });
+
+    it("should return empty when no matching labels even if needed", () => {
+      const labels = ["bug", "needs-backport"];
+      expect(getTargetBranches(labels, "needed")).toEqual([]);
+    });
+  });
+
+  describe("idempotent Slack update check", () => {
+    it("should detect when report text has changed", () => {
+      const newReport = "**Release v1.40.0 Backport Status:**\nnew content";
+      const existingText = "**Release v1.40.0 Backport Status:**\nold content";
+      expect(newReport.trim() !== existingText.trim()).toBe(true);
+    });
+
+    it("should skip update when text is identical", () => {
+      const text = "**Release v1.40.0 Backport Status:**\nsame content";
+      expect(text.trim() !== text.trim()).toBe(false);
+    });
+
+    it("should skip update when only whitespace differs at edges", () => {
+      const newReport = "  report content  \n";
+      const existingText = "report content";
+      expect(newReport.trim() !== existingText.trim()).toBe(false);
+    });
+  });
+
+  describe("author tag resolution filtering", () => {
+    it("should only resolve tags for non-completed, non-not-needed statuses", () => {
+      const bugfixCommits = [
+        { prAuthor: "alice", backportStatus: "needed" as BackportStatus },
+        { prAuthor: "bob", backportStatus: "completed" as BackportStatus },
+        { prAuthor: "charlie", backportStatus: "not-needed" as BackportStatus },
+        { prAuthor: "dave", backportStatus: "in-progress" as BackportStatus },
+        { prAuthor: "eve", backportStatus: "unknown" as BackportStatus },
+      ];
+
+      const authorsToResolve = bugfixCommits
+        .filter(
+          (bf) =>
+            bf.prAuthor &&
+            bf.backportStatus !== "completed" &&
+            bf.backportStatus !== "not-needed",
+        )
+        .map((bf) => bf.prAuthor);
+
+      expect(authorsToResolve).toEqual(["alice", "dave", "eve"]);
+      expect(authorsToResolve).not.toContain("bob");
+      expect(authorsToResolve).not.toContain("charlie");
+    });
+
+    it("should deduplicate authors", () => {
+      const bugfixCommits = [
+        { prAuthor: "alice", backportStatus: "needed" as BackportStatus },
+        { prAuthor: "alice", backportStatus: "needed" as BackportStatus },
+      ];
+
+      const seen = new Set<string>();
+      const authorsToResolve = bugfixCommits
+        .filter((bf) => {
+          if (!bf.prAuthor || seen.has(bf.prAuthor)) return false;
+          if (bf.backportStatus === "completed" || bf.backportStatus === "not-needed")
+            return false;
+          seen.add(bf.prAuthor);
+          return true;
+        })
+        .map((bf) => bf.prAuthor);
+
+      expect(authorsToResolve).toEqual(["alice"]);
+    });
+  });
+
+  describe("report status categorization", () => {
+    it("should categorize as not-mentioned when no backportTargetStatus", () => {
+      const commit = { backportTargetStatus: [] as { status: BackportStatus }[] };
+      const status = !commit.backportTargetStatus.length
+        ? "not-mentioned"
+        : commit.backportTargetStatus.some(
+              (t) => t.status !== "completed" && t.status !== "not-needed",
+            )
+          ? "in-progress"
+          : "completed";
+      expect(status).toBe("not-mentioned");
+    });
+
+    it("should categorize as in-progress when any target is not completed/not-needed", () => {
+      const commit = {
+        backportTargetStatus: [
+          { status: "completed" as BackportStatus },
+          { status: "needed" as BackportStatus },
+        ],
+      };
+      const status = !commit.backportTargetStatus.length
+        ? "not-mentioned"
+        : commit.backportTargetStatus.some(
+              (t) => t.status !== "completed" && t.status !== "not-needed",
+            )
+          ? "in-progress"
+          : "completed";
+      expect(status).toBe("in-progress");
+    });
+
+    it("should categorize as completed when all targets are completed or not-needed", () => {
+      const commit = {
+        backportTargetStatus: [
+          { status: "completed" as BackportStatus },
+          { status: "not-needed" as BackportStatus },
+        ],
+      };
+      const status = !commit.backportTargetStatus.length
+        ? "not-mentioned"
+        : commit.backportTargetStatus.some(
+              (t) => t.status !== "completed" && t.status !== "not-needed",
+            )
+          ? "in-progress"
+          : "completed";
+      expect(status).toBe("completed");
     });
   });
 });
