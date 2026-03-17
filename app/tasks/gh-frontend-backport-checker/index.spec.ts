@@ -438,7 +438,7 @@ describe("GithubFrontendBackportCheckerTask", () => {
     const botPattern = /\bbot$|\[bot\]$/;
 
     it("should detect bot usernames", () => {
-      expect(botPattern.test("dependabot")).toBe(false); // "dependabot" doesn't match \bbot — "bot" is a full word here, let me check
+      expect(botPattern.test("dependabot")).toBe(false); // \bbot requires a word boundary; "bot" in "dependabot" is not a separate word
       expect(botPattern.test("github-actions[bot]")).toBe(true);
       expect(botPattern.test("renovate[bot]")).toBe(true);
       expect(botPattern.test("comfy-bot")).toBe(true);

@@ -408,7 +408,10 @@ async function getAllSlackMembers() {
         cursor = page.response_metadata?.next_cursor || undefined;
       }
       return members;
-    })();
+    })().catch((e) => {
+      slackMembersCache = null; // reset so the next call retries instead of re-throwing the cached rejection
+      throw e;
+    });
   }
   return slackMembersCache;
 }
