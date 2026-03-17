@@ -300,31 +300,39 @@ describe("GithubFrontendBackportCheckerTask", () => {
   });
 
   describe("backport-not-needed labels", () => {
+    const backportNotNeededLabel = "no-backport-needed";
     const backportNotNeededLabels: Record<string, string> = {
-      core: "core-backport-not-needed",
-      cloud: "cloud-backport-not-needed",
+      core: "no-backport-needed-core",
+      cloud: "no-backport-needed-cloud",
     };
 
     function hasBackportNotNeededLabel(labels: string[], targetPrefix: string): boolean {
+      if (labels.some((l) => l.toLowerCase() === backportNotNeededLabel.toLowerCase())) return true;
       const notNeededLabel = backportNotNeededLabels[targetPrefix];
       if (!notNeededLabel) return false;
       return labels.some((l) => l.toLowerCase() === notNeededLabel.toLowerCase());
     }
 
-    it("should detect core-backport-not-needed label", () => {
-      const labels = ["bug", "core-backport-not-needed", "core/1.4"];
+    it("should detect no-backport-needed-core label", () => {
+      const labels = ["bug", "no-backport-needed-core", "core/1.4"];
       expect(hasBackportNotNeededLabel(labels, "core")).toBe(true);
       expect(hasBackportNotNeededLabel(labels, "cloud")).toBe(false);
     });
 
-    it("should detect cloud-backport-not-needed label", () => {
-      const labels = ["bug", "cloud-backport-not-needed", "cloud/1.36"];
+    it("should detect no-backport-needed-cloud label", () => {
+      const labels = ["bug", "no-backport-needed-cloud", "cloud/1.36"];
       expect(hasBackportNotNeededLabel(labels, "cloud")).toBe(true);
       expect(hasBackportNotNeededLabel(labels, "core")).toBe(false);
     });
 
+    it("should detect general no-backport-needed label for all targets", () => {
+      const labels = ["bug", "no-backport-needed"];
+      expect(hasBackportNotNeededLabel(labels, "core")).toBe(true);
+      expect(hasBackportNotNeededLabel(labels, "cloud")).toBe(true);
+    });
+
     it("should be case insensitive", () => {
-      const labels = ["Core-Backport-Not-Needed"];
+      const labels = ["No-Backport-Needed-Core"];
       expect(hasBackportNotNeededLabel(labels, "core")).toBe(true);
     });
 
@@ -334,8 +342,8 @@ describe("GithubFrontendBackportCheckerTask", () => {
       expect(hasBackportNotNeededLabel(labels, "cloud")).toBe(false);
     });
 
-    it("should return false for unknown target prefix", () => {
-      const labels = ["core-backport-not-needed"];
+    it("should return false for unknown target prefix without general label", () => {
+      const labels = ["no-backport-needed-core"];
       expect(hasBackportNotNeededLabel(labels, "unknown")).toBe(false);
     });
   });

@@ -64,7 +64,7 @@ import { slackCached } from "@/lib";
  *
  *    c) PER-TARGET-BRANCH STATUS — only runs when `backportStatusRaw` is
  *       "needed". For each labeled target branch:
- *       - Checks for `*-backport-not-needed` labels (e.g. `core-backport-not-needed`)
+ *       - Checks for `no-backport-needed[-core|-cloud]` labels
  *         → marks that target as "not-needed"
  *       - Uses `compareCommits(target_branch, commit_sha)` to check if the
  *         commit already exists on that branch:
@@ -126,10 +126,11 @@ import { slackCached } from "@/lib";
  *   from bots (username ending in `bot` or `[bot]`) are excluded to avoid
  *   false positives from automated messages.
  *
- * • BACKPORT-NOT-NEEDED LABELS — per-target dismissal labels like
- *   `core-backport-not-needed` override the per-branch status to "not-needed",
- *   even if the commit hasn't been cherry-picked. When ALL targets are
- *   dismissed this way, the overall status becomes "not-needed".
+ * • BACKPORT-NOT-NEEDED LABELS — `no-backport-needed` dismisses all targets;
+ *   per-target labels `no-backport-needed-core` / `no-backport-needed-cloud`
+ *   override individual branch status to "not-needed", even if the commit
+ *   hasn't been cherry-picked. When ALL targets are dismissed, the overall
+ *   status becomes "not-needed".
  *
  * • DIVERGED BRANCH (backport PR detection) — when the target branch has
  *   diverged from the commit (common for long-lived stable branches), the
@@ -183,10 +184,11 @@ const config = {
   // 3. backport labels on PRs
   backportLabels: ["needs-backport"],
 
-  // labels that dismiss backport requirements per target
+  // labels that dismiss backport requirements per target (or all targets)
+  backportNotNeededLabel: "no-backport-needed",
   backportNotNeededLabels: {
-    core: "core-backport-not-needed",
-    cloud: "cloud-backport-not-needed",
+    core: "no-backport-needed-core",
+    cloud: "no-backport-needed-cloud",
   } as Record<string, string>,
 
   // 5. detect backport mentions
@@ -463,6 +465,10 @@ async function resolveSlackTagForAuthor(githubUsername?: string): Promise<string
 
 /** Check if a PR has a backport-not-needed label for a given target prefix (e.g. "core" or "cloud") */
 function hasBackportNotNeededLabel(labels: string[], targetPrefix: string): boolean {
+  // General label dismisses all targets
+  if (labels.some((l) => l.toLowerCase() === config.backportNotNeededLabel.toLowerCase()))
+    return true;
+  // Per-target label
   const notNeededLabel = config.backportNotNeededLabels[targetPrefix];
   if (!notNeededLabel) return false;
   return labels.some((l) => l.toLowerCase() === notNeededLabel.toLowerCase());
@@ -593,7 +599,7 @@ async function processTask(
 
           const backportTargetStatus = await sflow(targetBranches)
             .map(async (branchName) => {
-              // Check for *-backport-not-needed labels first (e.g. "core/1.4" → prefix "core")
+              // Check for no-backport-needed[-core|-cloud] labels first (e.g. "core/1.4" → prefix "core")
               const targetPrefix = branchName.split("/")[0];
               if (hasBackportNotNeededLabel(labels, targetPrefix)) {
                 logger.debug(
