@@ -473,27 +473,25 @@ describe("GithubFrontendBackportCheckerTask", () => {
     }
 
     it("should return completed when all active targets are completed", () => {
-      expect(
-        deriveOverallStatus([{ status: "completed" }, { status: "completed" }]),
-      ).toBe("completed");
+      expect(deriveOverallStatus([{ status: "completed" }, { status: "completed" }])).toBe(
+        "completed",
+      );
     });
 
     it("should return in-progress when any target is in-progress", () => {
-      expect(
-        deriveOverallStatus([{ status: "completed" }, { status: "in-progress" }]),
-      ).toBe("in-progress");
+      expect(deriveOverallStatus([{ status: "completed" }, { status: "in-progress" }])).toBe(
+        "in-progress",
+      );
     });
 
     it("should return needed when any target is needed", () => {
-      expect(
-        deriveOverallStatus([{ status: "completed" }, { status: "needed" }]),
-      ).toBe("needed");
+      expect(deriveOverallStatus([{ status: "completed" }, { status: "needed" }])).toBe("needed");
     });
 
     it("should return not-needed when all targets are not-needed", () => {
-      expect(
-        deriveOverallStatus([{ status: "not-needed" }, { status: "not-needed" }]),
-      ).toBe("not-needed");
+      expect(deriveOverallStatus([{ status: "not-needed" }, { status: "not-needed" }])).toBe(
+        "not-needed",
+      );
     });
 
     it("should return unknown when no targets exist", () => {
@@ -501,18 +499,15 @@ describe("GithubFrontendBackportCheckerTask", () => {
     });
 
     it("should ignore not-needed targets in priority calculation", () => {
-      expect(
-        deriveOverallStatus([
-          { status: "not-needed" },
-          { status: "completed" },
-        ]),
-      ).toBe("completed");
+      expect(deriveOverallStatus([{ status: "not-needed" }, { status: "completed" }])).toBe(
+        "completed",
+      );
     });
 
     it("should prioritize in-progress over needed", () => {
-      expect(
-        deriveOverallStatus([{ status: "needed" }, { status: "in-progress" }]),
-      ).toBe("in-progress");
+      expect(deriveOverallStatus([{ status: "needed" }, { status: "in-progress" }])).toBe(
+        "in-progress",
+      );
     });
 
     it("should return completed when only active target is completed alongside not-needed", () => {
@@ -657,9 +652,7 @@ describe("GithubFrontendBackportCheckerTask", () => {
       const authorsToResolve = bugfixCommits
         .filter(
           (bf) =>
-            bf.prAuthor &&
-            bf.backportStatus !== "completed" &&
-            bf.backportStatus !== "not-needed",
+            bf.prAuthor && bf.backportStatus !== "completed" && bf.backportStatus !== "not-needed",
         )
         .map((bf) => bf.prAuthor);
 
@@ -678,8 +671,7 @@ describe("GithubFrontendBackportCheckerTask", () => {
       const authorsToResolve = bugfixCommits
         .filter((bf) => {
           if (!bf.prAuthor || seen.has(bf.prAuthor)) return false;
-          if (bf.backportStatus === "completed" || bf.backportStatus === "not-needed")
-            return false;
+          if (bf.backportStatus === "completed" || bf.backportStatus === "not-needed") return false;
           seen.add(bf.prAuthor);
           return true;
         })

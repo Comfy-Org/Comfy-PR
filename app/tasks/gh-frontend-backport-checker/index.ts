@@ -13,7 +13,7 @@ import { ghPageFlow } from "@/src/ghPageFlow";
 import { match as tsmatch } from "ts-pattern";
 import { getChannelInfo } from "@/lib/slack/channel-info";
 import { getSlackChannel } from "@/lib/slack/channels";
-import { slack } from "@/lib";
+import { slackCached } from "@/lib";
 
 /**
  * GitHub Frontend Backport Checker Task
@@ -393,17 +393,17 @@ export async function getReleaseSheriffUserId(): Promise<string | null> {
 
 /** Cached promise for all Slack workspace members — fetched once per run. */
 let slackMembersCache: Promise<
-  NonNullable<Awaited<ReturnType<typeof slack.users.list>>["members"]>
+  NonNullable<Awaited<ReturnType<typeof slackCached.users.list>>["members"]>
 > | null = null;
 
 async function getAllSlackMembers() {
   if (!slackMembersCache) {
     slackMembersCache = (async () => {
-      const firstPage = await slack.users.list({ limit: 500 });
+      const firstPage = await slackCached.users.list({ limit: 500 });
       const members = [...(firstPage.members || [])];
       let cursor = firstPage.response_metadata?.next_cursor || undefined;
       while (cursor) {
-        const page = await slack.users.list({ limit: 500, cursor });
+        const page = await slackCached.users.list({ limit: 500, cursor });
         members.push(...(page.members || []));
         cursor = page.response_metadata?.next_cursor || undefined;
       }

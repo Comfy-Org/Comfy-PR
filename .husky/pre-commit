@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
 bunx tsgo
-bunx oxlint --fix
-bunx oxfmt
+bun lint
+bun fmt
 
