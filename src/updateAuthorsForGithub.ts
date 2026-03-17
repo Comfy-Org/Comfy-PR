@@ -36,25 +36,36 @@ export async function updateAuthorsForGithub() {
     )
     .map((e) => TaskDataOrNull(e))
     .filter()
-    .map(({ email, avatar_url, blog, updated_at: _updated_at, location, company, hireable, bio, login }) =>
-      Authors.findOneAndUpdate(
-        { githubId: login },
-        {
-          $set: {
-            githubMtime: new Date(),
-            ...(email && { email }),
-            ...(null != hireable && { hireable }),
+    .map(
+      ({
+        email,
+        avatar_url,
+        blog,
+        updated_at: _updated_at,
+        location,
+        company,
+        hireable,
+        bio,
+        login,
+      }) =>
+        Authors.findOneAndUpdate(
+          { githubId: login },
+          {
+            $set: {
+              githubMtime: new Date(),
+              ...(email && { email }),
+              ...(null != hireable && { hireable }),
+            },
+            $addToSet: {
+              ...(bio && { bios: bio }),
+              avatars: avatar_url,
+              ...(location && { locations: location }),
+              ...(blog && { blogs: blog }),
+              ...(company && { companies: company }),
+            },
           },
-          $addToSet: {
-            ...(bio && { bios: bio }),
-            avatars: avatar_url,
-            ...(location && { locations: location }),
-            ...(blog && { blogs: blog }),
-            ...(company && { companies: company }),
-          },
-        },
-        { upsert: true, returnDocument: "after" },
-      ),
+          { upsert: true, returnDocument: "after" },
+        ),
     )
     .forEach(peekYaml)
     .done();

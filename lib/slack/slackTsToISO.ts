@@ -5,7 +5,7 @@
  */
 export function slackTsToISO(ts: string): string {
   const [seconds, microseconds] = ts.split(".");
-  const milliseconds = parseInt(seconds) * 1000 + parseInt(microseconds.slice(0, 3));
+  const milliseconds = parseInt(seconds) * 1000 + parseInt((microseconds || "000").slice(0, 3));
   return new Date(milliseconds).toISOString();
 }
 

@@ -11,24 +11,167 @@ import { logger } from "@/src/logger";
 import prettier from "prettier";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { match as tsmatch } from "ts-pattern";
+import { getChannelInfo } from "@/lib/slack/channel-info";
+import { getSlackChannel } from "@/lib/slack/channels";
+import { slackCached } from "@/lib";
 
 /**
  * GitHub Frontend Backport Checker Task
  *
- * Workflow:
- * 1. Monitor ComfyUI_frontend recent N releases
- * 2. Identify bugfix commits (keywords: fix, bugfix, hotfix, patch, bug)
- * 3. For each bugfix, find the associated PR
- * 4. Check PR labels for backport indicators (core/1.**, cloud/1.**)
- * 5. Check PR comments for backport mentions
- * 6. Track status and send Slack summary (to channel #frontend-releases)
+ * Automatically monitors ComfyUI_frontend releases for bugfix commits that may
+ * need backporting to stable branches (core/1.**, cloud/1.**), then posts a
+ * per-release status report to Slack (#frontend-releases).
+ *
+ * ── How it works ──────────────────────────────────────────────────────────────
+ *
+ * 1. DISCOVER BACKPORT TARGET BRANCHES
+ *    Lists all repo branches matching `core/1.**` or `cloud/1.**` via the
+ *    GitHub API. These are the branches that bugfixes may need cherry-picking to.
+ *
+ * 2. FETCH RECENT RELEASES
+ *    Fetches up to `maxReleasesToCheck` (10) releases from ComfyUI_frontend.
+ *    Filters them by:
+ *      - `processSince` date (skip very old releases)
+ *      - `maxMinorVersionsBehind` (4) — only show releases whose minor version
+ *        is at most 4 behind the latest (e.g. if latest is v1.40, v1.36 is
+ *        included but v1.35 is not)
+ *
+ * 3. EXTRACT COMPARE LINK FROM RELEASE BODY
+ *    Each release body contains a GitHub compare URL (e.g.
+ *    `.../compare/v1.38.0...v1.38.1`). This is used to get the list of commits
+ *    included in that release.
+ *
+ * 4. IDENTIFY BUGFIX COMMITS
+ *    From the compare diff, filters commits whose first line matches bugfix
+ *    keywords: fix, bugfix, hotfix, patch, bug (case-insensitive).
+ *    Excludes commits already tagged as `[backport ...]` (already cherry-picked).
+ *
+ * 5. RESOLVE ASSOCIATED PR FOR EACH BUGFIX COMMIT
+ *    Uses `listPullRequestsAssociatedWithCommit` to find the PR that introduced
+ *    each bugfix commit.
+ *
+ * 6. DETERMINE BACKPORT STATUS FOR EACH PR
+ *    For each bugfix PR, checks:
+ *
+ *    a) PR LABELS — filters labels matching `reBackportTargets` regex
+ *       (e.g. `core/1.4`, `cloud/1.36`). If any such labels exist, derives
+ *       `backportStatusRaw` from them: checks for "completed"/"in-progress"/
+ *       "needs" substrings, but in practice these branch-style labels always
+ *       fall through to the default → "needed".
+ *
+ *    b) PR BODY & COMMENTS — scans for mentions of "backport" or "stable"
+ *       (excluding bot comments). If found, marks as "needed".
+ *
+ *    c) PER-TARGET-BRANCH STATUS — only runs when `backportStatusRaw` is
+ *       "needed". For each labeled target branch:
+ *       - Checks for `*-backport-not-needed` labels (e.g. `core-backport-not-needed`)
+ *         → marks that target as "not-needed"
+ *       - Uses `compareCommits(target_branch, commit_sha)` to check if the
+ *         commit already exists on that branch:
+ *           • "identical"/"behind" → "completed" (commit is already there)
+ *           • "ahead"             → "needed" (commit is missing)
+ *           • "diverged"          → searches for a backport PR with the
+ *             naming convention `backport-{prNumber}-to-{branch}`:
+ *               - If a merged backport PR exists → "completed"
+ *               - If an open backport PR exists  → "in-progress"
+ *               - Otherwise                      → "needed"
+ *
+ *    d) OVERALL STATUS — derived from per-target statuses (ignoring not-needed):
+ *       - All completed  → "completed"
+ *       - Any in-progress → "in-progress"
+ *       - Any needed      → "needed"
+ *       - All not-needed  → "not-needed"
+ *       - Otherwise       → "unknown"
+ *
+ * 7. GENERATE REPORT & POST TO SLACK
+ *    Builds a markdown report per release showing each bugfix and its backport
+ *    status across targets. For PRs needing backport, resolves the PR author's
+ *    Slack user ID (by matching GitHub username → Slack display name) and tags
+ *    them. Falls back to tagging the "Release Sheriff" (parsed from the
+ *    #frontend-releases channel topic/purpose).
+ *
+ *    The report is upserted (created or updated) as a Slack message via
+ *    `upsertSlackMarkdownMessage`, so re-runs update existing messages rather
+ *    than creating duplicates.
+ *
+ * 8. PERSISTENCE
+ *    All state is stored in MongoDB collection `GithubFrontendBackportCheckerTask`,
+ *    keyed by `releaseUrl`. This allows incremental re-checks and preserves
+ *    Slack message references for updates.
+ *
+ * ── Edge Cases & Special Handling ──────────────────────────────────────────────
+ *
+ * • UNPARSEABLE VERSION TAGS — if `parseMinorVersion` returns null (e.g. tag
+ *   "nightly" or "latest"), the release is included rather than excluded, so
+ *   non-semver releases are never silently skipped.
+ *
+ * • MISSING COMPARE LINK — if the release body does not contain a
+ *   `.../compare/...` URL, the task throws via `DIE()`. This means releases
+ *   without a proper changelog are treated as errors rather than silently
+ *   ignored.
+ *
+ * • COMPARE API FAILURE — if `compareCommits` fails for a release (e.g. tags
+ *   deleted, repo renamed), the release is saved with `taskStatus: "failed"`
+ *   and processing continues to the next release.
+ *
+ * • ALREADY-BACKPORTED COMMITS — commits whose first line matches
+ *   `[backport ...]` (case-insensitive) are filtered out, preventing double-
+ *   counting of cherry-pick commits that landed in the same release.
+ *
+ * • NO ASSOCIATED PR — if `listPullRequestsAssociatedWithCommit` returns
+ *   an empty array, the commit produces no bugfix entries (the `.map().flat()`
+ *   over PRs yields nothing). Direct pushes without a PR are silently skipped.
+ *
+ * • BOT COMMENTS — when scanning PR comments for backport mentions, comments
+ *   from bots (username ending in `bot` or `[bot]`) are excluded to avoid
+ *   false positives from automated messages.
+ *
+ * • BACKPORT-NOT-NEEDED LABELS — per-target dismissal labels like
+ *   `core-backport-not-needed` override the per-branch status to "not-needed",
+ *   even if the commit hasn't been cherry-picked. When ALL targets are
+ *   dismissed this way, the overall status becomes "not-needed".
+ *
+ * • DIVERGED BRANCH (backport PR detection) — when the target branch has
+ *   diverged from the commit (common for long-lived stable branches), the
+ *   checker searches for a PR with branch name `backport-{prNumber}-to-{branch}`
+ *   and additionally filters by `head.ref` to avoid false matches from
+ *   similarly-named branches. Checks all states (open, closed, merged).
+ *
+ * • SLACK USER RESOLUTION — attempts to match GitHub username to a Slack user
+ *   by comparing against `name`, `display_name`, and `real_name` (with spaces
+ *   stripped, case-insensitive). If no match is found, falls back to tagging
+ *   the Release Sheriff (parsed from #frontend-releases channel topic/purpose
+ *   via regex `Release Sheriff:? <@UXXXXXX>`). If neither resolves, no one is
+ *   tagged.
+ *
+ * • DRY RUN MODE — when `--dry-run` is passed, Slack tags show raw GitHub
+ *   usernames (e.g. `@octocat`) instead of making Slack API calls, and no
+ *   Slack messages are sent/updated.
+ *
+ * • IDEMPOTENT SLACK UPDATES — the report is only sent/updated when the
+ *   formatted text differs from the previously stored `slackMessage.text`.
+ *   Re-runs with no status changes produce no Slack API calls.
+ *
+ * • NO BUGFIX COMMITS — if a release has zero bugfix commits after filtering,
+ *   the task is saved as `taskStatus: "completed"` with an empty array and no
+ *   Slack message is sent.
+ *
+ * • CI MODE — when running in CI (`is-ci` package), the database connection
+ *   is closed and the process exits after one run instead of staying alive
+ *   for hot-reload.
+ *
+ * ── Running ───────────────────────────────────────────────────────────────────
+ *
+ *   bun app/tasks/gh-frontend-backport-checker/index.ts              # normal
+ *   bun app/tasks/gh-frontend-backport-checker/index.ts --dry-run    # no Slack
  *
  */
 
 const config = {
   // 1. monitor releases from this repo
   repo: "https://github.com/Comfy-Org/ComfyUI_frontend",
-  maxReleasesToCheck: 3,
+  maxReleasesToCheck: 10, // fetch more releases, then filter by version distance
+  maxMinorVersionsBehind: 4, // stop showing backport warnings after this many minor versions behind latest
   processSince: new Date("2026-01-06T00:00:00Z").toISOString(), // only process releases since this date, to avoid posting too msgs in old releases
 
   // 2. identify bugfix commits
@@ -39,6 +182,12 @@ const config = {
 
   // 3. backport labels on PRs
   backportLabels: ["needs-backport"],
+
+  // labels that dismiss backport requirements per target
+  backportNotNeededLabels: {
+    core: "core-backport-not-needed",
+    cloud: "cloud-backport-not-needed",
+  } as Record<string, string>,
 
   // 5. detect backport mentions
   reBackportMentionPatterns: /\b(backports?|stable)\b/i,
@@ -64,6 +213,7 @@ export type GithubFrontendBackportCheckerTask = {
     prNumber?: number;
     prTitle?: string;
     prLabels?: string[];
+    prAuthor?: string; // GitHub username of PR author
 
     backportStatus: BackportStatus; // overall status, derived from backportTargetStatus, calculated by backport targets (core/1.**, cloud/1.**)
     backportStatusRaw: BackportStatus; // raw status from bugfix PR analysis, before checking backport targets status
@@ -105,9 +255,12 @@ const save = async (task: { releaseUrl: string } & Partial<GithubFrontendBackpor
     { upsert: true, returnDocument: "after" },
   )) || DIE("never");
 
+const isDryRun = process.argv.includes("--dry-run");
+
 if (import.meta.main) {
+  if (isDryRun) logger.info("🏃 DRY RUN MODE - will not send Slack messages");
   await runGithubFrontendBackportCheckerTask();
-  if (isCI) {
+  if (isCI || isDryRun) {
     await db.close();
     process.exit(0);
   }
@@ -130,7 +283,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
   // throw 'check'
 
   // Fetch recent releases
-  const releases = await ghPageFlow(ghc.repos.listReleases, { per_page: 3 })({
+  const releases = await ghPageFlow(ghc.repos.listReleases, { per_page: 10 })({
     ...parseGithubRepoUrl(config.repo),
   })
     .limit(config.maxReleasesToCheck)
@@ -138,9 +291,24 @@ export default async function runGithubFrontendBackportCheckerTask() {
 
   logger.debug(`Found ${releases.length} recent releases to check`);
 
+  // Find latest minor version for version-based filtering
+  const latestMinor = releases
+    .map((r) => parseMinorVersion(r.tag_name))
+    .filter((v): v is number => v !== null)
+    .reduce((a, b) => Math.max(a, b), 0);
+  logger.info(
+    `Latest minor version: ${latestMinor}, will show releases within ${config.maxMinorVersionsBehind} minor versions`,
+  );
+
   // Process each release
   const processedReleases = await sflow(releases)
     .filter((release) => +new Date(release.created_at) >= +new Date(config.processSince))
+    // Filter by version distance: show releases up to and including maxMinorVersionsBehind behind latest
+    .filter((release) => {
+      const minor = parseMinorVersion(release.tag_name);
+      if (minor === null) return true; // can't parse, include it
+      return latestMinor - minor <= config.maxMinorVersionsBehind;
+    })
     .map(async function convertReleaseToTask(release) {
       const compareLink =
         (
@@ -175,7 +343,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
   );
 }
 
-function getBackportStatusEmoji(status: BackportStatus): string {
+export function getBackportStatusEmoji(status: BackportStatus): string {
   switch (status) {
     case "completed":
       return ":pr-merged:";
@@ -192,10 +360,112 @@ function getBackportStatusEmoji(status: BackportStatus): string {
   }
 }
 
-function middleTruncated(maxLength: number, str: string): string {
+export function middleTruncated(maxLength: number, str: string): string {
   if (str.length <= maxLength) return str;
   const half = Math.floor((maxLength - 3) / 2);
   return `${str.slice(0, half)}...${str.slice(-half)}`;
+}
+
+/** Parse semver minor version from a release tag like "v1.38.1" → 38 */
+export function parseMinorVersion(tag: string): number | null {
+  const match = tag.match(/v?\d+\.(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Get the current release sheriff's Slack user ID from the #frontend-releases channel description.
+ * Expects format: "Current Release Sheriff: <@U12345678>" in channel purpose or topic.
+ */
+export async function getReleaseSheriffUserId(): Promise<string | null> {
+  try {
+    const channel = await getSlackChannel(config.slackChannelName);
+    if (!channel?.id) return null;
+    const info = await getChannelInfo(channel.id as string);
+    // Slack stores mentions as <@U12345678> in description
+    const text = `${info.purpose?.value || ""} ${info.topic?.value || ""}`;
+    const match = text.match(/Release Sheriff:?\s*<@(\w+)>/i);
+    return match?.[1] || null;
+  } catch (e) {
+    logger.warn("Failed to get release sheriff from channel description", { error: e });
+    return null;
+  }
+}
+
+/** Cached promise for all Slack workspace members — fetched once per run. */
+let slackMembersCache: Promise<
+  NonNullable<Awaited<ReturnType<typeof slackCached.users.list>>["members"]>
+> | null = null;
+
+async function getAllSlackMembers() {
+  if (!slackMembersCache) {
+    slackMembersCache = (async () => {
+      const firstPage = await slackCached.users.list({ limit: 500 });
+      const members = [...(firstPage.members || [])];
+      let cursor = firstPage.response_metadata?.next_cursor || undefined;
+      while (cursor) {
+        const page = await slackCached.users.list({ limit: 500, cursor });
+        members.push(...(page.members || []));
+        cursor = page.response_metadata?.next_cursor || undefined;
+      }
+      return members;
+    })();
+  }
+  return slackMembersCache;
+}
+
+/**
+ * Try to find a Slack user ID for a GitHub username.
+ * Matches against Slack display_name, name, and real_name (case-insensitive).
+ * Returns null if no match found.
+ */
+export async function findSlackUserIdByGithubUsername(
+  githubUsername: string,
+): Promise<string | null> {
+  try {
+    const members = await getAllSlackMembers();
+    const lowerGh = githubUsername.toLowerCase();
+    const found = members.find((m) => {
+      if (m.deleted || m.is_bot) return false;
+      const profile = m.profile as Record<string, unknown> | undefined;
+      return (
+        m.name?.toLowerCase() === lowerGh ||
+        (profile?.display_name as string)?.toLowerCase() === lowerGh ||
+        ((profile?.real_name as string | undefined) || "")
+          .toLowerCase()
+          .replace(/\s+/g, "")
+          .includes(lowerGh)
+      );
+    });
+    return (found?.id as string) || null;
+  } catch (e) {
+    logger.warn("Failed to look up Slack user for GitHub username", {
+      githubUsername,
+      error: e,
+    });
+    return null;
+  }
+}
+
+/**
+ * Resolve who to tag in Slack for a backport notification.
+ * Tries the PR author first, falls back to release sheriff.
+ */
+async function resolveSlackTagForAuthor(githubUsername?: string): Promise<string> {
+  if (githubUsername) {
+    const slackUserId = await findSlackUserIdByGithubUsername(githubUsername);
+    if (slackUserId) return `<@${slackUserId}>`;
+  }
+  // Fall back to release sheriff
+  const sheriffId = await getReleaseSheriffUserId();
+  if (sheriffId) return `<@${sheriffId}>`;
+  return ""; // no one to tag
+}
+
+/** Check if a PR has a backport-not-needed label for a given target prefix (e.g. "core" or "cloud") */
+function hasBackportNotNeededLabel(labels: string[], targetPrefix: string): boolean {
+  const notNeededLabel = config.backportNotNeededLabels[targetPrefix];
+  if (!notNeededLabel) return false;
+  return labels.some((l) => l.toLowerCase() === notNeededLabel.toLowerCase());
 }
 
 async function processTask(
@@ -209,10 +479,17 @@ async function processTask(
       /github\.com\/(?<owner>[^/]+)\/(?<repo>[^/]+)\/compare\/(?<base>\S+)\.\.\.(?<head>\S+)/,
     )?.groups || DIE(`Failed to parse compare link: ${compareLink}`);
   logger.debug(`  Comparing to head: ${head}`);
-  // const compareApiUrl = compareLink
-  const compareResult = await ghc.repos
-    .compareCommits({ owner, repo, base, head })
-    .then((e) => e.data.commits);
+  let compareResult;
+  try {
+    compareResult = await ghc.repos
+      .compareCommits({ owner, repo, base, head })
+      .then((e) => e.data.commits);
+  } catch (e) {
+    logger.warn(`  Failed to compare ${base}...${head}, skipping release ${task.releaseTag}`, {
+      error: e,
+    });
+    return await save({ ...task, bugfixCommits: [], taskStatus: "failed" });
+  }
   logger.debug(`  Found ${compareResult.length} commits in release`);
 
   // // collect already backported commits, for logging purpose
@@ -259,7 +536,9 @@ async function processTask(
           logger.debug(`      Processing PR #${prNumber}: ${prTitle}`);
 
           // Check labels
-          const labels = pr.labels.map((l) => (typeof l === "string" ? l : l.name));
+          const labels = pr.labels
+            .map((l) => (typeof l === "string" ? l : l.name))
+            .filter((l): l is string => !!l);
           const backportLabels = labels.filter((l) => config.reBackportTargets.test(l));
 
           // Check PR body and comments for backport mentions
@@ -308,19 +587,32 @@ async function processTask(
             )})`,
           );
           // check each backport target branch status
-          const backportTargetStatus = await sflow(
-            labels.filter((l) => config.reBackportTargets.test(l)),
-          )
-            // only when this pr is needed to backport
-            .filter((_e) => backportStatusRaw === "needed")
-            // only when this branch is in PR labels
-            .filter((branchName) =>
-              labels.some((l) => l.toLowerCase().includes(branchName.toLowerCase())),
-            )
-            // now check if the commit is in the branch
+          const targetBranches = labels
+            .filter((l) => config.reBackportTargets.test(l))
+            .filter((_e) => backportStatusRaw === "needed");
+
+          const backportTargetStatus = await sflow(targetBranches)
             .map(async (branchName) => {
-              // let status: BackportStatus = "unknown";
-              // check if the commit is in the branch
+              // Check for *-backport-not-needed labels first (e.g. "core/1.4" → prefix "core")
+              const targetPrefix = branchName.split("/")[0];
+              if (hasBackportNotNeededLabel(labels, targetPrefix)) {
+                logger.debug(
+                  `          Backport target branch ${branchName} marked not-needed by label`,
+                );
+                return {
+                  branch: branchName,
+                  status: "not-needed" as BackportStatus,
+                  prs: [] as {
+                    prUrl?: string;
+                    prNumber?: number;
+                    prTitle?: string;
+                    prStatus?: "open" | "closed" | "merged";
+                    lastCheckedAt?: Date;
+                  }[],
+                };
+              }
+
+              // now check if the commit is in the branch
               const comparing = await ghc.repos
                 .compareCommits({
                   owner,
@@ -330,51 +622,39 @@ async function processTask(
                 })
                 .then((e) => e.data);
               let PRs: {
-                prUrl?: string; // if backport PR exists
+                prUrl?: string;
                 prNumber?: number;
                 prTitle?: string;
                 prStatus?: "open" | "closed" | "merged";
                 lastCheckedAt?: Date;
               }[] = [];
               const status: BackportStatus = await tsmatch(comparing.status)
-                .with("ahead", () => "needed" as const) // not yet backported
-                .with("identical", () => "completed" as const) // completed, because fix commit is already in the target branch
-                .with("behind", () => "completed" as const) // completed, because fix commit is already in the target branch
-
-                // diverged means we need to determine backport PR status:
-                //    when PR not exists, we need to backport
-                //    when PR exists, merged: already backport
-                //    when PR exists, open:   in progress
+                .with("ahead", () => "needed" as const)
+                .with("identical", () => "completed" as const)
+                .with("behind", () => "completed" as const)
                 .with("diverged", async () => {
-                  // search the backport pr and check its status
-                  // e.g. backport-7974-to-cloud-1.36, this branch name is autogenerated by ci
                   const backportBranch = `backport-${prNumber}-to-${branchName.replaceAll("/", "-")}`;
                   const backportPRs = await ghPageFlow(ghc.pulls.list)({
                     owner,
                     repo,
                     head: backportBranch,
                     base: branchName,
-                    state: "all", // include closed/merged prs
+                    state: "all",
                   })
-                    .filter((e) => e.head.ref === backportBranch) // hack bug: github api seems also returns other prs
+                    .filter((e) => e.head.ref === backportBranch)
                     .toArray();
 
-                  PRs = backportPRs.map((pr) => ({
-                    prUrl: pr.html_url,
-                    prNumber: pr.number,
-                    prTitle: pr.title,
-                    prStatus: pr.merged_at ? "merged" : pr.state === "open" ? "open" : "closed",
+                  PRs = backportPRs.map((bpr) => ({
+                    prUrl: bpr.html_url,
+                    prNumber: bpr.number,
+                    prTitle: bpr.title,
+                    prStatus: bpr.merged_at ? "merged" : bpr.state === "open" ? "open" : "closed",
                     lastCheckedAt: new Date(),
                   }));
 
-                  // if pr is merged
-                  if (backportPRs.some((e) => e.merged_at)) return "completed" as const; // some of backport prs are merged
-                  if (backportPRs.some((e) => e.state.toUpperCase() === "OPEN")) {
-                    return "in-progress" as const; // some of backport prs are open
-                  }
-                  // backportPRs[0].closed_at
-                  // if pr is merged
-                  // return comparing.status;
+                  if (backportPRs.some((e) => e.merged_at)) return "completed" as const;
+                  if (backportPRs.some((e) => e.state.toUpperCase() === "OPEN"))
+                    return "in-progress" as const;
                   return "needed" as const;
                 })
                 .otherwise(() => {
@@ -384,26 +664,24 @@ async function processTask(
                   return "unknown" as const;
                 });
 
-              // if (isInBranch) {
-              //   status = "completed";
-              // } else {j
-              //   status = "needed";
-              // }
               logger.debug(`          Backport target branch ${branchName} status: ${status}`);
               return { branch: branchName, status, prs: PRs };
             })
             .toArray();
 
+          // Determine overall backport status (ignoring "not-needed" targets)
+          const activeTargets = backportTargetStatus.filter((t) => t.status !== "not-needed");
           const backportStatus: BackportStatus =
-            backportTargetStatus.length &&
-            backportTargetStatus.every((t) => t.status === "completed")
+            activeTargets.length && activeTargets.every((t) => t.status === "completed")
               ? "completed"
-              : backportTargetStatus.some((t) => t.status === "in-progress")
+              : activeTargets.some((t) => t.status === "in-progress")
                 ? "in-progress"
-                : backportTargetStatus.some((t) => t.status === "needed")
+                : activeTargets.some((t) => t.status === "needed")
                   ? "needed"
-                  : "unknown";
-          // Save to database
+                  : backportTargetStatus.length && !activeTargets.length
+                    ? "not-needed" // all targets have backport-not-needed labels
+                    : "unknown";
+
           return {
             commitSha,
             commitMessage,
@@ -411,6 +689,7 @@ async function processTask(
             prNumber,
             prTitle,
             prLabels: labels,
+            prAuthor: pr.user?.login,
 
             backportStatus,
             backportStatusRaw,
@@ -425,18 +704,31 @@ async function processTask(
     .toArray();
 
   if (!bugfixCommits.length) {
-    // no need to report
     return await save({ ...task, bugfixCommits, taskStatus: "completed" });
+  }
+
+  // Resolve Slack tags for authors who have unresolved backports
+  const authorTags = new Map<string, string>();
+  for (const bf of bugfixCommits) {
+    if (
+      bf.prAuthor &&
+      !authorTags.has(bf.prAuthor) &&
+      bf.backportStatus !== "completed" &&
+      bf.backportStatus !== "not-needed"
+    ) {
+      authorTags.set(bf.prAuthor, await resolveSlackTagForAuthor(bf.prAuthor));
+    }
   }
 
   const statuses = bugfixCommits.map((e) => ({
     ...e,
     status: !e.backportTargetStatus.length
       ? ("not-mentioned" as const)
-      : e.backportTargetStatus.some((e) => e.status !== "completed")
+      : e.backportTargetStatus.some((t) => t.status !== "completed" && t.status !== "not-needed")
         ? ("in-progress" as const)
         : ("completed" as const),
   }));
+
   // - generate report based on commits, note: slack's markdown not support table
   const rawReport = `**Release [${task.releaseTag}](${task.releaseUrl}) Backport Status:${
     statuses.filter((e) => e.status !== "completed").length ? "" : " Completed"
@@ -446,67 +738,40 @@ ${
   // not mentioned, show might need
   statuses
     .filter((e) => !e.backportTargetStatus.length)
-    .map(
-      (bf) => `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ _❗ Might need backport_`,
-    )
+    .map((bf) => {
+      const tag = bf.prAuthor ? authorTags.get(bf.prAuthor) || "" : "";
+      return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ _❗ Might need backport_ ${tag}`.trim();
+    })
     .join("\n")
 }
 ${
-  // in-progress, show detailed status
+  // in-progress/needed, show detailed status with author tags
   bugfixCommits
     .filter(
       (e) =>
         e.backportTargetStatus?.length &&
-        e.backportTargetStatus.some((e) => e.status !== "completed"),
+        e.backportTargetStatus.some((t) => t.status !== "completed" && t.status !== "not-needed"),
     )
     .map((bf) => {
       const targetsStatuses = bf.backportTargetStatus
         .map((ts) => {
+          if (ts.status === "not-needed") return `${ts.branch}: ➖`;
           const prStatus = ts.prs
             .map((pr) =>
               pr.prUrl ? `[:pr-${pr.prStatus?.toLowerCase()}: #${pr.prNumber}](${pr.prUrl})` : "",
             )
             .filter(Boolean)
             .join(", ");
-          // show pr status if exists
           return `${ts.branch}: ${prStatus || getBackportStatusEmoji(ts.status)}`;
         })
         .join(", ");
-      return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ ${targetsStatuses}`;
+      const tag = bf.prAuthor ? authorTags.get(bf.prAuthor) || "" : "";
+      return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ ${targetsStatuses} ${tag}`.trim();
     })
     .join("\n")
-}
-
-${
-  // finished, show pr numbers inline and
-  bugfixCommits
-    .filter(
-      (e) =>
-        e.backportTargetStatus?.length &&
-        e.backportTargetStatus.every((e) => e.status === "completed"),
-    )
-    .filter((_e) => false)
-    // .filter((e) => false) // show nothing for now
-    .map((bf) => {
-      const targetsStatuses = bf.backportTargetStatus
-        .map((ts) => {
-          const prStatus = ts.prs
-            .map((pr) =>
-              pr.prUrl ? `[:pr-${pr.prStatus?.toLowerCase()}: #${pr.prNumber}](${pr.prUrl})` : "",
-            )
-            .filter(Boolean)
-            .join(", ");
-          // show pr status if exists
-          return `${ts.branch}: ${prStatus || getBackportStatusEmoji(ts.status)}`;
-        })
-        .join(", ");
-      return `[#${bf.prNumber}](${bf.prUrl}) ➡️ ${targetsStatuses}`;
-    })
-    .join(", ")
 }
 
 `;
-  // _by [backport-checker](https://github.com/Comfy-Org/Comfy-PR/tree/HEAD/app/tasks/gh-frontend-backport-checker/index.ts)_
 
   const formattedReport = await prettier.format(rawReport, { parser: "markdown" });
   logger.info(formattedReport);
@@ -514,19 +779,22 @@ ${
   task = await save({ ...task, bugfixCommits });
 
   // - now lets upsert slack message
+  if (isDryRun) {
+    logger.info("DRY RUN: Would send/update Slack message to #" + config.slackChannelName);
+  } else {
+    process.env.DRY_RUN = "";
 
-  process.env.DRY_RUN = "";
-
-  if (formattedReport.trim() !== task.slackMessage?.text?.trim()) {
-    const msg = await upsertSlackMarkdownMessage({
-      channelName: config.slackChannelName,
-      markdown: formattedReport,
-      url: task.slackMessage?.url,
-    });
-    task = await save({
-      ...task,
-      slackMessage: { text: msg.text, channel: msg.channel, url: msg.url },
-    });
+    if (formattedReport.trim() !== task.slackMessage?.text?.trim()) {
+      const msg = await upsertSlackMarkdownMessage({
+        channelName: config.slackChannelName,
+        markdown: formattedReport,
+        url: task.slackMessage?.url,
+      });
+      task = await save({
+        ...task,
+        slackMessage: { text: msg.text, channel: msg.channel, url: msg.url },
+      });
+    }
   }
   return {
     ...task,
