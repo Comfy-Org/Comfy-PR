@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-bunx tsgo
+bun typecheck
 bun lint
-bun fmt
+bunx lint-staged
 
