@@ -18,13 +18,152 @@ import { slack } from "@/lib";
 /**
  * GitHub Frontend Backport Checker Task
  *
- * Workflow:
- * 1. Monitor ComfyUI_frontend recent N releases
- * 2. Identify bugfix commits (keywords: fix, bugfix, hotfix, patch, bug)
- * 3. For each bugfix, find the associated PR
- * 4. Check PR labels for backport indicators (core/1.**, cloud/1.**)
- * 5. Check PR comments for backport mentions
- * 6. Track status and send Slack summary (to channel #frontend-releases)
+ * Automatically monitors ComfyUI_frontend releases for bugfix commits that may
+ * need backporting to stable branches (core/1.**, cloud/1.**), then posts a
+ * per-release status report to Slack (#frontend-releases).
+ *
+ * ── How it works ──────────────────────────────────────────────────────────────
+ *
+ * 1. DISCOVER BACKPORT TARGET BRANCHES
+ *    Lists all repo branches matching `core/1.**` or `cloud/1.**` via the
+ *    GitHub API. These are the branches that bugfixes may need cherry-picking to.
+ *
+ * 2. FETCH RECENT RELEASES
+ *    Fetches up to `maxReleasesToCheck` (10) releases from ComfyUI_frontend.
+ *    Filters them by:
+ *      - `processSince` date (skip very old releases)
+ *      - `maxMinorVersionsBehind` (4) — only show releases whose minor version
+ *        is at most 4 behind the latest (e.g. if latest is v1.40, v1.36 is
+ *        included but v1.35 is not)
+ *
+ * 3. EXTRACT COMPARE LINK FROM RELEASE BODY
+ *    Each release body contains a GitHub compare URL (e.g.
+ *    `.../compare/v1.38.0...v1.38.1`). This is used to get the list of commits
+ *    included in that release.
+ *
+ * 4. IDENTIFY BUGFIX COMMITS
+ *    From the compare diff, filters commits whose first line matches bugfix
+ *    keywords: fix, bugfix, hotfix, patch, bug (case-insensitive).
+ *    Excludes commits already tagged as `[backport ...]` (already cherry-picked).
+ *
+ * 5. RESOLVE ASSOCIATED PR FOR EACH BUGFIX COMMIT
+ *    Uses `listPullRequestsAssociatedWithCommit` to find the PR that introduced
+ *    each bugfix commit.
+ *
+ * 6. DETERMINE BACKPORT STATUS FOR EACH PR
+ *    For each bugfix PR, checks:
+ *
+ *    a) PR LABELS — filters labels matching `reBackportTargets` regex
+ *       (e.g. `core/1.4`, `cloud/1.36`). If any such labels exist, derives
+ *       `backportStatusRaw` from them: checks for "completed"/"in-progress"/
+ *       "needs" substrings, but in practice these branch-style labels always
+ *       fall through to the default → "needed".
+ *
+ *    b) PR BODY & COMMENTS — scans for mentions of "backport" or "stable"
+ *       (excluding bot comments). If found, marks as "needed".
+ *
+ *    c) PER-TARGET-BRANCH STATUS — only runs when `backportStatusRaw` is
+ *       "needed". For each labeled target branch:
+ *       - Checks for `*-backport-not-needed` labels (e.g. `core-backport-not-needed`)
+ *         → marks that target as "not-needed"
+ *       - Uses `compareCommits(target_branch, commit_sha)` to check if the
+ *         commit already exists on that branch:
+ *           • "identical"/"behind" → "completed" (commit is already there)
+ *           • "ahead"             → "needed" (commit is missing)
+ *           • "diverged"          → searches for a backport PR with the
+ *             naming convention `backport-{prNumber}-to-{branch}`:
+ *               - If a merged backport PR exists → "completed"
+ *               - If an open backport PR exists  → "in-progress"
+ *               - Otherwise                      → "needed"
+ *
+ *    d) OVERALL STATUS — derived from per-target statuses (ignoring not-needed):
+ *       - All completed  → "completed"
+ *       - Any in-progress → "in-progress"
+ *       - Any needed      → "needed"
+ *       - All not-needed  → "not-needed"
+ *       - Otherwise       → "unknown"
+ *
+ * 7. GENERATE REPORT & POST TO SLACK
+ *    Builds a markdown report per release showing each bugfix and its backport
+ *    status across targets. For PRs needing backport, resolves the PR author's
+ *    Slack user ID (by matching GitHub username → Slack display name) and tags
+ *    them. Falls back to tagging the "Release Sheriff" (parsed from the
+ *    #frontend-releases channel topic/purpose).
+ *
+ *    The report is upserted (created or updated) as a Slack message via
+ *    `upsertSlackMarkdownMessage`, so re-runs update existing messages rather
+ *    than creating duplicates.
+ *
+ * 8. PERSISTENCE
+ *    All state is stored in MongoDB collection `GithubFrontendBackportCheckerTask`,
+ *    keyed by `releaseUrl`. This allows incremental re-checks and preserves
+ *    Slack message references for updates.
+ *
+ * ── Edge Cases & Special Handling ──────────────────────────────────────────────
+ *
+ * • UNPARSEABLE VERSION TAGS — if `parseMinorVersion` returns null (e.g. tag
+ *   "nightly" or "latest"), the release is included rather than excluded, so
+ *   non-semver releases are never silently skipped.
+ *
+ * • MISSING COMPARE LINK — if the release body does not contain a
+ *   `.../compare/...` URL, the task throws via `DIE()`. This means releases
+ *   without a proper changelog are treated as errors rather than silently
+ *   ignored.
+ *
+ * • COMPARE API FAILURE — if `compareCommits` fails for a release (e.g. tags
+ *   deleted, repo renamed), the release is saved with `taskStatus: "failed"`
+ *   and processing continues to the next release.
+ *
+ * • ALREADY-BACKPORTED COMMITS — commits whose first line matches
+ *   `[backport ...]` (case-insensitive) are filtered out, preventing double-
+ *   counting of cherry-pick commits that landed in the same release.
+ *
+ * • NO ASSOCIATED PR — if `listPullRequestsAssociatedWithCommit` returns
+ *   an empty array, the commit produces no bugfix entries (the `.map().flat()`
+ *   over PRs yields nothing). Direct pushes without a PR are silently skipped.
+ *
+ * • BOT COMMENTS — when scanning PR comments for backport mentions, comments
+ *   from bots (username ending in `bot` or `[bot]`) are excluded to avoid
+ *   false positives from automated messages.
+ *
+ * • BACKPORT-NOT-NEEDED LABELS — per-target dismissal labels like
+ *   `core-backport-not-needed` override the per-branch status to "not-needed",
+ *   even if the commit hasn't been cherry-picked. When ALL targets are
+ *   dismissed this way, the overall status becomes "not-needed".
+ *
+ * • DIVERGED BRANCH (backport PR detection) — when the target branch has
+ *   diverged from the commit (common for long-lived stable branches), the
+ *   checker searches for a PR with branch name `backport-{prNumber}-to-{branch}`
+ *   and additionally filters by `head.ref` to avoid false matches from
+ *   similarly-named branches. Checks all states (open, closed, merged).
+ *
+ * • SLACK USER RESOLUTION — attempts to match GitHub username to a Slack user
+ *   by comparing against `name`, `display_name`, and `real_name` (with spaces
+ *   stripped, case-insensitive). If no match is found, falls back to tagging
+ *   the Release Sheriff (parsed from #frontend-releases channel topic/purpose
+ *   via regex `Release Sheriff:? <@UXXXXXX>`). If neither resolves, no one is
+ *   tagged.
+ *
+ * • DRY RUN MODE — when `--dry-run` is passed, Slack tags show raw GitHub
+ *   usernames (e.g. `@octocat`) instead of making Slack API calls, and no
+ *   Slack messages are sent/updated.
+ *
+ * • IDEMPOTENT SLACK UPDATES — the report is only sent/updated when the
+ *   formatted text differs from the previously stored `slackMessage.text`.
+ *   Re-runs with no status changes produce no Slack API calls.
+ *
+ * • NO BUGFIX COMMITS — if a release has zero bugfix commits after filtering,
+ *   the task is saved as `taskStatus: "completed"` with an empty array and no
+ *   Slack message is sent.
+ *
+ * • CI MODE — when running in CI (`is-ci` package), the database connection
+ *   is closed and the process exits after one run instead of staying alive
+ *   for hot-reload.
+ *
+ * ── Running ───────────────────────────────────────────────────────────────────
+ *
+ *   bun app/tasks/gh-frontend-backport-checker/index.ts              # normal
+ *   bun app/tasks/gh-frontend-backport-checker/index.ts --dry-run    # no Slack
  *
  */
 
@@ -252,6 +391,26 @@ export async function getReleaseSheriffUserId(): Promise<string | null> {
   }
 }
 
+/** Cached promise for all Slack workspace members — fetched once per run. */
+let slackMembersCache: Promise<NonNullable<Awaited<ReturnType<typeof slack.users.list>>["members"]>> | null = null;
+
+async function getAllSlackMembers() {
+  if (!slackMembersCache) {
+    slackMembersCache = (async () => {
+      const firstPage = await slack.users.list({ limit: 500 });
+      const members = [...(firstPage.members || [])];
+      let cursor = firstPage.response_metadata?.next_cursor || undefined;
+      while (cursor) {
+        const page = await slack.users.list({ limit: 500, cursor });
+        members.push(...(page.members || []));
+        cursor = page.response_metadata?.next_cursor || undefined;
+      }
+      return members;
+    })();
+  }
+  return slackMembersCache;
+}
+
 /**
  * Try to find a Slack user ID for a GitHub username.
  * Matches against Slack display_name, name, and real_name (case-insensitive).
@@ -261,14 +420,7 @@ export async function findSlackUserIdByGithubUsername(
   githubUsername: string,
 ): Promise<string | null> {
   try {
-    const firstPage = await slack.users.list({ limit: 500 });
-    const members = [...(firstPage.members || [])];
-    let cursor = firstPage.response_metadata?.next_cursor || undefined;
-    while (cursor) {
-      const page = await slack.users.list({ limit: 500, cursor });
-      members.push(...(page.members || []));
-      cursor = page.response_metadata?.next_cursor || undefined;
-    }
+    const members = await getAllSlackMembers();
     const lowerGh = githubUsername.toLowerCase();
     const found = members.find((m) => {
       if (m.deleted || m.is_bot) return false;
@@ -335,7 +487,7 @@ async function processTask(
     logger.warn(`  Failed to compare ${base}...${head}, skipping release ${task.releaseTag}`, {
       error: e,
     });
-    return await save({ ...task, taskStatus: "failed" });
+    return await save({ ...task, bugfixCommits: [], taskStatus: "failed" });
   }
   logger.debug(`  Found ${compareResult.length} commits in release`);
 
