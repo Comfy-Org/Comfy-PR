@@ -17,8 +17,7 @@ import { fromStdio } from "from-node-stream";
 import { mkdir } from "fs/promises";
 import sflow from "sflow";
 import winston from "winston";
-// @ts-ignore
-import zChatCompletion from "z-chat-completion";
+import zChatCompletion from "../lib/zChat";
 import z from "zod";
 import { IdleWaiter } from "./IdleWaiter";
 import { RestartManager } from "./RestartManager";

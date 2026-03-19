@@ -75,8 +75,7 @@ async function handlePrCommand(args: {
   const { repo, base = "main", head, prompt } = args;
 
   // Import here to avoid circular dependencies
-  // @ts-ignore - z-chat-completion may not have type declarations
-  const zChatCompletion = (await import("z-chat-completion")).default;
+  const zChatCompletion = (await import("../lib/zChat")).default;
   const z = (await import("zod")).default;
 
   let finalHead = head;
