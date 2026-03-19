@@ -516,17 +516,37 @@ async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEven
           }),
         ...(m.attachments &&
           m.attachments.length > 0 && {
-            attachments: m.attachments.map((a: unknown) => {
-              const attachment = a as z.infer<typeof zSlackAttachment>;
-              return {
-                title: attachment.title,
-                title_link: attachment.title_link,
-                text: attachment.text,
-                fallback: attachment.fallback,
-                image_url: attachment.image_url,
-                from_url: attachment.from_url,
-              };
-            }),
+            attachments: await Promise.all(
+              m.attachments.map(async (a: unknown) => {
+                const attachment = a as z.infer<typeof zSlackAttachment>;
+                // Parse from_url to extract channel name
+                let from_channel: string | undefined;
+                if (attachment.from_url) {
+                  try {
+                    const parsed = slackMessageUrlParse(attachment.from_url);
+                    const channelInfo = await slack.conversations.info({ channel: parsed.channel });
+                    from_channel = channelInfo.channel?.name
+                      ? `#${channelInfo.channel.name}`
+                      : undefined;
+                  } catch {
+                    // Ignore parsing errors
+                  }
+                }
+                return {
+                  title: attachment.title,
+                  title_link: attachment.title_link,
+                  text: attachment.text
+                    ? await parseSlackMessageToMarkdown(attachment.text)
+                    : undefined,
+                  fallback: attachment.fallback
+                    ? await parseSlackMessageToMarkdown(attachment.fallback)
+                    : undefined,
+                  image_url: attachment.image_url,
+                  from_url: attachment.from_url,
+                  from_channel, // Add resolved channel name
+                };
+              }),
+            ),
           }),
         ...(m.reactions &&
           m.reactions.length > 0 && {
@@ -1193,11 +1213,19 @@ IMPORTANT WORKSPACE CONVENTIONS:
             `New stable output detected, length: ${newStable.length}, news length: ${news.length}`,
           );
 
-          const my_internal_thoughts = tr.render().split("\n").slice(-80).join("\n");
+          const rawTerminalOutput = tr.render().split("\n").slice(-80).join("\n");
+          const my_internal_thoughts = cleanTerminalOutput(rawTerminalOutput);
           // const my_internal_thoughts = tr.tail(80);
+          logger.debug(
+            "Raw terminal output (before cleaning): " +
+              yaml.stringify({ preview: rawTerminalOutput.slice(0, 200) }),
+          );
           logger.info(
-            "Unsent preview: " +
-              yaml.stringify({ preview: news.slice(0, 200), my_internal_thoughts }),
+            "Cleaned output preview: " +
+              yaml.stringify({
+                preview: my_internal_thoughts.slice(0, 200),
+                news_preview: news.slice(0, 200),
+              }),
           );
 
           // send update to slack
@@ -1219,24 +1247,38 @@ RULES:
 - If my_internal_thoughts contains new information, append it to the relevant sections in my_response_md_original.
 - If my_internal_thoughts indicates completion of a task, add a "Tasks" section at the end of my_response_md_original with - [x] mark.
 - Ensure my_response_md_updated is clear and concise.
-- Use **bold** to highlight unknown new sections or important updates. and remove previeous highlighted sections if not important anymore.
-If all infomations from my_internal_thoughts are already contained in my_response_md_original, you can feel free to return {my_response_md_updated: "__NOTHING_CHANGED__"}
+- Use **bold** to highlight new sections or important updates. Remove previously highlighted sections if they're no longer relevant.
+- If all information from my_internal_thoughts is already contained in my_response_md_original, return: {my_response_md_updated: "__NOTHING_CHANGED__"}
 
-- IMPORTANT NOTES:
+CRITICAL FILTERING RULES (Non-negotiable):
+- KEEP ONLY: User-facing progress, task completion status, findings relevant to user's intent, next steps
+- REMOVE: File paths, system info, debug output, error stack traces, internal process details, development notes
+- EXAMPLES OF WHAT TO REMOVE:
+  - "/bot/slack/channel-id/timestamp" (internal paths)
+  - "undefined/null received in chunk" (internal errors)
+  - "DEBUG: ..." (debug output)
+  - "✓ Created /tmp/cache/..." (internal file operations)
+  - "[2026-02-20T15:10:40.123Z]" (timestamps)
 
-- KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents.
-- Response Message should be short and in up to 16 lines, the agent will post long report by .md files.
-- Focus on end-user's question or intent's helpful contents
-- DO NOT INCLUDE ANY internal-only or debugging contexts, system info, local paths, etc IN my_response_md_updated.
-- my_internal_thoughts may contain terminal control characters and environment system info, ignore them and only focus on the end-user-helpful content. 
-- YOU CAN ONLY change/remove/add up to 1 line!
-- Describe what you are currently doing in up to 7 words! less is better.
-- Don't show unknown ERRORs to user, they will be recorded into ERROR logs and solve by bot-developers anyway.
-- DONT ASK ME ANY QUESTIONS IN YOUR RESPONSE. JUST FIND NECESSARY INFORMATION BY YOUR SELF AND SHOW YOUR BEST UNDERSTANDING.
-- Output the my_response_md_updated in standard markdown format (github favored).
-- LENGTH LIMIT: my_response_md_updated must be within 4000 characters. SYSTEM WILL TRUNCATE IF EXCEEDING THIS LIMIT.
+TONE & LENGTH:
+- KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents
+- Response should be up to 16 lines maximum (agent posts long reports as .md files)
+- Focus ONLY on end-user's question or intent's helpful contents
+- Describe current progress in up to 7 words (less is better)
+- Avoid jargon; write for non-technical users when possible
 
-- MOST_IMPORTANT: Keep the my_response_md_original's context and formatting and contents as much as possible, only update a few lines that need to be updated based on my_internal_thoughts.
+FORMAT REQUIREMENTS:
+- Output in standard markdown format (GitHub flavored)
+- YOU CAN ONLY change/remove/add up to 1 line per update!
+- LENGTH LIMIT: Must be within 4000 characters (system will truncate if exceeding)
+- MOST IMPORTANT: Keep my_response_md_original's context and formatting mostly unchanged, only update necessary lines
+
+DO NOT:
+- Ask the user questions
+- Include error details (they're logged separately for developers)
+- Show code blocks or technical configs
+- Show internal process logs or environment variables
+- Show any paths starting with "/" or "./"
 
 - Here's Contexts in YAML for your respondse:
 
@@ -1245,6 +1287,21 @@ ${yaml.stringify(contexts)}
 </task-context-yaml>
 
 `) as { my_response_md_updated: string };
+
+          // Log raw my_response_md_updated to JSONL file for debugging
+          const responseLogEntry = {
+            timestamp: new Date().toISOString(),
+            workspaceId,
+            stage: "raw_from_claude",
+            my_response_md_updated_raw: updateResponseResp.my_response_md_updated,
+            my_internal_thoughts_preview: my_internal_thoughts.slice(0, 500),
+            my_response_md_original: quickRespondMsg.text || "",
+          };
+          await appendFile(
+            ".logs/my_response_md_updated.jsonl",
+            JSON.stringify(responseLogEntry) + "\n",
+          ).catch(() => {});
+
           const updated_response_full = await mdFmt(
             updateResponseResp.my_response_md_updated
               .trim()
@@ -1258,6 +1315,20 @@ ${yaml.stringify(contexts)}
                 "\n\n...TRUNCATED...\n\n" +
                 updated_response_full.slice(-2000)
               : updated_response_full;
+
+          // Log final processed my_response_md_updated
+          const finalLogEntry = {
+            timestamp: new Date().toISOString(),
+            workspaceId,
+            stage: "final_processed",
+            my_response_md_updated_final: my_response_md_updated,
+            was_truncated: updated_response_full.length > 4000,
+            original_length: updated_response_full.length,
+          };
+          await appendFile(
+            ".logs/my_response_md_updated.jsonl",
+            JSON.stringify(finalLogEntry) + "\n",
+          ).catch(() => {});
 
           if (quickRespondMsg.ts && quickRespondMsg.channel) {
             await safeSlackUpdateMessage(slack, {
@@ -1418,6 +1489,65 @@ function commonPrefix(...args: string[]): string {
     if (prefix === "") break;
   }
   return prefix;
+}
+
+/**
+ * Clean terminal output by removing ANSI codes, debug info, and system paths
+ * This ensures Claude only sees user-meaningful progress information
+ */
+function cleanTerminalOutput(text: string): string {
+  // Remove ANSI color codes and escape sequences
+  text = text.replace(/\x1b\[[0-9;]*m/g, "");
+  text = text.replace(/\x1b\[[^m]*m/g, "");
+  text = text.replace(/\u0007/g, ""); // Bell character
+  text = text.replace(/\r/g, ""); // Carriage returns
+
+  // Remove box drawing characters (Claude Code banner)
+  text = text.replace(/[▐▛▜▘▝█▌▙▟▞▚░▒▓│┃├┤┬┴┼─═║╔╗╚╝╠╣╦╩╬]/g, "");
+
+  // Filter lines to remove debug noise
+  const lines = text.split("\n").filter((line) => {
+    const trimmed = line.trim();
+
+    // Skip empty or whitespace-only lines
+    if (!trimmed) return true;
+
+    // Skip timestamp-prefixed log lines (multiple formats)
+    // Format 1: [2026-02-20T15:10:40.123Z]
+    if (/^\[[\d\-T:.Z]+\]/.test(trimmed)) return false;
+    // Format 2: 2026-02-20 15:42:09 [info]:
+    if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\[/.test(trimmed)) return false;
+
+    // Skip warning lines
+    if (/^⚠|^Warning:|^WARN:|^\[warn\]/i.test(trimmed)) return false;
+
+    // Skip debug/verbose/trace/info prefixed lines
+    if (/^(DEBUG|VERBOSE|TRACE|INFO):/i.test(trimmed)) return false;
+    if (/\[(debug|verbose|trace|info)\]:/i.test(trimmed)) return false;
+
+    // Skip claude-yes specific output
+    if (/\[claude-yes\]|claude-yes|Spawned claude|PID \d+/i.test(trimmed)) return false;
+    if (/Claude Code v\d|Opus \d|Claude Max/i.test(trimmed)) return false;
+
+    // Skip lines containing system paths anywhere
+    if (/\/bot\/slack\/|\/codes\/|\.logs\/|\/repos\/|\/tmp\//i.test(trimmed)) return false;
+
+    // Skip undefined/null error indicators
+    if (/received undefined\/null|undefined\/null/i.test(trimmed)) return false;
+
+    // Skip deprecation warnings
+    if (/deprecated|--exit-on-idle|-e are deprecated/i.test(trimmed)) return false;
+
+    // Skip pure terminal control output or lines that are mostly special chars
+    if (/^(\s*|cursor\s+|bell|bel|\x07)$/i.test(trimmed)) return false;
+
+    // Skip lines that are mostly whitespace or contain only special characters
+    if (/^[\s\u2000-\u206F\u2500-\u257F]*$/.test(trimmed)) return false;
+
+    return true;
+  });
+
+  return lines.join("\n").trim();
 }
 function sanitized(name: string) {
   return name.replace(/[^a-zA-Z0-9-_]/g, "_").slice(0, 50);
