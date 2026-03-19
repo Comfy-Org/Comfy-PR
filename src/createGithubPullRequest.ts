@@ -100,9 +100,7 @@ export async function createGithubPullRequest({
     })
   ).data.filter((e) => e.title === title && e.body === body);
 
-  // // TODO: seems has bugs on head_repo
-
-  if (sameContentPRList.length > 1) {
+  sameContentPRList.length <= 1 ||
     DIE(
       new Error(`expect <= 1 same content pr, but got ${sameContentPRList.length}`, {
         cause: {
@@ -110,7 +108,6 @@ export async function createGithubPullRequest({
         },
       }),
     );
-  }
 
   const pr_result =
     // existedList[0] ??

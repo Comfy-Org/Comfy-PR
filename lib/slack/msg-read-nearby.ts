@@ -144,11 +144,14 @@ export async function readNearbyMessages(
           ...(m.files &&
             m.files.length > 0 && {
               files: m.files.map((f) => ({
+                id: f.id,
                 name: f.name,
                 title: f.title,
                 mimetype: f.mimetype,
+                filetype: f.filetype,
                 size: f.size,
                 url_private: f.url_private,
+                url_private_download: f.url_private_download,
                 permalink: f.permalink,
               })),
             }),

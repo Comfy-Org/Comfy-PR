@@ -54,6 +54,7 @@
     "@ai-sdk/openai": "^3.0.19",
     "@auth/mongodb-adapter": "^3.4.2",
     "@ctrl/mac-address": "^3.0.3",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.1.1",
     "@kbox-labs/react-echarts": "^1.2.0",
     "@keyv/mongo": "^3.0.5",
