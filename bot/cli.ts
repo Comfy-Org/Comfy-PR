@@ -39,6 +39,9 @@ import yaml from "yaml";
 // Notion ability
 import { searchNotion } from "@/lib/notion/search";
 
+// Video ability
+import { readVideo } from "@/lib/video/read-video";
+
 /**
  * Load environment variables from .env.local in the project root
  * This allows prbot to work from unknown directory
@@ -921,6 +924,100 @@ async function main() {
         }
       },
     )
+    .command("video", "Video analysis commands", (yargs) => {
+      return yargs
+        .command(
+          "read",
+          "Analyze a video file using AI vision (Gemini or GPT-4o)",
+          (y) =>
+            y
+              .option("file", {
+                alias: "f",
+                type: "string",
+                describe: "Local video file path",
+              })
+              .option("slack-file", {
+                type: "string",
+                describe: "Slack file ID to download and analyze",
+              })
+              .option("slack-url", {
+                type: "string",
+                describe: "Slack file URL to download and analyze",
+              })
+              .option("model", {
+                alias: "m",
+                type: "string",
+                default: "gemini",
+                describe: "Model to use: gemini or gpt4o",
+              })
+              .option("prompt", {
+                alias: "p",
+                type: "string",
+                describe: "Custom analysis prompt",
+              })
+              .check((argv) => {
+                const sources = [argv.file, argv["slack-file"], argv["slack-url"]].filter(Boolean);
+                if (sources.length === 0) {
+                  throw new Error("One of --file, --slack-file, or --slack-url is required");
+                }
+                if (sources.length > 1) {
+                  throw new Error(
+                    "Only one of --file, --slack-file, or --slack-url can be specified",
+                  );
+                }
+                if (!["gemini", "gpt4o"].includes(argv.model as string)) {
+                  throw new Error("Model must be 'gemini' or 'gpt4o'");
+                }
+                return true;
+              }),
+          async (args) => {
+            await loadEnvLocal();
+
+            let videoPath = args.file as string | undefined;
+
+            // Download from Slack if needed
+            if (args["slack-file"] || args["slack-url"]) {
+              let fileId = args["slack-file"] as string | undefined;
+
+              if (args["slack-url"]) {
+                const parsed = parseSlackUrlSmart(args["slack-url"] as string);
+                if (!parsed.fileId) {
+                  console.error("Could not extract file ID from Slack URL");
+                  process.exit(1);
+                }
+                fileId = parsed.fileId;
+              }
+
+              // Download to temp path
+              const fileInfo = await getSlackFileInfo(fileId!);
+              const fileName = fileInfo.name || `video-${fileId}`;
+              const tmpPath = `/tmp/${fileName}`;
+              console.log(`Downloading Slack file ${fileId} → ${tmpPath}`);
+              await downloadSlackFile(fileId!, tmpPath);
+              videoPath = tmpPath;
+            }
+
+            console.log(`Analyzing video: ${videoPath}`);
+            console.log(`Model: ${args.model}`);
+            if (args.prompt)
+              console.log(`Custom prompt: ${(args.prompt as string).substring(0, 80)}...`);
+            console.log("---");
+
+            const result = await readVideo(videoPath!, {
+              model: args.model as "gemini" | "gpt4o",
+              prompt: args.prompt as string | undefined,
+            });
+
+            console.log(result.description);
+            console.log("\n---");
+            console.log(`Model: ${result.model}`);
+            console.log(`Usage: ${JSON.stringify(result.usage)}`);
+            if (result.mdPath) console.log(`Report saved: ${result.mdPath}`);
+          },
+        )
+        .demandCommand(1, "Please specify a video subcommand")
+        .help();
+    })
     .command("agent", "Agent control commands", (yargs) => {
       return yargs.command(
         "respond-slack-msg <url>",
