@@ -256,10 +256,10 @@ export async function startSlackBot() {
   // );
 
   const msgs = await fsp
-    .readFile("./msgs.yaml", "utf-8")
+    .readFile("./inbox.yaml", "utf-8")
     .then((s) => yaml.parse(s))
     .then((e) => z.object({ missed: z.string().array() }).parseAsync(e));
-  await fsp.writeFile("./msgs.yaml", "missed: []");
+  await fsp.writeFile("./inbox.yaml", "missed: []");
 
   // clean the file
   //
