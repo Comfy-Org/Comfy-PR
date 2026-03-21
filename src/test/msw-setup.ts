@@ -8,6 +8,12 @@ if (!process.env.GH_TOKEN) {
   process.env.GH_TOKEN = "test-token-msw-setup";
 }
 
+// Set MongoDB URI for tests to use mongodb-memory-server or a test database
+// This prevents connection attempts to production databases during tests
+if (!process.env.MONGODB_URI) {
+  process.env.MONGODB_URI = "mongodb://localhost:27017/comfy-pr-test";
+}
+
 // Create MSW server with GitHub API handlers
 export const server = setupServer(...githubHandlers);
 
