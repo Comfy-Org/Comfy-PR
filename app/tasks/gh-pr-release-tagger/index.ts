@@ -5,7 +5,6 @@ import { ghc } from "@/lib/github/githubCached";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { logger } from "@/src/logger";
 import isCI from "is-ci";
-import sflow from "sflow";
 
 /**
  * GitHub PR Release Tagger Task
@@ -166,7 +165,7 @@ async function processTarget(target: "core" | "cloud") {
 
   await ensureLabelExists(labelName);
 
-  let state = await save({
+  await save({
     target,
     deployedRef,
     branch,
@@ -299,7 +298,7 @@ async function processTarget(target: "core" | "cloud") {
       }
     }
 
-    state = await save({
+    await save({
       target,
       deployedRef,
       branch,
