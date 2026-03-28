@@ -2,80 +2,327 @@
 import { db } from "@/src/db";
 import { gh } from "@/lib/github";
 import { ghc } from "@/lib/github/githubCached";
-import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { logger } from "@/src/logger";
-import DIE from "@snomiao/die";
 import isCI from "is-ci";
 import sflow from "sflow";
 
 /**
  * GitHub PR Release Tagger Task
  *
- * Workflow:
- * 1. List all branches matching core/1.* and cloud/1.* patterns in ComfyUI_frontend
- * 2. For each matching branch, get recent releases
- * 3. For each release, compare to the previous release on same branch to get commits
- * 4. For each commit, find associated PRs
- * 5. Add a 'released:core' or 'released:cloud' label to those PRs
- * 6. Track processed releases in MongoDB to avoid re-processing
+ * Labels original PRs (merged to main) with `released:core` or `released:cloud`
+ * when their backports are confirmed deployed.
+ *
+ * - `released:core` = available in the latest desktop app
+ * - `released:cloud` = live on cloud.comfy.org
+ *
+ * Sources of truth:
+ * - Core: Comfy-Org/desktop latest release → package.json → config.frontend.version
+ * - Cloud: Comfy-Org/cloud → ArgoCD prod overlay → frontendVersion SHA
  */
 
-const config = {
-  repo: "https://github.com/Comfy-Org/ComfyUI_frontend",
-  // Matches core/1.* and cloud/1.* branches
-  reReleaseBranchPatterns: /^(core|cloud)\/1\.\d+$/,
-  // Labels to add when a PR has been released
-  getLabelForBranch: (branch: string) => `released:${branch.split("/")[0]}`,
-  maxReleasesToCheck: 5,
-  processSince: new Date("2026-01-01T00:00:00Z").toISOString(),
-};
+const FRONTEND_REPO = { owner: "Comfy-Org", repo: "ComfyUI_frontend" };
 
-export type GithubPRReleaseTaggerTask = {
-  releaseUrl: string; // unique index
-  releaseTag: string;
-  branch: string;
-  labeledPRs: Array<{
+export type PRReleaseTaggerState = {
+  target: "core" | "cloud";
+  deployedRef: string; // version tag or commit SHA
+  branch: string; // e.g. "core/1.41" or "cloud/1.41"
+  labeledOriginalPRs: Array<{
     prNumber: number;
     prUrl: string;
     prTitle: string;
+    backportPrNumber: number | null;
     labeledAt: Date;
   }>;
   taskStatus: "checking" | "completed" | "failed";
   checkedAt: Date;
 };
 
-export const GithubPRReleaseTaggerTask = db.collection<GithubPRReleaseTaggerTask>(
-  "GithubPRReleaseTaggerTask",
-);
+export const PRReleaseTaggerState = db.collection<PRReleaseTaggerState>("PRReleaseTaggerState");
 
-const save = async (task: { releaseUrl: string } & Partial<GithubPRReleaseTaggerTask>) =>
-  (await GithubPRReleaseTaggerTask.findOneAndUpdate(
-    { releaseUrl: task.releaseUrl },
-    { $set: task },
+const save = async (
+  state: { target: string; deployedRef: string } & Partial<PRReleaseTaggerState>,
+) =>
+  (await PRReleaseTaggerState.findOneAndUpdate(
+    { target: state.target, deployedRef: state.deployedRef },
+    { $set: state },
     { upsert: true, returnDocument: "after" },
-  )) || DIE("never");
+  )) ||
+  (() => {
+    throw new Error("save failed");
+  })();
 
-async function ensureLabelExists(owner: string, repo: string, labelName: string) {
+// ── Resolve deployed versions ──────────────────────────────────────
+
+async function getCoreDeployedVersion(): Promise<{ ref: string; branch: string }> {
+  // Read latest desktop release's package.json to get pinned frontend version
+  const latestRelease = await ghc.repos.getLatestRelease({
+    owner: "Comfy-Org",
+    repo: "desktop",
+  });
+  const tag = latestRelease.data.tag_name;
+
+  const pkgContent = await ghc.repos.getContent({
+    owner: "Comfy-Org",
+    repo: "desktop",
+    path: "package.json",
+    ref: tag,
+  });
+
+  const content = "content" in pkgContent.data ? pkgContent.data.content : "";
+  const pkg = JSON.parse(Buffer.from(content, "base64").toString("utf-8"));
+  const version: string = pkg.config?.frontend?.version;
+  if (!version) throw new Error("No frontend version in desktop package.json");
+
+  const releaseTag = version.startsWith("v") ? version : `v${version}`;
+
+  // Get the release to find target branch
+  const release = await ghc.repos.getReleaseByTag({
+    ...FRONTEND_REPO,
+    tag: releaseTag,
+  });
+  const branch = release.data.target_commitish;
+
+  logger.info(`Core deployed: ${releaseTag} on ${branch} (desktop ${tag})`);
+  return { ref: releaseTag, branch };
+}
+
+async function getCloudDeployedVersion(): Promise<{ ref: string; branch: string }> {
+  // Read frontend-version.json for the release branch
+  const versionFile = await ghc.repos.getContent({
+    owner: "Comfy-Org",
+    repo: "cloud",
+    path: "frontend-version.json",
+  });
+  const versionContent = "content" in versionFile.data ? versionFile.data.content : "";
+  const versionConfig = JSON.parse(Buffer.from(versionContent, "base64").toString("utf-8"));
+  const branch: string = versionConfig.releaseBranch;
+  if (!branch) throw new Error("No releaseBranch in cloud frontend-version.json");
+
+  // Read ArgoCD prod overlay for deployed SHA
+  const overlayFile = await ghc.repos.getContent({
+    owner: "Comfy-Org",
+    repo: "cloud",
+    path: "infrastructure/argocd/apps/comfy-apps/charts/nginx-frontend/overlays/comfy-cloud-prod-v2/values.yaml",
+  });
+  const overlayContent = "content" in overlayFile.data ? overlayFile.data.content : "";
+  const overlayText = Buffer.from(overlayContent, "base64").toString("utf-8");
+  const shaMatch = overlayText.match(/frontendVersion:\s*"?([0-9a-fA-F]{7,40})"?/);
+  if (!shaMatch) throw new Error("No frontendVersion SHA in cloud prod overlay");
+  const ref = shaMatch[1];
+
+  logger.info(`Cloud deployed: ${ref.substring(0, 7)} on ${branch}`);
+  return { ref, branch };
+}
+
+// ── Extract original PR number from backport PR ────────────────────
+
+function extractOriginalPRNumber(body: string | null): number | null {
+  if (!body) return null;
+  const match = body.match(/Backport of #(\d+)/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+// ── Ensure label exists ────────────────────────────────────────────
+
+async function ensureLabelExists(labelName: string) {
+  const { owner, repo } = FRONTEND_REPO;
   try {
     await gh.issues.getLabel({ owner, repo, name: labelName });
   } catch (e: unknown) {
-    const err = e as { status?: number };
-    if (err.status === 404) {
-      const branchPrefix = labelName.split(":")[1] || labelName;
+    if ((e as { status?: number }).status === 404) {
+      const target = labelName.split(":")[1] || labelName;
       await gh.issues.createLabel({
         owner,
         repo,
         name: labelName,
-        color: "0075ca", // blue color
-        description: `PR has been released to ${branchPrefix}`,
+        color: "0075ca",
+        description: `PR has been released to ${target}`,
       });
-      logger.info(`Created label '${labelName}' in ${owner}/${repo}`);
+      logger.info(`Created label '${labelName}'`);
     } else {
       throw e;
     }
   }
 }
+
+// ── Process a single target (core or cloud) ────────────────────────
+
+async function processTarget(target: "core" | "cloud") {
+  const labelName = `released:${target}`;
+  const { ref: deployedRef, branch } =
+    target === "core" ? await getCoreDeployedVersion() : await getCloudDeployedVersion();
+
+  // Check if we already processed this exact deployed ref
+  const existing = await PRReleaseTaggerState.findOne({
+    target,
+    deployedRef,
+    taskStatus: "completed",
+  });
+  if (existing) {
+    logger.info(`${target}: deployed ref ${deployedRef} already processed, skipping.`);
+    return;
+  }
+
+  await ensureLabelExists(labelName);
+
+  let state = await save({
+    target,
+    deployedRef,
+    branch,
+    labeledOriginalPRs: [],
+    taskStatus: "checking",
+    checkedAt: new Date(),
+  });
+
+  try {
+    // List all merged PRs targeting this branch
+    const mergedPRs = await ghPageFlow(ghc.pulls.list, { per_page: 100 })({
+      ...FRONTEND_REPO,
+      base: branch,
+      state: "closed",
+      sort: "updated",
+      direction: "desc",
+    })
+      .filter((pr) => pr.merged_at !== null)
+      .toArray();
+
+    logger.info(`${target}: found ${mergedPRs.length} merged PRs on ${branch}`);
+
+    const labeledOriginalPRs: PRReleaseTaggerState["labeledOriginalPRs"] = [];
+
+    // Get previously labeled PR numbers to avoid re-processing
+    const previouslyLabeled = await PRReleaseTaggerState.find({ target })
+      .toArray()
+      .then(
+        (states) =>
+          new Set(states.flatMap((s) => s.labeledOriginalPRs?.map((p) => p.prNumber) || [])),
+      );
+
+    for (const backportPR of mergedPRs) {
+      // Check if backport PR's merge commit is ancestor of deployed ref
+      if (!backportPR.merge_commit_sha) continue;
+
+      try {
+        const comparison = await ghc.repos.compareCommits({
+          ...FRONTEND_REPO,
+          base: deployedRef,
+          head: backportPR.merge_commit_sha,
+        });
+        // If status is "behind" or "identical", the merge commit is included in deployed ref
+        if (comparison.data.status !== "behind" && comparison.data.status !== "identical") {
+          continue; // merge commit is ahead of deployed ref, not yet released
+        }
+      } catch {
+        // If comparison fails, skip this PR
+        continue;
+      }
+
+      // Extract original PR number from backport body
+      const originalPRNumber = extractOriginalPRNumber(backportPR.body);
+
+      if (originalPRNumber) {
+        // Label the original PR
+        if (previouslyLabeled.has(originalPRNumber)) {
+          continue;
+        }
+
+        try {
+          const originalPR = await ghc.pulls.get({
+            ...FRONTEND_REPO,
+            pull_number: originalPRNumber,
+          });
+
+          // Check if already has label
+          const hasLabel = originalPR.data.labels.some(
+            (l) => (typeof l === "string" ? l : l.name) === labelName,
+          );
+          if (hasLabel) {
+            previouslyLabeled.add(originalPRNumber);
+            continue;
+          }
+
+          await gh.issues.addLabels({
+            ...FRONTEND_REPO,
+            issue_number: originalPRNumber,
+            labels: [labelName],
+          });
+
+          logger.info(
+            `${target}: labeled original PR #${originalPRNumber} "${originalPR.data.title}" (via backport #${backportPR.number})`,
+          );
+
+          labeledOriginalPRs.push({
+            prNumber: originalPRNumber,
+            prUrl: originalPR.data.html_url,
+            prTitle: originalPR.data.title,
+            backportPrNumber: backportPR.number,
+            labeledAt: new Date(),
+          });
+        } catch (err: unknown) {
+          logger.error(
+            `${target}: failed to label original PR #${originalPRNumber}: ${(err as Error).message}`,
+          );
+        }
+      } else {
+        // PR merged directly to branch (not a backport) — label it directly
+        const prNumber = backportPR.number;
+        if (previouslyLabeled.has(prNumber)) continue;
+
+        const hasLabel = backportPR.labels.some(
+          (l) => (typeof l === "string" ? l : l.name) === labelName,
+        );
+        if (hasLabel) {
+          previouslyLabeled.add(prNumber);
+          continue;
+        }
+
+        try {
+          await gh.issues.addLabels({
+            ...FRONTEND_REPO,
+            issue_number: prNumber,
+            labels: [labelName],
+          });
+
+          logger.info(`${target}: labeled direct PR #${prNumber} "${backportPR.title}"`);
+
+          labeledOriginalPRs.push({
+            prNumber,
+            prUrl: backportPR.html_url,
+            prTitle: backportPR.title,
+            backportPrNumber: null,
+            labeledAt: new Date(),
+          });
+        } catch (err: unknown) {
+          logger.error(`${target}: failed to label PR #${prNumber}: ${(err as Error).message}`);
+        }
+      }
+    }
+
+    state = await save({
+      target,
+      deployedRef,
+      branch,
+      labeledOriginalPRs,
+      taskStatus: "completed",
+      checkedAt: new Date(),
+    });
+
+    logger.info(
+      `${target}: completed — labeled ${labeledOriginalPRs.length} original PRs for deployed ref ${deployedRef}`,
+    );
+  } catch (err: unknown) {
+    logger.error(`${target}: failed — ${(err as Error).message}`);
+    await save({
+      target,
+      deployedRef,
+      taskStatus: "failed",
+      checkedAt: new Date(),
+    });
+  }
+}
+
+// ── Main ───────────────────────────────────────────────────────────
 
 if (import.meta.main) {
   await runGithubPRReleaseTaggerTask();
@@ -87,226 +334,10 @@ if (import.meta.main) {
 }
 
 export default async function runGithubPRReleaseTaggerTask() {
-  await GithubPRReleaseTaggerTask.createIndex({ releaseUrl: 1 }, { unique: true });
-  await GithubPRReleaseTaggerTask.createIndex({ releaseTag: 1 });
-  await GithubPRReleaseTaggerTask.createIndex({ branch: 1 });
-  await GithubPRReleaseTaggerTask.createIndex({ checkedAt: 1 });
+  await PRReleaseTaggerState.createIndex({ target: 1, deployedRef: 1 }, { unique: true });
+  await PRReleaseTaggerState.createIndex({ target: 1 });
+  await PRReleaseTaggerState.createIndex({ checkedAt: 1 });
 
-  const { owner, repo } = parseGithubRepoUrl(config.repo);
-
-  // Step 1: List all branches matching the release branch patterns
-  const releaseBranches = await ghPageFlow(ghc.repos.listBranches)({ owner, repo })
-    .filter((branch) => config.reReleaseBranchPatterns.test(branch.name))
-    .map((branch) => branch.name)
-    .toArray();
-
-  logger.info(`Found ${releaseBranches.length} release branches: ${releaseBranches.join(", ")}`);
-
-  if (!releaseBranches.length) {
-    logger.info("No release branches found, skipping.");
-    return;
-  }
-
-  // Step 2: Get all recent releases and filter by target_commitish matching our branches
-  const allReleases = await ghPageFlow(ghc.repos.listReleases, { per_page: 20 })({ owner, repo })
-    .filter((release) => +new Date(release.created_at) >= +new Date(config.processSince))
-    .filter((release) => releaseBranches.includes(release.target_commitish))
-    .toArray();
-
-  logger.info(`Found ${allReleases.length} releases on release branches since processSince`);
-
-  // Step 3: Group releases by branch and sort each group by created_at (ascending)
-  const releasesByBranch = new Map<string, typeof allReleases>();
-  for (const release of allReleases) {
-    const branch = release.target_commitish;
-    if (!releasesByBranch.has(branch)) {
-      releasesByBranch.set(branch, []);
-    }
-    releasesByBranch.get(branch)!.push(release);
-  }
-
-  // Sort each group ascending by created_at so we can determine prev/next
-  for (const [branch, releases] of releasesByBranch) {
-    releases.sort((a, b) => +new Date(a.created_at) - +new Date(b.created_at));
-    logger.info(
-      `Branch ${branch}: ${releases.length} releases (${releases.map((r) => r.tag_name).join(", ")})`,
-    );
-  }
-
-  // Step 4: Process each branch's releases
-  await sflow([...releasesByBranch.entries()])
-    .map(async ([branch, releases]) => {
-      const labelName = config.getLabelForBranch(branch);
-
-      // Ensure the label exists before processing
-      await ensureLabelExists(owner, repo, labelName);
-
-      // Take only the most recent N releases per branch
-      const releasesToProcess = releases.slice(-config.maxReleasesToCheck);
-
-      await sflow(releasesToProcess)
-        .map(async (release, index) => {
-          const releaseUrl = release.html_url;
-          const releaseTag = release.tag_name;
-
-          // Check if already completed in DB
-          const existing = await GithubPRReleaseTaggerTask.findOne({ releaseUrl });
-          if (existing?.taskStatus === "completed") {
-            logger.debug(`Release ${releaseTag} on ${branch} already processed, skipping.`);
-            return existing;
-          }
-
-          logger.info(`Processing release ${releaseTag} on branch ${branch}`);
-
-          // Save initial state
-          let task = await save({
-            releaseUrl,
-            releaseTag,
-            branch,
-            labeledPRs: existing?.labeledPRs || [],
-            taskStatus: "checking",
-            checkedAt: new Date(),
-          });
-
-          try {
-            // Step 5: Determine the base for comparison
-            // Use previous release tag on same branch, or branch HEAD if first release
-            const previousRelease =
-              index > 0 ? releasesToProcess[index - 1] : null;
-
-            let base: string;
-            let head: string;
-
-            if (previousRelease) {
-              base = previousRelease.tag_name;
-              head = releaseTag;
-            } else {
-              // For the first release, compare the branch HEAD back against the release tag
-              // We compare from a point before - use the branch itself as base
-              // This gives us commits up to this release
-              base = branch;
-              head = releaseTag;
-            }
-
-            logger.debug(`  Comparing ${base}...${head}`);
-
-            // Step 6: Get commits between previous release and this release
-            const compareResult = await ghc.repos
-              .compareCommits({ owner, repo, base, head })
-              .then((e) => e.data.commits)
-              .catch((err: unknown) => {
-                // If comparison fails (e.g. no common ancestor), try other direction
-                logger.warn(
-                  `  compareCommits failed for ${base}...${head}: ${(err as Error).message}`,
-                );
-                return [];
-              });
-
-            logger.debug(`  Found ${compareResult.length} commits in release ${releaseTag}`);
-
-            // Step 7: For each commit, find associated PRs and label them
-            const labeledPRs: GithubPRReleaseTaggerTask["labeledPRs"] = [
-              ...(task.labeledPRs || []),
-            ];
-            const alreadyLabeledPrNumbers = new Set(labeledPRs.map((p) => p.prNumber));
-
-            await sflow(compareResult)
-              .map(async (commit) => {
-                const commitSha = commit.sha;
-
-                // Find PRs associated with this commit
-                const prs = await ghc.repos
-                  .listPullRequestsAssociatedWithCommit({
-                    owner,
-                    repo,
-                    commit_sha: commitSha,
-                  })
-                  .then((e) => e.data)
-                  .catch((err: unknown) => {
-                    logger.warn(
-                      `  Failed to get PRs for commit ${commitSha.substring(0, 7)}: ${(err as Error).message}`,
-                    );
-                    return [];
-                  });
-
-                for (const pr of prs) {
-                  if (alreadyLabeledPrNumbers.has(pr.number)) {
-                    logger.debug(
-                      `    PR #${pr.number} already labeled with ${labelName}, skipping.`,
-                    );
-                    continue;
-                  }
-
-                  // Check if PR already has this label
-                  const existingLabels = pr.labels.map((l) =>
-                    typeof l === "string" ? l : l.name || "",
-                  );
-                  if (existingLabels.includes(labelName)) {
-                    logger.debug(`    PR #${pr.number} already has label ${labelName}, skipping.`);
-                    alreadyLabeledPrNumbers.add(pr.number);
-                    labeledPRs.push({
-                      prNumber: pr.number,
-                      prUrl: pr.html_url,
-                      prTitle: pr.title,
-                      labeledAt: new Date(),
-                    });
-                    continue;
-                  }
-
-                  try {
-                    // Add label to PR using non-cached gh client (write operation)
-                    await gh.issues.addLabels({
-                      owner,
-                      repo,
-                      issue_number: pr.number,
-                      labels: [labelName],
-                    });
-
-                    logger.info(
-                      `    Labeled PR #${pr.number} "${pr.title}" with '${labelName}'`,
-                    );
-                    alreadyLabeledPrNumbers.add(pr.number);
-                    labeledPRs.push({
-                      prNumber: pr.number,
-                      prUrl: pr.html_url,
-                      prTitle: pr.title,
-                      labeledAt: new Date(),
-                    });
-                  } catch (err: unknown) {
-                    logger.error(
-                      `    Failed to label PR #${pr.number}: ${(err as Error).message}`,
-                    );
-                  }
-                }
-              })
-              .run();
-
-            task = await save({
-              releaseUrl,
-              releaseTag,
-              branch,
-              labeledPRs,
-              taskStatus: "completed",
-              checkedAt: new Date(),
-            });
-
-            logger.info(
-              `  Completed release ${releaseTag}: labeled ${labeledPRs.length} PRs total`,
-            );
-          } catch (err: unknown) {
-            logger.error(
-              `  Failed to process release ${releaseTag} on ${branch}: ${(err as Error).message}`,
-            );
-            task = await save({
-              releaseUrl,
-              taskStatus: "failed",
-              checkedAt: new Date(),
-            });
-          }
-
-          return task;
-        })
-        .run();
-    })
-    .run();
+  await processTarget("core");
+  await processTarget("cloud");
 }
