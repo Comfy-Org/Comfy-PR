@@ -13,6 +13,12 @@ import sha256 from "sha256";
 import { z } from "zod";
 import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
 import { createTimeLogger } from "./createTimeLogger";
+import {
+  buildDesignCommentActivitySlackText,
+  buildDesignRootSlackText,
+  findLatestDesignSlackRootMessage,
+  planDesignCommentNotification,
+} from "./slackNotifications";
 import { slackMessageUrlParse, slackMessageUrlStringify } from "./slackMessageUrlParse";
 const tlog = createTimeLogger();
 
@@ -41,7 +47,6 @@ const REQUEST_REVIEWERS = ["PabloWiedemann"];
 
 // 3.2 notify to this slack channel
 const CHANNEL_NAME = "product-design";
-const SLACK_MESSAGE_TEMPLATE = `🎨 *New Design {{ITEM_TYPE}}*: {{STATE}} <{{URL}}|{{TITLE}}> {{COMMENTS}} by {{GITHUBUSER}}`;
 
 // Schema for GithubDesignTaskMeta validation
 export const githubDesignTaskMetaSchema = z.object({
@@ -78,6 +83,7 @@ type GithubDesignTask = {
   slackUrl?: string; // Slack message URL
   slackSentAt?: Date;
   slackMsgHash?: string; // hash of the Slack message for edit/update purposes
+  slackCommentNotifiedCount?: number; // last discussion count announced in the Slack thread
 
   // task meta
   error?: string; // error message if unknown
@@ -100,6 +106,15 @@ async function ensureIndexes() {
   }
 }
 
+async function findGithubDesignTaskByUrl(url: string) {
+  await ensureIndexes();
+  const normalizedUrl = normalizeGithubUrl(url);
+  const oldUrl = normalizedUrl.replace(/Comfy-Org/i, "comfyanonymous");
+  return await GithubDesignTask.findOne({
+    $or: [{ url: normalizedUrl }, { url: oldUrl }],
+  });
+}
+
 // Helper function to save/update GithubDesignTask
 async function saveGithubDesignTask(url: string, $set: Partial<GithubDesignTask>) {
   await ensureIndexes();
@@ -114,10 +129,7 @@ async function saveGithubDesignTask(url: string, $set: Partial<GithubDesignTask>
   };
 
   // Incremental migration: Check both normalized and old URL formats
-  const oldUrl = normalizedUrl.replace(/Comfy-Org/i, "comfyanonymous");
-  const existing = await GithubDesignTask.findOne({
-    $or: [{ url: normalizedUrl }, { url: oldUrl }],
-  });
+  const existing = await findGithubDesignTaskByUrl(url);
 
   return (
     (await GithubDesignTask.findOneAndUpdate(
@@ -200,6 +212,8 @@ export async function runGithubDesignTask() {
       );
       const url = issueInfo.url;
       const { owner, repo, issue_number } = parseIssueUrl(url);
+      const existingTask = await findGithubDesignTaskByUrl(url);
+
       // create task
       let task = await saveGithubDesignTask(url, {
         type: issueInfo.type, // issue or pull_request
@@ -233,22 +247,33 @@ export async function runGithubDesignTask() {
           }
         }
 
-        const text = SLACK_MESSAGE_TEMPLATE
-          // (meta.slackMessageTemplate || DIE("Missing Slack message template"))
-          .replace("{{COMMENTS}}", task.comments?.toString().replace(/^(.*)$/, "[r$1]") ?? "")
-          .replace("{{STATE}}", task.state.toUpperCase())
-          .replace("{{USERNAME}}", task.user ?? "=??=")
-          .replace("{{GITHUBUSER}}", `<https://github.com/${task.user}|@${task.user}>`)
-          .replace("{{ITEM_TYPE}}", task.type)
-          .replace("{{TITLE}}", task.title)
-          .replace("{{URL}}", task.url)
-          .replace(/ +/, " ");
-        const slackMsgHash = sha256(text);
+        const rootText = buildDesignRootSlackText({
+          url: task.url,
+          title: task.title,
+          user: task.user,
+          state: task.state,
+          type: task.type,
+        });
+        const slackMsgHash = sha256(rootText);
+
+        if (!task.slackUrl && !dryRun) {
+          const recovered = await findLatestDesignSlackRootMessage({
+            channelName: CHANNEL_NAME,
+            githubUrl: task.url,
+          });
+          if (recovered) {
+            tlog(`Recovered existing Slack root message for task: ${task.url}`);
+            task = await saveGithubDesignTask(url, {
+              slackUrl: recovered.url,
+              slackSentAt: existingTask?.slackSentAt ?? new Date(),
+            });
+          }
+        }
 
         if (!task.slackUrl) {
           tlog(`Sending Slack Notification for design task: ${task.url} (${task.type})`);
           if (!dryRun) {
-            const msg = await upsertSlackMessage({ channelName: CHANNEL_NAME, text });
+            const msg = await upsertSlackMessage({ channelName: CHANNEL_NAME, text: rootText });
             if (!msg.ok) {
               await saveGithubDesignTask(url, {
                 error: `Failed to send Slack message: ${msg.error}`,
@@ -260,21 +285,56 @@ export async function runGithubDesignTask() {
               slackUrl: slackMessageUrlStringify({ channel: msg.channel, ts: msg.ts! }),
               slackSentAt: new Date(),
               slackMsgHash,
+              slackCommentNotifiedCount: task.comments,
             });
             tlog(`Slack message sent: ${task.slackUrl}`);
           }
         } else {
-          // update slack message if its outdated
           if (task.slackMsgHash !== slackMsgHash) {
-            tlog(`Updating Slack message for task: ${task.url}`);
+            tlog(`Updating Slack root message for task: ${task.url}`);
             if (!dryRun) {
               await upsertSlackMessage({
                 ...slackMessageUrlParse(task.slackUrl),
-                text,
+                text: rootText,
               });
               task = await saveGithubDesignTask(url, { slackMsgHash });
               tlog(`Slack message updated: ${task.slackUrl}`);
             }
+          }
+
+          const commentNotificationPlan = planDesignCommentNotification(
+            existingTask?.slackCommentNotifiedCount,
+            task.comments,
+          );
+
+          if (commentNotificationPlan.shouldReplyInThread && !dryRun) {
+            const previousComments = existingTask?.slackCommentNotifiedCount ?? 0;
+            const slackUrl = task.slackUrl || DIE(`Missing slackUrl for design task: ${task.url}`);
+            const activityText = buildDesignCommentActivitySlackText(
+              {
+                url: task.url,
+                title: task.title,
+                type: task.type,
+              },
+              previousComments,
+              task.comments ?? previousComments,
+            );
+
+            tlog(`Posting threaded design discussion update for task: ${task.url}`);
+            await upsertSlackMessage({
+              channel: slackMessageUrlParse(slackUrl).channel,
+              text: activityText,
+              replyUrl: slackUrl,
+            });
+          }
+
+          if (
+            existingTask?.slackCommentNotifiedCount !== commentNotificationPlan.nextNotifiedComments
+          ) {
+            task = await saveGithubDesignTask(url, {
+              slackCommentNotifiedCount: commentNotificationPlan.nextNotifiedComments,
+              ...(task.slackMsgHash === slackMsgHash ? {} : { slackMsgHash }),
+            });
           }
         }
       }
