@@ -80,7 +80,20 @@ const TASKS = [
   },
 ];
 
+const DRY_RUN = process.env.DRY_RUN !== "false";
+
 async function runAllTasks() {
+  if (DRY_RUN) {
+    console.log("DRY RUN: Skipping all GitHub tasks (PR CI mode)");
+    TASKS.forEach((task) => console.log(`  - ${task.name}`));
+    console.log("\nDry run complete - no changes made.");
+    if (isCI) {
+      await db.close();
+      process.exit(0);
+    }
+    return;
+  }
+
   console.log("=� Starting all GitHub tasks...");
 
   // Run all tasks concurrently using Promise.allSettled
