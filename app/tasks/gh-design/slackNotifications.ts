@@ -88,26 +88,32 @@ export async function findLatestDesignSlackRootMessage({
   channelName: string;
   githubUrl: string;
 }) {
-  const slack = getSlack();
-  const channel = await getSlackChannel(channelName);
-  const result = await slack.search.messages({
-    query: `"${githubUrl}" "New Design"`,
-    count: 20,
-    sort: "timestamp",
-    sort_dir: "desc",
-  });
-  if (!result.ok) {
-    throw new Error(`Failed to search Slack for existing design message: ${result.error}`);
+  try {
+    const slack = getSlack();
+    const channel = await getSlackChannel(channelName);
+    const result = await slack.search.messages({
+      query: `"${githubUrl}" "New Design"`,
+      count: 20,
+      sort: "timestamp",
+      sort_dir: "desc",
+    });
+    if (!result.ok) {
+      return undefined;
+    }
+    const match = selectLatestDesignSlackRootMessage(
+      (result.messages?.matches as SlackSearchMatch[] | undefined) ?? [],
+      channel.id || "",
+      githubUrl,
+    );
+    if (!match?.permalink || !channel.id) return undefined;
+    return {
+      channel: channel.id,
+      url: match.permalink,
+      ts: match.ts || undefined,
+    };
+  } catch {
+    // Recovery is best-effort. If Slack channel lookup or search fails,
+    // callers should fall back to posting a fresh root message.
+    return undefined;
   }
-  const match = selectLatestDesignSlackRootMessage(
-    (result.messages?.matches as SlackSearchMatch[] | undefined) ?? [],
-    channel.id || "",
-    githubUrl,
-  );
-  if (!match?.permalink || !channel.id) return undefined;
-  return {
-    channel: channel.id,
-    url: match.permalink,
-    ts: match.ts || undefined,
-  };
 }
