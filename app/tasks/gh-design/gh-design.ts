@@ -84,6 +84,8 @@ type GithubDesignTask = {
   slackSentAt?: Date;
   slackMsgHash?: string; // hash of the Slack message for edit/update purposes
   slackCommentNotifiedCount?: number; // last discussion count announced in the Slack thread
+  slackPending?: boolean; // true while a Slack post is in-flight (prevents concurrent duplicate posts)
+  slackPendingAt?: Date; // when slackPending was set (for stale-lock detection)
 
   // task meta
   error?: string; // error message if unknown
@@ -273,21 +275,44 @@ export async function runGithubDesignTask() {
         if (!task.slackUrl) {
           tlog(`Sending Slack Notification for design task: ${task.url} (${task.type})`);
           if (!dryRun) {
-            const msg = await upsertSlackMessage({ channelName: CHANNEL_NAME, text: rootText });
-            if (!msg.ok) {
-              await saveGithubDesignTask(url, {
-                error: `Failed to send Slack message: ${msg.error}`,
-                taskStatus: "error",
-              });
-              throw new Error(`Failed to send Slack message: ${msg.error}`);
+            // Atomically claim the right to post — prevents concurrent runs from sending duplicates.
+            // If slackPending is already set and fresh (< 10 min), another run is in-flight; skip.
+            const staleCutoff = new Date(Date.now() - 10 * 60 * 1000);
+            const claimed = await GithubDesignTask.findOneAndUpdate(
+              {
+                _id: task._id,
+                slackUrl: { $exists: false },
+                $or: [{ slackPending: { $ne: true } }, { slackPendingAt: { $lt: staleCutoff } }],
+              },
+              { $set: { slackPending: true, slackPendingAt: new Date() } },
+            );
+            if (!claimed) {
+              tlog(`Skipping Slack post for ${url} — another run is already posting`);
+              return;
             }
-            task = await saveGithubDesignTask(url, {
-              slackUrl: slackMessageUrlStringify({ channel: msg.channel, ts: msg.ts! }),
-              slackSentAt: new Date(),
-              slackMsgHash,
-              slackCommentNotifiedCount: task.comments,
-            });
-            tlog(`Slack message sent: ${task.slackUrl}`);
+
+            try {
+              const msg = await upsertSlackMessage({ channelName: CHANNEL_NAME, text: rootText });
+              if (!msg.ok) {
+                await saveGithubDesignTask(url, {
+                  slackPending: false,
+                  error: `Failed to send Slack message: ${msg.error}`,
+                  taskStatus: "error",
+                });
+                throw new Error(`Failed to send Slack message: ${msg.error}`);
+              }
+              task = await saveGithubDesignTask(url, {
+                slackUrl: slackMessageUrlStringify({ channel: msg.channel, ts: msg.ts! }),
+                slackSentAt: new Date(),
+                slackMsgHash,
+                slackCommentNotifiedCount: task.comments,
+                slackPending: false,
+              });
+              tlog(`Slack message sent: ${task.slackUrl}`);
+            } catch (e) {
+              await saveGithubDesignTask(url, { slackPending: false });
+              throw e;
+            }
           }
         } else {
           if (task.slackMsgHash !== slackMsgHash) {
