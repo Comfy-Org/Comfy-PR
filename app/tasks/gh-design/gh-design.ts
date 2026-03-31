@@ -163,10 +163,17 @@ if (import.meta.main) {
  * Note: This task is designed to run periodically to catch new design items.
  */
 export async function runGithubDesignTask() {
-  const dryRun = process.argv.includes("--dry");
+  const dryRun = process.argv.includes("--dry") || process.env.DRY_RUN === "true";
+
+  if (dryRun) {
+    tlog("DRY RUN — scanning repos without writing to DB or Slack");
+    tlog(`Repos: ${REPOURLS.join(", ")}`);
+    tlog(`Labels: ${MATCH_LABELS.join(", ")}`);
+    tlog(`Channel: #${CHANNEL_NAME}`);
+  }
 
   tlog("Running gh design task...");
-  let meta = await GithubDesignTaskMeta.$upsert({
+  if (!dryRun) await GithubDesignTaskMeta.$upsert({
     name: "Github Design Issues Tracking Task",
     description:
       "Task to scan for [Design] labeled issues and PRs in specified repositories and notify product channel",
@@ -177,7 +184,6 @@ export async function runGithubDesignTask() {
     lastError: "",
   });
 
-  tlog("TaskMeta: " + JSON.stringify(meta));
   tlog(`Slack channel: ${CHANNEL_NAME}`);
 
   // Get configuration from meta or use defaults
@@ -214,21 +220,36 @@ export async function runGithubDesignTask() {
       );
       const url = issueInfo.url;
       const { owner, repo, issue_number } = parseIssueUrl(url);
-      const existingTask = await findGithubDesignTaskByUrl(url);
+      const existingTask = dryRun ? null : await findGithubDesignTaskByUrl(url);
 
-      // create task
-      let task = await saveGithubDesignTask(url, {
-        type: issueInfo.type, // issue or pull_request
+      // create/update task record (skip in dry run)
+      const taskData = {
+        url: issueInfo.url,
+        type: issueInfo.type,
         state: issueInfo.state,
         stateAt: new Date(issueInfo.stateAt),
         title: issueInfo.title,
         user: issueInfo.user || "?",
         comments: issueInfo.comments || 0,
-        bodyHash: issueInfo.body ? sha256(issueInfo.body) : undefined,
-        lastRunAt: new Date(),
-        taskStatus: "pending",
-        lastDoneAt: null, // reset lastDoneAt
-      });
+        slackUrl: undefined as string | undefined,
+        slackMsgHash: undefined as string | undefined,
+        slackCommentNotifiedCount: undefined as number | undefined,
+        reviewers: undefined as string[] | undefined,
+      };
+      let task = dryRun
+        ? taskData
+        : await saveGithubDesignTask(url, {
+            type: issueInfo.type,
+            state: issueInfo.state,
+            stateAt: new Date(issueInfo.stateAt),
+            title: issueInfo.title,
+            user: issueInfo.user || "?",
+            comments: issueInfo.comments || 0,
+            bodyHash: issueInfo.body ? sha256(issueInfo.body) : undefined,
+            lastRunAt: new Date(),
+            taskStatus: "pending",
+            lastDoneAt: null,
+          });
 
       if (task.state === "open") {
         if (
@@ -354,6 +375,7 @@ export async function runGithubDesignTask() {
           }
 
           if (
+            !dryRun &&
             existingTask?.slackCommentNotifiedCount !== commentNotificationPlan.nextNotifiedComments
           ) {
             task = await saveGithubDesignTask(url, {
@@ -376,9 +398,11 @@ export async function runGithubDesignTask() {
     .run();
 
   tlog("Github Design Task completed successfully.");
-  await GithubDesignTaskMeta.$upsert({
-    lastRunAt: new Date(),
-    lastStatus: "success",
-    lastError: "",
-  });
+  if (!dryRun) {
+    await GithubDesignTaskMeta.$upsert({
+      lastRunAt: new Date(),
+      lastStatus: "success",
+      lastError: "",
+    });
+  }
 }
