@@ -18,7 +18,7 @@ try {
   }
 } catch {}
 
-const CHANNEL = "C095SJWUYMR"; // #product-design
+const CHANNEL = "C0A4FRL1JN9"; // #product-design
 const DRY_RUN = process.argv.includes("--dry");
 const token = process.env.SLACK_BOT_TOKEN;
 if (!token) throw new Error("SLACK_BOT_TOKEN not set");
