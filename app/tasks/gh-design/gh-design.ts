@@ -256,7 +256,7 @@ export async function runGithubDesignTask() {
         });
         const slackMsgHash = sha256(rootText);
 
-        if (!task.slackUrl && !dryRun) {
+        if (!task.slackUrl && existingTask && !dryRun) {
           const recovered = await findLatestDesignSlackRootMessage({
             channelName: CHANNEL_NAME,
             githubUrl: task.url,
