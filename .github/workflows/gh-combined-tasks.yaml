@@ -30,10 +30,12 @@ jobs:
       # Install dependencies
       - run: bun i
 
-      # Run all combined GitHub tasks
+      # Run all combined GitHub tasks (dry run on PRs to avoid side effects)
       - run: bun app/tasks/run-gh-tasks.ts
         timeout-minutes: 10 # Individual timeout for the script
         env:
+          DRY_RUN: ${{ github.event_name == 'pull_request' && 'true' || 'false' }}
+          # DRY_RUN defaults to true in run-gh-tasks.ts; set false only for schedule/dispatch
           # Bounty task environment variables
           AUTH_GCLOUD_URL: https://comfy-pr.vercel.app
           AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
