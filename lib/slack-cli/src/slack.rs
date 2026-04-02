@@ -63,7 +63,7 @@ pub async fn send(token: &str, channel: &str, text: &str, thread_ts: Option<&str
     let mut body = serde_json::json!({
         "channel": channel,
         "text": text,  // fallback for notifications
-        "blocks": [{ "type": "markdown", "text": text }]
+        "blocks": [{ "type": "section", "text": { "type": "mrkdwn", "text": text } }]
     });
     if let Some(ts) = thread_ts {
         body["thread_ts"] = Value::String(ts.to_string());
