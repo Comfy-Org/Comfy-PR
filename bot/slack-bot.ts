@@ -11,9 +11,7 @@ import { yaml } from "@/src/utils/yaml";
 import { SocketModeClient } from "@slack/socket-mode";
 import {} from "@slack/bolt";
 import DIE from "@snomiao/die";
-import { spawn } from "node:child_process";
 import { compareBy } from "comparing";
-import { fromStdio } from "from-node-stream";
 import { mkdir } from "fs/promises";
 import sflow from "sflow";
 import winston from "winston";
@@ -25,16 +23,15 @@ import { parseSlackMessageToMarkdown } from "@/lib/slack/parseSlackMessageToMark
 import { slackTsToISO } from "@/lib/slack/slackTsToISO";
 import { safeSlackPostMessage, safeSlackUpdateMessage } from "@/lib/slack/safeSlackMessage";
 import { slackMessageUrlParse } from "@/app/tasks/gh-design/slackMessageUrlParse";
-import { TerminalTextRender } from "terminal-render";
 import minimist from "minimist";
 import { loadClaudeMd, loadSkills } from "./templateLoader";
-import path from "path";
 import { appendFile } from "fs/promises";
 import fsp from "fs/promises";
 import { mdFmt } from "@/app/tasks/gh-desktop-release-notification/upsertSlackMessage";
 import { getSlackChannelName } from "@/lib/slack";
 import { SlackBotState } from "./state";
 import { ErrorCollector } from "./error-collector";
+import { query, type Query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
 export const SLACK_ORG_DOMAIN_NAME = "comfy-organization";
 // Configure winston logger
@@ -377,7 +374,7 @@ export async function startSlackBot() {
       const hasBotMention = text.includes(`<@${botUserId}>`);
 
       // Handle DM messages (channel_type: "im") and treat them like app mentions
-      const isDM = messageEvent.channel_type === "im";
+      const isDM = messageEvent.channel_type === "im" || messageEvent.channel_type === "mpdm";
 
       if (
         (isDM || hasBotMention) &&
@@ -1004,98 +1001,13 @@ IMPORTANT WORKSPACE CONVENTIONS:
   logger.info(`Spawning agent in ${botWorkingDir} with prompt: ${JSON.stringify(agentPrompt)}`);
   // todo: spawn in a worker user
 
-  // await Bun.$.cwd(botWorkingDir)`claude-yes -- solve-everything-in=TODO.md, PROMPT.txt, current bot args --working-dir=${botWorkingDir} --slack-channel=${event.channel} --slack-thread-ts=${quickRespondMsg.ts!}`
-
-  // Create dedicated log files for this task (before spawning)
+  // Create dedicated log files for this task
   const taskLogDir = `${botWorkingDir}/.logs`;
   await mkdir(taskLogDir, { recursive: true });
-  const stdoutLogPath = `${taskLogDir}/claude-yes-stdout.log`;
-  const stderrLogPath = `${taskLogDir}/claude-yes-stderr.log`;
+  const agentLogPath = `${taskLogDir}/agent-output.log`;
   const statusLogPath = `${taskLogDir}/STATUS.txt`;
 
-  // create a user for task
-  const exitCodePromise = Promise.withResolvers<number | null>();
-  const sh = (() => {
-    // if (process.env.CLI === "amp") {
-    //   // use amp
-    // }
-    // const continueArgs: string[] = [];
-    // if (botworkingdir/.claude-yes have content)
-    // then continueArgs.push('--continue')
-    // TODO: maybe use smarter way to detect if need continue
-    // if (existsSync(`${botWorkingDir}/.claude-yes`)) {
-    //   // const stat = Bun.statSync(`${botWorkingDir}/.claude-yes`)
-    //   // if (stat.isDirectory && stat.size > 0) {
-    //   // }
-    //   continueArgs.push('--continue')
-    // }
-    // const cmd = `bunx claude-yes -i=1d -- ${Bun.$.escape(agentPrompt)}`;
-    // const cli = cmd.split(" ")[0];
-    const cli = "claude-yes"; // Use the globally installed claude-yes (via bun)
-    // Pass prompt to read PROMPT.txt and TODO.md
-    const args = [
-      "--exit-on-idle=1m",
-      "--",
-      "Please read PROMPT.txt and TODO.md in the current directory and complete all tasks listed there.",
-    ];
-    logger.info(
-      `Spawning process: ${cli} ${args.join(" ")} in ${botWorkingDir} with env GH_TOKEN_COMFY_PR_BOT=[REDACTED]`,
-    );
-    const shell = spawn(cli, args, {
-      cwd: botWorkingDir,
-      env: {
-        ...process.env,
-        GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
-        GITHUB_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
-      },
-    });
-
-    // check if p spawned successfully
-    shell.on("error", (err) => {
-      logger.error(`Failed to start ${cli} process for task ${workspaceId}:`, { err });
-    });
-    shell.on("exit", (code, signal) => {
-      logger.info(`process for task ${workspaceId} exited with code ${code} and signal ${signal}`);
-      exitCodePromise.resolve(code);
-    });
-
-    // Auto-answer the trust prompt (option 1 = "Yes, proceed")
-    if (shell.stdin) {
-      shell.stdin.write("1\n");
-    }
-
-    // Stream stderr to log file and logger (async operations moved outside)
-    shell.stderr?.on("data", (data) => {
-      const text = data.toString();
-      appendFile(stderrLogPath, text).catch(() => {});
-      logger.warn(`[${cli} stderr]:`, { data: text });
-    });
-
-    // Check if stdout/stderr are available
-    if (!shell.stdout) {
-      logger.error(`Process ${cli} has no stdout stream!`);
-    }
-    if (!shell.stderr) {
-      logger.warn(`Process ${cli} has no stderr stream`);
-    }
-
-    return shell;
-  })();
-
-  // Write initial status
-  await Bun.write(
-    statusLogPath,
-    `Started: ${new Date().toISOString()}\nPID: ${sh.pid}\nStatus: Running\nLog: ${stdoutLogPath}\n`,
-  );
-
   const isDebugMode = process.env.DEBUG === "true" || process.env.DEBUG === "1";
-
-  logger.info(`Spawned claude-yes process with PID ${sh.pid} for task ${workspaceId}`);
-  if (isDebugMode) {
-    logger.info(`📝 Real-time logs: tail -f ${stdoutLogPath}`);
-    logger.info(`📊 Status file: cat ${statusLogPath}`);
-    logger.info(`💡 Debug commands: prbot debug watch ${botWorkingDir}`);
-  }
 
   // Start error collector to monitor workspace for errors
   const errorLogPath = `${taskLogDir}/COLLECTED_ERRORS.md`;
@@ -1103,142 +1015,88 @@ IMPORTANT WORKSPACE CONVENTIONS:
     workspaceDir: botWorkingDir,
     outputLogPath: errorLogPath,
     onError: isDebugMode
-      ? (errorPath, content) => {
-          logger.warn(`⚠️  Error detected in workspace: ${errorPath}`);
+      ? (errorPath: string, content: string) => {
+          logger.warn(`Error detected in workspace: ${errorPath}`);
           logger.warn(`Error content preview: ${content.substring(0, 500)}...`);
         }
       : undefined,
-    checkInterval: 10000, // Check every 10 seconds
+    checkInterval: 10000,
   });
   await errorCollector.start();
-  if (isDebugMode) {
-    logger.info(`🔍 Error collector started, errors will be logged to: ${errorLogPath}`);
-  }
 
-  await sflow(
-    [""], // Initial Prompt to start the agent, could be empty
-  )
-    .merge(
-      // append messages from taskInputFlow
-      sflow(taskInputFlow.readable)
-        // send original message and then write '\n' after 1s delay to simulate user press Enter
-        .map(async (awaitableText) => awaitableText),
-    )
-    .by(fromStdio(sh))
-    // convert buffer to string and write to log file
-    .map(async (buffer) => {
-      if (buffer === undefined || buffer === null) {
-        logger.warn(`Received undefined/null buffer from process ${workspaceId}`);
-        return "";
-      }
-      const text = buffer.toString();
-      // Write raw output to dedicated stdout log file
-      await appendFile(stdoutLogPath, text).catch(() => {});
-      return text;
-    })
+  // --- Claude Agent SDK ---
+  logger.info(
+    `Spawning agent via SDK in ${botWorkingDir} with env GH_TOKEN_COMFY_PR_BOT=[REDACTED]`,
+  );
 
-    // pipe to /botWorkingDir/.logs/bot-<date>.log to claude input
-    .forkTo(async (e) => {
-      const logDate = new Date().toISOString().split("T")[0];
-      await mkdir(path.resolve(`${botWorkingDir}/.logs`), { recursive: true });
-      await e.forEach(
-        async (chunk) => await appendFile(`${botWorkingDir}/.logs/bot-${logDate}.log`, chunk),
-      );
-    })
-    // show loading icon when unknown output activity, and remove the loading icon after idle for 5s
-    .forkTo(async (e) => {
-      const idleWaiter = new IdleWaiter();
-      let isThinking = false;
-      return await e
-        .forEach(async () => {
-          idleWaiter.ping();
-          if (!isThinking && quickRespondMsg.ts && quickRespondMsg.channel) {
-            isThinking = true;
-            const msgChannel = quickRespondMsg.channel;
-            const msgTs = quickRespondMsg.ts;
-            await slack.reactions
-              .add({
-                name: "loading",
-                channel: msgChannel,
-                timestamp: msgTs,
-              })
-              .catch(() => {});
-            idleWaiter.wait(5e3).finally(async () => {
-              await slack.reactions
-                .remove({
-                  name: "loading",
-                  channel: msgChannel,
-                  timestamp: msgTs,
-                })
-                .catch(() => {});
-              isThinking = false;
-            });
-          }
-        })
-        .onFlush(async () => {
-          // remove loading icon
-          if (isThinking && quickRespondMsg.ts && quickRespondMsg.channel) {
-            isThinking = false;
-            await slack.reactions
-              .remove({
-                name: "loading",
-                channel: quickRespondMsg.channel,
-                timestamp: quickRespondMsg.ts,
-              })
-              .catch(() => {});
-          }
-        })
-        .run();
-    })
+  const sdkPrompt =
+    "Please read PROMPT.txt and TODO.md in the current directory and complete all tasks listed there.";
 
-    // Render terminal text to plain text and show live updates in slack
-    .forkTo(async (e) => {
-      const tr = new TerminalTextRender();
-      let sent = "";
-      let lastOutputs: string[] = []; // keep 3 last outputs to detect stability
+  const abortController = new AbortController();
 
-      // logger.info('Rendered chunk size:', rendered.length, 'lines: ', rendered.split(/\r|\n/).length);
-      const id = setInterval(async () => {
-        const renderedText = tr.render();
-        // diff from last, and send stable lines
-        const common = commonPrefix(renderedText, ...lastOutputs);
-        const newStable = renderedText.slice(0, common.length);
-        // logger.debug({ common, newStable, lastOutputs, renderedText });
+  // Handle follow-up messages: when user sends more messages in the thread,
+  // pipe them to the running agent via streamInput
+  let agentQuery: Query | null = null;
 
-        if (newStable !== sent) {
-          const news = newStable.slice(sent.length);
-          sent = newStable; // agent outputs have new lines to send
-          if (news) logger.debug(JSON.stringify({ news }));
-          logger.info(
-            `New stable output detected, length: ${newStable.length}, news length: ${news.length}`,
-          );
-
-          const rawTerminalOutput = tr.render().split("\n").slice(-80).join("\n");
-          const my_internal_thoughts = cleanTerminalOutput(rawTerminalOutput);
-          // const my_internal_thoughts = tr.tail(80);
-          logger.debug(
-            "Raw terminal output (before cleaning): " +
-              yaml.stringify({ preview: rawTerminalOutput.slice(0, 200) }),
-          );
-          logger.info(
-            "Cleaned output preview: " +
-              yaml.stringify({
-                preview: my_internal_thoughts.slice(0, 200),
-                news_preview: news.slice(0, 200),
-              }),
-          );
-
-          // send update to slack
-          const updateText = sent || "_(no output yet)_";
-          const contexts = {
-            my_internal_thoughts,
-            news,
-            user_original_intent: resp.user_intent,
-            my_response_md_original: quickRespondMsg.text || "",
+  // Drain taskInputFlow into the SDK agent
+  const inputDrainPromise = (async () => {
+    const reader = taskInputFlow.readable.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value && agentQuery !== null) {
+          const userMsg: SDKUserMessage = {
+            type: "user" as const,
+            message: { role: "user" as const, content: value },
+            parent_tool_use_id: null,
+            session_id: "",
           };
-          const updateResponseResp = (await zChatCompletion({
-            my_response_md_updated: z.string(),
-          })`
+          await (agentQuery as Query).streamInput(
+            (async function* () {
+              yield userMsg;
+            })(),
+          );
+          logger.info(`Injected follow-up message into SDK agent: ${value.slice(0, 100)}`);
+        }
+      }
+    } catch {
+      // taskInputFlow closed
+    }
+  })();
+
+  // Track agent output for Slack updates
+  let agentOutput = "";
+  let lastSentOutput = "";
+  const idleWaiter = new IdleWaiter();
+  let isThinking = false;
+
+  // Periodic Slack update interval
+  const slackUpdateInterval = setInterval(async () => {
+    if (agentOutput === lastSentOutput || !agentOutput) return;
+
+    const news = agentOutput.slice(lastSentOutput.length);
+    lastSentOutput = agentOutput;
+
+    const my_internal_thoughts = agentOutput.split("\n").slice(-80).join("\n");
+    logger.info(
+      "Agent output preview: " +
+        yaml.stringify({
+          preview: my_internal_thoughts.slice(0, 200),
+          news_preview: news.slice(0, 200),
+        }),
+    );
+
+    // GPT-4o synthesis for Slack update
+    const contexts = {
+      my_internal_thoughts,
+      news,
+      user_original_intent: resp.user_intent,
+      my_response_md_original: quickRespondMsg.text || "",
+    };
+    const updateResponseResp = (await zChatCompletion({
+      my_response_md_updated: z.string(),
+    })`
 TASK: Update my my_response_md_original based on agent's my_internal_thoughts findings, and give me my_response_md_updated to post in slack.
 
 RULES:
@@ -1288,127 +1146,181 @@ ${yaml.stringify(contexts)}
 
 `) as { my_response_md_updated: string };
 
-          // Log raw my_response_md_updated to JSONL file for debugging
-          const responseLogEntry = {
-            timestamp: new Date().toISOString(),
-            workspaceId,
-            stage: "raw_from_claude",
-            my_response_md_updated_raw: updateResponseResp.my_response_md_updated,
-            my_internal_thoughts_preview: my_internal_thoughts.slice(0, 500),
-            my_response_md_original: quickRespondMsg.text || "",
-          };
-          await appendFile(
-            ".logs/my_response_md_updated.jsonl",
-            JSON.stringify(responseLogEntry) + "\n",
-          ).catch(() => {});
+    // Log raw response
+    await appendFile(
+      ".logs/my_response_md_updated.jsonl",
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        workspaceId,
+        stage: "raw_from_claude",
+        my_response_md_updated_raw: updateResponseResp.my_response_md_updated,
+        my_internal_thoughts_preview: my_internal_thoughts.slice(0, 500),
+        my_response_md_original: quickRespondMsg.text || "",
+      }) + "\n",
+    ).catch(() => {});
 
-          const updated_response_full = await mdFmt(
-            updateResponseResp.my_response_md_updated
-              .trim()
-              .replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || ""),
+    const updated_response_full = await mdFmt(
+      updateResponseResp.my_response_md_updated
+        .trim()
+        .replace(/^__NOTHING_CHANGED__$/m, quickRespondMsg.text || ""),
+    );
+
+    // Truncate to 4000 chars from the middle
+    const my_response_md_updated =
+      updated_response_full.length > 4000
+        ? updated_response_full.slice(0, 2000) +
+          "\n\n...TRUNCATED...\n\n" +
+          updated_response_full.slice(-2000)
+        : updated_response_full;
+
+    await appendFile(
+      ".logs/my_response_md_updated.jsonl",
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        workspaceId,
+        stage: "final_processed",
+        my_response_md_updated_final: my_response_md_updated,
+        was_truncated: updated_response_full.length > 4000,
+        original_length: updated_response_full.length,
+      }) + "\n",
+    ).catch(() => {});
+
+    if (quickRespondMsg.ts && quickRespondMsg.channel) {
+      await safeSlackUpdateMessage(slack, {
+        channel: quickRespondMsg.channel,
+        ts: quickRespondMsg.ts,
+        text: my_response_md_updated,
+        blocks: [{ type: "markdown", text: my_response_md_updated }],
+      });
+      quickRespondMsg.text = my_response_md_updated;
+      await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
+        ts: quickRespondMsg.ts,
+        text: quickRespondMsg.text,
+        channel: event.channel,
+        url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${quickRespondMsg.ts.replace(".", "")}`,
+      });
+    }
+  }, 2e3); // Update every 2s (structured messages are cleaner, less noise)
+
+  // Run the agent
+  let exitCode: number | null = 0;
+  try {
+    agentQuery = query({
+      prompt: sdkPrompt,
+      options: {
+        cwd: botWorkingDir,
+        permissionMode: "bypassPermissions",
+        allowDangerouslySkipPermissions: true,
+        settingSources: ["project"], // loads CLAUDE.md from cwd
+        maxTurns: 200,
+        persistSession: false,
+        abortController,
+        env: {
+          ...process.env,
+          GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
+          GITHUB_TOKEN:
+            process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
+        },
+        stderr: (data: string) => {
+          logger.warn(`[agent stderr]: ${data}`);
+        },
+      },
+    });
+
+    await Bun.write(
+      statusLogPath,
+      `Started: ${new Date().toISOString()}\nStatus: Running (SDK)\nLog: ${agentLogPath}\n`,
+    );
+
+    for await (const message of agentQuery) {
+      // Loading indicator management
+      idleWaiter.ping();
+      if (!isThinking && quickRespondMsg.ts && quickRespondMsg.channel) {
+        isThinking = true;
+        const msgChannel = quickRespondMsg.channel;
+        const msgTs = quickRespondMsg.ts;
+        slack.reactions
+          .add({ name: "loading", channel: msgChannel, timestamp: msgTs })
+          .catch(() => {});
+        idleWaiter.wait(5e3).finally(async () => {
+          await slack.reactions
+            .remove({ name: "loading", channel: msgChannel, timestamp: msgTs })
+            .catch(() => {});
+          isThinking = false;
+        });
+      }
+
+      // Process SDK messages
+      if (message.type === "assistant") {
+        const textBlocks = (message.message.content as Array<{ type: string; text?: string }>)
+          .filter(
+            (block): block is { type: "text"; text: string } =>
+              block.type === "text" && typeof block.text === "string",
+          )
+          .map((block) => block.text);
+        if (textBlocks.length > 0) {
+          const text = textBlocks.join("\n");
+          agentOutput += text + "\n";
+          await appendFile(agentLogPath, text + "\n").catch(() => {});
+          logger.debug(`Agent assistant text (${text.length} chars): ${text.slice(0, 200)}`);
+        }
+      } else if (message.type === "result") {
+        if (message.subtype === "success") {
+          exitCode = 0;
+          logger.info(
+            `Agent completed successfully. Turns: ${message.num_turns}, Cost: $${message.total_cost_usd.toFixed(4)}, Duration: ${(message.duration_ms / 1000).toFixed(1)}s`,
           );
-
-          // truncate to 4000 chars, from the middle, replace to '...TRUNCATED...'
-          const my_response_md_updated =
-            updated_response_full.length > 4000
-              ? updated_response_full.slice(0, 2000) +
-                "\n\n...TRUNCATED...\n\n" +
-                updated_response_full.slice(-2000)
-              : updated_response_full;
-
-          // Log final processed my_response_md_updated
-          const finalLogEntry = {
-            timestamp: new Date().toISOString(),
-            workspaceId,
-            stage: "final_processed",
-            my_response_md_updated_final: my_response_md_updated,
-            was_truncated: updated_response_full.length > 4000,
-            original_length: updated_response_full.length,
-          };
-          await appendFile(
-            ".logs/my_response_md_updated.jsonl",
-            JSON.stringify(finalLogEntry) + "\n",
-          ).catch(() => {});
-
-          if (quickRespondMsg.ts && quickRespondMsg.channel) {
-            await safeSlackUpdateMessage(slack, {
-              channel: quickRespondMsg.channel,
-              ts: quickRespondMsg.ts,
-              text: my_response_md_updated, // Fallback text for notifications
-              blocks: [
-                {
-                  type: "markdown",
-                  text: my_response_md_updated,
-                },
-              ],
-            });
-            logger.debug("Updated quick respond message in slack:", {
-              url: `https://${event.team}.slack.com/archives/${quickRespondMsg.channel}/p${quickRespondMsg.ts.replace(".", "")}`,
-            });
-
-            // update quickRespondMsg content
-            quickRespondMsg.text = my_response_md_updated;
-            await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
-              ts: quickRespondMsg.ts,
-              text: quickRespondMsg.text,
-              channel: event.channel,
-              url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${quickRespondMsg.ts.replace(".", "")}`,
-            });
+          // Append final result to output for last Slack update
+          if ("result" in message && message.result) {
+            agentOutput += "\n" + message.result;
           }
+        } else {
+          exitCode = 1;
+          const errors = "errors" in message ? (message as { errors: string[] }).errors : [];
+          logger.error(
+            `Agent failed (${message.subtype}). Turns: ${message.num_turns}, Errors: ${errors.join(", ")}`,
+          );
         }
-
-        lastOutputs.push(renderedText);
-        if (lastOutputs.length > 3) {
-          lastOutputs.shift();
-        }
-      }, 1e3);
-
-      await e
-        .forEach(async (chunk) => {
-          if (chunk === undefined || chunk === null) {
-            logger.warn(`Terminal render received undefined/null chunk for task ${workspaceId}`);
-            return;
-          }
-          if (chunk === "") {
-            // Empty string is valid, just skip rendering
-            return;
-          }
-          try {
-            const rendered = tr.write(chunk);
-          } catch (err) {
-            logger.error(`Error writing chunk to terminal render for task ${workspaceId}:`, {
-              err,
-              chunkType: typeof chunk,
-              chunkLength: chunk?.length,
-            });
-          }
+        await appendFile(
+          agentLogPath,
+          `\n--- Result: ${message.subtype} | Turns: ${message.num_turns} | Cost: $${message.total_cost_usd.toFixed(4)} ---\n`,
+        ).catch(() => {});
+      } else {
+        // Log other message types for debugging
+        logger.debug(
+          `SDK message: ${message.type}${"subtype" in message ? `.${(message as { subtype: string }).subtype}` : ""}`,
+        );
+      }
+    }
+  } catch (err) {
+    exitCode = 1;
+    logger.error("Agent SDK error:", { err });
+  } finally {
+    clearInterval(slackUpdateInterval);
+    // Remove loading icon if still showing
+    if (isThinking && quickRespondMsg.ts && quickRespondMsg.channel) {
+      await slack.reactions
+        .remove({
+          name: "loading",
+          channel: quickRespondMsg.channel,
+          timestamp: quickRespondMsg.ts,
         })
-        .onFlush(() => clearInterval(id))
-        .run();
-    })
-
-    // show contents in console if needed for debugging
-    // .forkTo((e) => e.pipeTo(fromWritable(process.stdout)))
-    // .forkTo((e) => e.pipeTo(fromWritable(process.stdout)))
-    .run();
+        .catch(() => {});
+    }
+    // Trigger one final Slack update with complete output
+    lastSentOutput = ""; // force update
+  }
 
   TaskInputFlows.delete(workspaceId);
 
   // Stop error collector
   errorCollector.stop();
-  if (isDebugMode) {
-    logger.info(`🔍 Error collector stopped for task ${workspaceId}`);
-  }
 
-  // check exit code, checkmark if claude-yes exited 0, cross if not
-
-  const exitCode = await exitCodePromise.promise;
-
-  // Update final status
+  // Final status
   const finalStatus = exitCode === 0 ? "Completed Successfully" : `Failed (exit code ${exitCode})`;
   await Bun.write(
     statusLogPath,
-    `Started: ${new Date().toISOString()}\nPID: ${sh.pid}\nStatus: ${finalStatus}\nExit Code: ${exitCode}\nEnded: ${new Date().toISOString()}\nLogs: ${stdoutLogPath}\nErrors: ${errorLogPath}\n`,
+    `Status: ${finalStatus}\nEnded: ${new Date().toISOString()}\nErrors: ${errorLogPath}\n`,
   ).catch(() => {});
 
   if (exitCode !== 0) {
