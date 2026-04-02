@@ -1071,9 +1071,15 @@ IMPORTANT WORKSPACE CONVENTIONS:
   const idleWaiter = new IdleWaiter();
   let isThinking = false;
 
-  // Periodic Slack update interval
-  const slackUpdateInterval = setInterval(async () => {
+  // Slack update logic — extracted so it can be called from interval and finally
+  let lastSlackUpdateTime = 0;
+  const MIN_SLACK_UPDATE_INTERVAL_MS = 10_000; // minimum 10s between LLM-synthesized updates
+  const sendSlackUpdate = async () => {
     if (agentOutput === lastSentOutput || !agentOutput) return;
+
+    const now = Date.now();
+    if (now - lastSlackUpdateTime < MIN_SLACK_UPDATE_INTERVAL_MS) return;
+    lastSlackUpdateTime = now;
 
     const news = agentOutput.slice(lastSentOutput.length);
     lastSentOutput = agentOutput;
@@ -1200,7 +1206,10 @@ ${yaml.stringify(contexts)}
         url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${quickRespondMsg.ts.replace(".", "")}`,
       });
     }
-  }, 2e3); // Update every 2s (structured messages are cleaner, less noise)
+  };
+
+  // Periodic Slack update interval
+  const slackUpdateInterval = setInterval(sendSlackUpdate, 10e3);
 
   // Run the agent
   let exitCode: number | null = 0;
@@ -1307,8 +1316,11 @@ ${yaml.stringify(contexts)}
         })
         .catch(() => {});
     }
-    // Trigger one final Slack update with complete output
-    lastSentOutput = ""; // force update
+    // Send one final Slack update with complete output
+    lastSlackUpdateTime = 0; // bypass throttle for final update
+    await sendSlackUpdate().catch((err) => logger.error("Final Slack update error:", { err }));
+    // Cancel input drain
+    abortController.abort();
   }
 
   TaskInputFlows.delete(workspaceId);
