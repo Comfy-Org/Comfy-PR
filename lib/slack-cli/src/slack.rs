@@ -7,9 +7,12 @@
 use anyhow::{bail, Result};
 use reqwest::Client;
 use serde_json::Value;
+use std::sync::LazyLock;
 
-fn client() -> Client {
-    Client::new()
+static HTTP_CLIENT: LazyLock<Client> = LazyLock::new(Client::new);
+
+fn client() -> &'static Client {
+    &HTTP_CLIENT
 }
 
 async fn get(token: &str, method: &str, params: &[(&str, &str)]) -> Result<Value> {
