@@ -5,7 +5,13 @@ import { z } from "zod";
 import { db } from ".";
 
 const _TaskMeta = db.collection<{ coll: string }>("TaskMeta");
-await _TaskMeta.createIndex({ coll: 1 }, { unique: true }); // Ensure unique collection names
+// Lazily ensure the unique index exists (avoids top-level await that blocks module initialization
+// and causes "Cannot access 'MetaCollection' before initialization" in importing modules).
+let _indexReady: Promise<void> | undefined;
+function ensureIndex() {
+  _indexReady ??= _TaskMeta.createIndex({ coll: 1 }, { unique: true }).then(() => {});
+  return _indexReady;
+}
 
 /**
  * @deprecated Use MetaCollection for not repeating yourself on collection name
@@ -20,6 +26,7 @@ export const TaskMetaCollection = <
   const c = db.collection<{ coll: COLLECTION_NAME } & z.infer<S>>(_TaskMeta.collectionName);
   return Object.assign(c, {
     $upsert: async (data: Partial<z.infer<S>>) => {
+      await ensureIndex();
       // Validate data with schema
       try {
         schema.partial().parse(data);
@@ -41,6 +48,7 @@ export const TaskMetaCollection = <
       );
     },
     save: async (data: z.infer<S>) => {
+      await ensureIndex();
       // Validate data with schema
       try {
         schema.parse(data);

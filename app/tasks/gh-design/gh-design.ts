@@ -8,6 +8,7 @@ import { parseGithubRepoUrl } from "@/src/parseOwnerRepo";
 import { normalizeGithubUrl } from "@/src/normalizeGithubUrl";
 import DIE from "@snomiao/die";
 import isCI from "is-ci";
+import type { WithId } from "mongodb";
 import sflow from "sflow";
 import sha256 from "sha256";
 import { z } from "zod";
@@ -173,16 +174,17 @@ export async function runGithubDesignTask() {
   }
 
   tlog("Running gh design task...");
-  if (!dryRun) await GithubDesignTaskMeta.$upsert({
-    name: "Github Design Issues Tracking Task",
-    description:
-      "Task to scan for [Design] labeled issues and PRs in specified repositories and notify product channel",
-    // Set defaults if not already set
-    //
-    lastRunAt: new Date(),
-    lastStatus: "running",
-    lastError: "",
-  });
+  if (!dryRun)
+    await GithubDesignTaskMeta.$upsert({
+      name: "Github Design Issues Tracking Task",
+      description:
+        "Task to scan for [Design] labeled issues and PRs in specified repositories and notify product channel",
+      // Set defaults if not already set
+      //
+      lastRunAt: new Date(),
+      lastStatus: "running",
+      lastError: "",
+    });
 
   tlog(`Slack channel: ${CHANNEL_NAME}`);
 
@@ -301,7 +303,7 @@ export async function runGithubDesignTask() {
             const staleCutoff = new Date(Date.now() - 10 * 60 * 1000);
             const claimed = await GithubDesignTask.findOneAndUpdate(
               {
-                _id: task._id,
+                _id: (task as WithId<GithubDesignTask>)._id,
                 slackUrl: { $exists: false },
                 $or: [{ slackPending: { $ne: true } }, { slackPendingAt: { $lt: staleCutoff } }],
               },
