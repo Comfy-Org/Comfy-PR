@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+set -e
 bun run typecheck
 bunx lint-staged
 
