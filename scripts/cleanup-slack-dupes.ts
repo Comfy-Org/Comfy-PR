@@ -31,7 +31,7 @@ async function fetchAllMessages() {
   do {
     const res = await slack.conversations.history({ channel: CHANNEL, limit: 200, cursor });
     messages.push(...(res.messages as typeof messages));
-    cursor = (res.response_metadata as any)?.next_cursor || undefined;
+    cursor = (res.response_metadata as Record<string, unknown>)?.next_cursor as string | undefined;
   } while (cursor);
   return messages;
 }
@@ -39,7 +39,7 @@ async function fetchAllMessages() {
 const all = await fetchAllMessages();
 console.log(`Total messages: ${all.length}`);
 
-const botMsgs = all.filter(m => m.username === "comfyprbot" || m.bot_id);
+const botMsgs = all.filter((m) => m.username === "comfyprbot" || m.bot_id);
 console.log(`Bot messages: ${botMsgs.length}`);
 
 // Group by normalized text content
@@ -65,9 +65,9 @@ for (const [text, msgs] of dupeGroups) {
     if (!DRY_RUN) {
       try {
         await slack.chat.delete({ channel: CHANNEL, ts: msg.ts });
-        await new Promise(r => setTimeout(r, 300));
-      } catch (e: any) {
-        console.error(`  ERROR: ${e.message}`);
+        await new Promise((r) => setTimeout(r, 300));
+      } catch (e: unknown) {
+        console.error(`  ERROR: ${e instanceof Error ? e.message : e}`);
       }
     }
   }

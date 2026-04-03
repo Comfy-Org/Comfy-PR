@@ -30,6 +30,8 @@ jobs:
       # setup comfy-pr
       # Run Comfy-PR Tests
       - run: bun i
+      - run: bun run check
+        timeout-minutes: 3
       - run: bun test
         timeout-minutes: 8
         env:
