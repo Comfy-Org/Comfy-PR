@@ -9,7 +9,13 @@ const _TaskMeta = db.collection<{ coll: string }>("TaskMeta");
 // and causes "Cannot access 'MetaCollection' before initialization" in importing modules).
 let _indexReady: Promise<void> | undefined;
 function ensureIndex() {
-  _indexReady ??= _TaskMeta.createIndex({ coll: 1 }, { unique: true }).then(() => {});
+  _indexReady ??= _TaskMeta
+    .createIndex({ coll: 1 }, { unique: true })
+    .then(() => {})
+    .catch((error) => {
+      _indexReady = undefined;
+      throw error;
+    });
   return _indexReady;
 }
 
