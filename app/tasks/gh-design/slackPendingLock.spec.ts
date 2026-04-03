@@ -41,6 +41,7 @@ type LockState = {
   slackUrl?: string;
   slackPending?: boolean;
   slackPendingAt?: Date;
+  error?: string;
 };
 
 /** Returns true if the caller acquired the lock (may post). False = skip. */
@@ -65,7 +66,7 @@ function tryAcquireLock(state: LockState, now: Date, staleCutoffMs = 10 * 60 * 1
 function releaseLock(state: LockState, slackUrl?: string, error?: string) {
   state.slackPending = false;
   if (slackUrl) state.slackUrl = slackUrl;
-  if (error) (state as any).error = error;
+  if (error) state.error = error;
 }
 
 // ---------------------------------------------------------------------------
@@ -139,7 +140,7 @@ describe("slackPending lock — prevents concurrent duplicate Slack posts", () =
 
     expect(state.slackPending).toBe(false);
     expect(state.slackUrl).toBeUndefined(); // no URL saved, next run will retry
-    expect((state as any).error).toBe("API error");
+    expect(state.error).toBe("API error");
   });
 
   it("N concurrent callers: exactly one acquires the lock", () => {
