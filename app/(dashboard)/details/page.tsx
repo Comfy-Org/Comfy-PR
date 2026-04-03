@@ -2,7 +2,7 @@ import Markdown from "react-markdown";
 import UseSWRComponent from "use-swr-component";
 import DetailsTable from "../DetailsTable";
 
-export const dynamic = "force-dynamic";
+
 /**
  *
  * @author: snomiao <snomiao@gmail.com>
@@ -17,7 +17,7 @@ export default function DetailsPage() {
 2. [Admin: Check Default Follow-up rule](/rules/default)
 `}</Markdown>
 
-      <UseSWRComponent props={{ skip, limit }} Component={DetailsTable} refreshInterval={60e3}>
+      <UseSWRComponent props={{ skip, limit }} Component={DetailsTable} refreshInterval={300e3}>
         <div>Loading...</div>
       </UseSWRComponent>
     </div>

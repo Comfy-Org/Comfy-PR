@@ -11,8 +11,8 @@ import {
 import Link from "next/link";
 import { GithubDesignTaskMetaEditor } from "./GithubDesignTaskMetaEditor";
 
-// Force dynamic rendering to avoid build-time database access
 export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 /**
  * GitHub Design Task Dashboard

@@ -1,5 +1,5 @@
 // import { analyzePullsStatus } from "@/src/analyzePullsStatus";
-import { csvFormat } from "d3";
+import { csvFormat } from "d3-dsv";
 import { notFound } from "next/navigation";
 import yaml from "yaml";
 

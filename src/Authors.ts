@@ -33,6 +33,9 @@ export type Author = {
 export const Authors = db.collection<Author>("Authors");
 export const GithubUsers = db.collection<{ username: string } & GHUser>("GithubUsers");
 
+Authors.createIndex({ githubId: 1 }, { background: true }).catch(() => {});
+Authors.createIndex({ email: 1 }, { background: true }).catch(() => {});
+
 if (import.meta.main) {
   await Authors.createIndex("githubId");
   await Authors.createIndex("email");

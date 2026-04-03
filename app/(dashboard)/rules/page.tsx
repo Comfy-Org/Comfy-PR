@@ -3,6 +3,7 @@ import { FollowRuleSets } from "@/src/FollowRules";
 import Link from "next/link";
 import Markdown from "react-markdown";
 export const dynamic = "force-dynamic";
+export const revalidate = 300;
 /**
  * @author: snomiao <snomiao@gmail.com>
  */
