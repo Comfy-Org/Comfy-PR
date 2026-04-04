@@ -1132,6 +1132,172 @@ async function main() {
         .demandCommand(1, "Please specify a debug subcommand")
         .help();
     })
+    .command("qa", "Automated QA testing with video evidence", (y) => {
+      return y
+        .command(
+          "reproduce",
+          "Reproduce a bug from a GitHub issue",
+          (y) =>
+            y
+              .option("issue", {
+                alias: "i",
+                type: "string",
+                describe: "GitHub issue (owner/repo#123)",
+                demandOption: true,
+              })
+              .option("branch", {
+                alias: "b",
+                type: "string",
+                describe: "Branch to test (default: main)",
+              })
+              .option("post-slack", {
+                type: "string",
+                describe: "Slack channel to post results",
+              }),
+          async (args) => {
+            const { handleReproduce } = await import("./qa/cli");
+            await handleReproduce({
+              issue: args.issue as string,
+              branch: args.branch as string | undefined,
+              postSlack: args["post-slack"] as string | undefined,
+            });
+          },
+        )
+        .command(
+          "verify",
+          "Verify a PR with before/after comparison",
+          (y) =>
+            y
+              .option("pr", {
+                alias: "p",
+                type: "string",
+                describe: "GitHub PR (owner/repo#123)",
+                demandOption: true,
+              })
+              .option("base", {
+                type: "string",
+                describe: "Base branch for comparison",
+              })
+              .option("head", {
+                type: "string",
+                describe: "Head branch to verify",
+              })
+              .option("post-slack", {
+                type: "string",
+                describe: "Slack channel to post results",
+              }),
+          async (args) => {
+            const { handleVerify } = await import("./qa/cli");
+            await handleVerify({
+              pr: args.pr as string,
+              base: args.base as string | undefined,
+              head: args.head as string | undefined,
+              postSlack: args["post-slack"] as string | undefined,
+            });
+          },
+        )
+        .command(
+          "smoke",
+          "Run smoke tests on a branch",
+          (y) =>
+            y
+              .option("repo", {
+                alias: "r",
+                type: "string",
+                describe: "Repository (owner/repo)",
+                demandOption: true,
+              })
+              .option("branch", {
+                alias: "b",
+                type: "string",
+                describe: "Branch to test (default: main)",
+              })
+              .option("post-slack", {
+                type: "string",
+                describe: "Slack channel to post results",
+              }),
+          async (args) => {
+            const { handleSmoke } = await import("./qa/cli");
+            await handleSmoke({
+              repo: args.repo as string,
+              branch: args.branch as string | undefined,
+              postSlack: args["post-slack"] as string | undefined,
+            });
+          },
+        )
+        .command(
+          "demo",
+          "Record a demo video of a feature",
+          (y) =>
+            y
+              .option("repo", {
+                alias: "r",
+                type: "string",
+                describe: "Repository (owner/repo)",
+                demandOption: true,
+              })
+              .option("branch", {
+                alias: "b",
+                type: "string",
+                describe: "Branch with the feature (default: main)",
+              })
+              .option("prompt", {
+                type: "string",
+                describe: "What to demo",
+                demandOption: true,
+              })
+              .option("post-slack", {
+                type: "string",
+                describe: "Slack channel to post results",
+              }),
+          async (args) => {
+            const { handleDemo } = await import("./qa/cli");
+            await handleDemo({
+              repo: args.repo as string,
+              branch: args.branch as string | undefined,
+              prompt: args.prompt as string,
+              postSlack: args["post-slack"] as string | undefined,
+            });
+          },
+        )
+        .command(
+          "run",
+          "Free-form QA task",
+          (y) =>
+            y
+              .option("repo", {
+                alias: "r",
+                type: "string",
+                describe: "Repository (owner/repo)",
+                demandOption: true,
+              })
+              .option("branch", {
+                alias: "b",
+                type: "string",
+                describe: "Branch to test (default: main)",
+              })
+              .option("prompt", {
+                type: "string",
+                describe: "QA task description",
+                demandOption: true,
+              })
+              .option("post-slack", {
+                type: "string",
+                describe: "Slack channel to post results",
+              }),
+          async (args) => {
+            const { handleRun } = await import("./qa/cli");
+            await handleRun({
+              repo: args.repo as string,
+              branch: args.branch as string | undefined,
+              prompt: args.prompt as string,
+              postSlack: args["post-slack"] as string | undefined,
+            });
+          },
+        )
+        .demandCommand(1, "Please specify a QA subcommand")
+        .help();
+    })
     .demandCommand(1, "Please specify a command")
     .strict()
     .help()
@@ -1157,6 +1323,10 @@ async function main() {
         "  prbot slack download-file -f F123ABC -o ./downloaded.pdf",
         "  prbot slack file-info -f F123ABC",
         "  prbot notion search -q 'ComfyUI setup' -l 5",
+        "  prbot qa reproduce -i 'Comfy-Org/ComfyUI_frontend#10688'",
+        "  prbot qa verify -p 'Comfy-Org/ComfyUI_frontend#9500'",
+        "  prbot qa smoke -r Comfy-Org/ComfyUI_frontend",
+        "  prbot qa demo -r Comfy-Org/ComfyUI_frontend --prompt 'Demo the template browser'",
       ].join("\n"),
     ).argv;
 

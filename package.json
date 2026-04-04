@@ -139,6 +139,7 @@
     "p-props": "^6.0.0",
     "parse-github-url": "^1.0.3",
     "peek-log": "^0.0.8",
+    "playwright": "^1.59.1",
     "polyfill-text-decoder-stream": "^0.0.9",
     "polyfill-text-encoder-stream": "^0.0.8",
     "prettier": "^3.7.4",
