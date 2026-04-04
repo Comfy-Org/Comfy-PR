@@ -1,15 +1,8 @@
 import { describe, it, expect } from "bun:test";
-import type { PRReleaseTaggerState } from "./index";
+import { extractOriginalPRNumber, type PRReleaseTaggerState } from "./index";
 
 describe("PRReleaseTaggerState", () => {
   describe("extractOriginalPRNumber", () => {
-    // Re-implement locally for testing (pure function)
-    function extractOriginalPRNumber(body: string | null): number | null {
-      if (!body) return null;
-      const match = body.match(/Backport of #(\d+)/);
-      return match ? parseInt(match[1], 10) : null;
-    }
-
     it("should extract PR number from standard backport body", () => {
       const body =
         "Backport of #9937 to `core/1.41`\n\nAutomatically created by backport workflow.";

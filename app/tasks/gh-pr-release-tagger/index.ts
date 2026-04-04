@@ -68,8 +68,10 @@ async function getCoreDeployedVersion(): Promise<{ ref: string; branch: string }
     ref: tag,
   });
 
-  const content = "content" in pkgContent.data ? pkgContent.data.content : "";
-  const pkg = JSON.parse(Buffer.from(content, "base64").toString("utf-8"));
+  if (!("content" in pkgContent.data) || !pkgContent.data.content) {
+    throw new Error(`Expected desktop package.json at ${tag} to include file content`);
+  }
+  const pkg = JSON.parse(Buffer.from(pkgContent.data.content, "base64").toString("utf-8"));
   const version: string = pkg.config?.frontend?.version;
   if (!version) throw new Error("No frontend version in desktop package.json");
 
@@ -93,8 +95,12 @@ async function getCloudDeployedVersion(): Promise<{ ref: string; branch: string 
     repo: "cloud",
     path: "frontend-version.json",
   });
-  const versionContent = "content" in versionFile.data ? versionFile.data.content : "";
-  const versionConfig = JSON.parse(Buffer.from(versionContent, "base64").toString("utf-8"));
+  if (!("content" in versionFile.data) || !versionFile.data.content) {
+    throw new Error("Expected cloud frontend-version.json to include file content");
+  }
+  const versionConfig = JSON.parse(
+    Buffer.from(versionFile.data.content, "base64").toString("utf-8"),
+  );
   const branch: string = versionConfig.releaseBranch;
   if (!branch) throw new Error("No releaseBranch in cloud frontend-version.json");
 
@@ -104,8 +110,10 @@ async function getCloudDeployedVersion(): Promise<{ ref: string; branch: string 
     repo: "cloud",
     path: "infrastructure/argocd/apps/comfy-apps/charts/nginx-frontend/overlays/comfy-cloud-prod-v2/values.yaml",
   });
-  const overlayContent = "content" in overlayFile.data ? overlayFile.data.content : "";
-  const overlayText = Buffer.from(overlayContent, "base64").toString("utf-8");
+  if (!("content" in overlayFile.data) || !overlayFile.data.content) {
+    throw new Error("Expected cloud prod overlay values.yaml to include file content");
+  }
+  const overlayText = Buffer.from(overlayFile.data.content, "base64").toString("utf-8");
   const shaMatch = overlayText.match(/frontendVersion:\s*"?([0-9a-fA-F]{7,40})"?/);
   if (!shaMatch) throw new Error("No frontendVersion SHA in cloud prod overlay");
   const ref = shaMatch[1];
@@ -116,7 +124,7 @@ async function getCloudDeployedVersion(): Promise<{ ref: string; branch: string 
 
 // ── Extract original PR number from backport PR ────────────────────
 
-function extractOriginalPRNumber(body: string | null): number | null {
+export function extractOriginalPRNumber(body: string | null): number | null {
   if (!body) return null;
   const match = body.match(/Backport of #(\d+)/);
   return match ? parseInt(match[1], 10) : null;
@@ -131,14 +139,19 @@ async function ensureLabelExists(labelName: string) {
   } catch (e: unknown) {
     if ((e as { status?: number }).status === 404) {
       const target = labelName.split(":")[1] || labelName;
-      await gh.issues.createLabel({
-        owner,
-        repo,
-        name: labelName,
-        color: "0075ca",
-        description: `PR has been released to ${target}`,
-      });
-      logger.info(`Created label '${labelName}'`);
+      try {
+        await gh.issues.createLabel({
+          owner,
+          repo,
+          name: labelName,
+          color: "0075ca",
+          description: `PR has been released to ${target}`,
+        });
+        logger.info(`Created label '${labelName}'`);
+      } catch (createErr: unknown) {
+        // 422 = label already exists (race with concurrent worker)
+        if ((createErr as { status?: number }).status !== 422) throw createErr;
+      }
     } else {
       throw e;
     }
@@ -174,21 +187,22 @@ async function processTarget(target: "core" | "cloud") {
     checkedAt: new Date(),
   });
 
+  const labeledOriginalPRs: PRReleaseTaggerState["labeledOriginalPRs"] = [];
+
   try {
-    // List all merged PRs targeting this branch
-    const mergedPRs = await ghPageFlow(ghc.pulls.list, { per_page: 100 })({
+    // List recent merged PRs targeting this branch (2 pages = up to 200 PRs)
+    const allClosedPRs = await ghPageFlow(ghc.pulls.list, { per_page: 100 })({
       ...FRONTEND_REPO,
       base: branch,
       state: "closed",
       sort: "updated",
       direction: "desc",
     })
-      .filter((pr) => pr.merged_at !== null)
+      .slice(0, 200)
       .toArray();
+    const mergedPRs = allClosedPRs.filter((pr) => pr.merged_at !== null);
 
     logger.info(`${target}: found ${mergedPRs.length} merged PRs on ${branch}`);
-
-    const labeledOriginalPRs: PRReleaseTaggerState["labeledOriginalPRs"] = [];
 
     // Get previously labeled PR numbers to avoid re-processing
     const previouslyLabeled = await PRReleaseTaggerState.find({ target })
@@ -269,7 +283,7 @@ async function processTarget(target: "core" | "cloud") {
         if (previouslyLabeled.has(prNumber)) continue;
 
         const hasLabel = backportPR.labels.some(
-          (l) => (typeof l === "string" ? l : l.name) === labelName,
+          (l: string | { name?: string }) => (typeof l === "string" ? l : l.name) === labelName,
         );
         if (hasLabel) {
           previouslyLabeled.add(prNumber);
@@ -315,6 +329,8 @@ async function processTarget(target: "core" | "cloud") {
     await save({
       target,
       deployedRef,
+      branch,
+      labeledOriginalPRs,
       taskStatus: "failed",
       checkedAt: new Date(),
     });
