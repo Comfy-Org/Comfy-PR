@@ -49,6 +49,8 @@
     "release": "npx semantic-release",
     "start": "next start",
     "test": "bun test",
+    "subtree:pull": "bash scripts/subtree-sync.sh pull",
+    "subtree:push": "bash scripts/subtree-sync.sh push",
     "test:watch": "bun test --watch",
     "vercel:build": "vercel build",
     "vercel:dev": "vercel dev"
@@ -56,6 +58,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.23",
     "@ai-sdk/openai": "^3.0.19",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.85",
     "@auth/mongodb-adapter": "^3.4.2",
     "@ctrl/mac-address": "^3.0.3",
     "@google/generative-ai": "^0.24.1",

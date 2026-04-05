@@ -42,6 +42,9 @@ import { searchNotion } from "@/lib/notion/search";
 // Video ability
 import { readVideo } from "@/lib/video/read-video";
 
+// Feedback ability
+import { postFeedback, type FeedbackType } from "@/lib/slack/feedback";
+
 /**
  * Load environment variables from .env.local in the project root
  * This allows prbot to work from unknown directory
@@ -1132,6 +1135,43 @@ async function main() {
         .demandCommand(1, "Please specify a debug subcommand")
         .help();
     })
+    .command(
+      "feedback",
+      "Submit feedback (bugs, feature requests, errors) to the private #prbot-feedback Slack channel",
+      (y) =>
+        y
+          .option("message", {
+            alias: "m",
+            type: "string",
+            describe: "Feedback message describing the issue or request",
+            demandOption: true,
+          })
+          .option("type", {
+            alias: "t",
+            type: "string",
+            choices: ["bug", "feature", "error", "other"] as const,
+            describe: "Type of feedback",
+            default: "other",
+          })
+          .option("context", {
+            type: "string",
+            describe: "Additional context (error output, command that failed, etc.)",
+          })
+          .option("source", {
+            type: "string",
+            describe: "Who or what is submitting this (e.g. amp-agent, user name)",
+          }),
+      async (args) => {
+        await loadEnvLocal();
+        const ts = await postFeedback({
+          message: args.message as string,
+          type: args.type as FeedbackType,
+          context: args.context as string | undefined,
+          source: args.source as string | undefined,
+        });
+        console.log(`✓ Feedback posted to #prbot-feedback (ts: ${ts})`);
+      },
+    )
     .demandCommand(1, "Please specify a command")
     .strict()
     .help()
@@ -1157,6 +1197,14 @@ async function main() {
         "  prbot slack download-file -f F123ABC -o ./downloaded.pdf",
         "  prbot slack file-info -f F123ABC",
         "  prbot notion search -q 'ComfyUI setup' -l 5",
+        "",
+        "Feedback — report bugs, missing features, or errors (posts to private Slack):",
+        "  prbot feedback -m 'Missing pr read command' -t feature",
+        "  prbot feedback -m 'search returned 0 for known PRs' -t bug --context '...'",
+        "  prbot feedback -m 'ReferenceError: X is not defined' -t error --source agent",
+        "",
+        "AI agents: if a command fails, is missing, or behaves unexpectedly,",
+        "please run `prbot feedback` to report it so we can fix it.",
       ].join("\n"),
     ).argv;
 
