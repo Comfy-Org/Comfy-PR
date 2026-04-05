@@ -10,8 +10,8 @@
     "url": "https://github.com/Comfy-Org/Comfy-PR"
   },
   "bin": {
+    "cmpr": "./src/cli.ts",
     "comfy-pr": "./src/cli.ts",
-    "cpr": "./src/cli.ts",
     "pr-bot": "./bot/cli.ts",
     "prbot": "./bot/cli.ts"
   },

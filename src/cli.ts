@@ -38,7 +38,7 @@ async function resolveRepos(args: {
 }
 
 const cli = yargs(hideBin(process.argv))
-  .scriptName("cpr")
+  .scriptName("cmpr")
   .usage("$0 <command> [options]")
   .command(
     "create [repos..]",
