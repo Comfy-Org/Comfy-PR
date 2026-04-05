@@ -11,6 +11,7 @@
   },
   "bin": {
     "comfy-pr": "./src/cli.ts",
+    "cpr": "./src/cli.ts",
     "pr-bot": "./bot/cli.ts",
     "prbot": "./bot/cli.ts"
   },
