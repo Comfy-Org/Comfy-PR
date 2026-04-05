@@ -7,7 +7,7 @@
   "author": "snomiao <snomiao@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Comfy-Org/Comfy-PR"
+    "url": "git+https://github.com/Comfy-Org/Comfy-PR.git"
   },
   "bin": {
     "comfy-pr": "./src/cli.ts",
