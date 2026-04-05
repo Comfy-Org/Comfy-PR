@@ -1,92 +1,94 @@
 #!/usr/bin/env bun
-import { db } from "@/src/db";
 import isCI from "is-ci";
 
-// Import all the 5-minute tasks
-import runGithubBugcopTask from "../../run/gh-bugcop/gh-bugcop";
-import runGithubBountyTask from "./gh-bounty/gh-bounty";
-import runGithubCoreTagNotificationTask from "./gh-core-tag-notification/index";
-import { runGithubDesignTask } from "./gh-design/gh-design";
-import runGithubDesktopReleaseNotificationTask from "./gh-desktop-release-notification/index";
-import runGithubFrontendBackportCheckerTask from "./gh-frontend-backport-checker/index";
-import runGithubFrontendReleaseNotificationTask from "./gh-frontend-release-notification/index";
-import runGithubComfyUIToDesktopIssueTransferTask from "./gh-issue-transfer-comfyui-to-desktop/index";
-import runGithubFrontendIssueTransferTask from "./gh-issue-transfer-comfyui-to-frontend/index";
-import runGithubWorkflowTemplatesIssueTransferTask from "./gh-issue-transfer-comfyui-to-workflow_templates/index";
-import runGithubDesktopIssueTransferTask from "./gh-issue-transfer-desktop-to-frontend/index";
-import runGithubFrontendToComfyuiIssueTransferTask from "./gh-issue-transfer-frontend-to-comfyui/index";
-import runGithubFrontendToDesktopIssueTransferTask from "./gh-issue-transfer-frontend-to-desktop/index";
-import runGithubIssuePrioritiesLabelerTask from "./gh-priority-sync/index";
-
-const TASKS = [
+// Task definitions with lazy dynamic imports to avoid top-level DB calls at import time.
+// Modules are only loaded when DRY_RUN=false (real execution).
+const TASK_DEFS = [
   {
     name: "GitHub Bounty Task",
-    run: runGithubBountyTask,
+    load: () => import("./gh-bounty/gh-bounty").then((m) => m.default),
   },
   {
     name: "GitHub Design Task",
-    run: runGithubDesignTask,
+    load: () => import("./gh-design/gh-design").then((m) => m.runGithubDesignTask),
   },
   {
     name: "GitHub Desktop Release Notification Task",
-    run: runGithubDesktopReleaseNotificationTask,
+    load: () => import("./gh-desktop-release-notification/index").then((m) => m.default),
   },
   {
     name: "GitHub Frontend Release Notification Task",
-    run: runGithubFrontendReleaseNotificationTask,
+    load: () => import("./gh-frontend-release-notification/index").then((m) => m.default),
   },
   {
     name: "GitHub Frontend Backport Checker Task",
-    run: runGithubFrontendBackportCheckerTask,
+    load: () => import("./gh-frontend-backport-checker/index").then((m) => m.default),
   },
   {
     name: "GitHub Core Tag Notification Task",
-    run: runGithubCoreTagNotificationTask,
+    load: () => import("./gh-core-tag-notification/index").then((m) => m.default),
   },
   // issue transfer between repos: ComfyUI, Frontend, Desktop
   {
     name: "GitHub Frontend Issue Transfer Task",
-    run: runGithubFrontendIssueTransferTask,
+    load: () => import("./gh-issue-transfer-comfyui-to-frontend/index").then((m) => m.default),
   },
   {
     name: "GitHub Desktop Issue Transfer Task",
-    run: runGithubDesktopIssueTransferTask,
+    load: () => import("./gh-issue-transfer-desktop-to-frontend/index").then((m) => m.default),
   },
   {
     name: "GitHub ComfyUI to Desktop Issue Transfer Task",
-    run: runGithubComfyUIToDesktopIssueTransferTask,
+    load: () => import("./gh-issue-transfer-comfyui-to-desktop/index").then((m) => m.default),
   },
   {
     name: "GitHub Frontend to Desktop Issue Transfer Task",
-    run: runGithubFrontendToDesktopIssueTransferTask,
+    load: () => import("./gh-issue-transfer-frontend-to-desktop/index").then((m) => m.default),
   },
   {
     name: "GitHub Frontend to ComfyUI Issue Transfer Task",
-    run: runGithubFrontendToComfyuiIssueTransferTask,
+    load: () => import("./gh-issue-transfer-frontend-to-comfyui/index").then((m) => m.default),
   },
   {
     name: "GitHub Workflow Templates Issue Transfer Task",
-    run: runGithubWorkflowTemplatesIssueTransferTask,
+    load: () =>
+      import("./gh-issue-transfer-comfyui-to-workflow_templates/index").then((m) => m.default),
   },
   // priorities labeler
   {
     name: "GitHub Issue Priorities Labeler Task",
-    run: runGithubIssuePrioritiesLabelerTask,
+    load: () => import("./gh-priority-sync/index").then((m) => m.default),
   },
   // bugcop
   {
     name: "GitHub Bugcop Task",
-    run: runGithubBugcopTask,
+    load: () => import("../../run/gh-bugcop/gh-bugcop").then((m) => m.default),
   },
 ];
 
+const DRY_RUN = process.env.DRY_RUN !== "false";
+
 async function runAllTasks() {
-  console.log("=� Starting all GitHub tasks...");
+  if (DRY_RUN) {
+    console.log("DRY RUN: Skipping all GitHub tasks (set DRY_RUN=false to run for real)");
+    TASK_DEFS.forEach((task) => console.log(`  - ${task.name}`));
+    console.log("\nDry run complete - no changes made.");
+    return;
+  }
+
+  // Load task modules only when actually running (avoids top-level DB calls during dry run)
+  const { db } = await import("@/src/db");
+
+  const tasks = await Promise.all(
+    TASK_DEFS.map(async (def) => ({ name: def.name, run: await def.load() })),
+  );
+
+  console.log("Starting all GitHub tasks...");
 
   // Run all tasks concurrently using Promise.allSettled
   const results = await Promise.allSettled(
-    TASKS.map(async (task) => {
-      console.log(`� Starting: ${task.name}`);
+    tasks.map(async (task) => {
+      console.log(`Starting: ${task.name}`);
       const startTime = Date.now();
 
       const id = setInterval(() => {
@@ -97,11 +99,11 @@ async function runAllTasks() {
         await task.run();
 
         const duration = Date.now() - startTime;
-        console.log(` Completed: ${task.name} (${duration}ms)`);
+        console.log(`Completed: ${task.name} (${duration}ms)`);
         return { name: task.name, status: "success", duration };
       } catch (error) {
         const duration = Date.now() - startTime;
-        console.error(`L Failed: ${task.name} (${duration}ms)`, error);
+        console.error(`Failed: ${task.name} (${duration}ms)`, error);
         throw { name: task.name, status: "error", duration, error };
       } finally {
         clearInterval(id);
@@ -113,15 +115,15 @@ async function runAllTasks() {
   const successful = results.filter((result) => result.status === "fulfilled");
   const failed = results.filter((result) => result.status === "rejected");
 
-  console.log(`\n=� Summary:`);
-  console.log(`   Successful: ${successful.length}`);
-  console.log(`  L Failed: ${failed.length}`);
-  console.log(`  =� Total: ${results.length}`);
+  console.log(`\nSummary:`);
+  console.log(`  Successful: ${successful.length}`);
+  console.log(`  Failed: ${failed.length}`);
+  console.log(`  Total: ${results.length}`);
 
   // Log details for successful tasks
   successful.forEach((result) => {
     if (result.status === "fulfilled") {
-      console.log(`   ${result.value.name}: ${result.value.duration}ms`);
+      console.log(`  ${result.value.name}: ${result.value.duration}ms`);
     }
   });
 
@@ -130,30 +132,21 @@ async function runAllTasks() {
     if (result.status === "rejected") {
       const error = result.reason;
       console.error(
-        `  L ${error.name}: ${error.duration}ms - ${error.error?.message || error.error}`,
+        `  ${error.name}: ${error.duration}ms - ${error.error?.message || error.error}`,
       );
     }
   });
 
-  // If unknown task failed, exit with error code
+  // If any task failed, exit with error code
   if (failed.length > 0) {
-    console.error(`\n=� ${failed.length} task(s) failed. Exiting with error code 1.`);
-    // show failed tasks details
-    failed.forEach((result) => {
-      if (result.status === "rejected") {
-        const error = result.reason;
-        console.error(
-          `  L ${error.name}: ${error.duration}ms - ${error.error?.message || error.error}`,
-        );
-      }
-    });
+    console.error(`\n${failed.length} task(s) failed. Exiting with error code 1.`);
     if (isCI) {
       await db.close();
       process.exit(1);
     }
   }
 
-  console.log("\n<� All tasks completed successfully!");
+  console.log("\nAll tasks completed successfully!");
 
   if (isCI) {
     await db.close();
