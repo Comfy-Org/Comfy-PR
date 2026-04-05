@@ -1,5 +1,8 @@
 #!/usr/bin/env bun
 import { slack } from "@/lib/slack";
+import { execSync } from "child_process";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 const FEEDBACK_CHANNEL = process.env.PRBOT_FEEDBACK_CHANNEL || "prbot-feedback";
 
@@ -12,6 +15,43 @@ export interface FeedbackOptions {
   context?: string;
   /** Who/what submitted this (e.g. "amp-agent", "claude-yes", user name) */
   source?: string;
+}
+
+/** Get prbot CLI version from package.json */
+function getCliVersion(): string {
+  try {
+    const pkg = JSON.parse(readFileSync(join(import.meta.dir, "../../package.json"), "utf-8"));
+    return pkg.version || "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/** Detect the git repo URL and branch from cwd, normalized to GitHub URL */
+function getRepoUrl(): string | undefined {
+  try {
+    const remote = execSync("git remote get-url origin", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+
+    // Normalize remote to GitHub HTTPS URL
+    // ssh: git@github.com:owner/repo.git → https://github.com/owner/repo
+    // https: https://github.com/owner/repo.git → https://github.com/owner/repo
+    let url = remote.replace(/^git@github\.com:/, "https://github.com/").replace(/\.git$/, "");
+
+    if (branch && branch !== "HEAD") {
+      url += `/tree/${branch}`;
+    }
+
+    return url;
+  } catch {
+    return undefined;
+  }
 }
 
 const typeEmoji: Record<FeedbackType, string> = {
@@ -40,16 +80,16 @@ export async function postFeedback(opts: FeedbackOptions): Promise<string> {
     },
   ];
 
-  if (source) {
-    blocks.push({
-      type: "context",
-      elements: [{ type: "mrkdwn", text: `*Source:* ${source}` }],
-    });
-  }
+  const metaParts: string[] = [];
+  if (source) metaParts.push(`*Source:* ${source}`);
+  const repoUrl = getRepoUrl();
+  if (repoUrl) metaParts.push(`*Repo:* <${repoUrl}|${repoUrl.replace("https://github.com/", "")}>`);
+  metaParts.push(`*CLI:* v${getCliVersion()}`);
+  metaParts.push(`*Timestamp:* ${new Date().toISOString()}`);
 
   blocks.push({
     type: "context",
-    elements: [{ type: "mrkdwn", text: `*Timestamp:* ${new Date().toISOString()}` }],
+    elements: [{ type: "mrkdwn", text: metaParts.join("  ·  ") }],
   });
 
   // Post the main message
@@ -97,7 +137,11 @@ async function resolveChannel(nameOrId: string): Promise<string> {
   if (ch?.id) {
     // Auto-join if not already a member
     if (!ch.is_member) {
-      await slack.conversations.join({ channel: ch.id });
+      try {
+        await slack.conversations.join({ channel: ch.id });
+      } catch {
+        // already_in_channel is fine
+      }
     }
     return ch.id;
   }
