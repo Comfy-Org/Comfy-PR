@@ -27,13 +27,6 @@ describe("PRReleaseTaggerState", () => {
     });
   });
 
-  describe("label naming", () => {
-    it("should produce correct labels for each target", () => {
-      expect(`released:${"core"}`).toBe("released:core");
-      expect(`released:${"cloud"}`).toBe("released:cloud");
-    });
-  });
-
   describe("state structure", () => {
     it("should accept valid PRReleaseTaggerState shape", () => {
       const state: PRReleaseTaggerState = {
@@ -99,29 +92,6 @@ describe("PRReleaseTaggerState", () => {
       expect(statuses).toContain("checking");
       expect(statuses).toContain("completed");
       expect(statuses).toContain("failed");
-    });
-  });
-
-  describe("comparison logic", () => {
-    it("should consider 'behind' and 'identical' as released", () => {
-      const releasedStatuses = ["behind", "identical"];
-      const notReleasedStatuses = ["ahead", "diverged"];
-
-      for (const status of releasedStatuses) {
-        expect(status === "behind" || status === "identical").toBe(true);
-      }
-      for (const status of notReleasedStatuses) {
-        expect(status === "behind" || status === "identical").toBe(false);
-      }
-    });
-  });
-
-  describe("deduplication", () => {
-    it("should not re-label previously labeled PRs", () => {
-      const previouslyLabeled = new Set([100, 200, 300]);
-      const candidates = [100, 200, 400, 500];
-      const toLabel = candidates.filter((n) => !previouslyLabeled.has(n));
-      expect(toLabel).toEqual([400, 500]);
     });
   });
 });
