@@ -25,6 +25,41 @@ describe("PRReleaseTaggerState", () => {
       expect(extractOriginalPRNumber("Backport of #1")).toBe(1);
       expect(extractOriginalPRNumber("Backport of #99999")).toBe(99999);
     });
+
+    it("should extract from title-style backport with branch tag", () => {
+      expect(
+        extractOriginalPRNumber(
+          null,
+          "[backport core/1.41] feat: show App/Node Graph type indicator on template cards (#9758)",
+        ),
+      ).toBe(9758);
+      expect(
+        extractOriginalPRNumber(
+          "irrelevant body",
+          "[backport cloud/1.41] feat: add server-side PostHog config overrides (#9758)",
+        ),
+      ).toBe(9758);
+    });
+
+    it("should extract from bracket-prefixed branch title", () => {
+      expect(
+        extractOriginalPRNumber(
+          null,
+          "[cloud/1.41] fix: revert incorrectly backported code from #9908 (#10024)",
+        ),
+      ).toBe(10024);
+    });
+
+    it("should prefer body over title when both present", () => {
+      expect(
+        extractOriginalPRNumber("Backport of #1234", "[backport core/1.41] feat: x (#9999)"),
+      ).toBe(1234);
+    });
+
+    it("should return null for version-bump titles", () => {
+      expect(extractOriginalPRNumber(null, "1.41.17")).toBeNull();
+      expect(extractOriginalPRNumber("Release 1.41.17", "1.41.17")).toBeNull();
+    });
   });
 
   describe("state structure", () => {

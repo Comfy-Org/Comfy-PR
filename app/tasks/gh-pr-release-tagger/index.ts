@@ -139,10 +139,23 @@ async function getCloudDeployedVersion(): Promise<{ ref: string; branch: string 
 
 // ── Extract original PR number from backport PR ────────────────────
 
-export function extractOriginalPRNumber(body: string | null): number | null {
-  if (!body) return null;
-  const match = body.match(/Backport of #(\d+)/);
-  return match ? parseInt(match[1], 10) : null;
+export function extractOriginalPRNumber(
+  body: string | null,
+  title: string | null = null,
+): number | null {
+  // Standard backport-bot body: "Backport of #1234 ..."
+  const bodyMatch = body?.match(/Backport of #(\d+)/);
+  if (bodyMatch) return parseInt(bodyMatch[1], 10);
+
+  // Title-style backport: "[backport core/1.41] feat: ... (#1234)"
+  const titleMatch = title?.match(/^\[backport [^\]]+\].*\(#(\d+)\)\s*$/i);
+  if (titleMatch) return parseInt(titleMatch[1], 10);
+
+  // Bracket-prefixed backport: "[cloud/1.41] fix: ... (#1234)"
+  const branchPrefixMatch = title?.match(/^\[[a-z]+\/[\d.]+\].*\(#(\d+)\)\s*$/i);
+  if (branchPrefixMatch) return parseInt(branchPrefixMatch[1], 10);
+
+  return null;
 }
 
 // ── Ensure label exists ────────────────────────────────────────────
@@ -250,86 +263,62 @@ async function processTarget(target: "core" | "cloud") {
         continue;
       }
 
-      // Extract original PR number from backport body
-      const originalPRNumber = extractOriginalPRNumber(backportPR.body);
+      // Extract original PR number from backport body or title
+      const originalPRNumber = extractOriginalPRNumber(backportPR.body, backportPR.title);
 
-      if (originalPRNumber) {
-        // Label the original PR
-        if (previouslyLabeled.has(originalPRNumber)) {
-          continue;
-        }
+      if (!originalPRNumber) {
+        // Skip PRs without a backport reference: version-bump release commits,
+        // branch-only fixups, etc. They produce noisy / meaningless labels and
+        // can't be traced back to a user-facing main-branch PR. Legitimate
+        // hot-fixes can opt in by adding "Backport of #NNN" to the body.
+        logger.debug(
+          `${target}: skipping #${backportPR.number} "${backportPR.title}" — no backport reference`,
+        );
+        continue;
+      }
 
-        try {
-          const originalPR = await ghc.pulls.get({
-            ...FRONTEND_REPO,
-            pull_number: originalPRNumber,
-          });
+      // Label the original PR
+      if (previouslyLabeled.has(originalPRNumber)) {
+        continue;
+      }
 
-          // Check if already has label
-          const hasLabel = originalPR.data.labels.some(
-            (l) => (typeof l === "string" ? l : l.name) === labelName,
-          );
-          if (hasLabel) {
-            previouslyLabeled.add(originalPRNumber);
-            continue;
-          }
+      try {
+        const originalPR = await ghc.pulls.get({
+          ...FRONTEND_REPO,
+          pull_number: originalPRNumber,
+        });
 
-          await gh.issues.addLabels({
-            ...FRONTEND_REPO,
-            issue_number: originalPRNumber,
-            labels: [labelName],
-          });
-
-          logger.info(
-            `${target}: labeled original PR #${originalPRNumber} "${originalPR.data.title}" (via backport #${backportPR.number})`,
-          );
-
-          labeledOriginalPRs.push({
-            prNumber: originalPRNumber,
-            prUrl: originalPR.data.html_url,
-            prTitle: originalPR.data.title,
-            backportPrNumber: backportPR.number,
-            labeledAt: new Date(),
-          });
-          previouslyLabeled.add(originalPRNumber);
-        } catch (err: unknown) {
-          logger.error(
-            `${target}: failed to label original PR #${originalPRNumber}: ${(err as Error).message}`,
-          );
-        }
-      } else {
-        // PR merged directly to branch (not a backport) — label it directly
-        const prNumber = backportPR.number;
-        if (previouslyLabeled.has(prNumber)) continue;
-
-        const hasLabel = backportPR.labels.some(
-          (l: string | { name?: string }) => (typeof l === "string" ? l : l.name) === labelName,
+        // Check if already has label
+        const hasLabel = originalPR.data.labels.some(
+          (l) => (typeof l === "string" ? l : l.name) === labelName,
         );
         if (hasLabel) {
-          previouslyLabeled.add(prNumber);
+          previouslyLabeled.add(originalPRNumber);
           continue;
         }
 
-        try {
-          await gh.issues.addLabels({
-            ...FRONTEND_REPO,
-            issue_number: prNumber,
-            labels: [labelName],
-          });
+        await gh.issues.addLabels({
+          ...FRONTEND_REPO,
+          issue_number: originalPRNumber,
+          labels: [labelName],
+        });
 
-          logger.info(`${target}: labeled direct PR #${prNumber} "${backportPR.title}"`);
+        logger.info(
+          `${target}: labeled original PR #${originalPRNumber} "${originalPR.data.title}" (via backport #${backportPR.number})`,
+        );
 
-          labeledOriginalPRs.push({
-            prNumber,
-            prUrl: backportPR.html_url,
-            prTitle: backportPR.title,
-            backportPrNumber: null,
-            labeledAt: new Date(),
-          });
-          previouslyLabeled.add(prNumber);
-        } catch (err: unknown) {
-          logger.error(`${target}: failed to label PR #${prNumber}: ${(err as Error).message}`);
-        }
+        labeledOriginalPRs.push({
+          prNumber: originalPRNumber,
+          prUrl: originalPR.data.html_url,
+          prTitle: originalPR.data.title,
+          backportPrNumber: backportPR.number,
+          labeledAt: new Date(),
+        });
+        previouslyLabeled.add(originalPRNumber);
+      } catch (err: unknown) {
+        logger.error(
+          `${target}: failed to label original PR #${originalPRNumber}: ${(err as Error).message}`,
+        );
       }
     }
 
