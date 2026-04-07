@@ -165,15 +165,18 @@ async function processTarget(target: "core" | "cloud") {
   const { ref: deployedRef, branch } =
     target === "core" ? await getCoreDeployedVersion() : await getCloudDeployedVersion();
 
-  // Check if we already processed this exact deployed ref
-  const existing = await PRReleaseTaggerState.findOne({
+  // Always re-scan: previouslyLabeled (sourced from persisted state) prevents
+  // redundant label writes, while re-running gives us a chance to retry any PRs
+  // that hit transient compareCommits/labeling failures during a prior scan.
+  const previousRun = await PRReleaseTaggerState.findOne({
     target,
     deployedRef,
     taskStatus: "completed",
   });
-  if (existing) {
-    logger.info(`${target}: deployed ref ${deployedRef} already processed, skipping.`);
-    return;
+  if (previousRun) {
+    logger.info(
+      `${target}: deployed ref ${deployedRef} previously completed; re-scanning to retry any missed PR labels.`,
+    );
   }
 
   await ensureLabelExists(labelName);
