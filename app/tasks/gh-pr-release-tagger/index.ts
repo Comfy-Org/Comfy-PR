@@ -272,6 +272,7 @@ async function processTarget(target: "core" | "cloud") {
             backportPrNumber: backportPR.number,
             labeledAt: new Date(),
           });
+          previouslyLabeled.add(originalPRNumber);
         } catch (err: unknown) {
           logger.error(
             `${target}: failed to label original PR #${originalPRNumber}: ${(err as Error).message}`,
@@ -306,6 +307,7 @@ async function processTarget(target: "core" | "cloud") {
             backportPrNumber: null,
             labeledAt: new Date(),
           });
+          previouslyLabeled.add(prNumber);
         } catch (err: unknown) {
           logger.error(`${target}: failed to label PR #${prNumber}: ${(err as Error).message}`);
         }
