@@ -41,15 +41,30 @@ export const PRReleaseTaggerState = db.collection<PRReleaseTaggerState>("PRRelea
 
 const save = async (
   state: { target: string; deployedRef: string } & Partial<PRReleaseTaggerState>,
-) =>
-  (await PRReleaseTaggerState.findOneAndUpdate(
-    { target: state.target, deployedRef: state.deployedRef },
-    { $set: state },
-    { upsert: true, returnDocument: "after" },
-  )) ||
-  (() => {
-    throw new Error("save failed");
-  })();
+) => {
+  // Append-only on labeledOriginalPRs so concurrent workers / re-scans don't
+  // overwrite each other's progress. Other fields are $set normally.
+  const { labeledOriginalPRs, ...rest } = state;
+  const update: {
+    $set: typeof rest;
+    $addToSet?: {
+      labeledOriginalPRs: { $each: PRReleaseTaggerState["labeledOriginalPRs"] };
+    };
+  } = { $set: rest };
+  if (labeledOriginalPRs?.length) {
+    update.$addToSet = { labeledOriginalPRs: { $each: labeledOriginalPRs } };
+  }
+  return (
+    (await PRReleaseTaggerState.findOneAndUpdate(
+      { target: state.target, deployedRef: state.deployedRef },
+      update,
+      { upsert: true, returnDocument: "after" },
+    )) ||
+    (() => {
+      throw new Error("save failed");
+    })()
+  );
+};
 
 // ── Resolve deployed versions ──────────────────────────────────────
 
@@ -181,11 +196,12 @@ async function processTarget(target: "core" | "cloud") {
 
   await ensureLabelExists(labelName);
 
+  // Note: do not pass labeledOriginalPRs here — save() uses $addToSet, so prior
+  // entries are preserved across re-scans and concurrent runs.
   await save({
     target,
     deployedRef,
     branch,
-    labeledOriginalPRs: [],
     taskStatus: "checking",
     checkedAt: new Date(),
   });
