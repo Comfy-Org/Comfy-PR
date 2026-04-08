@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
-import { Client } from "@notionhq/client";
-import DIE from "@snomiao/die";
+import { notion } from "@/lib";
 import yaml from "yaml";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
@@ -20,20 +19,20 @@ let peopleMappingsCache: Promise<PersonMapping[]> | null = null;
 
 /**
  * Fetch all person mappings from the Notion People database.
- * Results are cached for the lifetime of the process.
+ * Successful results are cached for the lifetime of the process.
+ * Failed fetches are not cached, so later calls can retry.
  */
 export function fetchPeopleMappings(): Promise<PersonMapping[]> {
   if (!peopleMappingsCache) {
-    peopleMappingsCache = fetchPeopleMappingsUncached();
+    peopleMappingsCache = fetchPeopleMappingsUncached().catch((error) => {
+      peopleMappingsCache = null;
+      throw error;
+    });
   }
   return peopleMappingsCache;
 }
 
 async function fetchPeopleMappingsUncached(): Promise<PersonMapping[]> {
-  const notion = new Client({
-    auth: process.env.NOTION_TOKEN || DIE("missing env.NOTION_TOKEN"),
-  });
-
   const results: PersonMapping[] = [];
   let cursor: string | undefined;
 
@@ -52,14 +51,16 @@ async function fetchPeopleMappingsUncached(): Promise<PersonMapping[]> {
         (props?.["Person"]?.people as Array<{ name: string }> | undefined)
           ?.map((p) => p.name)
           .join(", ") || "";
-      const githubUsername =
+      const githubUsername = (
         (props?.["GitHub Username"]?.rich_text as Array<{ plain_text: string }> | undefined)
           ?.map((t) => t.plain_text)
-          .join("") || "";
-      const slackId =
+          .join("") || ""
+      ).trim();
+      const slackId = (
         (props?.["SlackID"]?.rich_text as Array<{ plain_text: string }> | undefined)
           ?.map((t) => t.plain_text)
-          .join("") || "";
+          .join("") || ""
+      ).trim();
       const inactive = (props?.["Inactive"]?.checkbox as boolean) || false;
 
       results.push({ person, githubUsername, slackId, inactive });
