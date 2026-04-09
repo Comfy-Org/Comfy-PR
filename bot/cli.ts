@@ -927,7 +927,7 @@ async function main() {
             process.exit(1);
           }
         } else if (args.missing) {
-          const missing = mappings.filter((m) => !m.inactive && !m.githubUsername && m.slackId);
+          const missing = mappings.filter((m) => !m.inactive && !m.githubUsername);
           console.log(`Active members without GitHub username: ${missing.length}\n`);
           console.log(yaml.stringify(missing));
         } else {
