@@ -422,10 +422,8 @@ async function getAllSlackMembers() {
  * 2. Falls back to fuzzy matching against Slack display_name, name, and real_name.
  * Returns null if no match found.
  */
-/**
- * Per-process guard: once Notion People lookup fails, skip it for the rest of
- * the run so we don't spam the API + logs once per author.
- */
+// Per-process guard: once Notion People lookup fails, skip it for the rest of
+// the run so we don't spam the API + logs once per author.
 let notionPeopleLookupDisabled = false;
 
 export async function findSlackUserIdByGithubUsername(
