@@ -1,8 +1,4 @@
-#!/usr/bin/env bun
 import { notion } from "@/lib";
-import yaml from "yaml";
-import yargs from "yargs";
-import { hideBin } from "yargs/helpers";
 
 /** Notion People database data source ID */
 const PEOPLE_DS_ID = "2496d73d-3650-801f-9738-000b0f1cbac9";
@@ -95,70 +91,4 @@ export async function getGithubToSlackMap(): Promise<Map<string, string>> {
 export async function findSlackIdByGithubUsername(githubUsername: string): Promise<string | null> {
   const map = await getGithubToSlackMap();
   return map.get(githubUsername.toLowerCase()) ?? null;
-}
-
-if (import.meta.main) {
-  const argv = await yargs(hideBin(process.argv))
-    .scriptName("notion-people")
-    .usage("$0 [--github <username>] [--all] [--missing]")
-    .option("github", {
-      alias: "g",
-      type: "string",
-      description: "Look up a specific GitHub username",
-    })
-    .option("all", {
-      alias: "a",
-      type: "boolean",
-      description: "List all active mappings",
-      default: false,
-    })
-    .option("missing", {
-      alias: "m",
-      type: "boolean",
-      description: "Show active members missing a GitHub username",
-      default: false,
-    })
-    .example("$0 --github christian-byrne", "Look up a specific user")
-    .example("$0 --all", "List all GitHub→Slack mappings")
-    .example("$0 --missing", "Show members without GitHub usernames")
-    .help()
-    .parse();
-
-  const mappings = await fetchPeopleMappings();
-
-  if (argv.github) {
-    const slackId = await findSlackIdByGithubUsername(argv.github);
-    if (slackId) {
-      const entry = mappings.find(
-        (m) => m.githubUsername.toLowerCase() === argv.github!.toLowerCase(),
-      );
-      console.log(
-        yaml.stringify({
-          github: argv.github,
-          slackId,
-          person: entry?.person,
-        }),
-      );
-    } else {
-      console.log(`No mapping found for GitHub username: ${argv.github}`);
-      process.exit(1);
-    }
-  } else if (argv.missing) {
-    const missing = mappings.filter((m) => !m.inactive && !m.githubUsername && m.slackId);
-    console.log(`Active members without GitHub username: ${missing.length}\n`);
-    console.log(yaml.stringify(missing));
-  } else {
-    // Default: show all active mappings
-    const active = mappings.filter((m) => !m.inactive && m.slackId);
-    console.log(`Active people mappings: ${active.length}\n`);
-    console.log(
-      yaml.stringify(
-        active.map((m) => ({
-          person: m.person,
-          github: m.githubUsername || "(not set)",
-          slackId: m.slackId,
-        })),
-      ),
-    );
-  }
 }
