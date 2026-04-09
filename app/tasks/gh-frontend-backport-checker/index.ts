@@ -432,7 +432,8 @@ export async function findSlackUserIdByGithubUsername(
   } catch (e) {
     logger.warn("Failed to look up Notion People mapping, falling back to Slack fuzzy match", {
       githubUsername,
-      error: e,
+      error: (e as Error)?.message ?? String(e),
+      stack: (e as Error)?.stack,
     });
   }
 
