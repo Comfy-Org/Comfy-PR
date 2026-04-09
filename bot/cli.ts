@@ -903,12 +903,12 @@ async function main() {
           .option("github", {
             alias: "g",
             type: "string",
-            description: "Look up a specific GitHub username",
+            describe: "Look up a specific GitHub username",
           })
           .option("missing", {
             alias: "m",
             type: "boolean",
-            description: "Show active members missing a GitHub username",
+            describe: "Show active members missing a GitHub username",
             default: false,
           }),
       async (args) => {
