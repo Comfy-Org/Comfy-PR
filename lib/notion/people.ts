@@ -3,6 +3,12 @@ import { notion } from "@/lib";
 /** Notion People database data source ID */
 const PEOPLE_DS_ID = "2496d73d-3650-801f-9738-000b0f1cbac9";
 
+interface NotionProp {
+  people?: Array<{ name: string }>;
+  rich_text?: Array<{ plain_text: string }>;
+  checkbox?: boolean;
+}
+
 export interface PersonMapping {
   person: string;
   githubUsername: string;
@@ -12,6 +18,8 @@ export interface PersonMapping {
 
 /** Cached promise — fetched once per process */
 let peopleMappingsCache: Promise<PersonMapping[]> | null = null;
+/** Memoized derived map — built once per successful fetch */
+let githubToSlackMapCache: Promise<Map<string, string>> | null = null;
 
 /**
  * Fetch all person mappings from the Notion People database.
@@ -22,6 +30,7 @@ export function fetchPeopleMappings(): Promise<PersonMapping[]> {
   if (!peopleMappingsCache) {
     peopleMappingsCache = fetchPeopleMappingsUncached().catch((error) => {
       peopleMappingsCache = null;
+      githubToSlackMapCache = null;
       throw error;
     });
   }
@@ -41,23 +50,17 @@ async function fetchPeopleMappingsUncached(): Promise<PersonMapping[]> {
     });
 
     for (const page of res.results) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Notion API returns loosely-typed page objects
-      const props = (page as any).properties; // biome-ignore lint: Notion untyped
-      const person =
-        (props?.["Person"]?.people as Array<{ name: string }> | undefined)
-          ?.map((p) => p.name)
-          .join(", ") || "";
+      const props = (page as { properties?: Record<string, unknown> }).properties as
+        | Record<string, NotionProp>
+        | undefined;
+      const person = props?.["Person"]?.people?.map((p) => p.name).join(", ") || "";
       const githubUsername = (
-        (props?.["GitHub Username"]?.rich_text as Array<{ plain_text: string }> | undefined)
-          ?.map((t) => t.plain_text)
-          .join("") || ""
+        props?.["GitHub Username"]?.rich_text?.map((t) => t.plain_text).join("") || ""
       ).trim();
       const slackId = (
-        (props?.["SlackID"]?.rich_text as Array<{ plain_text: string }> | undefined)
-          ?.map((t) => t.plain_text)
-          .join("") || ""
+        props?.["SlackID"]?.rich_text?.map((t) => t.plain_text).join("") || ""
       ).trim();
-      const inactive = (props?.["Inactive"]?.checkbox as boolean) || false;
+      const inactive = props?.["Inactive"]?.checkbox || false;
 
       results.push({ person, githubUsername, slackId, inactive });
     }
@@ -73,15 +76,24 @@ async function fetchPeopleMappingsUncached(): Promise<PersonMapping[]> {
  * from the Notion People database. Only includes active members
  * with both a GitHub username and a Slack ID.
  */
-export async function getGithubToSlackMap(): Promise<Map<string, string>> {
-  const mappings = await fetchPeopleMappings();
-  const map = new Map<string, string>();
-  for (const m of mappings) {
-    if (!m.inactive && m.githubUsername && m.slackId) {
-      map.set(m.githubUsername.toLowerCase(), m.slackId);
-    }
+export function getGithubToSlackMap(): Promise<Map<string, string>> {
+  if (!githubToSlackMapCache) {
+    githubToSlackMapCache = fetchPeopleMappings()
+      .then((mappings) => {
+        const map = new Map<string, string>();
+        for (const m of mappings) {
+          if (!m.inactive && m.githubUsername && m.slackId) {
+            map.set(m.githubUsername.toLowerCase(), m.slackId);
+          }
+        }
+        return map;
+      })
+      .catch((error) => {
+        githubToSlackMapCache = null;
+        throw error;
+      });
   }
-  return map;
+  return githubToSlackMapCache;
 }
 
 /**
