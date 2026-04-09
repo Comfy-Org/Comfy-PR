@@ -422,19 +422,31 @@ async function getAllSlackMembers() {
  * 2. Falls back to fuzzy matching against Slack display_name, name, and real_name.
  * Returns null if no match found.
  */
+/**
+ * Per-process guard: once Notion People lookup fails, skip it for the rest of
+ * the run so we don't spam the API + logs once per author.
+ */
+let notionPeopleLookupDisabled = false;
+
 export async function findSlackUserIdByGithubUsername(
   githubUsername: string,
 ): Promise<string | null> {
-  try {
-    // Primary: Notion People database (explicit GitHub→Slack mapping)
-    const notionSlackId = await findSlackIdFromNotion(githubUsername);
-    if (notionSlackId) return notionSlackId;
-  } catch (e) {
-    logger.warn("Failed to look up Notion People mapping, falling back to Slack fuzzy match", {
-      githubUsername,
-      error: (e as Error)?.message ?? String(e),
-      stack: (e as Error)?.stack,
-    });
+  if (!notionPeopleLookupDisabled) {
+    try {
+      // Primary: Notion People database (explicit GitHub→Slack mapping)
+      const notionSlackId = await findSlackIdFromNotion(githubUsername);
+      if (notionSlackId) return notionSlackId;
+    } catch (e) {
+      notionPeopleLookupDisabled = true;
+      logger.warn(
+        "Notion People lookup failed; disabling for the rest of this run and falling back to Slack fuzzy match",
+        {
+          githubUsername,
+          error: (e as Error)?.message ?? String(e),
+          stack: (e as Error)?.stack,
+        },
+      );
+    }
   }
 
   try {
