@@ -220,6 +220,7 @@ async function processTarget(target: "core" | "cloud") {
   });
 
   const labeledOriginalPRs: PRReleaseTaggerState["labeledOriginalPRs"] = [];
+  let compareFailures = 0;
 
   try {
     // List recent merged PRs targeting this branch (2 pages = up to 200 PRs)
@@ -258,8 +259,11 @@ async function processTarget(target: "core" | "cloud") {
         if (comparison.data.status !== "behind" && comparison.data.status !== "identical") {
           continue; // merge commit is ahead of deployed ref, not yet released
         }
-      } catch {
-        // If comparison fails, skip this PR
+      } catch (err: unknown) {
+        compareFailures++;
+        logger.warn(
+          `${target}: compareCommits failed for #${backportPR.number} (${backportPR.merge_commit_sha}): ${(err as Error).message}`,
+        );
         continue;
       }
 
@@ -331,6 +335,11 @@ async function processTarget(target: "core" | "cloud") {
       checkedAt: new Date(),
     });
 
+    if (compareFailures > 0) {
+      logger.warn(
+        `${target}: ${compareFailures} compareCommits failures — affected PRs will be retried on next run`,
+      );
+    }
     logger.info(
       `${target}: completed — labeled ${labeledOriginalPRs.length} original PRs for deployed ref ${deployedRef}`,
     );

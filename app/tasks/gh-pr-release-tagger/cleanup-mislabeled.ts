@@ -8,6 +8,7 @@
  */
 import { gh } from "@/lib/github";
 import { logger } from "@/src/logger";
+import { PRReleaseTaggerState } from "./index";
 
 const FRONTEND_REPO = { owner: "Comfy-Org", repo: "ComfyUI_frontend" };
 
@@ -46,6 +47,13 @@ async function main() {
         logger.error(`failed to remove ${label} from #${prNumber}: ${(err as Error).message}`);
       }
     }
+
+    // Also remove from state collection so future runs don't skip this PR
+    const target = label.split(":")[1] as "core" | "cloud";
+    await PRReleaseTaggerState.updateMany({ target }, {
+      $pull: { labeledOriginalPRs: { prNumber } },
+    } as unknown as Parameters<typeof PRReleaseTaggerState.updateMany>[1]);
+    logger.info(`removed #${prNumber} from ${target} state collection`);
   }
 }
 
