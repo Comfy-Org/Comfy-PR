@@ -12,8 +12,8 @@
   "bin": {
     "cmpr": "./src/cli.ts",
     "comfy-pr": "./src/cli.ts",
-    "pr-bot": "./bot/cli.ts",
-    "prbot": "./bot/cli.ts"
+    "pr-bot": "./bot/index.ts",
+    "prbot": "./bot/index.ts"
   },
   "workspaces": [
     "packages/*"
@@ -35,7 +35,7 @@
     "build:worker": "bun build . --define 'import.meta.main=false' --define 'import.meta.env.IS_BUNDLE=true' --target=bun > dist/index.js",
     "predev": "bun i",
     "dev": "next dev",
-    "dev:bot": "bun --watch ./bot/index.ts",
+    "dev:bot": "bun --watch ./bot/index.ts serve",
     "dev:tsc": "tsc -w",
     "gh-service": "bun run/index.ts",
     "check": "tsgo && oxlint && oxfmt",

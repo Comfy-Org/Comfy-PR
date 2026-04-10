@@ -17,4 +17,4 @@ COPY . ./
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Run the bot service
-CMD ["bun", "bot/index.ts"]
+CMD ["bun", "bot/index.ts", "serve"]
