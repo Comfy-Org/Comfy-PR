@@ -38,6 +38,7 @@ import yaml from "yaml";
 
 // Notion ability
 import { searchNotion } from "@/lib/notion/search";
+import { fetchPeopleMappings, findSlackIdByGithubUsername } from "@/lib/notion/people";
 
 // Video ability
 import { readVideo } from "@/lib/video/read-video";
@@ -891,6 +892,56 @@ async function main() {
           console.log(`URL: ${r.url}`);
           console.log(`Last edited: ${r.last_edited_time}`);
           console.log("---");
+        }
+      },
+    )
+    .command(
+      "notion people",
+      "List GitHub→Slack mappings from Notion People database",
+      (y) =>
+        y
+          .option("github", {
+            alias: "g",
+            type: "string",
+            describe: "Look up a specific GitHub username",
+          })
+          .option("missing", {
+            alias: "m",
+            type: "boolean",
+            describe: "Show active members missing a GitHub username",
+            default: false,
+          }),
+      async (args) => {
+        await loadEnvLocal();
+        const mappings = await fetchPeopleMappings();
+
+        if (args.github) {
+          const slackId = await findSlackIdByGithubUsername(args.github);
+          if (slackId) {
+            const entry = mappings.find(
+              (m) => m.githubUsername.toLowerCase() === args.github!.toLowerCase(),
+            );
+            console.log(yaml.stringify({ github: args.github, slackId, person: entry?.person }));
+          } else {
+            console.log(`No mapping found for GitHub username: ${args.github}`);
+            process.exit(1);
+          }
+        } else if (args.missing) {
+          const missing = mappings.filter((m) => !m.inactive && !m.githubUsername);
+          console.log(`Active members without GitHub username: ${missing.length}\n`);
+          console.log(yaml.stringify(missing));
+        } else {
+          const active = mappings.filter((m) => !m.inactive && m.slackId);
+          console.log(`Active people mappings: ${active.length}\n`);
+          console.log(
+            yaml.stringify(
+              active.map((m) => ({
+                person: m.person || "(unnamed)",
+                github: m.githubUsername || "(not set)",
+                slackId: m.slackId,
+              })),
+            ),
+          );
         }
       },
     )
