@@ -233,15 +233,15 @@ async function processTarget(target: "core" | "cloud") {
           new Set(states.flatMap((s) => s.labeledOriginalPRs?.map((p) => p.prNumber) || [])),
       );
 
-    for (const backportPR of mergedPRs) {
+    for (const mergedPR of mergedPRs) {
       // Check if backport PR's merge commit is ancestor of deployed ref
-      if (!backportPR.merge_commit_sha) continue;
+      if (!mergedPR.merge_commit_sha) continue;
 
       try {
         const comparison = await ghc.repos.compareCommits({
           ...FRONTEND_REPO,
           base: deployedRef,
-          head: backportPR.merge_commit_sha,
+          head: mergedPR.merge_commit_sha,
         });
         // If status is "behind" or "identical", the merge commit is included in deployed ref
         if (comparison.data.status !== "behind" && comparison.data.status !== "identical") {
@@ -250,13 +250,13 @@ async function processTarget(target: "core" | "cloud") {
       } catch (err: unknown) {
         compareFailures++;
         logger.warn(
-          `${target}: compareCommits failed for #${backportPR.number} (${backportPR.merge_commit_sha}): ${(err as Error).message}`,
+          `${target}: compareCommits failed for #${mergedPR.number} (${mergedPR.merge_commit_sha}): ${(err as Error).message}`,
         );
         continue;
       }
 
       // Extract original PR number from backport body or title
-      const originalPRNumber = extractOriginalPRNumber(backportPR.body, backportPR.title);
+      const originalPRNumber = extractOriginalPRNumber(mergedPR.body, mergedPR.title);
 
       if (!originalPRNumber) {
         // Skip PRs without a backport reference: version-bump release commits,
@@ -264,7 +264,7 @@ async function processTarget(target: "core" | "cloud") {
         // can't be traced back to a user-facing main-branch PR. Legitimate
         // hot-fixes can opt in by adding "Backport of #NNN" to the body.
         logger.debug(
-          `${target}: skipping #${backportPR.number} "${backportPR.title}" — no backport reference`,
+          `${target}: skipping #${mergedPR.number} "${mergedPR.title}" — no backport reference`,
         );
         continue;
       }
@@ -296,14 +296,14 @@ async function processTarget(target: "core" | "cloud") {
         });
 
         logger.info(
-          `${target}: labeled original PR #${originalPRNumber} "${originalPR.data.title}" (via backport #${backportPR.number})`,
+          `${target}: labeled original PR #${originalPRNumber} "${originalPR.data.title}" (via backport #${mergedPR.number})`,
         );
 
         labeledOriginalPRs.push({
           prNumber: originalPRNumber,
           prUrl: originalPR.data.html_url,
           prTitle: originalPR.data.title,
-          backportPrNumber: backportPR.number,
+          backportPrNumber: mergedPR.number,
           labeledAt: new Date(),
         });
         previouslyLabeled.add(originalPRNumber);
