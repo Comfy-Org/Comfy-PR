@@ -39,6 +39,10 @@ import yaml from "yaml";
 // Notion ability
 import { searchNotion } from "@/lib/notion/search";
 import { fetchPeopleMappings, findSlackIdByGithubUsername } from "@/lib/notion/people";
+import { readNotionPage } from "@/lib/notion/read-page";
+
+// URL parsing
+import { parseUrl } from "@/lib/url/parseUrl";
 
 // Video ability
 import { readVideo } from "@/lib/video/read-video";
@@ -309,6 +313,72 @@ async function main() {
           head: args.head as string | undefined,
           prompt: args.prompt as string,
         });
+      },
+    )
+    .command(
+      "read <url>",
+      "Read any supported URL (Slack message/channel/file, Notion page) and output content as YAML",
+      (y) =>
+        y.positional("url", {
+          type: "string",
+          describe: "URL to read (Slack or Notion)",
+          demandOption: true,
+        }),
+      async (args) => {
+        await loadEnvLocal();
+
+        const url = args.url as string;
+        const parsed = parseUrl(url);
+
+        switch (parsed.type) {
+          case "slack-message": {
+            const messages = await readNearbyMessages(parsed.channel!, parsed.ts!, 20, 20);
+            console.log(yaml.stringify(messages));
+            break;
+          }
+
+          case "slack-channel": {
+            const messages = await readRecentMessages(parsed.channel!, 10);
+            console.log(yaml.stringify(messages));
+            break;
+          }
+
+          case "slack-file": {
+            if (!parsed.fileId) {
+              console.error("Could not extract file ID from URL");
+              process.exit(1);
+            }
+            const fileInfo = await getSlackFileInfo(parsed.fileId);
+            const fileName = fileInfo.name || `file-${parsed.fileId}`;
+            const outputPath = `./${fileName}`;
+            await downloadSlackFile(parsed.fileId, outputPath);
+            console.log(
+              yaml.stringify({
+                type: "file_downloaded",
+                file_id: parsed.fileId,
+                file_name: fileName,
+                file_size: fileInfo.size,
+                downloaded_to: outputPath,
+              }),
+            );
+            break;
+          }
+
+          case "notion-page": {
+            const page = await readNotionPage(parsed.notionPageId!);
+            console.log(yaml.stringify(page));
+            break;
+          }
+
+          default:
+            console.error(`Unsupported URL: ${url}`);
+            console.error("Supported formats:");
+            console.error("  Slack message: https://workspace.slack.com/archives/C123/p1234567890");
+            console.error("  Slack channel: https://workspace.slack.com/archives/C123");
+            console.error("  Slack file:    https://files.slack.com/files-pri/T123-F456/file.pdf");
+            console.error("  Notion page:   https://www.notion.so/workspace/Page-Title-<id>");
+            process.exit(1);
+        }
       },
     )
     .command("slack", "Slack integration commands", (yargs) => {
@@ -1254,6 +1324,8 @@ async function main() {
         "Examples:",
         "  prbot serve                                    # Start Slack bot",
         "  prbot serve --continue                         # Start with task resume",
+        "  prbot read 'https://workspace.slack.com/archives/C123/p1234567890'  # Slack message",
+        "  prbot read 'https://www.notion.so/my-workspace/Page-Title-abc123'   # Notion page",
         "  prbot code pr -r Comfy-Org/ComfyUI -b main -p 'Fix auth bug'",
         "  prbot code search -q 'binarization' --repo Comfy-Org/ComfyUI",
         "  prbot github-issue search -q 'authentication bug' -l 5",
