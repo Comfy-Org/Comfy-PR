@@ -43,7 +43,10 @@ export type PRReleaseTaggerState = {
 export const PRReleaseTaggerState = db.collection<PRReleaseTaggerState>("PRReleaseTaggerState");
 
 const save = async (
-  state: { target: string; deployedRef: string } & Partial<PRReleaseTaggerState>,
+  state: {
+    target: PRReleaseTaggerState["target"];
+    deployedRef: PRReleaseTaggerState["deployedRef"];
+  } & Partial<PRReleaseTaggerState>,
 ) => {
   // Append-only on labeledOriginalPRs so concurrent workers / re-scans don't
   // overwrite each other's progress. Other fields are $set normally.
