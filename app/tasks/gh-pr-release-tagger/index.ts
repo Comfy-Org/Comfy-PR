@@ -356,8 +356,9 @@ if (import.meta.main) {
 }
 
 export default async function runGithubPRReleaseTaggerTask() {
+  // The compound { target, deployedRef } index already serves target-only
+  // queries via the leftmost-prefix rule, so no separate { target: 1 } index.
   await PRReleaseTaggerState.createIndex({ target: 1, deployedRef: 1 }, { unique: true });
-  await PRReleaseTaggerState.createIndex({ target: 1 });
   await PRReleaseTaggerState.createIndex({ checkedAt: 1 });
 
   await processTarget("core");
