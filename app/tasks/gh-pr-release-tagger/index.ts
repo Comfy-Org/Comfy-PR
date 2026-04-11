@@ -6,6 +6,7 @@ import { ghPageFlow } from "@/src/ghPageFlow";
 import { logger } from "@/src/logger";
 import isCI from "is-ci";
 import { extractOriginalPRNumber } from "./extractOriginalPRNumber";
+import { isReleasedCompareStatus } from "./isReleasedCompareStatus";
 
 export { extractOriginalPRNumber };
 
@@ -243,9 +244,8 @@ async function processTarget(target: "core" | "cloud") {
           base: deployedRef,
           head: mergedPR.merge_commit_sha,
         });
-        // If status is "behind" or "identical", the merge commit is included in deployed ref
-        if (comparison.data.status !== "behind" && comparison.data.status !== "identical") {
-          continue; // merge commit is ahead of deployed ref, not yet released
+        if (!isReleasedCompareStatus(comparison.data.status)) {
+          continue; // merge commit is ahead of / diverged from deployed ref
         }
       } catch (err: unknown) {
         compareFailures++;
