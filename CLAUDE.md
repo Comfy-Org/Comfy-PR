@@ -8,7 +8,7 @@ The Slack bot runs on the `sno-bot` branch and should always be running via PM2.
 
 ```bash
 # Start (or restart if already running)
-pm2 start /root/.bun/bin/bun --name comfy-pr-bot --interpreter none -- bot/index.ts --continue
+pm2 start /root/.bun/bin/bun --name comfy-pr-bot --interpreter none -- bot/index.ts serve --continue
 
 # Or use the convenience script (stops old instance first)
 bash bot/up.sh
@@ -191,7 +191,7 @@ The `bot/up.sh` script includes an auto-restart loop that catches the exit code 
 
 ```bash
 while true; do
-  bun bot/index.ts --continue
+  bun bot/index.ts serve --continue
   EXIT_CODE=$?
   if [ $EXIT_CODE -eq 0 ]; then
     sleep 2  # Clean exit (file change restart)
@@ -447,7 +447,7 @@ bun bot/code/prbot.ts --repo=Comfy-Org/ComfyUI_frontend --base=develop --head=fe
 
 ### Overview
 
-The prbot CLI (`bot/cli.ts`) is a unified command-line interface built with yargs that provides access to all bot capabilities including GitHub PR creation, code search, issue search, registry search, Slack integration, and Notion search.
+The prbot CLI (`bot/index.ts`) is a unified command-line interface built with yargs that provides access to all bot capabilities including GitHub PR creation, code search, issue search, registry search, Slack integration, and Notion search.
 
 ### Installation & Usage
 
@@ -455,7 +455,7 @@ Available via package.json bin entries:
 
 - `prbot <command>` (primary)
 - `pr-bot <command>` (alias)
-- `bun bot/cli.ts <command>` (direct execution)
+- `bun bot/index.ts <command>` (direct execution)
 
 ### Complete Command Reference
 
@@ -689,7 +689,7 @@ OPENAI_API_KEY=sk-...
 
 ### Implementation Details
 
-- **File**: `bot/cli.ts` (yargs-based CLI)
+- **File**: `bot/index.ts` (yargs-based CLI)
 - **Auto-load env**: `loadEnvLocal()` function loads `.env.local` from project root
 - **Branch naming**: Uses GPT-4o-mini to generate conventional branch names (`feature/`, `fix/`, etc.)
 - **Smart Slack URL parsing**: `parseSlackUrlSmart()` auto-detects message/file/channel URLs

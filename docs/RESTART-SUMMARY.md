@@ -107,13 +107,13 @@ The following patterns are automatically ignored:
 ### Start with Smart Restart (Default)
 
 ```bash
-bun bot/index.ts --continue
+bun bot/index.ts serve --continue
 ```
 
 ### Disable Smart Restart
 
 ```bash
-bun bot/index.ts --continue --no-watch
+bun bot/index.ts serve --continue --no-watch
 ```
 
 ### Production Deployment
