@@ -51,29 +51,53 @@ const save = async (
     deployedRef: PRReleaseTaggerState["deployedRef"];
   } & Partial<PRReleaseTaggerState>,
 ) => {
-  // Append-only on labeledOriginalPRs so concurrent workers / re-scans don't
-  // overwrite each other's progress. Other fields are $set normally.
   const { labeledOriginalPRs, ...rest } = state;
-  const update: {
-    $set: typeof rest;
-    $setOnInsert: { labeledOriginalPRs: NonNullable<PRReleaseTaggerState["labeledOriginalPRs"]> };
-    $addToSet?: {
-      labeledOriginalPRs: { $each: NonNullable<PRReleaseTaggerState["labeledOriginalPRs"]> };
-    };
-  } = { $set: rest, $setOnInsert: { labeledOriginalPRs: [] } };
-  if (labeledOriginalPRs?.length) {
-    update.$addToSet = { labeledOriginalPRs: { $each: labeledOriginalPRs } };
+  const filter = { target: state.target, deployedRef: state.deployedRef };
+  const options = { upsert: true, returnDocument: "after" as const };
+
+  // No new labels: plain $set with $setOnInsert seed for the array.
+  if (!labeledOriginalPRs?.length) {
+    const res = await PRReleaseTaggerState.findOneAndUpdate(
+      filter,
+      { $set: rest, $setOnInsert: { labeledOriginalPRs: [] } },
+      options,
+    );
+    if (!res) throw new Error("save failed");
+    return res;
   }
-  return (
-    (await PRReleaseTaggerState.findOneAndUpdate(
-      { target: state.target, deployedRef: state.deployedRef },
-      update,
-      { upsert: true, returnDocument: "after" },
-    )) ||
-    (() => {
-      throw new Error("save failed");
-    })()
+
+  // Merging new labels: dedupe by prNumber. $addToSet would compare whole
+  // objects (including labeledAt: new Date()), so identical PR entries
+  // across runs would accumulate. Use an aggregation-pipeline update to
+  // drop any existing entries with matching prNumber, then append the new
+  // ones — atomic and keyed purely by prNumber.
+  const incomingPrNumbers = labeledOriginalPRs.map((p) => p.prNumber);
+  const pipeline = [
+    {
+      $set: {
+        ...rest,
+        labeledOriginalPRs: {
+          $concatArrays: [
+            {
+              $filter: {
+                input: { $ifNull: ["$labeledOriginalPRs", []] },
+                as: "existing",
+                cond: { $not: { $in: ["$$existing.prNumber", incomingPrNumbers] } },
+              },
+            },
+            labeledOriginalPRs,
+          ],
+        },
+      },
+    },
+  ];
+  const res = await PRReleaseTaggerState.findOneAndUpdate(
+    filter,
+    pipeline as unknown as Parameters<typeof PRReleaseTaggerState.findOneAndUpdate>[1],
+    options,
   );
+  if (!res) throw new Error("save failed");
+  return res;
 };
 
 // ── Resolve deployed versions ──────────────────────────────────────
