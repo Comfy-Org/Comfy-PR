@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { extractOriginalPRNumber, type PRReleaseTaggerState } from "./index";
+import { extractOriginalPRNumber } from "./extractOriginalPRNumber";
+import type { PRReleaseTaggerState } from "./index";
 
 describe("PRReleaseTaggerState", () => {
   describe("extractOriginalPRNumber", () => {

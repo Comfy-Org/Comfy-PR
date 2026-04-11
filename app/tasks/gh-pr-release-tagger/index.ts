@@ -5,6 +5,9 @@ import { ghc } from "@/lib/github/githubCached";
 import { ghPageFlow } from "@/src/ghPageFlow";
 import { logger } from "@/src/logger";
 import isCI from "is-ci";
+import { extractOriginalPRNumber } from "./extractOriginalPRNumber";
+
+export { extractOriginalPRNumber };
 
 /**
  * GitHub PR Release Tagger Task
@@ -135,27 +138,6 @@ async function getCloudDeployedVersion(): Promise<{ ref: string; branch: string 
 
   logger.info(`Cloud deployed: ${ref.substring(0, 7)} on ${branch}`);
   return { ref, branch };
-}
-
-// ── Extract original PR number from backport PR ────────────────────
-
-export function extractOriginalPRNumber(
-  body: string | null,
-  title: string | null = null,
-): number | null {
-  // Standard backport-bot body: "Backport of #1234 ..."
-  const bodyMatch = body?.match(/Backport of #(\d+)/);
-  if (bodyMatch) return parseInt(bodyMatch[1], 10);
-
-  // Title-style backport: "[backport core/1.41] feat: ... (#1234)"
-  const titleMatch = title?.match(/^\[backport [^\]]+\].*\(#(\d+)\)\s*$/i);
-  if (titleMatch) return parseInt(titleMatch[1], 10);
-
-  // Bracket-prefixed backport: "[cloud/1.41] fix: ... (#1234)"
-  const branchPrefixMatch = title?.match(/^\[[a-z]+\/[\d.]+\].*\(#(\d+)\)\s*$/i);
-  if (branchPrefixMatch) return parseInt(branchPrefixMatch[1], 10);
-
-  return null;
 }
 
 // ── Ensure label exists ────────────────────────────────────────────
