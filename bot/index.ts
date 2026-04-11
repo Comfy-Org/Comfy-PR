@@ -129,14 +129,21 @@ async function main() {
       "serve",
       "Start the ComfyPR Slack Bot (long-running socket-mode listener)",
       (y) =>
-        y.option("continue", {
-          type: "boolean",
-          describe: "Resume in-progress tasks on restart",
-          default: false,
-        }),
-      async (args) => {
+        y
+          .option("continue", {
+            type: "boolean",
+            describe: "Resume in-progress tasks on restart",
+            default: false,
+          })
+          .option("no-watch", {
+            type: "boolean",
+            describe: "Disable smart restart file watcher",
+            default: false,
+          }),
+      async () => {
+        await loadEnvLocal();
         console.log("Starting ComfyPR Slack Bot...");
-        const client = await (await import("./slack-bot.ts")).startSlackBot();
+        await (await import("./slack-bot.ts")).startSlackBot();
         console.log("ComfyPR Slack Bot Done.");
       },
     )
@@ -1260,7 +1267,7 @@ async function main() {
         "  prbot slack read-thread -c C123 -t 1234567890.123456",
         "  prbot slack read-thread -u 'https://workspace.slack.com/archives/C123/p1234567890'",
         "  prbot slack read-nearby -u 'https://workspace.slack.com/archives/C123/p1234567890' -b 20 -a 20",
-        "  prbot slack upload -c C123 -f ./report.pdf -m 'Here is the report'",
+        "  prbot slack upload-file -c C123 -f ./report.pdf -m 'Here is the report'",
         "  prbot slack post-with-files -c C123 -m 'Check these files' -f file1.pdf -f file2.png",
         "  prbot slack download-file -f F123ABC -o ./downloaded.pdf",
         "  prbot slack file-info -f F123ABC",
