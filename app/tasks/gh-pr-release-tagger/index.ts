@@ -29,7 +29,9 @@ export type PRReleaseTaggerState = {
   target: "core" | "cloud";
   deployedRef: string; // version tag or commit SHA
   branch: string; // e.g. "core/1.41" or "cloud/1.41"
-  labeledOriginalPRs: Array<{
+  // Optional on disk: completed runs with zero newly labeled PRs may persist
+  // without touching this field. Readers should tolerate undefined.
+  labeledOriginalPRs?: Array<{
     prNumber: number;
     prUrl: string;
     prTitle: string;
@@ -53,10 +55,11 @@ const save = async (
   const { labeledOriginalPRs, ...rest } = state;
   const update: {
     $set: typeof rest;
+    $setOnInsert: { labeledOriginalPRs: NonNullable<PRReleaseTaggerState["labeledOriginalPRs"]> };
     $addToSet?: {
-      labeledOriginalPRs: { $each: PRReleaseTaggerState["labeledOriginalPRs"] };
+      labeledOriginalPRs: { $each: NonNullable<PRReleaseTaggerState["labeledOriginalPRs"]> };
     };
-  } = { $set: rest };
+  } = { $set: rest, $setOnInsert: { labeledOriginalPRs: [] } };
   if (labeledOriginalPRs?.length) {
     update.$addToSet = { labeledOriginalPRs: { $each: labeledOriginalPRs } };
   }

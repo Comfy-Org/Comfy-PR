@@ -85,7 +85,7 @@ describe("PRReleaseTaggerState", () => {
       expect(state.target).toBe("core");
       expect(state.deployedRef).toBe("v1.41.21");
       expect(state.labeledOriginalPRs).toHaveLength(1);
-      expect(state.labeledOriginalPRs[0].backportPrNumber).toBe(9955);
+      expect(state.labeledOriginalPRs?.[0].backportPrNumber).toBe(9955);
     });
 
     it("should handle cloud state with SHA ref", () => {
@@ -120,7 +120,7 @@ describe("PRReleaseTaggerState", () => {
         checkedAt: new Date(),
       };
 
-      expect(state.labeledOriginalPRs[0].backportPrNumber).toBeNull();
+      expect(state.labeledOriginalPRs?.[0].backportPrNumber).toBeNull();
     });
 
     it("should allow all taskStatus values", () => {
