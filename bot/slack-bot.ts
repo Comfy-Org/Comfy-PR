@@ -15,7 +15,7 @@ import { compareBy } from "comparing";
 import { mkdir } from "fs/promises";
 import sflow from "sflow";
 import winston from "winston";
-import zChatCompletion from "../lib/zChat";
+import zChatCompletion, { initZChat } from "../lib/zChat";
 import z from "zod";
 import { IdleWaiter } from "./IdleWaiter";
 import { RestartManager } from "./RestartManager";
@@ -32,6 +32,13 @@ import { getSlackChannelName } from "@/lib/slack";
 import { SlackBotState } from "./state";
 import { ErrorCollector } from "./error-collector";
 import { query, type Query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import {
+  createTaskUser,
+  prepareTaskWorkspace,
+  cleanupStaleTaskUsers,
+  touchTaskUserActivity,
+} from "./task-user";
+import { createUserSpawner } from "./spawn-as-user";
 
 export const SLACK_ORG_DOMAIN_NAME = "comfy-organization";
 // Configure winston logger
@@ -151,6 +158,7 @@ if (import.meta.main) {
 
 export async function startSlackBot() {
   console.log("Starting ComfyPR Bot...");
+  await initZChat();
   const argv = minimist(process.argv.slice(2));
   const port = Number(process.env.PRBOT_PORT || DIE("missing env.PRBOT_PORT"));
 
@@ -265,32 +273,29 @@ export async function startSlackBot() {
     .run();
 
   if (argv.continue) {
-    async () => {
-      logger.info("BOT - --continue flag detected, resuming crashed tasks...");
+    logger.info("BOT - --continue flag detected, resuming crashed tasks...");
 
-      // Read current working tasks from state
-      const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
-        workingMessageEvents: [],
-      };
-      const events = workingTasks.workingMessageEvents || [];
+    const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
+      workingMessageEvents: [],
+    };
+    const events = workingTasks.workingMessageEvents || [];
 
-      if (events.length === 0) {
-        logger.info("No working tasks to resume");
-      } else {
-        logger.info(`Found ${events.length} working task(s) to resume`);
+    if (events.length === 0) {
+      logger.info("No working tasks to resume");
+    } else {
+      logger.info(`Found ${events.length} working task(s) to resume`);
 
-        for await (const event of events) {
-          if (event && event.ts) {
-            logger.info(
-              `Resuming task for event ${event.ts} in channel ${await getSlackChannelName(event.channel)}, text: ${event.text}`,
-            );
-            await spawnBotOnSlackMessageEvent(event).catch((err) => {
-              logger.error(`Error resuming task for event ${event.ts}`, { err });
-            });
-          }
+      for (const event of events) {
+        if (event && event.ts) {
+          logger.info(
+            `Resuming task for event ${event.ts} in channel ${await getSlackChannelName(event.channel)}, text: ${event.text}`,
+          );
+          spawnBotOnSlackMessageEvent(event).catch((err) => {
+            logger.error(`Error resuming task for event ${event.ts}`, { err });
+          });
         }
       }
-    };
+    }
   }
 
   logger.info(`Starting ComfyPR Bot... id: ${g.instanceId}, hotId: ${g.hotId}`);
@@ -314,6 +319,27 @@ export async function startSlackBot() {
     restartManager.start();
     logger.info("Smart restart manager enabled (use --no-watch to disable)");
   }
+
+  // Periodic cleanup of stale task users (every hour)
+  setInterval(
+    async () => {
+      try {
+        const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
+          workingMessageEvents: [],
+        };
+        const activeIds = new Set<string>(
+          (workingTasks.workingMessageEvents || []).map((e: { ts: string }) => e.ts),
+        );
+        const cleaned = await cleanupStaleTaskUsers(activeIds);
+        if (cleaned.length > 0) {
+          logger.info(`Cleaned up ${cleaned.length} stale task user(s): ${cleaned.join(", ")}`);
+        }
+      } catch (err) {
+        logger.warn("Task user cleanup error", { err });
+      }
+    },
+    60 * 60 * 1000,
+  );
 
   // Initialize Socket Mode client with app-level token
   const socketModeClient = new SocketModeClient({
@@ -667,6 +693,7 @@ Respond in JSON format with the following fields:
         logger.warn("No existing task input flow found");
         return;
       }
+      await touchTaskUserActivity(workspaceId);
       const w = existedTaskInputFlow!.writable.getWriter();
       await w.write(
         await parseSlackMessageToMarkdown(
@@ -892,10 +919,10 @@ Respond in JSON format with the following fields:
     EVENT_THREAD_TS: event.thread_ts || event.ts,
   });
 
-  // const taskUser = `bot-user-${workspaceId.replace(".", "-")}`;
-  // const taskUser = `bot-user-${workspaceId.replace(".", "-")}`;
+  // Create per-task Linux user for agent isolation
+  const taskUser = await createTaskUser(workspaceId);
+  logger.info(`Created task user: ${taskUser.username} for workspace ${workspaceId}`);
   await mkdir(botWorkingDir, { recursive: true });
-  // todo: create a linux user for task
 
   // fill initial files for agent
 
@@ -1214,6 +1241,9 @@ ${yaml.stringify(contexts)}
   // Run the agent
   let exitCode: number | null = 0;
   try {
+    // Prepare workspace ownership for the task user
+    await prepareTaskWorkspace(taskUser.username, botWorkingDir);
+
     agentQuery = query({
       prompt: sdkPrompt,
       options: {
@@ -1224,8 +1254,11 @@ ${yaml.stringify(contexts)}
         maxTurns: 200,
         persistSession: false,
         abortController,
+        // Run the CLI subprocess as the per-task non-root user
+        spawnClaudeCodeProcess: createUserSpawner(taskUser.username, taskUser.homeDir),
         env: {
           ...process.env,
+          HOME: taskUser.homeDir,
           GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
           GITHUB_TOKEN:
             process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
@@ -1384,6 +1417,9 @@ ${yaml.stringify(contexts)}
 
   // Remove task from working list
   await removeWorkingTask(event);
+
+  // Note: Task user cleanup is handled by periodic cleanupStaleTaskUsers()
+  // We don't delete the user immediately in case of task resume via --continue
 }
 
 function sleep(ms: number) {
