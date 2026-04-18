@@ -6,7 +6,7 @@ import stableStringify from "json-stable-stringify";
 import pMap from "p-map";
 import sflow from "sflow";
 import { match } from "ts-pattern";
-import { glob } from "zx";
+import { globby as glob } from "globby";
 import { $OK, TaskError, TaskOK, tsmatch } from "../packages/mongodb-pipeline-ts/Task";
 import { CNRepos, type CRPull } from "./CNRepos";
 import { $flatten, $stale } from "./db";

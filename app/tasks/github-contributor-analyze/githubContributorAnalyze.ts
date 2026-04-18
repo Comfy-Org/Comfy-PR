@@ -5,7 +5,7 @@ import { mkdir, rmdir } from "fs/promises";
 import isCI from "is-ci";
 import sflow from "sflow";
 import sha256 from "sha256";
-import { $ } from "zx";
+import { $ } from "bun";
 import {
   GithubContributorAnalyzeTask,
   GithubContributorAnalyzeTaskFilter,

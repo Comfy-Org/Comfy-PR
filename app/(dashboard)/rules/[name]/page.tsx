@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import RuleSetWhirler from "./RuleSetWhirler";
 // const RuleSetWhirler = dynamicComponent(() => import("./RuleSetWhirler"));
 export const dynamic = "force-dynamic";
-export const revalidate = 300;
 export default async function FollowRulesPage({ params }: { params: Promise<{ name: string }> }) {
   const { name = "default" } = await params;
   const followRuleSet = (await FollowRuleSets.findOne({ name })) ?? notFound();

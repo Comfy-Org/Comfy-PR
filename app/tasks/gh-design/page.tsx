@@ -12,7 +12,6 @@ import Link from "next/link";
 import { GithubDesignTaskMetaEditor } from "./GithubDesignTaskMetaEditor";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 300;
 
 /**
  * GitHub Design Task Dashboard

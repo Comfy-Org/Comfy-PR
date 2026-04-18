@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 300;
 
 const _sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
