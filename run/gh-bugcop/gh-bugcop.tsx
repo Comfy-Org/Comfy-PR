@@ -413,13 +413,13 @@ export default async function runGithubBugcopTask() {
       } catch (e) {
         if ((e as { status?: number }).status === 404) {
           tlog(chalk.yellow(`Issue not found (deleted/transferred?): ${issueUrl}`));
-          return null;
+          return undefined;
         }
         throw e;
       }
     })
-    .filter((issue): issue is NonNullable<typeof issue> => issue !== null)
-    .forEach(processIssue)
+    .filter((issue) => issue !== undefined)
+    .forEach((issue) => processIssue(issue!))
     .toArray();
 
   tlog(

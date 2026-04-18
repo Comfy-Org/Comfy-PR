@@ -87,7 +87,7 @@ export const router = t.router({
     .query(async () => {
       const { GithubContributorAnalyzeTask } =
         await import("../tasks/github-contributor-analyze/GithubContributorAnalyzeTask");
-      return await GithubContributorAnalyzeTask.find({}).sort({ updatedAt: -1 }).limit(500).toArray();
+      return await GithubContributorAnalyzeTask.find({}).toArray();
     }),
 
   githubContributorAnalyze: t.procedure
