@@ -37,8 +37,6 @@ await Authors.createIndex({ githubId: 1 }, { background: true });
 await Authors.createIndex({ email: 1 }, { background: true });
 
 if (import.meta.main) {
-  await Authors.createIndex("githubId");
-  await Authors.createIndex("email");
   // collect github id from cn repos
   await updateAuthors();
   console.log("done");

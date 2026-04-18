@@ -407,19 +407,19 @@ export default async function runGithubBugcopTask() {
     }),
   )
     .map((task) => task.url)
-    .map(async (issueUrl) => {
+    .flatMap(async (issueUrl) => {
       try {
-        return await ghc.issues.get({ ...parseIssueUrl(issueUrl) }).then((e) => e.data);
+        const issue = await ghc.issues.get({ ...parseIssueUrl(issueUrl) }).then((e) => e.data);
+        return [issue];
       } catch (e) {
         if ((e as { status?: number }).status === 404) {
           tlog(chalk.yellow(`Issue not found (deleted/transferred?): ${issueUrl}`));
-          return undefined;
+          return [];
         }
         throw e;
       }
     })
-    .filter((issue) => issue !== undefined)
-    .forEach((issue) => processIssue(issue!))
+    .forEach(processIssue)
     .toArray();
 
   tlog(

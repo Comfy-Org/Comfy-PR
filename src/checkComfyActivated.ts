@@ -13,17 +13,12 @@ export async function checkComfyActivated() {
         ? "python3 --version || winget install python3 || choco install -y python3"
         : "apt-get install -y python3 python3-venv";
 
-    await bunSh`
-${installPython}
-python -m venv .venv
-${activate}
-pip install comfy-cli
-comfy-cli --help
-`.catch(console.error);
+    const setupScript = `${installPython} && python -m venv .venv && ${activate} && pip install comfy-cli && comfy-cli --help`;
+    await bunSh`/bin/sh -c ${setupScript}`.catch(console.error);
 
     DIE(
       `
-Cound not found comfy-cli.
+Could not find comfy-cli.
 Please install comfy-cli before run "bunx comfy-pr" here.
 
 $ >>>>>>>>>>>>>>>>>>>>>>>>>>
