@@ -42,7 +42,7 @@ export type PullStatusShown = Awaited<ReturnType<typeof analyzePullsStatus>>[num
 
 export async function analyzePullsStatus({
   skip = 0,
-  limit = 100,
+  limit = 0,
   pipeline = analyzePullsStatusPipeline(),
 } = {}) {
   "use server";
