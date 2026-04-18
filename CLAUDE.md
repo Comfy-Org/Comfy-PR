@@ -36,6 +36,18 @@ pm2 delete comfy-pr-bot
 - RestartManager watches `bot/`, `src/`, `lib/` for file changes and auto-restarts when idle
 - If the bot crash-loops, check for merge conflicts: `grep -n '<<<<<<' bot/slack-bot.ts`
 
+## Security: Top-Level `await createIndex` Is Intentional
+
+**Do NOT convert `await createIndex()` calls to fire-and-forget (`.catch(() => {})`) or move them into lazy init functions.**
+
+Top-level `await createIndex()` at module scope is a deliberate security pattern. These calls ensure indexes exist **before** any queries run against the collection. This guarantees:
+
+1. **Unique constraints are enforced** before any inserts/upserts — prevents duplicate data from race conditions
+2. **Query correctness** — certain queries depend on index existence for correct filtering behavior
+3. **Predictable startup** — the process won't serve requests or run tasks until the database is in a known-good state
+
+The only exception is `CNRepos.createIndex(...).catch(() => {})` for non-critical compound indexes used purely for performance optimization (not correctness).
+
 ## TypeScript Performance Optimization (2026-01-10)
 
 ### Problem

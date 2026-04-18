@@ -5,7 +5,7 @@ import { mkdir, rmdir } from "fs/promises";
 import isCI from "is-ci";
 import sflow from "sflow";
 import sha256 from "sha256";
-import { $ } from "zx";
+import { execaCommand } from "execa";
 import {
   GithubContributorAnalyzeTask,
   GithubContributorAnalyzeTaskFilter,
@@ -120,10 +120,9 @@ export async function githubContributorAnalyze(repoUrl: string) {
   await rmdir(cwd, { recursive: true }).catch(() => {});
   return await mkdir(cwd, { recursive: true })
     .then(async () => {
-      await $`git --version || (apt-get update -y && apt-get install -y git)`;
-      await $`git clone ${url} ${cwd}`;
-      // await sleep(1000);
-      const logs = await Bun.$`cd ${cwd} && git shortlog --summary --numbered --email`.text();
+      await execaCommand("git --version || (apt-get update -y && apt-get install -y git)", { shell: true });
+      await execaCommand(`git clone ${url} ${cwd}`, { shell: true });
+      const { stdout: logs } = await execaCommand("git shortlog --summary --numbered --email", { cwd, shell: true });
       console.log({ logs });
       const contributors = parseGitShortLog(logs);
       console.log(contributors);

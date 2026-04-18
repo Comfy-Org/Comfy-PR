@@ -2,12 +2,12 @@
 import { updateComfyTotals } from "@/src/updateComfyTotals";
 import { yaml } from "@/src/utils/yaml";
 import Markdown from "react-markdown";
-import { TotalsChart } from "./TotalsChart";
+import { TotalsChart } from "./TotalsChartLazy";
 import { getTotalsData } from "./getTotalsData";
 
 export async function TotalsBlock() {
   "use server";
-  const [totals] = await updateComfyTotals({ notify: false, fresh: "30s" });
+  const [totals] = await updateComfyTotals({ notify: false, fresh: "5m" });
 
   return (
     <div className="flex flex-col h-full card-body gap-4 shrink-0 grow-0">
