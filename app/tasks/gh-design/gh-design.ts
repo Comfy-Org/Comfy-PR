@@ -259,15 +259,27 @@ export async function runGithubDesignTask() {
           REQUEST_REVIEWERS.some((e) => !task.reviewers?.includes(e))
         ) {
           const requestReviewers = REQUEST_REVIEWERS;
-          const newReviewers = requestReviewers.filter((e) => !task.reviewers?.includes(e));
-          tlog(`Requesting reviewers: ${newReviewers.join(", ")}`);
+          const newReviewers = requestReviewers.filter(
+            (e) => !task.reviewers?.includes(e) && e !== task.user,
+          );
+          tlog(`Requesting reviewers: ${newReviewers.join(", ") || "(none)"}`);
           if (!dryRun) {
-            await gh.pulls.requestReviewers({
-              owner,
-              repo,
-              pull_number: issue_number,
-              reviewers: newReviewers,
-            });
+            if (newReviewers.length > 0) {
+              try {
+                await gh.pulls.requestReviewers({
+                  owner,
+                  repo,
+                  pull_number: issue_number,
+                  reviewers: newReviewers,
+                });
+              } catch (err: any) {
+                // GitHub returns 422 when the requested reviewer is the PR author
+                // or otherwise cannot be added. Record the attempt to avoid
+                // retrying on every 5-minute schedule run.
+                if (err?.status !== 422) throw err;
+                tlog(`Reviewer request rejected (422): ${err.message}`);
+              }
+            }
             task = await saveGithubDesignTask(url, { reviewers: requestReviewers });
           }
         }
