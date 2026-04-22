@@ -14,7 +14,7 @@ if command -v tmux &> /dev/null; then
   tmux kill-session -t $SESSION 2>/dev/null || true
 
   # Create new session with bot
-  tmux new-session -d -s $SESSION -n "bot" "bun bot/index.ts --continue"
+  tmux new-session -d -s $SESSION -n "bot" "bun bot/index.ts serve --continue"
 
   # Split window and run status display
   tmux split-window -h -t $SESSION:0 "bun bot/status.tsx"
@@ -29,7 +29,7 @@ else
   echo "  brew install tmux        # macOS"
   echo ""
   echo "Alternatively, run these in separate terminals:"
-  echo "  Terminal 1: bun bot/index.ts --continue"
+  echo "  Terminal 1: bun bot/index.ts serve --continue"
   echo "  Terminal 2: bun bot/status.tsx"
   exit 1
 fi

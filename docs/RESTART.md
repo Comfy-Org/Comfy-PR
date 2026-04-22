@@ -14,7 +14,7 @@ The bot now includes a smart restart mechanism that watches for file changes and
 ### Start with Auto-Restart (Default)
 
 ```bash
-bun bot/index.ts --continue
+bun bot/index.ts serve --continue
 ```
 
 The bot will automatically watch for file changes and restart when idle.
@@ -22,7 +22,7 @@ The bot will automatically watch for file changes and restart when idle.
 ### Disable Auto-Restart
 
 ```bash
-bun bot/index.ts --continue --no-watch
+bun bot/index.ts serve --continue --no-watch
 ```
 
 Use this flag if you want to disable the smart restart feature.

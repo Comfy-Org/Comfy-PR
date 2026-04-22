@@ -52,7 +52,7 @@
 │                                                                  │
 │  Detects exit code 0 (clean exit)                              │
 │  Waits 2 seconds                                                │
-│  Restarts: bun bot/index.ts --continue                         │
+│  Restarts: bun bot/index.ts serve --continue                   │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐

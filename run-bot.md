@@ -9,7 +9,7 @@ The bot has crash recovery with the `--continue` flag. PM2 configuration has bee
 The bot runs successfully with Bun directly:
 
 ```bash
-bun bot/index.ts --continue
+bun bot/index.ts serve --continue
 ```
 
 ### Features Implemented
@@ -29,7 +29,7 @@ There's an integration issue between PM2 and Bun's path resolution. The workarou
 
 ```bash
 # Start bot directly with Bun (recommended for now)
-bun bot/index.ts --continue
+bun bot/index.ts serve --continue
 
 # Or use the wrapper script
 ./bot-start.sh

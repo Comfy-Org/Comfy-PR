@@ -8,10 +8,10 @@ The bot now **waits for idle state** before restarting when files change. No mor
 
 ```bash
 # Start bot with smart restart (default)
-bun bot/index.ts --continue
+bun bot/index.ts serve --continue
 
 # Start without smart restart
-bun bot/index.ts --continue --no-watch
+bun bot/index.ts serve --continue --no-watch
 
 # Production (auto-restart loop)
 ./bot-start.sh
@@ -171,10 +171,10 @@ private shouldIgnoreFile(filename: string): boolean {
 
 ```bash
 # Disable smart restart
-bun bot/index.ts --continue --no-watch
+bun bot/index.ts serve --continue --no-watch
 
 # Or set environment variable
-NO_WATCH=1 bun bot/index.ts --continue
+NO_WATCH=1 bun bot/index.ts serve --continue
 ```
 
 ## Metrics to Monitor
@@ -209,7 +209,7 @@ Watch these in production:
 pkill -f "bun bot/index.ts"
 
 # Start without watch
-bun bot/index.ts --continue --no-watch
+bun bot/index.ts serve --continue --no-watch
 
 # Debug the issue
 # Fix the problem
@@ -224,7 +224,7 @@ pkill -f "bun bot/index.ts"
 
 # Option 2: Stop and start manually
 pkill -f "bun bot/index.ts"
-bun bot/index.ts --continue
+bun bot/index.ts serve --continue
 ```
 
 ## Support

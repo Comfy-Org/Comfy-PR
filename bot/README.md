@@ -4,29 +4,32 @@ This directory contains the skills/utilities used by the ComfyPR Bot to interact
 
 ## Unified CLI
 
-A consolidated CLI is available at `bot/cli.ts` using yargs. It exposes GitHub PR-bot actions and Slack/Notion utilities via a single entry point.
+The unified CLI is in `bot/index.ts` using yargs. It exposes the Slack bot server, GitHub PR-bot actions, and Slack/Notion utilities via a single entry point.
 
 Run with Bun:
 
 ```bash
-bun bot/cli.ts --help
+bun bot/index.ts --help
 ```
 
 Common commands:
 
 ```bash
+# Start the Slack bot server
+bun bot/index.ts serve --continue
+
 # Create a coding sub-agent and open a PR
-bun bot/cli.ts github pr -r Comfy-Org/ComfyUI -b main -p "Fix auth bug"
+bun bot/index.ts github pr -r Comfy-Org/ComfyUI -b main -p "Fix auth bug"
 
 # Alias for the above
-bun bot/cli.ts pr -r Comfy-Org/desktop -p "Add spellcheck to editor"
+bun bot/index.ts pr -r Comfy-Org/desktop -p "Add spellcheck to editor"
 
 # Slack utilities
-bun bot/cli.ts slack update -c C123 -t 1234567890.123456 -m "Working on it"
-bun bot/cli.ts slack read-thread -c C123 -t 1234567890.123456 -l 50
+bun bot/index.ts slack update -c C123 -t 1234567890.123456 -m "Working on it"
+bun bot/index.ts slack read-thread -c C123 -t 1234567890.123456 -l 50
 
 # Notion search
-bun bot/cli.ts notion search -q "ComfyUI setup" -l 5
+bun bot/index.ts notion search -q "ComfyUI setup" -l 5
 ```
 
 Environment requirements:
@@ -155,7 +158,7 @@ All scripts follow the standard development pattern outlined in CLAUDE.md:
 1. TypeScript with full type safety
 2. Executable with `bun <file.ts>` when `import.meta.main` is true
 3. Exportable functions for use as libraries
-4. Command-line argument parsing with `yargs` in `bot/cli.ts` and `parseArgs` in leaf tools
+4. Command-line argument parsing with `yargs` in `bot/index.ts` and `parseArgs` in leaf tools
 5. Proper error handling and validation
 6. Cached API clients from `@/lib`
 

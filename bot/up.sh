@@ -22,7 +22,7 @@ echo "[$(date)] Starting ComfyPR Bot with pm2..."
 pm2 start /root/.bun/bin/bun \
   --name $SERVICE_NAME \
   --interpreter none \
-  -- bot/index.ts --continue
+  -- bot/index.ts serve --continue
 
 # Save pm2 process list
 pm2 save
