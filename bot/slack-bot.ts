@@ -8,8 +8,7 @@
  */
 import { slack } from "@/lib";
 import { yaml } from "@/src/utils/yaml";
-import { SocketModeClient } from "@slack/socket-mode";
-import {} from "@slack/bolt";
+import { createHmac, timingSafeEqual } from "crypto";
 import DIE from "@snomiao/die";
 import { compareBy } from "comparing";
 import { mkdir } from "fs/promises";
@@ -220,34 +219,73 @@ export async function startSlackBot() {
   logger.info(`Killing port ${port} and starting server`);
   await Bun.$`npx -y kill-port ${port}`;
 
+  const slackSigningSecret =
+    process.env.SLACK_SIGNING_SECRET || DIE("missing env.SLACK_SIGNING_SECRET");
+
   const server = Bun.serve({
     port: port,
     fetch: async (req: Request) => {
       const url = new URL(req.url);
 
       if (url.pathname === "/status") {
-        // Get current working tasks from state
         const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
           workingMessageEvents: [],
         };
         const events = workingTasks.workingMessageEvents || [];
-
-        // Build message URLs from events
         const processing_message_urls = events.map((event: z.infer<typeof zAppMentionEvent>) => {
           const tsForUrl = event.ts.replace(".", "");
           return `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${tsForUrl}`;
         });
+        return new Response(
+          JSON.stringify(
+            {
+              status: TaskInputFlows.size === 0 ? "idle" : "busy",
+              processing_message_urls,
+              processing_message_urls_count: processing_message_urls.length,
+            },
+            null,
+            2,
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
 
-        const status = {
-          status: TaskInputFlows.size === 0 ? "idle" : "busy",
-          processing_message_urls,
-          processing_message_urls_count: processing_message_urls.length,
-        };
+      if (url.pathname === "/slack/events" && req.method === "POST") {
+        const body = await req.text();
 
-        return new Response(JSON.stringify(status, null, 2), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        // Verify Slack signature
+        const timestamp = req.headers.get("x-slack-request-timestamp") ?? "";
+        const slackSig = req.headers.get("x-slack-signature") ?? "";
+        if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) {
+          return new Response("Request too old", { status: 401 });
+        }
+        const hmac = createHmac("sha256", slackSigningSecret)
+          .update(`v0:${timestamp}:${body}`)
+          .digest("hex");
+        const expected = Buffer.from(`v0=${hmac}`);
+        const received = Buffer.from(slackSig);
+        if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
+          return new Response("Invalid signature", { status: 401 });
+        }
+
+        const payload = JSON.parse(body);
+
+        // URL verification challenge (first-time setup)
+        if (payload.type === "url_verification") {
+          return new Response(JSON.stringify({ challenge: payload.challenge }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // Event callbacks — handle async, respond 200 immediately
+        if (payload.type === "event_callback") {
+          const event = payload.event;
+          handleSlackEvent(event).catch((err) =>
+            logger.error("Webhook event handler error", { err }),
+          );
+        }
+
+        return new Response("", { status: 200 });
       }
 
       return new Response("ComfyPR Bot is running.\n", { status: 200 });
@@ -341,112 +379,76 @@ export async function startSlackBot() {
     60 * 60 * 1000,
   );
 
-  // Initialize Socket Mode client with app-level token
-  const socketModeClient = new SocketModeClient({
-    appToken: process.env.SLACK_SOCKET_TOKEN || DIE("missing env.SLACK_SOCKET_TOKEN"),
-  });
+  logger.info(`BOT - Webhook mode active. Listening on port ${port} at /slack/events`);
+}
 
-  // Handle all events via events_api envelope, https://docs.slack.dev/reference/events/message
-  socketModeClient
-    .on("app_mention", async ({ event, body, ack }) => {
-      const parsedEvent = await zAppMentionEvent.parseAsync(event);
+const zSlackMessage = z
+  .object({
+    type: z.literal("message"),
+    user: z.string().optional(),
+    ts: z.string().optional(),
+    client_msg_id: z.string().optional(),
+    text: z.string().optional(),
+    team: z.string().optional(),
+    thread_ts: z.string().optional(),
+    parent_user_id: z.string().optional(),
+    blocks: z.array(zSlackBlock).optional(),
+    channel: z.string().optional(),
+    channel_type: z.string().optional(),
+    assistant_thread: z.unknown().optional(),
+    attachments: z.array(zSlackAttachment).optional(),
+    event_ts: z.string().optional(),
+    bot_id: z.string().optional(),
+  })
+  .passthrough();
 
-      // Acknowledge the event as its parsed
-      await ack();
-      await spawnBotOnSlackMessageEvent(parsedEvent);
-    })
-    .on("message", async ({ event, body, ack }) => {
-      // bot-1  | msg:  {"type":"message","user":"U04F3GHTG2X","ts":"1767100459.669809","client_msg_id":"2fed13c0-9739-4888-a4f6-b876c25f1407","text":"test","team":"T0462DJ9G3C","blocks":[{"type":"rich_text","block_id":"gB9fq","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"test"}]}]}],"channel":"C0A6Y4AU52L","event_ts":"1767100459.669809","channel_type":"channel"}
-      // Parse the message event
-      const zSlackMessage = z
-        .object({
-          type: z.literal("message"),
-          user: z.string().optional(),
-          ts: z.string().optional(),
-          client_msg_id: z.string().optional(),
-          text: z.string().optional(),
-          team: z.string().optional(),
-          thread_ts: z.string().optional(),
-          parent_user_id: z.string().optional(),
-          blocks: z.array(zSlackBlock).optional(),
-          channel: z.string().optional(),
-          channel_type: z.string().optional(),
-          assistant_thread: z.unknown().optional(),
-          attachments: z.array(zSlackAttachment).optional(),
-          event_ts: z.string().optional(),
-          bot_id: z.string().optional(),
-        })
-        .passthrough();
+async function handleSlackEvent(event: unknown) {
+  const raw = event as Record<string, unknown>;
 
-      const messageEvent = zSlackMessage.parse(event);
+  if (raw.type === "app_mention") {
+    const parsedEvent = await zAppMentionEvent.parseAsync(event);
+    await spawnBotOnSlackMessageEvent(parsedEvent);
+    return;
+  }
 
-      logger.debug("MESSAGE EVENT", { event });
-      logger.debug("parsed_text: " + (await parseSlackMessageToMarkdown(messageEvent.text || "")));
+  if (raw.type === "message") {
+    const messageEvent = zSlackMessage.parse(event);
+    logger.debug("MESSAGE EVENT", { event });
 
-      await ack();
+    if (messageEvent.bot_id) return;
 
-      // Skip bot messages
-      if (messageEvent.bot_id) {
-        return;
-      }
+    const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K";
+    const text = messageEvent.text || "";
+    const hasBotMention = text.includes(`<@${botUserId}>`);
+    const isDM = messageEvent.channel_type === "im" || messageEvent.channel_type === "mpdm";
 
-      // Get my bot user ID
-      const botUsername = "comfyprbot";
-      // TODO: fetch botUserId by botUsername or use slack api to "get my name"
-      const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K"; // ComfyPR-Bot user ID
-
-      // Check if message mentions the bot
-      const text = messageEvent.text || "";
-      const hasBotMention = text.includes(`<@${botUserId}>`);
-
-      // Handle DM messages (channel_type: "im") and treat them like app mentions
-      const isDM = messageEvent.channel_type === "im" || messageEvent.channel_type === "mpdm";
-
-      if (
-        (isDM || hasBotMention) &&
-        messageEvent.user &&
-        messageEvent.text &&
-        messageEvent.channel &&
-        messageEvent.ts &&
-        messageEvent.team &&
-        messageEvent.event_ts
-      ) {
-        const eventType = isDM ? "DM" : "BOT MENTION";
-        logger.debug(`${eventType} DETECTED - Processing message as app_mention`, {
-          channel: messageEvent.channel,
-          ts: messageEvent.ts,
-          text: text.substring(0, 100),
-        });
-
-        const mentionEvent: z.infer<typeof zAppMentionEvent> = {
-          type: "app_mention" as const,
-          user: messageEvent.user,
-          ts: messageEvent.ts,
-          client_msg_id: messageEvent.client_msg_id,
-          text: messageEvent.text,
-          team: messageEvent.team,
-          thread_ts: messageEvent.thread_ts,
-          parent_user_id: messageEvent.parent_user_id,
-          blocks: messageEvent.blocks || [],
-          channel: messageEvent.channel,
-          assistant_thread: messageEvent.assistant_thread,
-          attachments: messageEvent.attachments,
-          event_ts: messageEvent.event_ts,
-        };
-        await spawnBotOnSlackMessageEvent(mentionEvent);
-      }
-    })
-    .on("error", (error) => {
-      logger.error("Socket Mode error", { error });
-    })
-    .on("connect", () => logger.info("SOCKET - Slack connected"))
-    .on("disconnect", () => logger.info("SOCKET - Slack disconnected"))
-    .on("ready", () => logger.info("SOCKET - Ready to receive events"));
-
-  logger.info("BOT - Connecting to Slack Socket Mode...");
-  await socketModeClient.start();
-  logger.info("BOT - socketModeClient.start() returned");
-  return socketModeClient;
+    if (
+      (isDM || hasBotMention) &&
+      messageEvent.user &&
+      messageEvent.text &&
+      messageEvent.channel &&
+      messageEvent.ts &&
+      messageEvent.team &&
+      messageEvent.event_ts
+    ) {
+      const mentionEvent: z.infer<typeof zAppMentionEvent> = {
+        type: "app_mention" as const,
+        user: messageEvent.user,
+        ts: messageEvent.ts,
+        client_msg_id: messageEvent.client_msg_id,
+        text: messageEvent.text,
+        team: messageEvent.team,
+        thread_ts: messageEvent.thread_ts,
+        parent_user_id: messageEvent.parent_user_id,
+        blocks: messageEvent.blocks || [],
+        channel: messageEvent.channel,
+        assistant_thread: messageEvent.assistant_thread,
+        attachments: messageEvent.attachments,
+        event_ts: messageEvent.event_ts,
+      };
+      await spawnBotOnSlackMessageEvent(mentionEvent);
+    }
+  }
 }
 async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEvent>) {
   // msg dedup for same content
