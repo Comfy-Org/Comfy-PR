@@ -77,6 +77,9 @@ const logger = winston.createLogger({
 });
 
 const TaskInputFlows = new Map<string, TransformStream<string, string>>();
+// AbortControllers keyed by `${channel}:${ts}` of the original user message
+// so a Slack reaction handler can cancel the running agent.
+const TaskAbortControllers = new Map<string, AbortController>();
 // https://comfy-pr-bot.pages.dev/
 // Slack block type definition
 const zSlackBlock = z
@@ -425,6 +428,43 @@ const zSlackMessage = z
 
 async function handleSlackEvent(event: unknown) {
   const raw = event as Record<string, unknown>;
+
+  // ❌ reaction → cancel the matching running task. The reaction is on
+  // the original user message, so we look up its (channel, ts) in
+  // TaskAbortControllers. Only the message author can cancel — this
+  // prevents bystanders in the channel from killing other people's tasks.
+  if (raw.type === "reaction_added") {
+    const reaction = raw.reaction as string | undefined;
+    const item = raw.item as { type?: string; channel?: string; ts?: string } | undefined;
+    const reactingUser = raw.user as string | undefined;
+    if (reaction === "x" && item?.type === "message" && item.channel && item.ts) {
+      const key = `${item.channel}:${item.ts}`;
+      const ac = TaskAbortControllers.get(key);
+      if (!ac) return;
+
+      try {
+        const original = await slack.conversations.replies({
+          channel: item.channel,
+          ts: item.ts,
+          limit: 1,
+        });
+        const author = original.messages?.[0]?.user;
+        if (reactingUser && author && reactingUser !== author) {
+          logger.info(`Ignoring ❌ from <@${reactingUser}> on task by <@${author}>`);
+          return;
+        }
+      } catch (err) {
+        logger.warn("Could not verify reaction author, allowing cancel", { err });
+      }
+
+      logger.warn(`User <@${reactingUser}> cancelled task ${key} via ❌ reaction`);
+      ac.abort();
+      await slack.reactions
+        .add({ name: "no_entry", channel: item.channel, timestamp: item.ts })
+        .catch(() => {});
+    }
+    return;
+  }
 
   if (raw.type === "app_mention") {
     const parsedEvent = await zAppMentionEvent.parseAsync(event);
@@ -917,6 +957,37 @@ Respond in JSON format with the following fields:
 
   await Bun.write(`${botWorkingDir}/CLAUDE.md`, CLAUDEMD);
 
+  // Download images attached to the triggering message into ./attachments/ so
+  // Claude (which has vision) can open them locally instead of needing a
+  // Slack-authenticated URL fetch.
+  const attachmentsDir = `${botWorkingDir}/attachments`;
+  const downloadedImages: { localPath: string; name: string; mimetype?: string }[] = [];
+  const triggeringFiles = nearbyMessages.find((m) => m.ts === event.ts)?.files ?? [];
+  if (triggeringFiles.length > 0) {
+    await mkdir(attachmentsDir, { recursive: true });
+    const slackToken =
+      process.env.SLACK_BOT_TOKEN || DIE("missing SLACK_BOT_TOKEN for image download");
+    for (const file of triggeringFiles) {
+      if (!file.url_private || !file.mimetype?.startsWith("image/")) continue;
+      try {
+        const resp = await fetch(file.url_private, {
+          headers: { Authorization: `Bearer ${slackToken}` },
+        });
+        if (!resp.ok) {
+          logger.warn(`Image download failed (${resp.status}) for ${file.name}`);
+          continue;
+        }
+        const safeName = (file.name || `image-${Date.now()}`).replace(/[^\w.-]/g, "_");
+        const localPath = `${attachmentsDir}/${safeName}`;
+        await Bun.write(localPath, await resp.bytes());
+        downloadedImages.push({ localPath, name: safeName, mimetype: file.mimetype });
+        logger.info(`Downloaded image ${safeName} (${file.mimetype}) → ${localPath}`);
+      } catch (err) {
+        logger.warn("Image download error", { err, file: file.name });
+      }
+    }
+  }
+
   // clone https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot to ./repos/prbot (branch: sno-bot)
   const prBotRepoDir = `${botWorkingDir}/codes/Comfy-Org/pr-bot/tree/main`;
   await mkdir(prBotRepoDir, { recursive: true });
@@ -1001,10 +1072,14 @@ When a prbot CLI command fails:
   );
   await Bun.$`code ${botWorkingDir}`.catch(() => null); // open the working dir in vscode for debugging
 
+  const attachmentsBlock = downloadedImages.length
+    ? `\nATTACHED IMAGES (downloaded into ./attachments/, open them with the Read tool to see the contents):\n${downloadedImages.map((i) => `- ./attachments/${i.name} (${i.mimetype})`).join("\n")}\n`
+    : "";
+
   const agentPrompt = `
 the @${username} intented to ${resp.user_intent}
 Please assist them with their request using all your resources available.
-
+${attachmentsBlock}
 IMPORTANT WORKSPACE CONVENTIONS:
 - Save ALL deliverables (documents, guides, reports, summaries, analysis, code snippets, etc.) to ./deliverable-<name>.md in the current workspace directory. For example: ./deliverable-draft-pr-guide.md, ./deliverable-research-report.md
 - Log any tool errors or failures to ./TOOLS_ERRORS.md
@@ -1049,6 +1124,8 @@ IMPORTANT WORKSPACE CONVENTIONS:
     "Please read PROMPT.txt and TODO.md in the current directory and complete all tasks listed there.";
 
   const abortController = new AbortController();
+  const abortKey = `${event.channel}:${event.ts}`;
+  TaskAbortControllers.set(abortKey, abortController);
 
   // Handle follow-up messages: when user sends more messages in the thread,
   // pipe them to the running agent via streamInput
@@ -1087,6 +1164,10 @@ IMPORTANT WORKSPACE CONVENTIONS:
   const idleWaiter = new IdleWaiter();
   let isThinking = false;
 
+  // Track GitHub PR URLs surfaced by the sub-agent so they always appear in 📎 成果物.
+  const seenPrUrls = new Set<string>();
+  const PR_URL_RE = /https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+/g;
+
   // Slack update logic — extracted so it can be called from interval and finally
   let lastSlackUpdateTime = 0;
   const MIN_SLACK_UPDATE_INTERVAL_MS = 10_000; // minimum 10s between LLM-synthesized updates
@@ -1099,6 +1180,8 @@ IMPORTANT WORKSPACE CONVENTIONS:
 
     const news = agentOutput.slice(lastSentOutput.length);
     lastSentOutput = agentOutput;
+
+    for (const url of news.match(PR_URL_RE) ?? []) seenPrUrls.add(url);
 
     const my_internal_thoughts = agentOutput.split("\n").slice(-80).join("\n");
     logger.info(
@@ -1119,6 +1202,10 @@ IMPORTANT WORKSPACE CONVENTIONS:
       news,
       user_original_intent: resp.user_intent,
       my_response_md_original: quickRespondMsg.text || "",
+      // Auto-extracted GitHub PR URLs the agent has produced so far. The
+      // prompt template instructs the model to surface every entry under
+      // the 📎 成果物 section so users never miss a freshly-opened PR.
+      detected_pr_urls: [...seenPrUrls],
     };
     const updateResponseResp = (await zChatCompletion(
       { my_response_md_updated: z.string() },
@@ -1138,6 +1225,7 @@ Keep at most 8 recent bullets; drop oldest when over limit.
 
 ## 📎 成果物
 Links to deliverables (PR URLs, gist/file shares). Omit if none.
+IMPORTANT: every URL listed in contexts.detected_pr_urls MUST appear here as a bullet (e.g. "- PR: <url>"). Never drop one once it has been surfaced.
 
 ## ✅ 完了
 Checklist "- [x] …" for finished subtasks. Omit if none.
@@ -1341,6 +1429,7 @@ ${yaml.stringify(contexts)}
     await sendSlackUpdate().catch((err) => logger.error("Final Slack update error:", { err }));
     // Cancel input drain
     abortController.abort();
+    TaskAbortControllers.delete(abortKey);
   }
 
   TaskInputFlows.delete(workspaceId);
