@@ -279,9 +279,30 @@ export async function startSlackBot() {
 
         // Event callbacks — handle async, respond 200 immediately
         if (payload.type === "event_callback") {
+          const retryNum = req.headers.get("x-slack-retry-num");
+          const retryReason = req.headers.get("x-slack-retry-reason");
+          const eventId =
+            payload.event_id ||
+            `${payload.event?.channel ?? "-"}_${payload.event?.event_ts ?? payload.event?.ts ?? "-"}`;
+
+          const alreadySeen = await SlackBotState.get(`webhook-event-${eventId}`);
+          if (alreadySeen) {
+            logger.info(
+              `Ignoring duplicate webhook event ${eventId} (retry=${retryNum ?? "0"}, reason=${retryReason ?? "-"}, firstSeenAt=${new Date(alreadySeen.receivedAt).toISOString()})`,
+            );
+            return new Response("", { status: 200 });
+          }
+
+          // TTL 1h — Slack retries up to ~30min, so 1h covers worst case
+          await SlackBotState.set(
+            `webhook-event-${eventId}`,
+            { receivedAt: Date.now(), retryNum, retryReason },
+            60 * 60 * 1000,
+          );
+
           const event = payload.event;
           handleSlackEvent(event).catch((err) =>
-            logger.error("Webhook event handler error", { err }),
+            logger.error("Webhook event handler error", { err, eventId }),
           );
         }
 
