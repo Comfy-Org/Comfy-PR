@@ -45,7 +45,6 @@ export const GithubActionUpdateTask = db.collection<{
   forkedBranchCleaningStatus?: "cleaned" | "keep";
 }>("GithubActionUpdateTask");
 
-// Performance: Performance Advisor flagged full-scans (4310 docs) for regex queries on error/pullRequestMessage
-// These indexes allow prefix-anchored regex queries to use the index (non-prefix regex still scans)
+// Performance: error is a short string, safe to index for regex/existence queries
+// pullRequestMessage is NOT indexed — values are ~1.6KB (template size), risking B-tree key-too-large errors
 GithubActionUpdateTask.createIndex({ error: 1 }, { sparse: true, name: "idx_error" }).catch(() => {});
-GithubActionUpdateTask.createIndex({ pullRequestMessage: 1 }, { sparse: true, name: "idx_pull_request_message" }).catch(() => {});
