@@ -273,8 +273,9 @@ export async function runGithubDesignTask() {
                   reviewers: newReviewers,
                 });
               } catch (err: any) {
-                // GitHub returns 422 when the requested reviewer is the PR author
-                // or otherwise cannot be added. Record the attempt to avoid
+                // GitHub may return 422 when a requested reviewer cannot be added,
+                // such as when they are not a collaborator, cannot be requested,
+                // or have already been requested. Record the attempt to avoid
                 // retrying on every 5-minute schedule run.
                 if (err?.status !== 422) throw err;
                 tlog(`Reviewer request rejected (422): ${err.message}`);
