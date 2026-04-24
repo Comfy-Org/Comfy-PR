@@ -744,7 +744,34 @@ Respond in JSON format with the following fields:
     .add({ name: "eyes", channel: event.channel, timestamp: event.ts })
     .catch(() => {});
 
-  // quick-intent-detect-respond by chatgpt, give quick plan/context responds before start heavy agent work
+  // Post a placeholder immediately so the user sees activity within 1–2s.
+  // The real intent analysis runs in parallel below and edits this same message.
+  type QuickRespondMsg = { ts: string; text: string; channel?: string; url?: string };
+  const placeholderText = "👀 受け取りました。内容を確認しています…";
+  const existingPlaceholder = (await SlackBotState.get(`task-quick-respond-msg-${eventId}`)) as
+    | QuickRespondMsg
+    | undefined;
+  let placeholderTs: string;
+  if (existingPlaceholder?.ts) {
+    placeholderTs = existingPlaceholder.ts;
+  } else {
+    const posted = await safeSlackPostMessage(slack, {
+      channel: event.channel,
+      thread_ts: event.ts,
+      text: placeholderText,
+      blocks: [{ type: "markdown", text: placeholderText }],
+    });
+    placeholderTs = posted.ts!;
+    await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
+      ts: placeholderTs,
+      text: placeholderText,
+      channel: event.channel,
+      url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${placeholderTs.replace(".", "")}`,
+    });
+  }
+
+  // Intent detection — mini is fast/cheap and good enough for classification;
+  // falls back to 4o implicitly via retries inside zChatCompletion on failure.
   const resp = await zChatCompletion(
     z.object({
       user_intent: z.string(),
@@ -752,7 +779,7 @@ Respond in JSON format with the following fields:
       should_spawn_agent: z.boolean(),
     }),
     {
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
     },
   )`
 The user mentioned me with the following message in Slack: ${event.text}
@@ -782,91 +809,30 @@ Respond in JSON format with the following fields:
 `;
 
   const myResponseMessage = await mdFmt(resp.my_respond_before_spawn_agent);
-  // - spawn_agent?: true or false, indicating whether an agent is needed to handle this request. e.g. if the user is asking for complex tasks like searching the web, managing repositories, or interacting with other services, or need to check original thread, set this to true.
   logger.info("Intent detection response", JSON.stringify({ resp }));
 
-  // upsert quick respond msg
-  type QuickRespondMsg = { ts: string; text: string; channel?: string; url?: string };
-  const quickRespondMsg = await SlackBotState.get(`task-quick-respond-msg-${eventId}`).then(
-    async (existing: QuickRespondMsg | undefined) => {
-      if (existing) {
-        await slack.reactions
-          .remove({ name: "x", channel: existing.channel!, timestamp: existing.ts! })
-          .catch(() => {});
-
-        // if its a DM, always create a new message
-        // if (isDM) {
-        //   const newMsg = await slack.chat.postMessage({
-        //     channel: event.channel,
-        //     thread_ts: event.ts,
-        //     text: myResponseMessage,
-        //     blocks: [
-        //       {
-        //         type: "markdown",
-        //         text: myResponseMessage,
-        //       },
-        //     ],
-        //   });
-        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: myResponseMessage });
-        //   return { ...newMsg, text: myResponseMessage };
-        // }
-        // actually lets always post new msg for now.
-        // if (true) {
-        //   const newMsg = await slack.chat.postMessage({
-        //     channel: event.channel,
-        //     thread_ts: event.ts,
-        //     text: myResponseMessage,
-        //     blocks: [
-        //       {
-        //         type: "markdown",
-        //         text: myResponseMessage,
-        //       },
-        //     ],
-        //   });
-        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: myResponseMessage });
-        //   return { ...newMsg, text: myResponseMessage };
-        // }
-
-        const msg = await safeSlackUpdateMessage(slack, {
-          channel: event.channel,
-          ts: existing.ts,
-          text: myResponseMessage, // Fallback text for notifications
-          blocks: [
-            {
-              type: "markdown",
-              text: myResponseMessage,
-            },
-          ],
-        });
-        await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
-          ts: existing.ts,
-          text: myResponseMessage,
-          channel: event.channel,
-          url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${existing.ts.replace(".", "")}`,
-        });
-        return { ...msg, text: myResponseMessage };
-      } else {
-        const newMsg = await safeSlackPostMessage(slack, {
-          channel: event.channel,
-          thread_ts: event.ts,
-          text: myResponseMessage, // Fallback text for notifications
-          blocks: [
-            {
-              type: "markdown",
-              text: myResponseMessage,
-            },
-          ],
-        });
-        await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
-          ts: newMsg.ts!,
-          text: myResponseMessage,
-          channel: event.channel,
-          url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${newMsg.ts!.replace(".", "")}`,
-        });
-        return { ...newMsg, text: myResponseMessage };
-      }
-    },
-  );
+  // Replace the earlier "👀 受け取りました" placeholder with the LLM-synthesized intro.
+  // placeholderTs was set during the pre-intent fast-ack above.
+  await slack.reactions
+    .remove({ name: "x", channel: event.channel, timestamp: placeholderTs })
+    .catch(() => {});
+  await safeSlackUpdateMessage(slack, {
+    channel: event.channel,
+    ts: placeholderTs,
+    text: myResponseMessage,
+    blocks: [{ type: "markdown", text: myResponseMessage }],
+  });
+  await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
+    ts: placeholderTs,
+    text: myResponseMessage,
+    channel: event.channel,
+    url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${placeholderTs.replace(".", "")}`,
+  });
+  const quickRespondMsg: QuickRespondMsg = {
+    ts: placeholderTs,
+    text: myResponseMessage,
+    channel: event.channel,
+  };
 
   // and now, lets update quickRespondMsg freq until user is satisfied or agent finished its work
 
@@ -1143,63 +1109,61 @@ IMPORTANT WORKSPACE CONVENTIONS:
         }),
     );
 
-    // GPT-4o synthesis for Slack update
+    // Route small incremental updates to the cheaper mini model (~80% cost cut).
+    // Fall back to gpt-4o on large diffs or when no prior message exists.
+    const hasPrior = (quickRespondMsg.text || "").length > 0;
+    const updateModel = hasPrior && news.length < 2000 ? "gpt-4o-mini" : "gpt-4o";
+
     const contexts = {
       my_internal_thoughts,
       news,
       user_original_intent: resp.user_intent,
       my_response_md_original: quickRespondMsg.text || "",
     };
-    const updateResponseResp = (await zChatCompletion({
-      my_response_md_updated: z.string(),
-    })`
-TASK: Update my my_response_md_original based on agent's my_internal_thoughts findings, and give me my_response_md_updated to post in slack.
+    const updateResponseResp = (await zChatCompletion(
+      { my_response_md_updated: z.string() },
+      { model: updateModel },
+    )`
+TASK: Update my_response_md_original for Slack using the agent's new my_internal_thoughts.
+Output the FULL updated message (not a diff), preserving the section structure below.
+
+SECTION STRUCTURE (keep these exact headings in this order; omit a section only if it has no content):
+## 📋 理解
+One short line restating user intent.
+
+## 🔍 進捗
+Bulleted current progress. Append new bullets for new findings.
+Prefix in-progress bullets with "- ⏳" and completed with "- ✅".
+Keep at most 8 recent bullets; drop oldest when over limit.
+
+## 📎 成果物
+Links to deliverables (PR URLs, gist/file shares). Omit if none.
+
+## ✅ 完了
+Checklist "- [x] …" for finished subtasks. Omit if none.
 
 RULES:
-- Do not remove unknown parts from my_response_md_original that are not mentioned in my_internal_thoughts.
-- Preserve markdown formatting in my_response_md_original.
-- If my_internal_thoughts contains new information, append it to the relevant sections in my_response_md_original.
-- If my_internal_thoughts indicates completion of a task, add a "Tasks" section at the end of my_response_md_original with - [x] mark.
-- Ensure my_response_md_updated is clear and concise.
-- Use **bold** to highlight new sections or important updates. Remove previously highlighted sections if they're no longer relevant.
-- If all information from my_internal_thoughts is already contained in my_response_md_original, return: {my_response_md_updated: "__NOTHING_CHANGED__"}
+- Preserve finished "- [x]" items. Never delete them.
+- If my_internal_thoughts contains brand new information, add it as a bullet under 進捗.
+- If a previous ⏳ bullet is now done, flip it to ✅ (and if it ends a logical subtask, also append to 完了).
+- If truly nothing changed since my_response_md_original, return {my_response_md_updated: "__NOTHING_CHANGED__"}.
 
-CRITICAL FILTERING RULES (Non-negotiable):
-- KEEP ONLY: User-facing progress, task completion status, findings relevant to user's intent, next steps
-- REMOVE: File paths, system info, debug output, error stack traces, internal process details, development notes
-- EXAMPLES OF WHAT TO REMOVE:
-  - "/bot/slack/channel-id/timestamp" (internal paths)
-  - "undefined/null received in chunk" (internal errors)
-  - "DEBUG: ..." (debug output)
-  - "✓ Created /tmp/cache/..." (internal file operations)
-  - "[2026-02-20T15:10:40.123Z]" (timestamps)
+CRITICAL FILTERING (non-negotiable):
+- KEEP: user-facing progress, task completion, findings relevant to user's intent, PR/doc URLs
+- REMOVE: file paths, stack traces, debug output, timestamps, internal process logs, env var values
+  Examples to drop: "/bot/slack/...", "DEBUG: ...", "[2026-..]", "✓ Created /tmp/...", "undefined received in chunk"
 
 TONE & LENGTH:
-- KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents
-- Response should be up to 16 lines maximum (agent posts long reports as .md files)
-- Focus ONLY on end-user's question or intent's helpful contents
-- Describe current progress in up to 7 words (less is better)
-- Avoid jargon; write for non-technical users when possible
-
-FORMAT REQUIREMENTS:
-- Output in standard markdown format (GitHub flavored)
-- YOU CAN ONLY change/remove/add up to 1 line per update!
-- LENGTH LIMIT: Must be within 4000 characters (system will truncate if exceeding)
-- MOST IMPORTANT: Keep my_response_md_original's context and formatting mostly unchanged, only update necessary lines
-
-DO NOT:
-- Ask the user questions
-- Include error details (they're logged separately for developers)
-- Show code blocks or technical configs
-- Show internal process logs or environment variables
-- Show any paths starting with "/" or "./"
-
-- Here's Contexts in YAML for your respondse:
+- Short, informative; link out instead of pasting large content
+- Up to ~16 lines total across all sections
+- Non-technical wording when possible
+- No questions to the user, no code blocks, no raw paths beginning with "/" or "./"
+- LENGTH LIMIT: <= 4000 chars (system truncates if exceeded)
+- Standard GitHub-flavored markdown
 
 <task-context-yaml>
 ${yaml.stringify(contexts)}
 </task-context-yaml>
-
 `) as { my_response_md_updated: string };
 
     // Log raw response
