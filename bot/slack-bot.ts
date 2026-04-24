@@ -1364,7 +1364,11 @@ ${yaml.stringify(contexts)}
   };
 
   // Periodic Slack update interval
-  const slackUpdateInterval = setInterval(sendSlackUpdate, 10e3);
+  // Synthesizer runs less aggressively now: the agent is instructed to call
+  // `prbot slack update` directly for real progress, so this interval is just
+  // a safety net for agents that go quiet on Slack while still producing
+  // tool output. 30s vs the old 10s further cuts LLM cost.
+  const slackUpdateInterval = setInterval(sendSlackUpdate, 30e3);
 
   // Run the agent
   let exitCode: number | null = 0;
