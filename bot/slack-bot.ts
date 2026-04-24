@@ -389,8 +389,13 @@ export async function startSlackBot() {
         const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
           workingMessageEvents: [],
         };
+        // Keep keys in sync with workspaceId = thread_ts || ts; otherwise
+        // long-running threaded tasks get marked stale and their isolated
+        // Linux users get deleted out from under them.
         const activeIds = new Set<string>(
-          (workingTasks.workingMessageEvents || []).map((e: { ts: string }) => e.ts),
+          (workingTasks.workingMessageEvents || []).map(
+            (e: { ts: string; thread_ts?: string }) => e.thread_ts || e.ts,
+          ),
         );
         const cleaned = await cleanupStaleTaskUsers(activeIds);
         if (cleaned.length > 0) {
@@ -529,7 +534,13 @@ async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEven
   const dedupKey = `msg-${event.ts}-${contentHash}`;
   const eventProcessed = await SlackBotState.get(dedupKey);
   if (+new Date() - (eventProcessed?.touchedAt ?? 0) <= 10e3) return;
-  await SlackBotState.set(dedupKey, { touchedAt: +new Date(), content: event.text });
+  // 1h TTL keeps the dedup window long enough to absorb Slack edit retries
+  // without growing the SlackBotState collection unboundedly.
+  await SlackBotState.set(
+    dedupKey,
+    { touchedAt: +new Date(), content: event.text },
+    60 * 60 * 1000,
+  );
 
   logger.info(
     await parseSlackMessageToMarkdown(
@@ -1013,22 +1024,35 @@ Respond in JSON format with the following fields:
   // Slack-authenticated URL fetch.
   const attachmentsDir = `${botWorkingDir}/attachments`;
   const downloadedImages: { localPath: string; name: string; mimetype?: string }[] = [];
+  const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25MB — Slack's free-tier upload cap
   const triggeringFiles = nearbyMessages.find((m) => m.ts === event.ts)?.files ?? [];
   if (triggeringFiles.length > 0) {
     await mkdir(attachmentsDir, { recursive: true });
     const slackToken =
       process.env.SLACK_BOT_TOKEN || DIE("missing SLACK_BOT_TOKEN for image download");
-    for (const file of triggeringFiles) {
-      if (!file.url_private || !file.mimetype?.startsWith("image/")) continue;
+    for (const [idx, file] of triggeringFiles.entries()) {
+      const downloadUrl =
+        (file as { url_private_download?: string }).url_private_download || file.url_private;
+      if (!downloadUrl || !file.mimetype?.startsWith("image/")) continue;
+      if (typeof file.size === "number" && file.size > MAX_IMAGE_BYTES) {
+        logger.warn(
+          `Skipping oversized image ${file.name} (${file.size} bytes > ${MAX_IMAGE_BYTES})`,
+        );
+        continue;
+      }
       try {
-        const resp = await fetch(file.url_private, {
+        const resp = await fetch(downloadUrl, {
           headers: { Authorization: `Bearer ${slackToken}` },
         });
         if (!resp.ok) {
           logger.warn(`Image download failed (${resp.status}) for ${file.name}`);
           continue;
         }
-        const safeName = (file.name || `image-${Date.now()}`).replace(/[^\w.-]/g, "_");
+        // Prefix with idx + Slack file id (when available) so two attachments
+        // with the same filename don't collide and overwrite each other.
+        const fileId = (file as { id?: string }).id ?? `i${idx}`;
+        const baseName = (file.name || "image").replace(/[^\w.-]/g, "_");
+        const safeName = `${fileId}-${baseName}`;
         const localPath = `${attachmentsDir}/${safeName}`;
         await Bun.write(localPath, await resp.bytes());
         downloadedImages.push({ localPath, name: safeName, mimetype: file.mimetype });
@@ -1208,6 +1232,12 @@ IMPORTANT WORKSPACE CONVENTIONS:
       }
     } catch {
       // taskInputFlow closed
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {
+        /* already released or stream errored */
+      }
     }
   })();
 
