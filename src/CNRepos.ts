@@ -100,7 +100,7 @@ CNRepos.createIndex(
 CNRepos.createIndex(
   { "crPulls.data.comments.state": 1 },
   { name: "idx_crpulls_comments_state", sparse: true, background: true },
-).catch(() => {});
+).catch(console.error);
 
 // Note: pulls.mtime index is created by setup-performance-indexes.ts script
 // Run: bun run db:setup-indexes
