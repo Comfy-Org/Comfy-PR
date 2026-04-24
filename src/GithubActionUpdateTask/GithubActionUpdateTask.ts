@@ -44,3 +44,8 @@ export const GithubActionUpdateTask = db.collection<{
   // stage 4, clean forked repo after pr was merged/closed
   forkedBranchCleaningStatus?: "cleaned" | "keep";
 }>("GithubActionUpdateTask");
+
+// Performance: Performance Advisor flagged full-scans (4310 docs) for regex queries on error/pullRequestMessage
+// These indexes allow prefix-anchored regex queries to use the index (non-prefix regex still scans)
+GithubActionUpdateTask.createIndex({ error: 1 }, { sparse: true, name: "idx_error" }).catch(() => {});
+GithubActionUpdateTask.createIndex({ pullRequestMessage: 1 }, { sparse: true, name: "idx_pull_request_message" }).catch(() => {});
