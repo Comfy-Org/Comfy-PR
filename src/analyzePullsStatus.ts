@@ -84,6 +84,9 @@ export function baseCRPullStatusPipeline(): Pipeline<
 > {
   return (
     $pipeline(CNRepos)
+      // Early filter: skip docs whose crPulls have no fetched comments — avoids full-scan before $unwind
+      // Uses comments.state (scalar) not comments.data (array) to avoid "Cannot index parallel arrays"
+      .match({ "crPulls.data": { $elemMatch: { "comments.state": "ok" } } })
       // get latest pr comments time
       .set({
         "crPulls.data.pull.latest_comment_at": {

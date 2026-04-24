@@ -44,3 +44,9 @@ export const GithubActionUpdateTask = db.collection<{
   // stage 4, clean forked repo after pr was merged/closed
   forkedBranchCleaningStatus?: "cleaned" | "keep";
 }>("GithubActionUpdateTask");
+
+// Performance: non-sparse index on error to support { error: { $exists: false } } (main task scanner)
+// Must be non-sparse: sparse indexes exclude missing-field docs, so $exists:false still full-scans
+// Note: unanchored regex queries (e.g. /\bRETRYABLE\b/) still scan; index helps existence checks only
+// pullRequestMessage is NOT indexed — values are ~1.6KB (template size), risking B-tree key-too-large errors
+GithubActionUpdateTask.createIndex({ error: 1 }, { name: "idx_error" }).catch(console.error);

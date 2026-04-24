@@ -94,6 +94,14 @@ CNRepos.createIndex(
   },
 ).catch(() => {});
 
+// Index to support early $match before $unwind in baseCRPullStatusPipeline (analyzePullsStatus.ts)
+// Uses comments.state (scalar Task field) to avoid "Cannot index parallel arrays" error —
+// crPulls.data is already one array level, so comments.data (another array) would be invalid.
+CNRepos.createIndex(
+  { "crPulls.data.comments.state": 1 },
+  { name: "idx_crpulls_comments_state", sparse: true, background: true },
+).catch(console.error);
+
 // Note: pulls.mtime index is created by setup-performance-indexes.ts script
 // Run: bun run db:setup-indexes
 
