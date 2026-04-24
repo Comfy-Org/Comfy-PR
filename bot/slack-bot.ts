@@ -473,7 +473,15 @@ async function handleSlackEvent(event: unknown) {
   }
 
   if (raw.type === "message") {
-    const messageEvent = zSlackMessage.parse(event);
+    // message_changed events wrap the edited content under .message; flatten
+    // it so a user editing a prior request triggers a new agent run when the
+    // text is meaningfully different (dedup is content-hash based above).
+    if (raw.subtype === "message_changed" && raw.message && raw.channel) {
+      const inner = raw.message as Record<string, unknown>;
+      Object.assign(raw, inner, { channel: raw.channel, channel_type: raw.channel_type });
+    }
+
+    const messageEvent = zSlackMessage.parse(raw);
     logger.debug("MESSAGE EVENT", { event });
 
     if (messageEvent.bot_id) return;
@@ -512,11 +520,16 @@ async function handleSlackEvent(event: unknown) {
   }
 }
 async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEvent>) {
-  // msg dedup for same content
-  const eventProcessed = await SlackBotState.get(`msg-${event.ts}`);
-  // if (eventProcessed?.content === event.text) return;
-  if (+new Date() - (eventProcessed?.touchedAt ?? 0) <= 10e3) return; // debounce for 10s
-  await SlackBotState.set(`msg-${event.ts}`, { touchedAt: +new Date(), content: event.text });
+  // Dedup by content hash so message edits with new intent re-trigger,
+  // but truly identical retries within 10s are suppressed.
+  const contentHash = createHmac("sha256", "msg")
+    .update(event.text || "")
+    .digest("hex")
+    .slice(0, 8);
+  const dedupKey = `msg-${event.ts}-${contentHash}`;
+  const eventProcessed = await SlackBotState.get(dedupKey);
+  if (+new Date() - (eventProcessed?.touchedAt ?? 0) <= 10e3) return;
+  await SlackBotState.set(dedupKey, { touchedAt: +new Date(), content: event.text });
 
   logger.info(
     await parseSlackMessageToMarkdown(
@@ -647,6 +660,34 @@ async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEven
       }))
       .toArray()
   ).toSorted(compareBy((e) => +(e.ts || 0))); // sort by ts asc
+
+  // Compress thread context: keep the most recent 15 messages verbatim, and
+  // summarize older ones with gpt-4o-mini to slash token usage on long
+  // threads. Skip summarization entirely if there's nothing old.
+  let nearbyMessagesForLLM: typeof nearbyMessages | string = nearbyMessages;
+  if (nearbyMessages.length > 20) {
+    const recent = nearbyMessages.slice(-15);
+    const older = nearbyMessages.slice(0, -15);
+    try {
+      const olderYaml = yaml.stringify(older);
+      const summary = (await zChatCompletion(z.object({ summary: z.string() }), {
+        model: "gpt-4o-mini",
+      })`Summarize the following older Slack thread messages into a tight bullet
+list capturing: (1) decisions made, (2) open questions, (3) named files/PRs/URLs
+mentioned, (4) any errors or constraints surfaced. Keep under 400 words.
+
+<older-messages-yaml>
+${olderYaml}
+</older-messages-yaml>`) as { summary: string };
+
+      nearbyMessagesForLLM = `## Older thread summary (${older.length} messages)\n${summary.summary}\n\n## Recent messages (${recent.length})\n${yaml.stringify(recent)}`;
+      logger.info(
+        `Compressed ${older.length} older messages → summary (${summary.summary.length} chars)`,
+      );
+    } catch (err) {
+      logger.warn("Older-message summarization failed, sending full thread", { err });
+    }
+  }
 
   const existedTaskInputFlow = TaskInputFlows.get(workspaceId);
   if (existedTaskInputFlow && false) {
@@ -817,6 +858,9 @@ Respond in JSON format with the following fields:
       user_intent: z.string(),
       my_respond_before_spawn_agent: z.string(),
       should_spawn_agent: z.boolean(),
+      // simple = lookup/single tool / quick answer; medium = multi-step research;
+      // complex = code change, multi-repo, lots of files, or open-ended exploration.
+      complexity: z.enum(["simple", "medium", "complex"]),
     }),
     {
       model: "gpt-4o-mini",
@@ -827,8 +871,14 @@ Based on this message, please determine the user's intent in a concise manner.
 Also, provide a brief response that I can send to the user immediately to acknowledge their request.
 Finally, I will spawn an agent to help with this request if necessary.
 
-For context, Recent messages from this thread are as follows:
-${nearbyMessages.map((m) => `- User ${m.username} said: ${JSON.stringify(m.markdown)}`).join("\n\n")}
+For context, recent thread messages (older ones may already be summarized):
+${
+  typeof nearbyMessagesForLLM === "string"
+    ? nearbyMessagesForLLM
+    : nearbyMessagesForLLM
+        .map((m) => `- User ${m.username} said: ${JSON.stringify(m.markdown)}`)
+        .join("\n\n")
+}
 
 Possible Context Repos:
 - https://github.com/comfyanonymous/ComfyUI: The main ComfyUI repository containing the core application logic and features. Its a python backend to run unknown machine learning models and solves various machine learning tasks.
@@ -846,6 +896,7 @@ Respond in JSON format with the following fields:
 - user_intent: A brief description of the user's intent. e.g. "The user is asking for help with setting up a CI/CD pipeline."
 - my_respond_before_spawn_agent: A short message I can send to the user right away. e.g. "Got it, let me look into that for you."
 - should_spawn_agent: true if further research needed
+- complexity: "simple" for quick lookups answerable with one tool call; "medium" for multi-step research across docs/code; "complex" for code changes, multi-repo work, or open-ended exploration.
 `;
 
   const myResponseMessage = await mdFmt(resp.my_respond_before_spawn_agent);
@@ -1111,7 +1162,9 @@ IMPORTANT WORKSPACE CONVENTIONS:
           logger.warn(`Error content preview: ${content.substring(0, 500)}...`);
         }
       : undefined,
-    checkInterval: 10000,
+    // fs.watch handles real-time detection; this slow poll is a safety net
+    // for FS layers that drop events.
+    checkInterval: 60_000,
   });
   await errorCollector.start();
 
@@ -1319,6 +1372,12 @@ ${yaml.stringify(contexts)}
     // Prepare workspace ownership for the task user
     await prepareTaskWorkspace(taskUser.username, botWorkingDir);
 
+    // Cap agent turns by classified complexity to avoid runaway cost on
+    // simple questions while still allowing complex tasks room to breathe.
+    const turnsByComplexity = { simple: 40, medium: 100, complex: 200 } as const;
+    const maxTurns = turnsByComplexity[resp.complexity] ?? 200;
+    logger.info(`Agent maxTurns=${maxTurns} for complexity=${resp.complexity}`);
+
     agentQuery = query({
       prompt: sdkPrompt,
       options: {
@@ -1326,7 +1385,7 @@ ${yaml.stringify(contexts)}
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
         settingSources: ["project"], // loads CLAUDE.md from cwd
-        maxTurns: 200,
+        maxTurns,
         persistSession: false,
         abortController,
         // Run the CLI subprocess as the per-task non-root user
