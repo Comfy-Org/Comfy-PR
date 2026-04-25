@@ -303,6 +303,39 @@ async function main() {
             await loadEnvLocal();
 
             const url = args.url as string;
+
+            // Handle @username — resolve to DM channel then read recent messages
+            if (url.startsWith("@")) {
+              const { getSlack } = await import("@/lib/slack");
+              const slack = getSlack();
+              const name = url.slice(1).toLowerCase();
+              type SlackUser = { id?: string; name?: string; real_name?: string };
+              let found: SlackUser | undefined;
+              let cursor: string | undefined;
+              do {
+                const res = await slack.users.list({ limit: 200, ...(cursor ? { cursor } : {}) });
+                found = (res.members as SlackUser[] | undefined)?.find(
+                  (u) =>
+                    (u.name ?? "").toLowerCase() === name ||
+                    (u.real_name ?? "").toLowerCase() === name,
+                );
+                cursor = res.response_metadata?.next_cursor || undefined;
+              } while (!found && cursor);
+              if (!found?.id) {
+                console.error(`User not found: ${url}`);
+                process.exit(1);
+              }
+              const dmRes = await slack.conversations.open({ users: found.id });
+              const channelId = dmRes.channel?.id;
+              if (!channelId) {
+                console.error("Could not open DM");
+                process.exit(1);
+              }
+              const messages = await readRecentMessages(channelId, 20);
+              console.log(yaml.stringify(messages));
+              return;
+            }
+
             const parsed = parseSlackUrlSmart(url);
 
             switch (parsed.type) {
