@@ -35,15 +35,20 @@ async function loadEnvLocalWithOverride() {
     console.log(`[env] ${envPath} not found, using shell env only`);
   }
 
-  // Log prefixes for quick verification (never leak full secrets)
-  const check = (k: string, len = 6) => `${k}=${process.env[k]?.slice(0, len) ?? "(unset)"}...`;
+  // Log short prefixes (≤6 chars) so an operator can confirm the right
+  // value loaded without exposing enough to attempt token reuse if the log
+  // ends up shared. PRBOT_PORT and NODE_ENV are not secrets so the full
+  // value is fine.
+  const prefix = (k: string) =>
+    `${k}=${process.env[k] ? process.env[k]!.slice(0, 6) + "…" : "(unset)"}`;
+  const literal = (k: string) => `${k}=${process.env[k] ?? "(unset)"}`;
   console.log(
     "[env] " +
       [
-        check("SLACK_SIGNING_SECRET"),
-        check("SLACK_BOT_TOKEN", 12),
-        check("PRBOT_PORT", 10),
-        check("NODE_ENV", 10),
+        prefix("SLACK_SIGNING_SECRET"),
+        prefix("SLACK_BOT_TOKEN"),
+        literal("PRBOT_PORT"),
+        literal("NODE_ENV"),
       ].join(" | "),
   );
 }

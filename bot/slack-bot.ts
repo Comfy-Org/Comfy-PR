@@ -303,7 +303,15 @@ export async function startSlackBot() {
             60 * 60 * 1000,
           );
 
-          const event = payload.event;
+          // Slack Events API puts the workspace id on the *envelope*
+          // (`payload.team_id`), not on the inner event in some shapes.
+          // Forward it onto the event so downstream zod schemas that
+          // require `team` (zAppMentionEvent, zSlackMessage filter) don't
+          // silently reject webhook-delivered mentions/DMs.
+          const event = {
+            ...payload.event,
+            team: payload.event?.team || payload.team_id,
+          };
           handleSlackEvent(event).catch((err) =>
             logger.error("Webhook event handler error", { err, eventId }),
           );
@@ -1208,26 +1216,37 @@ IMPORTANT WORKSPACE CONVENTIONS:
   // pipe them to the running agent via streamInput
   let agentQuery: Query | null = null;
 
-  // Drain taskInputFlow into the SDK agent
+  // Drain taskInputFlow into the SDK agent. Buffer values that arrive before
+  // `agentQuery` is created so early follow-ups aren't silently dropped.
+  const earlyBuffer: string[] = [];
+  let agentReady = false;
   const inputDrainPromise = (async () => {
     const reader = taskInputFlow.readable.getReader();
+    const pushToAgent = async (value: string) => {
+      const userMsg: SDKUserMessage = {
+        type: "user" as const,
+        message: { role: "user" as const, content: value },
+        parent_tool_use_id: null,
+        session_id: "",
+      };
+      await (agentQuery as Query).streamInput(
+        (async function* () {
+          yield userMsg;
+        })(),
+      );
+      logger.info(`Injected follow-up message into SDK agent: ${value.slice(0, 100)}`);
+    };
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (value && agentQuery !== null) {
-          const userMsg: SDKUserMessage = {
-            type: "user" as const,
-            message: { role: "user" as const, content: value },
-            parent_tool_use_id: null,
-            session_id: "",
-          };
-          await (agentQuery as Query).streamInput(
-            (async function* () {
-              yield userMsg;
-            })(),
-          );
-          logger.info(`Injected follow-up message into SDK agent: ${value.slice(0, 100)}`);
+        if (!value) continue;
+        if (agentQuery && agentReady) {
+          // Drain anything queued during startup first to preserve order.
+          while (earlyBuffer.length > 0) await pushToAgent(earlyBuffer.shift()!);
+          await pushToAgent(value);
+        } else {
+          earlyBuffer.push(value);
         }
       }
     } catch {
@@ -1412,6 +1431,40 @@ ${yaml.stringify(contexts)}
     const maxTurns = turnsByComplexity[resp.complexity] ?? 200;
     logger.info(`Agent maxTurns=${maxTurns} for complexity=${resp.complexity}`);
 
+    // Allowlist env vars passed into the Claude agent subprocess. The bot
+    // process holds Slack signing/bot tokens that the agent never needs;
+    // forwarding the entire process.env widens the blast radius if the
+    // agent's bash tool is asked to dump env (it will, when prompted).
+    const ghToken = process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env");
+    const passEnv: Record<string, string> = {
+      HOME: taskUser.homeDir,
+      USER: taskUser.username,
+      LOGNAME: taskUser.username,
+      PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
+      LANG: process.env.LANG || "C.UTF-8",
+      LC_ALL: process.env.LC_ALL || "C.UTF-8",
+      TERM: process.env.TERM || "xterm-256color",
+      GH_TOKEN: ghToken,
+      GITHUB_TOKEN: ghToken,
+    };
+    // Whitelist anything the agent legitimately needs at runtime.
+    for (const k of [
+      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
+      "NOTION_TOKEN",
+      "SLACK_BOT_TOKEN", // agent uses prbot slack update / read
+      "PRBOT_PORT",
+      "PRBOT_FEEDBACK_CHANNEL",
+      "MONGODB_URI",
+      "DEBUG",
+      "VERBOSE",
+      "LOG_LEVEL",
+      "NODE_ENV",
+    ]) {
+      const v = process.env[k];
+      if (v) passEnv[k] = v;
+    }
+
     agentQuery = query({
       prompt: sdkPrompt,
       options: {
@@ -1424,18 +1477,13 @@ ${yaml.stringify(contexts)}
         abortController,
         // Run the CLI subprocess as the per-task non-root user
         spawnClaudeCodeProcess: createUserSpawner(taskUser.username, taskUser.homeDir),
-        env: {
-          ...process.env,
-          HOME: taskUser.homeDir,
-          GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
-          GITHUB_TOKEN:
-            process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
-        },
+        env: passEnv,
         stderr: (data: string) => {
           logger.warn(`[agent stderr]: ${data}`);
         },
       },
     });
+    agentReady = true;
 
     await Bun.write(
       statusLogPath,
