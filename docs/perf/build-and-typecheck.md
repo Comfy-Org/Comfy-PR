@@ -17,24 +17,36 @@ The TypeScript server previously experienced severe slowdowns and crashes due to
 ```json
 {
   "include": [
-    "app/**/*.ts", "app/**/*.tsx",
-    "bot/**/*.ts", "bot/**/*.tsx",
-    "components/**/*.ts", "components/**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "bot/**/*.ts",
+    "bot/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
     "gh-service/**/*.ts",
-    "lib/**/*.ts", "lib/**/*.tsx",
+    "lib/**/*.ts",
+    "lib/**/*.tsx",
     "packages/**/*.ts",
     "run/**/*.ts",
     "scripts/**/*.ts",
-    "src/**/*.ts", "src/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     "reports/**/*.ts",
-    "*.ts", "*.tsx",
+    "*.ts",
+    "*.tsx",
     "next-env.d.ts"
   ],
   "exclude": [
-    "node_modules", "**/node_modules",
-    ".next", ".cache", "dist",
-    "prs", "repos", "scripts",
-    "**/*.spec.ts", "**/*.test.ts"
+    "node_modules",
+    "**/node_modules",
+    ".next",
+    ".cache",
+    "dist",
+    "prs",
+    "repos",
+    "scripts",
+    "**/*.spec.ts",
+    "**/*.test.ts"
   ]
 }
 ```
@@ -49,7 +61,7 @@ The TypeScript server previously experienced severe slowdowns and crashes due to
 
 ### Remaining Concerns
 
-1. **`packages/**/*.ts` include** — if workspace packages have their own `node_modules`, those `.ts` files could be scanned
+1. **`packages/**/\*.ts`include** — if workspace packages have their own`node_modules`, those `.ts` files could be scanned
 2. **`scripts` in both include and exclude** — `scripts/**/*.ts` is included, but `scripts` is also excluded. The exclude takes precedence, which means scripts aren't type-checked. This is inconsistent.
 3. **Build memory** — `NODE_OPTIONS: "--max-old-space-size=4096"` in `vercel.json` indicates the build still needs 4 GB RAM, suggesting the webpack bundling itself is memory-heavy (likely due to the large dependency tree).
 
@@ -80,9 +92,9 @@ const nextConfig: NextConfig = {
 
 ## Recommendations
 
-| Fix | Effort | Impact |
-|---|---|---|
-| Enable Turbopack for dev (`next dev --turbo`) | Low | Fast HMR improvements |
-| Configure `@next/bundle-analyzer` | Low | Visibility into bundle sizes |
-| Resolve `scripts` include/exclude conflict | Low | Code hygiene |
-| Upgrade to `next build --turbo` (experimental) | Low | Faster production builds |
+| Fix                                            | Effort | Impact                       |
+| ---------------------------------------------- | ------ | ---------------------------- |
+| Enable Turbopack for dev (`next dev --turbo`)  | Low    | Fast HMR improvements        |
+| Configure `@next/bundle-analyzer`              | Low    | Visibility into bundle sizes |
+| Resolve `scripts` include/exclude conflict     | Low    | Code hygiene                 |
+| Upgrade to `next build --turbo` (experimental) | Low    | Faster production builds     |

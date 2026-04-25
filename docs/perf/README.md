@@ -4,15 +4,15 @@ This directory contains detailed bottleneck analysis for the Comfy-PR site.
 
 ## Documents
 
-| Document | Area | Severity |
-|---|---|---|
-| [client-bundle.md](./client-bundle.md) | Client-side JS bundle size | 🔴 High |
-| [mongodb-queries.md](./mongodb-queries.md) | Database query performance | 🔴 High |
-| [server-rendering.md](./server-rendering.md) | SSR & data-fetching patterns | 🟡 Medium |
-| [dependency-bloat.md](./dependency-bloat.md) | Excessive dependencies | 🟡 Medium |
+| Document                                           | Area                           | Severity     |
+| -------------------------------------------------- | ------------------------------ | ------------ |
+| [client-bundle.md](./client-bundle.md)             | Client-side JS bundle size     | 🔴 High      |
+| [mongodb-queries.md](./mongodb-queries.md)         | Database query performance     | 🔴 High      |
+| [server-rendering.md](./server-rendering.md)       | SSR & data-fetching patterns   | 🟡 Medium    |
+| [dependency-bloat.md](./dependency-bloat.md)       | Excessive dependencies         | 🟡 Medium    |
 | [build-and-typecheck.md](./build-and-typecheck.md) | Build & TypeScript compilation | 🟢 Mitigated |
-| [trpc-api.md](./trpc-api.md) | tRPC API layer inefficiencies | 🟡 Medium |
-| [caching-strategy.md](./caching-strategy.md) | Missing/ineffective caching | 🔴 High |
+| [trpc-api.md](./trpc-api.md)                       | tRPC API layer inefficiencies  | 🟡 Medium    |
+| [caching-strategy.md](./caching-strategy.md)       | Missing/ineffective caching    | 🔴 High      |
 
 ## Summary of Top Bottlenecks
 

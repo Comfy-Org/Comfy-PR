@@ -10,19 +10,19 @@ The application overuses `force-dynamic` rendering and has suboptimal data-fetch
 
 **10+ routes** export `dynamic = "force-dynamic"`:
 
-| Route | File |
-|---|---|
-| `/` (dashboard) | `app/(dashboard)/page.tsx` |
-| `/details` | `app/(dashboard)/details/page.tsx` |
-| `/totals` | `app/(dashboard)/totals/page.tsx` |
-| `/rules` | `app/(dashboard)/rules/page.tsx` |
-| `/rules/[name]` | `app/(dashboard)/rules/[name]/page.tsx` |
+| Route                          | File                                                   |
+| ------------------------------ | ------------------------------------------------------ |
+| `/` (dashboard)                | `app/(dashboard)/page.tsx`                             |
+| `/details`                     | `app/(dashboard)/details/page.tsx`                     |
+| `/totals`                      | `app/(dashboard)/totals/page.tsx`                      |
+| `/rules`                       | `app/(dashboard)/rules/page.tsx`                       |
+| `/rules/[name]`                | `app/(dashboard)/rules/[name]/page.tsx`                |
 | `/followup/actions/send-gmail` | `app/(dashboard)/followup/actions/send-gmail/page.tsx` |
-| `/tasks` | `app/tasks/page.tsx` |
-| `/tasks/gh-design` | `app/tasks/gh-design/page.tsx` |
-| `/api/trpc/[trpc]` | `app/api/trpc/[trpc]/route.ts` |
-| `/api/dump.csv` | `app/api/(dump)/dump.csv/route.ts` |
-| `/api/dump.yaml` | `app/api/(dump)/dump.yaml/route.ts` |
+| `/tasks`                       | `app/tasks/page.tsx`                                   |
+| `/tasks/gh-design`             | `app/tasks/gh-design/page.tsx`                         |
+| `/api/trpc/[trpc]`             | `app/api/trpc/[trpc]/route.ts`                         |
+| `/api/dump.csv`                | `app/api/(dump)/dump.csv/route.ts`                     |
+| `/api/dump.yaml`               | `app/api/(dump)/dump.yaml/route.ts`                    |
 
 ### Why This Is a Problem
 
@@ -33,6 +33,7 @@ The application overuses `force-dynamic` rendering and has suboptimal data-fetch
 ### Fix (Applied)
 
 Pages that directly access MongoDB at render time still need `force-dynamic` because the build-time DB proxy cannot handle collection queries. However:
+
 1. Pages that don't access DB (e.g., `/totals`, `/details` using `UseSWRComponent`) had `force-dynamic` removed and are now statically prerendered.
 2. DB-accessing pages retain `force-dynamic` but now also declare `revalidate = 300` for when ISR can be enabled in the future (e.g., after migrating to API-driven data fetching).
 
@@ -41,21 +42,24 @@ Pages that directly access MongoDB at render time still need `force-dynamic` bec
 ## `UseSWRComponent` Polling Pattern
 
 **Files:**
+
 - `app/(dashboard)/totals/page.tsx` — `refreshInterval={1e3}` (1 second!)
 - `app/(dashboard)/details/page.tsx` — `refreshInterval={60e3}` (1 minute)
 
 ### How It Works
 
 `UseSWRComponent` from `use-swr-component` is a pattern that:
+
 1. Server-renders the component on first load
 2. Then client-side polls the server component endpoint at `refreshInterval`
 
 ### Problem: 1-Second Polling on Totals
 
 The totals page polls **every 1 second**. Each poll:
+
 1. Makes an HTTP request to the server
 2. Server re-renders the `TotalsBlock` component
-3. `TotalsBlock` calls `updateComfyTotals({ fresh: "30s" })` 
+3. `TotalsBlock` calls `updateComfyTotals({ fresh: "30s" })`
 4. If cache is stale (>30s), runs `analyzeTotals()` — 7 parallel aggregation pipelines
 5. Returns the full HTML
 
@@ -77,8 +81,8 @@ With even 5 concurrent users, this means **5 requests/second** to the server, ea
 export default async function DashboardPage() {
   return (
     <main className="flex flex-wrap">
-      <TotalsPage />        {/* ← analyzeTotals() */}
-      <LatestDetails />     {/* ← analyzePullsStatus(limit=20) */}
+      <TotalsPage /> {/* ← analyzeTotals() */}
+      <LatestDetails /> {/* ← analyzePullsStatus(limit=20) */}
     </main>
   );
 }

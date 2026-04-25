@@ -1,8 +1,12 @@
 /**
  * Error Collector - Monitors child workspace for errors and collects them
+ *
+ * Strategy: fs.watch for fast event-driven response, plus a slow safety-net
+ * poll (default 60s) since recursive watch can drop events on some FS layers
+ * and inside containers.
  */
 
-import { readdir, readFile, appendFile, mkdir } from "fs/promises";
+import { readdir, readFile, appendFile, mkdir, watch } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
@@ -19,13 +23,16 @@ export class ErrorCollector {
   private onError?: (errorPath: string, content: string) => void;
   private checkInterval: number;
   private intervalId?: Timer;
+  private watchAbort?: AbortController;
   private processedErrors = new Set<string>();
+  private debounceTimers = new Map<string, Timer>();
 
   constructor(options: ErrorCollectorOptions) {
     this.workspaceDir = options.workspaceDir;
     this.outputLogPath = options.outputLogPath;
     this.onError = options.onError;
-    this.checkInterval = options.checkInterval || 10000; // 10 seconds default
+    // Slow safety-net poll. Real-time detection comes from fs.watch.
+    this.checkInterval = options.checkInterval || 60_000;
   }
 
   async start() {
@@ -35,7 +42,46 @@ export class ErrorCollector {
     // Initial scan
     await this.scanForErrors();
 
-    // Periodic scanning
+    // Event-driven watcher (recursive). Bursts of writes are coalesced via
+    // a 500ms per-file debounce.
+    if (existsSync(this.workspaceDir)) {
+      this.watchAbort = new AbortController();
+      (async () => {
+        try {
+          const watcher = watch(this.workspaceDir, {
+            recursive: true,
+            signal: this.watchAbort!.signal,
+          });
+          for await (const ev of watcher) {
+            const filename = ev.filename;
+            if (!filename) continue;
+            const lower = filename.toLowerCase();
+            const looksLikeError =
+              lower.includes("error") ||
+              /-errors?\.md$/i.test(filename) ||
+              /tools[_-]errors\.md$/i.test(filename);
+            if (!looksLikeError) continue;
+
+            const full = path.join(this.workspaceDir, filename);
+            const prev = this.debounceTimers.get(full);
+            if (prev) clearTimeout(prev);
+            this.debounceTimers.set(
+              full,
+              setTimeout(() => {
+                this.debounceTimers.delete(full);
+                this.processErrorFile(full).catch(() => {});
+              }, 500),
+            );
+          }
+        } catch (err: unknown) {
+          if ((err as { name?: string })?.name !== "AbortError") {
+            console.error("[ErrorCollector] watch failed, falling back to poll only:", err);
+          }
+        }
+      })();
+    }
+
+    // Periodic scanning (safety net for FS layers that drop watch events)
     this.intervalId = setInterval(() => {
       this.scanForErrors().catch((err) => {
         console.error("[ErrorCollector] Scan failed:", err);
@@ -48,6 +94,10 @@ export class ErrorCollector {
       clearInterval(this.intervalId);
       this.intervalId = undefined;
     }
+    this.watchAbort?.abort();
+    this.watchAbort = undefined;
+    for (const t of this.debounceTimers.values()) clearTimeout(t);
+    this.debounceTimers.clear();
   }
 
   private async scanForErrors() {

@@ -1,7 +1,6 @@
 import UseSWRComponent from "use-swr-component";
 import { TotalsBlock } from "../TotalsBlock";
 
-
 /**
  * @author: snomiao <snomiao@gmail.com>
  */

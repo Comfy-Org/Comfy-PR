@@ -127,10 +127,7 @@ function blockToMarkdown(block: Record<string, unknown>, indent = ""): string {
   }
 }
 
-async function fetchBlockChildren(
-  blockId: string,
-  indent = "",
-): Promise<string[]> {
+async function fetchBlockChildren(blockId: string, indent = ""): Promise<string[]> {
   const lines: string[] = [];
   let cursor: string | undefined;
 

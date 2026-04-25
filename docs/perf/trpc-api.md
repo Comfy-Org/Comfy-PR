@@ -22,11 +22,13 @@ getRepoUrls: t.procedure
 ```
 
 ### Issue
+
 - Loads **all ~5,000 repository URLs** into memory on every call
 - No pagination, no caching
 - The entire array is serialized to JSON and sent over the wire
 
 ### Fix
+
 - Add `skip`/`limit` pagination
 - Cache the result (repo URLs change rarely)
 
@@ -44,11 +46,13 @@ GithubContributorAnalyzeTask: t.procedure
 ```
 
 ### Issue
+
 - Loads **all contributor analysis records** into memory
 - No limit, no pagination
 - Each record contains nested `contributors` arrays, amplifying payload size
 
 ### Fix
+
 - Add `limit` parameter (default 50)
 - Only return summary data, not full contributor lists
 - Add cursor-based pagination
@@ -68,11 +72,13 @@ analyzePullsStatus: t.procedure
 ```
 
 ### Issue
+
 - `limit` defaults to `0`, which in the pipeline means `2^31 - 1` (all records)
 - Callers who forget to pass `limit` get the entire dataset
 - The pipeline runs `$unwind` + `$lookup` before `$limit` is applied
 
 ### Fix
+
 - Change default `limit` to `50`
 - Enforce a maximum limit (e.g., 500)
 
@@ -90,10 +96,12 @@ Several tRPC procedures use dynamic `import()` inside the query handler:
 ```
 
 ### Issue
+
 - Dynamic imports add latency on **every cold call** (module parsing + initialization)
 - On Vercel serverless, each cold start pays this cost
 
 ### Analysis
+
 This is actually a reasonable pattern to avoid loading heavy modules into the tRPC route handler's initial bundle. The tradeoff is acceptable, but could be improved with module-level caching or pre-warming.
 
 ---
@@ -103,6 +111,7 @@ This is actually a reasonable pattern to avoid loading heavy modules into the tR
 None of the tRPC procedures implement caching. For read-heavy dashboard queries that change infrequently, this means every request hits the database.
 
 ### Fix
+
 - Use `@trpc/server` middleware for response caching
 - Or implement caching at the data layer (MongoDB result caching)
 
@@ -122,9 +131,9 @@ const cachedProcedure = t.procedure.use(async ({ next, path }) => {
 
 ## Summary
 
-| Issue | Fix | Impact |
-|---|---|---|
-| `getRepoUrls` unbounded | Add pagination + cache | 🟡 Medium |
+| Issue                                    | Fix                    | Impact    |
+| ---------------------------------------- | ---------------------- | --------- |
+| `getRepoUrls` unbounded                  | Add pagination + cache | 🟡 Medium |
 | `GithubContributorAnalyzeTask` unbounded | Add limit + pagination | 🟡 Medium |
-| `analyzePullsStatus` default limit=0 | Default to 50, max 500 | 🔴 High |
-| No response caching | Add TTL-based caching | 🔴 High |
+| `analyzePullsStatus` default limit=0     | Default to 50, max 500 | 🔴 High   |
+| No response caching                      | Add TTL-based caching  | 🔴 High   |

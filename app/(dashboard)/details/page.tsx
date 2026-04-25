@@ -2,7 +2,6 @@ import Markdown from "react-markdown";
 import UseSWRComponent from "use-swr-component";
 import DetailsTable from "../DetailsTable";
 
-
 /**
  *
  * @author: snomiao <snomiao@gmail.com>

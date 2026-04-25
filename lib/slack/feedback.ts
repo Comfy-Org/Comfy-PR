@@ -4,7 +4,14 @@ import { execSync } from "child_process";
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const FEEDBACK_CHANNEL = process.env.PRBOT_FEEDBACK_CHANNEL || "prbot-feedback";
+/**
+ * Resolve at call time, not at import time — `prbot feedback` calls
+ * loadEnvLocal() inside its handler, so env vars from .env.local aren't
+ * available when this module is first evaluated.
+ */
+function feedbackChannel(): string {
+  return process.env.PRBOT_FEEDBACK_CHANNEL || "prbot-feedback";
+}
 
 export type FeedbackType = "bug" | "feature" | "error" | "other";
 
@@ -93,7 +100,7 @@ export async function postFeedback(opts: FeedbackOptions): Promise<string> {
   });
 
   // Post the main message
-  const channelId = await resolveChannel(FEEDBACK_CHANNEL);
+  const channelId = await resolveChannel(feedbackChannel());
   const result = await slack.chat.postMessage({
     channel: channelId,
     text: `${emoji} [${type.toUpperCase()}] ${message.slice(0, 200)}`,
@@ -120,70 +127,47 @@ export async function postFeedback(opts: FeedbackOptions): Promise<string> {
   return result.ts!;
 }
 
-/** Resolve a channel name (without #) to its ID, auto-joining or creating if needed */
+/** Resolve a channel name (without #) to its ID, auto-joining if needed.
+ * Refuses to auto-create a public channel because callers send stack traces
+ * and command output as `context` — a misconfigured channel name would
+ * otherwise leak internal failures into a brand new public channel.
+ */
 async function resolveChannel(nameOrId: string): Promise<string> {
-  // Already an ID
-  if (/^C[A-Z0-9]+$/.test(nameOrId)) return nameOrId;
+  // Already a Slack ID — accept C (public), G (private), D (DM) prefixes.
+  if (/^[CGD][A-Z0-9]+$/.test(nameOrId)) return nameOrId;
 
-  // Search existing channels (including ones we haven't joined)
-  const list = await slack.conversations.list({
-    types: "public_channel,private_channel",
-    limit: 1000,
-    exclude_archived: true,
-  });
-
-  const ch = list.channels?.find((c) => c.name === nameOrId);
-
-  if (ch?.id) {
-    // Auto-join if not already a member
-    if (!ch.is_member) {
-      try {
-        await slack.conversations.join({ channel: ch.id });
-      } catch {
-        // already_in_channel is fine
-      }
-    }
-    return ch.id;
-  }
-
-  // Channel doesn't exist or bot can't see it — try to create it
-  try {
-    const created = await slack.conversations.create({
-      name: nameOrId,
-      is_private: false,
+  // Paginate through channels because workspaces can exceed `limit:1000`
+  // and feedback delivery must remain reliable.
+  let cursor: string | undefined;
+  do {
+    const list = await slack.conversations.list({
+      types: "public_channel,private_channel",
+      limit: 1000,
+      exclude_archived: true,
+      ...(cursor ? { cursor } : {}),
     });
-
-    if (!created.channel?.id) {
-      throw new Error(`Failed to create Slack channel #${nameOrId}`);
-    }
-
-    // Set a topic
-    await slack.conversations.setTopic({
-      channel: created.channel.id,
-      topic: "Automated feedback from prbot CLI — bugs, feature requests, and errors",
-    });
-
-    return created.channel.id;
-  } catch (e: unknown) {
-    const slackErr = e as { data?: { error?: string } };
-    if (slackErr.data?.error === "name_taken") {
-      // Channel exists but bot isn't a member — search again including all types
-      // or use conversations.join with channel name (Slack allows joining public channels by name)
-      const retry = await slack.conversations.list({
-        types: "public_channel",
-        limit: 1000,
-        exclude_archived: true,
-      });
-      const found = retry.channels?.find((c) => c.name === nameOrId);
-      if (found?.id) {
-        await slack.conversations.join({ channel: found.id });
-        return found.id;
+    const ch = list.channels?.find((c) => c.name === nameOrId);
+    if (ch?.id) {
+      if (!ch.is_member) {
+        try {
+          await slack.conversations.join({ channel: ch.id });
+        } catch {
+          // already_in_channel is fine
+        }
       }
+      return ch.id;
     }
-    throw new Error(
-      `Could not find or create Slack channel #${nameOrId}. If it's private, invite the bot manually.`,
-    );
-  }
+    cursor = list.response_metadata?.next_cursor || undefined;
+  } while (cursor);
+
+  // Not found — fail closed. We deliberately do NOT auto-create here:
+  // creating a public channel for what's documented as a *private* feedback
+  // sink would leak the very first submission (which may contain stack
+  // traces, command output, or env values) to anyone who joins.
+  throw new Error(
+    `Slack channel #${nameOrId} not found. Create it manually as a private channel ` +
+      `and invite the bot, then set PRBOT_FEEDBACK_CHANNEL to its name or ID.`,
+  );
 }
 
 // CLI entry

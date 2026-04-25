@@ -23,13 +23,13 @@ The application has minimal caching at every layer — browser, CDN/edge, server
 
 ### Layer 3: Server-Side Data Caching — ⚠️ Partial
 
-| Data | Caching | TTL | Issue |
-|---|---|---|---|
-| `analyzeTotals()` | Via `updateComfyTotals()` → `Totals` collection | 30s fresh check | 30s is too short; combined with 1s polling = frequent cache misses |
-| `analyzePullsStatus()` | None | — | Recomputed on every request |
-| `getRepoUrls` | None | — | Full collection scan on every call |
-| GitHub API (`ghc`) | SQLite via Keyv | 5 min | ✅ Good |
-| `GithubContributorAnalyzeTask` | None | — | Full collection load on every call |
+| Data                           | Caching                                         | TTL             | Issue                                                              |
+| ------------------------------ | ----------------------------------------------- | --------------- | ------------------------------------------------------------------ |
+| `analyzeTotals()`              | Via `updateComfyTotals()` → `Totals` collection | 30s fresh check | 30s is too short; combined with 1s polling = frequent cache misses |
+| `analyzePullsStatus()`         | None                                            | —               | Recomputed on every request                                        |
+| `getRepoUrls`                  | None                                            | —               | Full collection scan on every call                                 |
+| GitHub API (`ghc`)             | SQLite via Keyv                                 | 5 min           | ✅ Good                                                            |
+| `GithubContributorAnalyzeTask` | None                                            | —               | Full collection load on every call                                 |
 
 ### Layer 4: Database Query Caching — ⚠️ Indexes Only
 
@@ -81,7 +81,7 @@ function cached<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T>
   const entry = responseCache.get(key);
   if (entry && entry.expires > Date.now()) return entry.data as Promise<T>;
   const promise = fn();
-  promise.then(data => responseCache.set(key, { data, expires: Date.now() + ttlMs }));
+  promise.then((data) => responseCache.set(key, { data, expires: Date.now() + ttlMs }));
   return promise;
 }
 ```
@@ -96,7 +96,7 @@ const totals = await analyzeTotals();
 await DashboardTotals.updateOne(
   { _id: "current" },
   { $set: { data: totals, updatedAt: new Date() } },
-  { upsert: true }
+  { upsert: true },
 );
 
 // Dashboard read (instant)
@@ -107,23 +107,23 @@ const totals = await DashboardTotals.findOne({ _id: "current" });
 
 Change polling intervals:
 
-| Component | Current | Recommended |
-|---|---|---|
-| Totals | 1s | 5 min (300s) |
-| Details | 60s | 5 min (300s) |
+| Component | Current | Recommended  |
+| --------- | ------- | ------------ |
+| Totals    | 1s      | 5 min (300s) |
+| Details   | 60s     | 5 min (300s) |
 
 ---
 
 ## Implementation Priority
 
-| Change | Effort | Impact | Priority |
-|---|---|---|---|
-| Change totals `refreshInterval` from 1s to 300s | 1 line | 🔴 Critical | P0 |
-| Increase `updateComfyTotals` fresh from 30s to 5m | 1 line | 🔴 High | P0 |
-| Remove `force-dynamic`, use `revalidate = 300` | Low | 🔴 High | P1 |
-| Add response caching to tRPC procedures | Medium | 🟡 Medium | P2 |
-| Materialize `analyzePullsStatus` results | Medium | 🟡 Medium | P2 |
-| Add `Cache-Control` headers to dump endpoints | Low | 🟡 Medium | P2 |
+| Change                                            | Effort | Impact      | Priority |
+| ------------------------------------------------- | ------ | ----------- | -------- |
+| Change totals `refreshInterval` from 1s to 300s   | 1 line | 🔴 Critical | P0       |
+| Increase `updateComfyTotals` fresh from 30s to 5m | 1 line | 🔴 High     | P0       |
+| Remove `force-dynamic`, use `revalidate = 300`    | Low    | 🔴 High     | P1       |
+| Add response caching to tRPC procedures           | Medium | 🟡 Medium   | P2       |
+| Materialize `analyzePullsStatus` results          | Medium | 🟡 Medium   | P2       |
+| Add `Cache-Control` headers to dump endpoints     | Low    | 🟡 Medium   | P2       |
 
 ## Quick Fix (2 Lines)
 

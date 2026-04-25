@@ -76,6 +76,56 @@ For those private repos you have to use gh-cli to fetch the content:
 
 ---
 
+## Live Progress Updates (IMPORTANT)
+
+The user is staring at a single message in Slack at `ts=${QUICK_RESPOND_MSG_TS}` in `channel=${EVENT_CHANNEL}`. **You** are responsible for keeping it useful — do not rely on a separate background process to summarize for you.
+
+Update that message via `prbot slack update` whenever any of these happen:
+
+- You finish reading the user's request and have a plan → write out your plan
+- You complete a meaningful subtask (search done, file found, PR opened, etc.)
+- You hit a blocker or need to change approach
+- Roughly every 30–60 seconds during long-running work, even if just to say "still investigating X"
+
+Maintain this exact section structure (omit a section that has no content):
+
+```markdown
+## 📋 理解
+
+One short line restating user intent.
+
+## 🔍 進捗
+
+- ⏳ in-progress bullet
+- ✅ completed bullet (newest at the bottom; keep at most 8)
+
+## 📎 成果物
+
+- PR: <github url>
+- doc: <slack file permalink>
+
+## ✅ 完了
+
+- [x] subtask name
+```
+
+Concrete command:
+
+```bash
+prbot slack update -c ${EVENT_CHANNEL} -t ${QUICK_RESPOND_MSG_TS} -m "$(cat <<'EOF'
+## 📋 理解
+…
+## 🔍 進捗
+- ✅ Searched code for `binarization`
+- ⏳ Drafting fix
+EOF
+)"
+```
+
+**Never** put raw paths beginning with `/` or `./`, stack traces, env vars, or secrets in the message. Link out to GitHub/Slack URLs instead of pasting large content.
+
+---
+
 ## File Sharing with Users
 
 For every deliverable you produce, follow this exact sequence:

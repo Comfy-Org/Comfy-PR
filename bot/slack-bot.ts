@@ -8,14 +8,13 @@
  */
 import { slack } from "@/lib";
 import { yaml } from "@/src/utils/yaml";
-import { SocketModeClient } from "@slack/socket-mode";
-import {} from "@slack/bolt";
+import { createHmac, timingSafeEqual } from "crypto";
 import DIE from "@snomiao/die";
 import { compareBy } from "comparing";
 import { mkdir } from "fs/promises";
 import sflow from "sflow";
 import winston from "winston";
-import zChatCompletion from "../lib/zChat";
+import zChatCompletion, { initZChat } from "../lib/zChat";
 import z from "zod";
 import { IdleWaiter } from "./IdleWaiter";
 import { RestartManager } from "./RestartManager";
@@ -32,6 +31,13 @@ import { getSlackChannelName } from "@/lib/slack";
 import { SlackBotState } from "./state";
 import { ErrorCollector } from "./error-collector";
 import { query, type Query, type SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
+import {
+  createTaskUser,
+  prepareTaskWorkspace,
+  cleanupStaleTaskUsers,
+  touchTaskUserActivity,
+} from "./task-user";
+import { createUserSpawner } from "./spawn-as-user";
 
 export const SLACK_ORG_DOMAIN_NAME = "comfy-organization";
 // Configure winston logger
@@ -71,6 +77,9 @@ const logger = winston.createLogger({
 });
 
 const TaskInputFlows = new Map<string, TransformStream<string, string>>();
+// AbortControllers keyed by `${channel}:${ts}` of the original user message
+// so a Slack reaction handler can cancel the running agent.
+const TaskAbortControllers = new Map<string, AbortController>();
 // https://comfy-pr-bot.pages.dev/
 // Slack block type definition
 const zSlackBlock = z
@@ -151,6 +160,7 @@ if (import.meta.main) {
 
 export async function startSlackBot() {
   console.log("Starting ComfyPR Bot...");
+  await initZChat();
   const argv = minimist(process.argv.slice(2));
   const port = Number(process.env.PRBOT_PORT || DIE("missing env.PRBOT_PORT"));
 
@@ -212,34 +222,102 @@ export async function startSlackBot() {
   logger.info(`Killing port ${port} and starting server`);
   await Bun.$`npx -y kill-port ${port}`;
 
+  const slackSigningSecret =
+    process.env.SLACK_SIGNING_SECRET || DIE("missing env.SLACK_SIGNING_SECRET");
+
   const server = Bun.serve({
     port: port,
     fetch: async (req: Request) => {
       const url = new URL(req.url);
 
       if (url.pathname === "/status") {
-        // Get current working tasks from state
         const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
           workingMessageEvents: [],
         };
         const events = workingTasks.workingMessageEvents || [];
-
-        // Build message URLs from events
         const processing_message_urls = events.map((event: z.infer<typeof zAppMentionEvent>) => {
           const tsForUrl = event.ts.replace(".", "");
           return `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${tsForUrl}`;
         });
+        return new Response(
+          JSON.stringify(
+            {
+              status: TaskInputFlows.size === 0 ? "idle" : "busy",
+              processing_message_urls,
+              processing_message_urls_count: processing_message_urls.length,
+            },
+            null,
+            2,
+          ),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
 
-        const status = {
-          status: TaskInputFlows.size === 0 ? "idle" : "busy",
-          processing_message_urls,
-          processing_message_urls_count: processing_message_urls.length,
-        };
+      if (url.pathname === "/slack/events" && req.method === "POST") {
+        const body = await req.text();
 
-        return new Response(JSON.stringify(status, null, 2), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        // Verify Slack signature
+        const timestamp = req.headers.get("x-slack-request-timestamp") ?? "";
+        const slackSig = req.headers.get("x-slack-signature") ?? "";
+        if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) {
+          return new Response("Request too old", { status: 401 });
+        }
+        const hmac = createHmac("sha256", slackSigningSecret)
+          .update(`v0:${timestamp}:${body}`)
+          .digest("hex");
+        const expected = Buffer.from(`v0=${hmac}`);
+        const received = Buffer.from(slackSig);
+        if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
+          return new Response("Invalid signature", { status: 401 });
+        }
+
+        const payload = JSON.parse(body);
+
+        // URL verification challenge (first-time setup)
+        if (payload.type === "url_verification") {
+          return new Response(JSON.stringify({ challenge: payload.challenge }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
+        // Event callbacks — handle async, respond 200 immediately
+        if (payload.type === "event_callback") {
+          const retryNum = req.headers.get("x-slack-retry-num");
+          const retryReason = req.headers.get("x-slack-retry-reason");
+          const eventId =
+            payload.event_id ||
+            `${payload.event?.channel ?? "-"}_${payload.event?.event_ts ?? payload.event?.ts ?? "-"}`;
+
+          const alreadySeen = await SlackBotState.get(`webhook-event-${eventId}`);
+          if (alreadySeen) {
+            logger.info(
+              `Ignoring duplicate webhook event ${eventId} (retry=${retryNum ?? "0"}, reason=${retryReason ?? "-"}, firstSeenAt=${new Date(alreadySeen.receivedAt).toISOString()})`,
+            );
+            return new Response("", { status: 200 });
+          }
+
+          // TTL 1h — Slack retries up to ~30min, so 1h covers worst case
+          await SlackBotState.set(
+            `webhook-event-${eventId}`,
+            { receivedAt: Date.now(), retryNum, retryReason },
+            60 * 60 * 1000,
+          );
+
+          // Slack Events API puts the workspace id on the *envelope*
+          // (`payload.team_id`), not on the inner event in some shapes.
+          // Forward it onto the event so downstream zod schemas that
+          // require `team` (zAppMentionEvent, zSlackMessage filter) don't
+          // silently reject webhook-delivered mentions/DMs.
+          const event = {
+            ...payload.event,
+            team: payload.event?.team || payload.team_id,
+          };
+          handleSlackEvent(event).catch((err) =>
+            logger.error("Webhook event handler error", { err, eventId }),
+          );
+        }
+
+        return new Response("", { status: 200 });
       }
 
       return new Response("ComfyPR Bot is running.\n", { status: 200 });
@@ -265,32 +343,29 @@ export async function startSlackBot() {
     .run();
 
   if (argv.continue) {
-    async () => {
-      logger.info("BOT - --continue flag detected, resuming crashed tasks...");
+    logger.info("BOT - --continue flag detected, resuming crashed tasks...");
 
-      // Read current working tasks from state
-      const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
-        workingMessageEvents: [],
-      };
-      const events = workingTasks.workingMessageEvents || [];
+    const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
+      workingMessageEvents: [],
+    };
+    const events = workingTasks.workingMessageEvents || [];
 
-      if (events.length === 0) {
-        logger.info("No working tasks to resume");
-      } else {
-        logger.info(`Found ${events.length} working task(s) to resume`);
+    if (events.length === 0) {
+      logger.info("No working tasks to resume");
+    } else {
+      logger.info(`Found ${events.length} working task(s) to resume`);
 
-        for await (const event of events) {
-          if (event && event.ts) {
-            logger.info(
-              `Resuming task for event ${event.ts} in channel ${await getSlackChannelName(event.channel)}, text: ${event.text}`,
-            );
-            await spawnBotOnSlackMessageEvent(event).catch((err) => {
-              logger.error(`Error resuming task for event ${event.ts}`, { err });
-            });
-          }
+      for (const event of events) {
+        if (event && event.ts) {
+          logger.info(
+            `Resuming task for event ${event.ts} in channel ${await getSlackChannelName(event.channel)}, text: ${event.text}`,
+          );
+          spawnBotOnSlackMessageEvent(event).catch((err) => {
+            logger.error(`Error resuming task for event ${event.ts}`, { err });
+          });
         }
       }
-    };
+    }
   }
 
   logger.info(`Starting ComfyPR Bot... id: ${g.instanceId}, hotId: ${g.hotId}`);
@@ -315,119 +390,165 @@ export async function startSlackBot() {
     logger.info("Smart restart manager enabled (use --no-watch to disable)");
   }
 
-  // Initialize Socket Mode client with app-level token
-  const socketModeClient = new SocketModeClient({
-    appToken: process.env.SLACK_SOCKET_TOKEN || DIE("missing env.SLACK_SOCKET_TOKEN"),
-  });
-
-  // Handle all events via events_api envelope, https://docs.slack.dev/reference/events/message
-  socketModeClient
-    .on("app_mention", async ({ event, body, ack }) => {
-      const parsedEvent = await zAppMentionEvent.parseAsync(event);
-
-      // Acknowledge the event as its parsed
-      await ack();
-      await spawnBotOnSlackMessageEvent(parsedEvent);
-    })
-    .on("message", async ({ event, body, ack }) => {
-      // bot-1  | msg:  {"type":"message","user":"U04F3GHTG2X","ts":"1767100459.669809","client_msg_id":"2fed13c0-9739-4888-a4f6-b876c25f1407","text":"test","team":"T0462DJ9G3C","blocks":[{"type":"rich_text","block_id":"gB9fq","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"test"}]}]}],"channel":"C0A6Y4AU52L","event_ts":"1767100459.669809","channel_type":"channel"}
-      // Parse the message event
-      const zSlackMessage = z
-        .object({
-          type: z.literal("message"),
-          user: z.string().optional(),
-          ts: z.string().optional(),
-          client_msg_id: z.string().optional(),
-          text: z.string().optional(),
-          team: z.string().optional(),
-          thread_ts: z.string().optional(),
-          parent_user_id: z.string().optional(),
-          blocks: z.array(zSlackBlock).optional(),
-          channel: z.string().optional(),
-          channel_type: z.string().optional(),
-          assistant_thread: z.unknown().optional(),
-          attachments: z.array(zSlackAttachment).optional(),
-          event_ts: z.string().optional(),
-          bot_id: z.string().optional(),
-        })
-        .passthrough();
-
-      const messageEvent = zSlackMessage.parse(event);
-
-      logger.debug("MESSAGE EVENT", { event });
-      logger.debug("parsed_text: " + (await parseSlackMessageToMarkdown(messageEvent.text || "")));
-
-      await ack();
-
-      // Skip bot messages
-      if (messageEvent.bot_id) {
-        return;
-      }
-
-      // Get my bot user ID
-      const botUsername = "comfyprbot";
-      // TODO: fetch botUserId by botUsername or use slack api to "get my name"
-      const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K"; // ComfyPR-Bot user ID
-
-      // Check if message mentions the bot
-      const text = messageEvent.text || "";
-      const hasBotMention = text.includes(`<@${botUserId}>`);
-
-      // Handle DM messages (channel_type: "im") and treat them like app mentions
-      const isDM = messageEvent.channel_type === "im" || messageEvent.channel_type === "mpdm";
-
-      if (
-        (isDM || hasBotMention) &&
-        messageEvent.user &&
-        messageEvent.text &&
-        messageEvent.channel &&
-        messageEvent.ts &&
-        messageEvent.team &&
-        messageEvent.event_ts
-      ) {
-        const eventType = isDM ? "DM" : "BOT MENTION";
-        logger.debug(`${eventType} DETECTED - Processing message as app_mention`, {
-          channel: messageEvent.channel,
-          ts: messageEvent.ts,
-          text: text.substring(0, 100),
-        });
-
-        const mentionEvent: z.infer<typeof zAppMentionEvent> = {
-          type: "app_mention" as const,
-          user: messageEvent.user,
-          ts: messageEvent.ts,
-          client_msg_id: messageEvent.client_msg_id,
-          text: messageEvent.text,
-          team: messageEvent.team,
-          thread_ts: messageEvent.thread_ts,
-          parent_user_id: messageEvent.parent_user_id,
-          blocks: messageEvent.blocks || [],
-          channel: messageEvent.channel,
-          assistant_thread: messageEvent.assistant_thread,
-          attachments: messageEvent.attachments,
-          event_ts: messageEvent.event_ts,
+  // Periodic cleanup of stale task users (every hour)
+  setInterval(
+    async () => {
+      try {
+        const workingTasks = (await SlackBotState.get("current-working-tasks")) || {
+          workingMessageEvents: [],
         };
-        await spawnBotOnSlackMessageEvent(mentionEvent);
+        // Keep keys in sync with workspaceId = thread_ts || ts; otherwise
+        // long-running threaded tasks get marked stale and their isolated
+        // Linux users get deleted out from under them.
+        const activeIds = new Set<string>(
+          (workingTasks.workingMessageEvents || []).map(
+            (e: { ts: string; thread_ts?: string }) => e.thread_ts || e.ts,
+          ),
+        );
+        const cleaned = await cleanupStaleTaskUsers(activeIds);
+        if (cleaned.length > 0) {
+          logger.info(`Cleaned up ${cleaned.length} stale task user(s): ${cleaned.join(", ")}`);
+        }
+      } catch (err) {
+        logger.warn("Task user cleanup error", { err });
       }
-    })
-    .on("error", (error) => {
-      logger.error("Socket Mode error", { error });
-    })
-    .on("connect", () => logger.info("SOCKET - Slack connected"))
-    .on("disconnect", () => logger.info("SOCKET - Slack disconnected"))
-    .on("ready", () => logger.info("SOCKET - Ready to receive events"));
+    },
+    60 * 60 * 1000,
+  );
 
-  logger.info("BOT - Connecting to Slack Socket Mode...");
-  await socketModeClient.start();
-  logger.info("BOT - socketModeClient.start() returned");
-  return socketModeClient;
+  logger.info(`BOT - Webhook mode active. Listening on port ${port} at /slack/events`);
+}
+
+const zSlackMessage = z
+  .object({
+    type: z.literal("message"),
+    user: z.string().optional(),
+    ts: z.string().optional(),
+    client_msg_id: z.string().optional(),
+    text: z.string().optional(),
+    team: z.string().optional(),
+    thread_ts: z.string().optional(),
+    parent_user_id: z.string().optional(),
+    blocks: z.array(zSlackBlock).optional(),
+    channel: z.string().optional(),
+    channel_type: z.string().optional(),
+    assistant_thread: z.unknown().optional(),
+    attachments: z.array(zSlackAttachment).optional(),
+    event_ts: z.string().optional(),
+    bot_id: z.string().optional(),
+  })
+  .passthrough();
+
+async function handleSlackEvent(event: unknown) {
+  const raw = event as Record<string, unknown>;
+
+  // ❌ reaction → cancel the matching running task. The reaction is on
+  // the original user message, so we look up its (channel, ts) in
+  // TaskAbortControllers. Only the message author can cancel — this
+  // prevents bystanders in the channel from killing other people's tasks.
+  if (raw.type === "reaction_added") {
+    const reaction = raw.reaction as string | undefined;
+    const item = raw.item as { type?: string; channel?: string; ts?: string } | undefined;
+    const reactingUser = raw.user as string | undefined;
+    if (reaction === "x" && item?.type === "message" && item.channel && item.ts) {
+      const key = `${item.channel}:${item.ts}`;
+      const ac = TaskAbortControllers.get(key);
+      if (!ac) return;
+
+      try {
+        const original = await slack.conversations.replies({
+          channel: item.channel,
+          ts: item.ts,
+          limit: 1,
+        });
+        const author = original.messages?.[0]?.user;
+        if (reactingUser && author && reactingUser !== author) {
+          logger.info(`Ignoring ❌ from <@${reactingUser}> on task by <@${author}>`);
+          return;
+        }
+      } catch (err) {
+        logger.warn("Could not verify reaction author, allowing cancel", { err });
+      }
+
+      logger.warn(`User <@${reactingUser}> cancelled task ${key} via ❌ reaction`);
+      ac.abort();
+      await slack.reactions
+        .add({ name: "no_entry", channel: item.channel, timestamp: item.ts })
+        .catch(() => {});
+    }
+    return;
+  }
+
+  if (raw.type === "app_mention") {
+    const parsedEvent = await zAppMentionEvent.parseAsync(event);
+    await spawnBotOnSlackMessageEvent(parsedEvent);
+    return;
+  }
+
+  if (raw.type === "message") {
+    // message_changed events wrap the edited content under .message; flatten
+    // it so a user editing a prior request triggers a new agent run when the
+    // text is meaningfully different (dedup is content-hash based above).
+    if (raw.subtype === "message_changed" && raw.message && raw.channel) {
+      const inner = raw.message as Record<string, unknown>;
+      Object.assign(raw, inner, { channel: raw.channel, channel_type: raw.channel_type });
+    }
+
+    const messageEvent = zSlackMessage.parse(raw);
+    logger.debug("MESSAGE EVENT", { event });
+
+    if (messageEvent.bot_id) return;
+
+    const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K";
+    const text = messageEvent.text || "";
+    const hasBotMention = text.includes(`<@${botUserId}>`);
+    const isDM = messageEvent.channel_type === "im" || messageEvent.channel_type === "mpdm";
+
+    if (
+      (isDM || hasBotMention) &&
+      messageEvent.user &&
+      messageEvent.text &&
+      messageEvent.channel &&
+      messageEvent.ts &&
+      messageEvent.team &&
+      messageEvent.event_ts
+    ) {
+      const mentionEvent: z.infer<typeof zAppMentionEvent> = {
+        type: "app_mention" as const,
+        user: messageEvent.user,
+        ts: messageEvent.ts,
+        client_msg_id: messageEvent.client_msg_id,
+        text: messageEvent.text,
+        team: messageEvent.team,
+        thread_ts: messageEvent.thread_ts,
+        parent_user_id: messageEvent.parent_user_id,
+        blocks: messageEvent.blocks || [],
+        channel: messageEvent.channel,
+        assistant_thread: messageEvent.assistant_thread,
+        attachments: messageEvent.attachments,
+        event_ts: messageEvent.event_ts,
+      };
+      await spawnBotOnSlackMessageEvent(mentionEvent);
+    }
+  }
 }
 async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEvent>) {
-  // msg dedup for same content
-  const eventProcessed = await SlackBotState.get(`msg-${event.ts}`);
-  // if (eventProcessed?.content === event.text) return;
-  if (+new Date() - (eventProcessed?.touchedAt ?? 0) <= 10e3) return; // debounce for 10s
-  await SlackBotState.set(`msg-${event.ts}`, { touchedAt: +new Date(), content: event.text });
+  // Dedup by content hash so message edits with new intent re-trigger,
+  // but truly identical retries within 10s are suppressed.
+  const contentHash = createHmac("sha256", "msg")
+    .update(event.text || "")
+    .digest("hex")
+    .slice(0, 8);
+  const dedupKey = `msg-${event.ts}-${contentHash}`;
+  const eventProcessed = await SlackBotState.get(dedupKey);
+  if (+new Date() - (eventProcessed?.touchedAt ?? 0) <= 10e3) return;
+  // 1h TTL keeps the dedup window long enough to absorb Slack edit retries
+  // without growing the SlackBotState collection unboundedly.
+  await SlackBotState.set(
+    dedupKey,
+    { touchedAt: +new Date(), content: event.text },
+    60 * 60 * 1000,
+  );
 
   logger.info(
     await parseSlackMessageToMarkdown(
@@ -559,6 +680,34 @@ async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEven
       .toArray()
   ).toSorted(compareBy((e) => +(e.ts || 0))); // sort by ts asc
 
+  // Compress thread context: keep the most recent 15 messages verbatim, and
+  // summarize older ones with gpt-4o-mini to slash token usage on long
+  // threads. Skip summarization entirely if there's nothing old.
+  let nearbyMessagesForLLM: typeof nearbyMessages | string = nearbyMessages;
+  if (nearbyMessages.length > 20) {
+    const recent = nearbyMessages.slice(-15);
+    const older = nearbyMessages.slice(0, -15);
+    try {
+      const olderYaml = yaml.stringify(older);
+      const summary = (await zChatCompletion(z.object({ summary: z.string() }), {
+        model: "gpt-4o-mini",
+      })`Summarize the following older Slack thread messages into a tight bullet
+list capturing: (1) decisions made, (2) open questions, (3) named files/PRs/URLs
+mentioned, (4) any errors or constraints surfaced. Keep under 400 words.
+
+<older-messages-yaml>
+${olderYaml}
+</older-messages-yaml>`) as { summary: string };
+
+      nearbyMessagesForLLM = `## Older thread summary (${older.length} messages)\n${summary.summary}\n\n## Recent messages (${recent.length})\n${yaml.stringify(recent)}`;
+      logger.info(
+        `Compressed ${older.length} older messages → summary (${summary.summary.length} chars)`,
+      );
+    } catch (err) {
+      logger.warn("Older-message summarization failed, sending full thread", { err });
+    }
+  }
+
   const existedTaskInputFlow = TaskInputFlows.get(workspaceId);
   if (existedTaskInputFlow && false) {
     // disable for now, lets use --queue to serialize tasks
@@ -667,6 +816,7 @@ Respond in JSON format with the following fields:
         logger.warn("No existing task input flow found");
         return;
       }
+      await touchTaskUserActivity(workspaceId);
       const w = existedTaskInputFlow!.writable.getWriter();
       await w.write(
         await parseSlackMessageToMarkdown(
@@ -694,15 +844,45 @@ Respond in JSON format with the following fields:
     .add({ name: "eyes", channel: event.channel, timestamp: event.ts })
     .catch(() => {});
 
-  // quick-intent-detect-respond by chatgpt, give quick plan/context responds before start heavy agent work
+  // Post a placeholder immediately so the user sees activity within 1–2s.
+  // The real intent analysis runs in parallel below and edits this same message.
+  type QuickRespondMsg = { ts: string; text: string; channel?: string; url?: string };
+  const placeholderText = "👀 受け取りました。内容を確認しています…";
+  const existingPlaceholder = (await SlackBotState.get(`task-quick-respond-msg-${eventId}`)) as
+    | QuickRespondMsg
+    | undefined;
+  let placeholderTs: string;
+  if (existingPlaceholder?.ts) {
+    placeholderTs = existingPlaceholder.ts;
+  } else {
+    const posted = await safeSlackPostMessage(slack, {
+      channel: event.channel,
+      thread_ts: event.ts,
+      text: placeholderText,
+      blocks: [{ type: "markdown", text: placeholderText }],
+    });
+    placeholderTs = posted.ts!;
+    await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
+      ts: placeholderTs,
+      text: placeholderText,
+      channel: event.channel,
+      url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${placeholderTs.replace(".", "")}`,
+    });
+  }
+
+  // Intent detection — mini is fast/cheap and good enough for classification;
+  // falls back to 4o implicitly via retries inside zChatCompletion on failure.
   const resp = await zChatCompletion(
     z.object({
       user_intent: z.string(),
       my_respond_before_spawn_agent: z.string(),
       should_spawn_agent: z.boolean(),
+      // simple = lookup/single tool / quick answer; medium = multi-step research;
+      // complex = code change, multi-repo, lots of files, or open-ended exploration.
+      complexity: z.enum(["simple", "medium", "complex"]),
     }),
     {
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
     },
   )`
 The user mentioned me with the following message in Slack: ${event.text}
@@ -710,8 +890,14 @@ Based on this message, please determine the user's intent in a concise manner.
 Also, provide a brief response that I can send to the user immediately to acknowledge their request.
 Finally, I will spawn an agent to help with this request if necessary.
 
-For context, Recent messages from this thread are as follows:
-${nearbyMessages.map((m) => `- User ${m.username} said: ${JSON.stringify(m.markdown)}`).join("\n\n")}
+For context, recent thread messages (older ones may already be summarized):
+${
+  typeof nearbyMessagesForLLM === "string"
+    ? nearbyMessagesForLLM
+    : nearbyMessagesForLLM
+        .map((m) => `- User ${m.username} said: ${JSON.stringify(m.markdown)}`)
+        .join("\n\n")
+}
 
 Possible Context Repos:
 - https://github.com/comfyanonymous/ComfyUI: The main ComfyUI repository containing the core application logic and features. Its a python backend to run unknown machine learning models and solves various machine learning tasks.
@@ -729,94 +915,34 @@ Respond in JSON format with the following fields:
 - user_intent: A brief description of the user's intent. e.g. "The user is asking for help with setting up a CI/CD pipeline."
 - my_respond_before_spawn_agent: A short message I can send to the user right away. e.g. "Got it, let me look into that for you."
 - should_spawn_agent: true if further research needed
+- complexity: "simple" for quick lookups answerable with one tool call; "medium" for multi-step research across docs/code; "complex" for code changes, multi-repo work, or open-ended exploration.
 `;
 
   const myResponseMessage = await mdFmt(resp.my_respond_before_spawn_agent);
-  // - spawn_agent?: true or false, indicating whether an agent is needed to handle this request. e.g. if the user is asking for complex tasks like searching the web, managing repositories, or interacting with other services, or need to check original thread, set this to true.
   logger.info("Intent detection response", JSON.stringify({ resp }));
 
-  // upsert quick respond msg
-  type QuickRespondMsg = { ts: string; text: string; channel?: string; url?: string };
-  const quickRespondMsg = await SlackBotState.get(`task-quick-respond-msg-${eventId}`).then(
-    async (existing: QuickRespondMsg | undefined) => {
-      if (existing) {
-        await slack.reactions
-          .remove({ name: "x", channel: existing.channel!, timestamp: existing.ts! })
-          .catch(() => {});
-
-        // if its a DM, always create a new message
-        // if (isDM) {
-        //   const newMsg = await slack.chat.postMessage({
-        //     channel: event.channel,
-        //     thread_ts: event.ts,
-        //     text: myResponseMessage,
-        //     blocks: [
-        //       {
-        //         type: "markdown",
-        //         text: myResponseMessage,
-        //       },
-        //     ],
-        //   });
-        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: myResponseMessage });
-        //   return { ...newMsg, text: myResponseMessage };
-        // }
-        // actually lets always post new msg for now.
-        // if (true) {
-        //   const newMsg = await slack.chat.postMessage({
-        //     channel: event.channel,
-        //     thread_ts: event.ts,
-        //     text: myResponseMessage,
-        //     blocks: [
-        //       {
-        //         type: "markdown",
-        //         text: myResponseMessage,
-        //       },
-        //     ],
-        //   });
-        //   await State.set(`task-quick-respond-msg-${eventId}`, { ts: newMsg.ts!, text: myResponseMessage });
-        //   return { ...newMsg, text: myResponseMessage };
-        // }
-
-        const msg = await safeSlackUpdateMessage(slack, {
-          channel: event.channel,
-          ts: existing.ts,
-          text: myResponseMessage, // Fallback text for notifications
-          blocks: [
-            {
-              type: "markdown",
-              text: myResponseMessage,
-            },
-          ],
-        });
-        await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
-          ts: existing.ts,
-          text: myResponseMessage,
-          channel: event.channel,
-          url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${existing.ts.replace(".", "")}`,
-        });
-        return { ...msg, text: myResponseMessage };
-      } else {
-        const newMsg = await safeSlackPostMessage(slack, {
-          channel: event.channel,
-          thread_ts: event.ts,
-          text: myResponseMessage, // Fallback text for notifications
-          blocks: [
-            {
-              type: "markdown",
-              text: myResponseMessage,
-            },
-          ],
-        });
-        await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
-          ts: newMsg.ts!,
-          text: myResponseMessage,
-          channel: event.channel,
-          url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${newMsg.ts!.replace(".", "")}`,
-        });
-        return { ...newMsg, text: myResponseMessage };
-      }
-    },
-  );
+  // Replace the earlier "👀 受け取りました" placeholder with the LLM-synthesized intro.
+  // placeholderTs was set during the pre-intent fast-ack above.
+  await slack.reactions
+    .remove({ name: "x", channel: event.channel, timestamp: placeholderTs })
+    .catch(() => {});
+  await safeSlackUpdateMessage(slack, {
+    channel: event.channel,
+    ts: placeholderTs,
+    text: myResponseMessage,
+    blocks: [{ type: "markdown", text: myResponseMessage }],
+  });
+  await SlackBotState.set(`task-quick-respond-msg-${eventId}`, {
+    ts: placeholderTs,
+    text: myResponseMessage,
+    channel: event.channel,
+    url: `https://${SLACK_ORG_DOMAIN_NAME}.slack.com/archives/${event.channel}/p${placeholderTs.replace(".", "")}`,
+  });
+  const quickRespondMsg: QuickRespondMsg = {
+    ts: placeholderTs,
+    text: myResponseMessage,
+    channel: event.channel,
+  };
 
   // and now, lets update quickRespondMsg freq until user is satisfied or agent finished its work
 
@@ -892,14 +1018,58 @@ Respond in JSON format with the following fields:
     EVENT_THREAD_TS: event.thread_ts || event.ts,
   });
 
-  // const taskUser = `bot-user-${workspaceId.replace(".", "-")}`;
-  // const taskUser = `bot-user-${workspaceId.replace(".", "-")}`;
+  // Create per-task Linux user for agent isolation
+  const taskUser = await createTaskUser(workspaceId);
+  logger.info(`Created task user: ${taskUser.username} for workspace ${workspaceId}`);
   await mkdir(botWorkingDir, { recursive: true });
-  // todo: create a linux user for task
 
   // fill initial files for agent
 
   await Bun.write(`${botWorkingDir}/CLAUDE.md`, CLAUDEMD);
+
+  // Download images attached to the triggering message into ./attachments/ so
+  // Claude (which has vision) can open them locally instead of needing a
+  // Slack-authenticated URL fetch.
+  const attachmentsDir = `${botWorkingDir}/attachments`;
+  const downloadedImages: { localPath: string; name: string; mimetype?: string }[] = [];
+  const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25MB — Slack's free-tier upload cap
+  const triggeringFiles = nearbyMessages.find((m) => m.ts === event.ts)?.files ?? [];
+  if (triggeringFiles.length > 0) {
+    await mkdir(attachmentsDir, { recursive: true });
+    const slackToken =
+      process.env.SLACK_BOT_TOKEN || DIE("missing SLACK_BOT_TOKEN for image download");
+    for (const [idx, file] of triggeringFiles.entries()) {
+      const downloadUrl =
+        (file as { url_private_download?: string }).url_private_download || file.url_private;
+      if (!downloadUrl || !file.mimetype?.startsWith("image/")) continue;
+      if (typeof file.size === "number" && file.size > MAX_IMAGE_BYTES) {
+        logger.warn(
+          `Skipping oversized image ${file.name} (${file.size} bytes > ${MAX_IMAGE_BYTES})`,
+        );
+        continue;
+      }
+      try {
+        const resp = await fetch(downloadUrl, {
+          headers: { Authorization: `Bearer ${slackToken}` },
+        });
+        if (!resp.ok) {
+          logger.warn(`Image download failed (${resp.status}) for ${file.name}`);
+          continue;
+        }
+        // Prefix with idx + Slack file id (when available) so two attachments
+        // with the same filename don't collide and overwrite each other.
+        const fileId = (file as { id?: string }).id ?? `i${idx}`;
+        const baseName = (file.name || "image").replace(/[^\w.-]/g, "_");
+        const safeName = `${fileId}-${baseName}`;
+        const localPath = `${attachmentsDir}/${safeName}`;
+        await Bun.write(localPath, await resp.bytes());
+        downloadedImages.push({ localPath, name: safeName, mimetype: file.mimetype });
+        logger.info(`Downloaded image ${safeName} (${file.mimetype}) → ${localPath}`);
+      } catch (err) {
+        logger.warn("Image download error", { err, file: file.name });
+      }
+    }
+  }
 
   // clone https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot to ./repos/prbot (branch: sno-bot)
   const prBotRepoDir = `${botWorkingDir}/codes/Comfy-Org/pr-bot/tree/main`;
@@ -985,10 +1155,14 @@ When a prbot CLI command fails:
   );
   await Bun.$`code ${botWorkingDir}`.catch(() => null); // open the working dir in vscode for debugging
 
+  const attachmentsBlock = downloadedImages.length
+    ? `\nATTACHED IMAGES (downloaded into ./attachments/, open them with the Read tool to see the contents):\n${downloadedImages.map((i) => `- ./attachments/${i.name} (${i.mimetype})`).join("\n")}\n`
+    : "";
+
   const agentPrompt = `
 the @${username} intented to ${resp.user_intent}
 Please assist them with their request using all your resources available.
-
+${attachmentsBlock}
 IMPORTANT WORKSPACE CONVENTIONS:
 - Save ALL deliverables (documents, guides, reports, summaries, analysis, code snippets, etc.) to ./deliverable-<name>.md in the current workspace directory. For example: ./deliverable-draft-pr-guide.md, ./deliverable-research-report.md
 - Log any tool errors or failures to ./TOOLS_ERRORS.md
@@ -1020,7 +1194,9 @@ IMPORTANT WORKSPACE CONVENTIONS:
           logger.warn(`Error content preview: ${content.substring(0, 500)}...`);
         }
       : undefined,
-    checkInterval: 10000,
+    // fs.watch handles real-time detection; this slow poll is a safety net
+    // for FS layers that drop events.
+    checkInterval: 60_000,
   });
   await errorCollector.start();
 
@@ -1033,35 +1209,54 @@ IMPORTANT WORKSPACE CONVENTIONS:
     "Please read PROMPT.txt and TODO.md in the current directory and complete all tasks listed there.";
 
   const abortController = new AbortController();
+  const abortKey = `${event.channel}:${event.ts}`;
+  TaskAbortControllers.set(abortKey, abortController);
 
   // Handle follow-up messages: when user sends more messages in the thread,
   // pipe them to the running agent via streamInput
   let agentQuery: Query | null = null;
 
-  // Drain taskInputFlow into the SDK agent
+  // Drain taskInputFlow into the SDK agent. Buffer values that arrive before
+  // `agentQuery` is created so early follow-ups aren't silently dropped.
+  const earlyBuffer: string[] = [];
+  let agentReady = false;
   const inputDrainPromise = (async () => {
     const reader = taskInputFlow.readable.getReader();
+    const pushToAgent = async (value: string) => {
+      const userMsg: SDKUserMessage = {
+        type: "user" as const,
+        message: { role: "user" as const, content: value },
+        parent_tool_use_id: null,
+        session_id: "",
+      };
+      await (agentQuery as Query).streamInput(
+        (async function* () {
+          yield userMsg;
+        })(),
+      );
+      logger.info(`Injected follow-up message into SDK agent: ${value.slice(0, 100)}`);
+    };
     try {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (value && agentQuery !== null) {
-          const userMsg: SDKUserMessage = {
-            type: "user" as const,
-            message: { role: "user" as const, content: value },
-            parent_tool_use_id: null,
-            session_id: "",
-          };
-          await (agentQuery as Query).streamInput(
-            (async function* () {
-              yield userMsg;
-            })(),
-          );
-          logger.info(`Injected follow-up message into SDK agent: ${value.slice(0, 100)}`);
+        if (!value) continue;
+        if (agentQuery && agentReady) {
+          // Drain anything queued during startup first to preserve order.
+          while (earlyBuffer.length > 0) await pushToAgent(earlyBuffer.shift()!);
+          await pushToAgent(value);
+        } else {
+          earlyBuffer.push(value);
         }
       }
     } catch {
       // taskInputFlow closed
+    } finally {
+      try {
+        reader.releaseLock();
+      } catch {
+        /* already released or stream errored */
+      }
     }
   })();
 
@@ -1070,6 +1265,10 @@ IMPORTANT WORKSPACE CONVENTIONS:
   let lastSentOutput = "";
   const idleWaiter = new IdleWaiter();
   let isThinking = false;
+
+  // Track GitHub PR URLs surfaced by the sub-agent so they always appear in 📎 成果物.
+  const seenPrUrls = new Set<string>();
+  const PR_URL_RE = /https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+/g;
 
   // Slack update logic — extracted so it can be called from interval and finally
   let lastSlackUpdateTime = 0;
@@ -1084,6 +1283,8 @@ IMPORTANT WORKSPACE CONVENTIONS:
     const news = agentOutput.slice(lastSentOutput.length);
     lastSentOutput = agentOutput;
 
+    for (const url of news.match(PR_URL_RE) ?? []) seenPrUrls.add(url);
+
     const my_internal_thoughts = agentOutput.split("\n").slice(-80).join("\n");
     logger.info(
       "Agent output preview: " +
@@ -1093,63 +1294,66 @@ IMPORTANT WORKSPACE CONVENTIONS:
         }),
     );
 
-    // GPT-4o synthesis for Slack update
+    // Route small incremental updates to the cheaper mini model (~80% cost cut).
+    // Fall back to gpt-4o on large diffs or when no prior message exists.
+    const hasPrior = (quickRespondMsg.text || "").length > 0;
+    const updateModel = hasPrior && news.length < 2000 ? "gpt-4o-mini" : "gpt-4o";
+
     const contexts = {
       my_internal_thoughts,
       news,
       user_original_intent: resp.user_intent,
       my_response_md_original: quickRespondMsg.text || "",
+      // Auto-extracted GitHub PR URLs the agent has produced so far. The
+      // prompt template instructs the model to surface every entry under
+      // the 📎 成果物 section so users never miss a freshly-opened PR.
+      detected_pr_urls: [...seenPrUrls],
     };
-    const updateResponseResp = (await zChatCompletion({
-      my_response_md_updated: z.string(),
-    })`
-TASK: Update my my_response_md_original based on agent's my_internal_thoughts findings, and give me my_response_md_updated to post in slack.
+    const updateResponseResp = (await zChatCompletion(
+      { my_response_md_updated: z.string() },
+      { model: updateModel },
+    )`
+TASK: Update my_response_md_original for Slack using the agent's new my_internal_thoughts.
+Output the FULL updated message (not a diff), preserving the section structure below.
+
+SECTION STRUCTURE (keep these exact headings in this order; omit a section only if it has no content):
+## 📋 理解
+One short line restating user intent.
+
+## 🔍 進捗
+Bulleted current progress. Append new bullets for new findings.
+Prefix in-progress bullets with "- ⏳" and completed with "- ✅".
+Keep at most 8 recent bullets; drop oldest when over limit.
+
+## 📎 成果物
+Links to deliverables (PR URLs, gist/file shares). Omit if none.
+IMPORTANT: every URL listed in contexts.detected_pr_urls MUST appear here as a bullet (e.g. "- PR: <url>"). Never drop one once it has been surfaced.
+
+## ✅ 完了
+Checklist "- [x] …" for finished subtasks. Omit if none.
 
 RULES:
-- Do not remove unknown parts from my_response_md_original that are not mentioned in my_internal_thoughts.
-- Preserve markdown formatting in my_response_md_original.
-- If my_internal_thoughts contains new information, append it to the relevant sections in my_response_md_original.
-- If my_internal_thoughts indicates completion of a task, add a "Tasks" section at the end of my_response_md_original with - [x] mark.
-- Ensure my_response_md_updated is clear and concise.
-- Use **bold** to highlight new sections or important updates. Remove previously highlighted sections if they're no longer relevant.
-- If all information from my_internal_thoughts is already contained in my_response_md_original, return: {my_response_md_updated: "__NOTHING_CHANGED__"}
+- Preserve finished "- [x]" items. Never delete them.
+- If my_internal_thoughts contains brand new information, add it as a bullet under 進捗.
+- If a previous ⏳ bullet is now done, flip it to ✅ (and if it ends a logical subtask, also append to 完了).
+- If truly nothing changed since my_response_md_original, return {my_response_md_updated: "__NOTHING_CHANGED__"}.
 
-CRITICAL FILTERING RULES (Non-negotiable):
-- KEEP ONLY: User-facing progress, task completion status, findings relevant to user's intent, next steps
-- REMOVE: File paths, system info, debug output, error stack traces, internal process details, development notes
-- EXAMPLES OF WHAT TO REMOVE:
-  - "/bot/slack/channel-id/timestamp" (internal paths)
-  - "undefined/null received in chunk" (internal errors)
-  - "DEBUG: ..." (debug output)
-  - "✓ Created /tmp/cache/..." (internal file operations)
-  - "[2026-02-20T15:10:40.123Z]" (timestamps)
+CRITICAL FILTERING (non-negotiable):
+- KEEP: user-facing progress, task completion, findings relevant to user's intent, PR/doc URLs
+- REMOVE: file paths, stack traces, debug output, timestamps, internal process logs, env var values
+  Examples to drop: "/bot/slack/...", "DEBUG: ...", "[2026-..]", "✓ Created /tmp/...", "undefined received in chunk"
 
 TONE & LENGTH:
-- KEEP message very short and informative, use url links to reference documents/repos instead of pasting large contents
-- Response should be up to 16 lines maximum (agent posts long reports as .md files)
-- Focus ONLY on end-user's question or intent's helpful contents
-- Describe current progress in up to 7 words (less is better)
-- Avoid jargon; write for non-technical users when possible
-
-FORMAT REQUIREMENTS:
-- Output in standard markdown format (GitHub flavored)
-- YOU CAN ONLY change/remove/add up to 1 line per update!
-- LENGTH LIMIT: Must be within 4000 characters (system will truncate if exceeding)
-- MOST IMPORTANT: Keep my_response_md_original's context and formatting mostly unchanged, only update necessary lines
-
-DO NOT:
-- Ask the user questions
-- Include error details (they're logged separately for developers)
-- Show code blocks or technical configs
-- Show internal process logs or environment variables
-- Show any paths starting with "/" or "./"
-
-- Here's Contexts in YAML for your respondse:
+- Short, informative; link out instead of pasting large content
+- Up to ~16 lines total across all sections
+- Non-technical wording when possible
+- No questions to the user, no code blocks, no raw paths beginning with "/" or "./"
+- LENGTH LIMIT: <= 4000 chars (system truncates if exceeded)
+- Standard GitHub-flavored markdown
 
 <task-context-yaml>
 ${yaml.stringify(contexts)}
 </task-context-yaml>
-
 `) as { my_response_md_updated: string };
 
     // Log raw response
@@ -1209,11 +1413,58 @@ ${yaml.stringify(contexts)}
   };
 
   // Periodic Slack update interval
-  const slackUpdateInterval = setInterval(sendSlackUpdate, 10e3);
+  // Synthesizer runs less aggressively now: the agent is instructed to call
+  // `prbot slack update` directly for real progress, so this interval is just
+  // a safety net for agents that go quiet on Slack while still producing
+  // tool output. 30s vs the old 10s further cuts LLM cost.
+  const slackUpdateInterval = setInterval(sendSlackUpdate, 30e3);
 
   // Run the agent
   let exitCode: number | null = 0;
   try {
+    // Prepare workspace ownership for the task user
+    await prepareTaskWorkspace(taskUser.username, botWorkingDir);
+
+    // Cap agent turns by classified complexity to avoid runaway cost on
+    // simple questions while still allowing complex tasks room to breathe.
+    const turnsByComplexity = { simple: 40, medium: 100, complex: 200 } as const;
+    const maxTurns = turnsByComplexity[resp.complexity] ?? 200;
+    logger.info(`Agent maxTurns=${maxTurns} for complexity=${resp.complexity}`);
+
+    // Allowlist env vars passed into the Claude agent subprocess. The bot
+    // process holds Slack signing/bot tokens that the agent never needs;
+    // forwarding the entire process.env widens the blast radius if the
+    // agent's bash tool is asked to dump env (it will, when prompted).
+    const ghToken = process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env");
+    const passEnv: Record<string, string> = {
+      HOME: taskUser.homeDir,
+      USER: taskUser.username,
+      LOGNAME: taskUser.username,
+      PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
+      LANG: process.env.LANG || "C.UTF-8",
+      LC_ALL: process.env.LC_ALL || "C.UTF-8",
+      TERM: process.env.TERM || "xterm-256color",
+      GH_TOKEN: ghToken,
+      GITHUB_TOKEN: ghToken,
+    };
+    // Whitelist anything the agent legitimately needs at runtime.
+    for (const k of [
+      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
+      "NOTION_TOKEN",
+      "SLACK_BOT_TOKEN", // agent uses prbot slack update / read
+      "PRBOT_PORT",
+      "PRBOT_FEEDBACK_CHANNEL",
+      "MONGODB_URI",
+      "DEBUG",
+      "VERBOSE",
+      "LOG_LEVEL",
+      "NODE_ENV",
+    ]) {
+      const v = process.env[k];
+      if (v) passEnv[k] = v;
+    }
+
     agentQuery = query({
       prompt: sdkPrompt,
       options: {
@@ -1221,20 +1472,18 @@ ${yaml.stringify(contexts)}
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
         settingSources: ["project"], // loads CLAUDE.md from cwd
-        maxTurns: 200,
+        maxTurns,
         persistSession: false,
         abortController,
-        env: {
-          ...process.env,
-          GH_TOKEN: process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
-          GITHUB_TOKEN:
-            process.env.GH_TOKEN_COMFY_PR_BOT || DIE("missing GH_TOKEN_COMFY_PR_BOT env"),
-        },
+        // Run the CLI subprocess as the per-task non-root user
+        spawnClaudeCodeProcess: createUserSpawner(taskUser.username, taskUser.homeDir),
+        env: passEnv,
         stderr: (data: string) => {
           logger.warn(`[agent stderr]: ${data}`);
         },
       },
     });
+    agentReady = true;
 
     await Bun.write(
       statusLogPath,
@@ -1321,6 +1570,7 @@ ${yaml.stringify(contexts)}
     await sendSlackUpdate().catch((err) => logger.error("Final Slack update error:", { err }));
     // Cancel input drain
     abortController.abort();
+    TaskAbortControllers.delete(abortKey);
   }
 
   TaskInputFlows.delete(workspaceId);
@@ -1384,6 +1634,9 @@ ${yaml.stringify(contexts)}
 
   // Remove task from working list
   await removeWorkingTask(event);
+
+  // Note: Task user cleanup is handled by periodic cleanupStaleTaskUsers()
+  // We don't delete the user immediately in case of task resume via --continue
 }
 
 function sleep(ms: number) {

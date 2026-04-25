@@ -50,6 +50,7 @@ The application runs several expensive MongoDB aggregation pipelines on every pa
 ### What It Does
 
 Builds a complex pipeline:
+
 1. `$set` to compute `latest_comment_at`
 2. `$unwind("$crPulls.data")` — explodes array
 3. `$match` for comments
@@ -88,12 +89,12 @@ Builds a complex pipeline:
 
 These were identified by MongoDB Atlas Performance Advisor:
 
-| Collection | Issue | Status |
-|---|---|---|
-| `SlackMsgs` | Missing `{ status: 1, mtime: 1 }` index — 80,501 doc scans | ✅ Index added |
-| `CNRepos` | Missing compound `idx_states_mtimes` index — 4,998 doc scans | ✅ Index added |
-| `Authors` | Missing `githubId` index for `$lookup` joins | ❌ Not addressed |
-| `EmailTasks` | Missing `_id` index usage in `$lookup` | ⚠️ Uses `_id` (OK) |
+| Collection   | Issue                                                        | Status             |
+| ------------ | ------------------------------------------------------------ | ------------------ |
+| `SlackMsgs`  | Missing `{ status: 1, mtime: 1 }` index — 80,501 doc scans   | ✅ Index added     |
+| `CNRepos`    | Missing compound `idx_states_mtimes` index — 4,998 doc scans | ✅ Index added     |
+| `Authors`    | Missing `githubId` index for `$lookup` joins                 | ❌ Not addressed   |
+| `EmailTasks` | Missing `_id` index usage in `$lookup`                       | ⚠️ Uses `_id` (OK) |
 
 ### Remaining Gap
 
@@ -124,10 +125,10 @@ return await sflow(CNRepos.find({}, { projection: { repository: 1 } }))
 
 ## Summary of Fixes
 
-| Fix | Effort | Impact |
-|---|---|---|
-| Increase totals cache TTL to 5 min | Low | 🔴 High — eliminates per-second DB hits |
-| Consolidate `analyzeTotals` into `$facet` | Medium | 🔴 High — 7× fewer pipelines |
-| Add `Authors.githubId` index | Low | 🟡 Medium — speeds up `$lookup` |
-| Paginate tRPC queries | Low | 🟡 Medium — prevents OOM on large datasets |
-| Materialize `DashboardDetails` | Medium | 🔴 High — eliminates expensive pipeline |
+| Fix                                       | Effort | Impact                                     |
+| ----------------------------------------- | ------ | ------------------------------------------ |
+| Increase totals cache TTL to 5 min        | Low    | 🔴 High — eliminates per-second DB hits    |
+| Consolidate `analyzeTotals` into `$facet` | Medium | 🔴 High — 7× fewer pipelines               |
+| Add `Authors.githubId` index              | Low    | 🟡 Medium — speeds up `$lookup`            |
+| Paginate tRPC queries                     | Low    | 🟡 Medium — prevents OOM on large datasets |
+| Materialize `DashboardDetails`            | Medium | 🔴 High — eliminates expensive pipeline    |

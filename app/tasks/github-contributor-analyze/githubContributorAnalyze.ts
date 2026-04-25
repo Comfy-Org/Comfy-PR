@@ -120,9 +120,14 @@ export async function githubContributorAnalyze(repoUrl: string) {
   await rmdir(cwd, { recursive: true }).catch(() => {});
   return await mkdir(cwd, { recursive: true })
     .then(async () => {
-      await execaCommand("git --version || (apt-get update -y && apt-get install -y git)", { shell: true });
+      await execaCommand("git --version || (apt-get update -y && apt-get install -y git)", {
+        shell: true,
+      });
       await execaCommand(`git clone ${url} ${cwd}`, { shell: true });
-      const { stdout: logs } = await execaCommand("git shortlog --summary --numbered --email", { cwd, shell: true });
+      const { stdout: logs } = await execaCommand("git shortlog --summary --numbered --email", {
+        cwd,
+        shell: true,
+      });
       console.log({ logs });
       const contributors = parseGitShortLog(logs);
       console.log(contributors);

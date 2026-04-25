@@ -1,7 +1,12 @@
 import { parseSlackUrlSmart } from "../slack/parseSlackUrlSmart";
 import { parseNotionUrl } from "../notion/read-page";
 
-export type ParsedUrlType = "slack-message" | "slack-channel" | "slack-file" | "notion-page" | "unknown";
+export type ParsedUrlType =
+  | "slack-message"
+  | "slack-channel"
+  | "slack-file"
+  | "notion-page"
+  | "unknown";
 
 export interface ParsedUrl {
   type: ParsedUrlType;
@@ -29,10 +34,7 @@ export function parseUrl(url: string): ParsedUrl {
     }
 
     // Check for Slack URLs
-    if (
-      urlObj.hostname.includes("slack.com") ||
-      urlObj.hostname === "files.slack.com"
-    ) {
+    if (urlObj.hostname.includes("slack.com") || urlObj.hostname === "files.slack.com") {
       const parsed = parseSlackUrlSmart(url);
       const typeMap = {
         message: "slack-message",
@@ -62,9 +64,15 @@ if (import.meta.main) {
   if (!url) {
     console.error("Usage: bun lib/url/parseUrl.ts <url>");
     console.error("\nExamples:");
-    console.error("  Slack message: bun lib/url/parseUrl.ts 'https://workspace.slack.com/archives/C123/p1234567890'");
-    console.error("  Slack channel: bun lib/url/parseUrl.ts 'https://workspace.slack.com/archives/C123'");
-    console.error("  Notion page:   bun lib/url/parseUrl.ts 'https://www.notion.so/my-page-abc123def456'");
+    console.error(
+      "  Slack message: bun lib/url/parseUrl.ts 'https://workspace.slack.com/archives/C123/p1234567890'",
+    );
+    console.error(
+      "  Slack channel: bun lib/url/parseUrl.ts 'https://workspace.slack.com/archives/C123'",
+    );
+    console.error(
+      "  Notion page:   bun lib/url/parseUrl.ts 'https://www.notion.so/my-page-abc123def456'",
+    );
     process.exit(1);
   }
 
