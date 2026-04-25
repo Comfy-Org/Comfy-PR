@@ -40,7 +40,7 @@ export const router = t.router({
     })
     .input(z.object({ skip: z.number(), limit: z.number() }).partial())
     .output(z.unknown())
-    .query(async ({ input: { limit = 0, skip = 0 } }) => {
+    .query(async ({ input: { limit = 50, skip = 0 } }) => {
       const { analyzePullsStatus } = await import("@/src/analyzePullsStatus");
       return await analyzePullsStatus({ limit, skip });
     }),

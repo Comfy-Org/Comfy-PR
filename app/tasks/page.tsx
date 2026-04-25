@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-// Force dynamic rendering to avoid build-time database access
 export const dynamic = "force-dynamic";
 
 const _sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

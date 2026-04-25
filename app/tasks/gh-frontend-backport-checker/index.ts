@@ -13,6 +13,7 @@ import { ghPageFlow } from "@/src/ghPageFlow";
 import { match as tsmatch } from "ts-pattern";
 import { getChannelInfo } from "@/lib/slack/channel-info";
 import { getSlackChannel } from "@/lib/slack/channels";
+import { findSlackIdByGithubUsername as findSlackIdFromNotion } from "@/lib/notion/people";
 import { slackCached } from "@/lib";
 
 /**
@@ -417,13 +418,37 @@ async function getAllSlackMembers() {
 
 /**
  * Try to find a Slack user ID for a GitHub username.
- * Matches against Slack display_name, name, and real_name (case-insensitive).
+ * 1. First checks the Notion People database for an explicit mapping.
+ * 2. Falls back to fuzzy matching against Slack display_name, name, and real_name.
  * Returns null if no match found.
  */
+// Per-process guard: once Notion People lookup fails, skip it for the rest of
+// the run so we don't spam the API + logs once per author.
+let notionPeopleLookupDisabled = false;
+
 export async function findSlackUserIdByGithubUsername(
   githubUsername: string,
 ): Promise<string | null> {
+  if (!notionPeopleLookupDisabled) {
+    try {
+      // Primary: Notion People database (explicit GitHub→Slack mapping)
+      const notionSlackId = await findSlackIdFromNotion(githubUsername);
+      if (notionSlackId) return notionSlackId;
+    } catch (e) {
+      notionPeopleLookupDisabled = true;
+      logger.warn(
+        "Notion People lookup failed; disabling for the rest of this run and falling back to Slack fuzzy match",
+        {
+          githubUsername,
+          error: (e as Error)?.message ?? String(e),
+          stack: (e as Error)?.stack,
+        },
+      );
+    }
+  }
+
   try {
+    // Fallback: fuzzy match against Slack workspace members
     const members = await getAllSlackMembers();
     const lowerGh = githubUsername.toLowerCase();
     const found = members.find((m) => {
@@ -450,16 +475,16 @@ export async function findSlackUserIdByGithubUsername(
 
 /**
  * Resolve who to tag in Slack for a backport notification.
- * Tries the PR author first, falls back to release sheriff.
+ * Tries the PR author first, falls back to release sheriff with a "fallback:" note.
  */
 async function resolveSlackTagForAuthor(githubUsername?: string): Promise<string> {
   if (githubUsername) {
     const slackUserId = await findSlackUserIdByGithubUsername(githubUsername);
     if (slackUserId) return `<@${slackUserId}>`;
   }
-  // Fall back to release sheriff
+  // Fall back to release sheriff — annotate so it's clear this is not the author
   const sheriffId = await getReleaseSheriffUserId();
-  if (sheriffId) return `<@${sheriffId}>`;
+  if (sheriffId) return `_(fallback: <@${sheriffId}>)_`;
   return ""; // no one to tag
 }
 

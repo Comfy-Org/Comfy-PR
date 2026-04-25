@@ -1,9 +1,4 @@
 "use client";
-import { loader } from "@monaco-editor/react";
-import * as monaco from "monaco-editor";
-
-loader.config({ monaco });
-
 import Editor from "@monaco-editor/react";
 /**
  * @author: snomiao <snomiao@gmail.com>

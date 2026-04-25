@@ -1,5 +1,5 @@
 import type { PullsStatus } from "@/src/analyzePullsStatus";
-import { csvFormat, csvParse } from "d3";
+import { csvFormat, csvParse } from "d3-dsv";
 import Link from "next/link";
 import { keys } from "rambda";
 import { SaveButton } from "./SaveButton";
