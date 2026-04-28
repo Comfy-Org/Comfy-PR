@@ -397,10 +397,12 @@ export async function startSlackBot() {
 
   // Start the webhook queue consumer. Drains backlog (any unprocessed docs
   // sitting in Mongo from a previous crash/restart) then tails the
-  // changeStream for new ones. Currently dispatches Slack only; github /
-  // notion can be added by extending the switch below.
+  // changeStream for new ones. Slack docs go through the existing
+  // handleSlackEvent; github/notion are accepted into the queue but only
+  // logged for now (no downstream handler yet — adding one is what closes
+  // the multi-source story).
   await startWebhookConsumer({
-    sources: ["slack"],
+    sources: ["slack", "github", "notion"],
     drainBacklog: true,
     logger: {
       info: (msg, meta) => logger.info(`[webhook-queue] ${msg}`, meta as object),
@@ -408,15 +410,29 @@ export async function startSlackBot() {
       error: (msg, meta) => logger.error(`[webhook-queue] ${msg}`, meta as object),
     },
     consume: async (doc: WebhookQueueDoc) => {
-      if (doc.source !== "slack") return;
-      const payload = doc.payload as { event?: Record<string, unknown>; team_id?: string };
-      // Forward team_id from envelope onto event for the same reason as before
-      // (some Events API payloads only have it on the envelope).
-      const event = {
-        ...payload.event,
-        team: (payload.event as { team?: string } | undefined)?.team || payload.team_id,
-      };
-      await handleSlackEvent(event);
+      if (doc.source === "slack") {
+        const payload = doc.payload as { event?: Record<string, unknown>; team_id?: string };
+        // Forward team_id from envelope onto event for the same reason as
+        // before (some Events API payloads only have it on the envelope).
+        const event = {
+          ...payload.event,
+          team: (payload.event as { team?: string } | undefined)?.team || payload.team_id,
+        };
+        await handleSlackEvent(event);
+        return;
+      }
+      if (doc.source === "github") {
+        const eventType = (doc.meta as { eventType?: string } | undefined)?.eventType;
+        logger.info(
+          `[webhook-queue] github event ${doc.eventId} (${eventType}) — no handler wired yet`,
+        );
+        return;
+      }
+      if (doc.source === "notion") {
+        const type = (doc.payload as { type?: string } | undefined)?.type;
+        logger.info(`[webhook-queue] notion event ${doc.eventId} (${type}) — no handler wired yet`);
+        return;
+      }
     },
   });
   logger.info("Webhook queue consumer started");
