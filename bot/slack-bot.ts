@@ -38,6 +38,7 @@ import {
   touchTaskUserActivity,
 } from "./task-user";
 import { createUserSpawner } from "./spawn-as-user";
+import { enqueueWebhook, startWebhookConsumer, type WebhookQueueDoc } from "./webhook-queue";
 
 export const SLACK_ORG_DOMAIN_NAME = "comfy-organization";
 // Configure winston logger
@@ -280,7 +281,10 @@ export async function startSlackBot() {
           });
         }
 
-        // Event callbacks — handle async, respond 200 immediately
+        // Event callbacks — push into the MongoDB webhook_queue and
+        // respond 200 immediately. The actual Slack event dispatch happens
+        // in the changeStream consumer started below in startSlackBot(),
+        // so a bot restart mid-task can't drop the webhook on the floor.
         if (payload.type === "event_callback") {
           const retryNum = req.headers.get("x-slack-retry-num");
           const retryReason = req.headers.get("x-slack-retry-reason");
@@ -296,25 +300,26 @@ export async function startSlackBot() {
             return new Response("", { status: 200 });
           }
 
-          // TTL 1h — Slack retries up to ~30min, so 1h covers worst case
+          // TTL 1h — Slack retries up to ~30min, so 1h covers worst case.
+          // This is independent of the queue's 24h TTL: the dedup key only
+          // lives on the http-edge to suppress retry storms; queue docs
+          // are authoritative for replay.
           await SlackBotState.set(
             `webhook-event-${eventId}`,
             { receivedAt: Date.now(), retryNum, retryReason },
             60 * 60 * 1000,
           );
 
-          // Slack Events API puts the workspace id on the *envelope*
-          // (`payload.team_id`), not on the inner event in some shapes.
-          // Forward it onto the event so downstream zod schemas that
-          // require `team` (zAppMentionEvent, zSlackMessage filter) don't
-          // silently reject webhook-delivered mentions/DMs.
-          const event = {
-            ...payload.event,
-            team: payload.event?.team || payload.team_id,
-          };
-          handleSlackEvent(event).catch((err) =>
-            logger.error("Webhook event handler error", { err, eventId }),
-          );
+          await enqueueWebhook({
+            source: "slack",
+            eventId,
+            payload,
+            meta: {
+              retryNum: retryNum ?? null,
+              retryReason: retryReason ?? null,
+              receivedAt: Date.now(),
+            },
+          }).catch((err) => logger.error("Webhook enqueue failed", { err, eventId }));
         }
 
         return new Response("", { status: 200 });
@@ -389,6 +394,32 @@ export async function startSlackBot() {
     restartManager.start();
     logger.info("Smart restart manager enabled (use --no-watch to disable)");
   }
+
+  // Start the webhook queue consumer. Drains backlog (any unprocessed docs
+  // sitting in Mongo from a previous crash/restart) then tails the
+  // changeStream for new ones. Currently dispatches Slack only; github /
+  // notion can be added by extending the switch below.
+  await startWebhookConsumer({
+    sources: ["slack"],
+    drainBacklog: true,
+    logger: {
+      info: (msg, meta) => logger.info(`[webhook-queue] ${msg}`, meta as object),
+      warn: (msg, meta) => logger.warn(`[webhook-queue] ${msg}`, meta as object),
+      error: (msg, meta) => logger.error(`[webhook-queue] ${msg}`, meta as object),
+    },
+    consume: async (doc: WebhookQueueDoc) => {
+      if (doc.source !== "slack") return;
+      const payload = doc.payload as { event?: Record<string, unknown>; team_id?: string };
+      // Forward team_id from envelope onto event for the same reason as before
+      // (some Events API payloads only have it on the envelope).
+      const event = {
+        ...payload.event,
+        team: (payload.event as { team?: string } | undefined)?.team || payload.team_id,
+      };
+      await handleSlackEvent(event);
+    },
+  });
+  logger.info("Webhook queue consumer started");
 
   // Periodic cleanup of stale task users (every hour)
   setInterval(
