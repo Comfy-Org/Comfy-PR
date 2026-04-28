@@ -66,6 +66,16 @@ export async function ensureWebhookQueueIndexes(): Promise<void> {
   );
   // Speeds up replay queries (`source: "slack", processed: false`).
   await col.createIndex({ source: 1, processed: 1, createdAt: -1 });
+
+  // Edge dedup collection (used by Vercel webhook routes to suppress retry
+  // storms before the queue insert). 1h TTL since Slack stops retrying
+  // long before that.
+  const edge = db.collection("webhook_edge_dedup");
+  await edge.createIndex(
+    { createdAt: 1 },
+    { expireAfterSeconds: 60 * 60, name: "webhook_edge_dedup_ttl_1h" },
+  );
+
   initialized = true;
 }
 
