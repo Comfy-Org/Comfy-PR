@@ -1599,7 +1599,16 @@ ${yaml.stringify(contexts)}
     }
   } catch (err) {
     exitCode = 1;
-    logger.error("Agent SDK error:", { err });
+    // winston serializes Error objects as `{}`, which made the
+    // ".claude.json corrupt → spawn dies immediately" incident
+    // (2026-04-29) hard to debug — the only log line was `{err:{}}`.
+    // Pull message+stack out by hand so the next regression is visible.
+    const e = err as Error & { code?: string | number };
+    logger.error(`Agent SDK error: ${e?.message ?? String(err)}`, {
+      name: e?.name,
+      code: e?.code,
+      stack: e?.stack?.slice(0, 4000),
+    });
   } finally {
     clearInterval(slackUpdateInterval);
     // Remove loading icon if still showing
