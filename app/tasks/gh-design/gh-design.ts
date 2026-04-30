@@ -21,6 +21,7 @@ import {
   planDesignCommentNotification,
 } from "./slackNotifications";
 import { slackMessageUrlParse, slackMessageUrlStringify } from "./slackMessageUrlParse";
+import { filterReviewers } from "./filterReviewers";
 const tlog = createTimeLogger();
 
 /**
@@ -94,20 +95,6 @@ type GithubDesignTask = {
   lastRunAt?: Date; // last time this item was processed
   lastDoneAt?: Date | null; // last time this item was processed successfuly
 };
-
-/**
- * Filter the reviewer list for a PR: excludes the PR author and
- * anyone who has already been requested.
- */
-export function filterReviewers(
-  allReviewers: string[],
-  prAuthor: string,
-  alreadyRequested?: string[],
-): { requestReviewers: string[]; newReviewers: string[] } {
-  const requestReviewers = allReviewers.filter((e) => e !== prAuthor);
-  const newReviewers = requestReviewers.filter((e) => !alreadyRequested?.includes(e));
-  return { requestReviewers, newReviewers };
-}
 
 // task states
 const COLLECTION_NAME = "GithubDesignTask";
@@ -268,18 +255,15 @@ export async function runGithubDesignTask() {
           });
 
       if (task.state === "open") {
-        if (
-          task.type === "pull_request" &&
-          REQUEST_REVIEWERS.some((e) => !task.reviewers?.includes(e))
-        ) {
+        if (task.type === "pull_request") {
           const { requestReviewers, newReviewers } = filterReviewers(
             REQUEST_REVIEWERS,
             task.user,
             task.reviewers,
           );
-          tlog(`Requesting reviewers: ${newReviewers.join(", ") || "(none)"}`);
-          if (!dryRun) {
-            if (newReviewers.length > 0) {
+          if (newReviewers.length > 0) {
+            tlog(`Requesting reviewers: ${newReviewers.join(", ")}`);
+            if (!dryRun) {
               try {
                 await gh.pulls.requestReviewers({
                   owner,
@@ -296,8 +280,8 @@ export async function runGithubDesignTask() {
                 if (status !== 422) throw err;
                 tlog(`Reviewer request rejected (422): ${err}`);
               }
+              task = await saveGithubDesignTask(url, { reviewers: requestReviewers });
             }
-            task = await saveGithubDesignTask(url, { reviewers: requestReviewers });
           }
         }
 

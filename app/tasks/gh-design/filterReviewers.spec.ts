@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { filterReviewers } from "./gh-design";
+import { filterReviewers } from "./filterReviewers";
 
 describe("filterReviewers", () => {
   const REVIEWERS = ["PabloWiedemann", "AliceDev"];
