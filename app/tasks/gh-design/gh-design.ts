@@ -95,6 +95,20 @@ type GithubDesignTask = {
   lastDoneAt?: Date | null; // last time this item was processed successfuly
 };
 
+/**
+ * Filter the reviewer list for a PR: excludes the PR author and
+ * anyone who has already been requested.
+ */
+export function filterReviewers(
+  allReviewers: string[],
+  prAuthor: string,
+  alreadyRequested?: string[],
+): { requestReviewers: string[]; newReviewers: string[] } {
+  const requestReviewers = allReviewers.filter((e) => e !== prAuthor);
+  const newReviewers = requestReviewers.filter((e) => !alreadyRequested?.includes(e));
+  return { requestReviewers, newReviewers };
+}
+
 // task states
 const COLLECTION_NAME = "GithubDesignTask";
 export const GithubDesignTaskMeta = TaskMetaCollection(COLLECTION_NAME, githubDesignTaskMetaSchema);
@@ -258,9 +272,10 @@ export async function runGithubDesignTask() {
           task.type === "pull_request" &&
           REQUEST_REVIEWERS.some((e) => !task.reviewers?.includes(e))
         ) {
-          const requestReviewers = REQUEST_REVIEWERS.filter((e) => e !== task.user);
-          const newReviewers = requestReviewers.filter(
-            (e) => !task.reviewers?.includes(e),
+          const { requestReviewers, newReviewers } = filterReviewers(
+            REQUEST_REVIEWERS,
+            task.user,
+            task.reviewers,
           );
           tlog(`Requesting reviewers: ${newReviewers.join(", ") || "(none)"}`);
           if (!dryRun) {
