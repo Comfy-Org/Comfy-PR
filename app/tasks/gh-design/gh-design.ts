@@ -264,6 +264,7 @@ export async function runGithubDesignTask() {
           if (newReviewers.length > 0) {
             tlog(`Requesting reviewers: ${newReviewers.join(", ")}`);
             if (!dryRun) {
+              let reviewersRequested = false;
               try {
                 await gh.pulls.requestReviewers({
                   owner,
@@ -271,6 +272,7 @@ export async function runGithubDesignTask() {
                   pull_number: issue_number,
                   reviewers: newReviewers,
                 });
+                reviewersRequested = true;
               } catch (err: unknown) {
                 // GitHub may return 422 when a requested reviewer cannot be added,
                 // such as when they are not a collaborator, cannot be requested,
@@ -280,7 +282,9 @@ export async function runGithubDesignTask() {
                 if (status !== 422) throw err;
                 tlog(`Reviewer request rejected (422): ${err}`);
               }
-              task = await saveGithubDesignTask(url, { reviewers: requestReviewers });
+              if (reviewersRequested) {
+                task = await saveGithubDesignTask(url, { reviewers: requestReviewers });
+              }
             }
           }
         }
