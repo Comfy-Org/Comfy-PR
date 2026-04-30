@@ -1,6 +1,7 @@
 /**
- * Filter the reviewer list for a PR: excludes the PR author and
- * anyone who has already been requested.
+ * Compute eligible reviewers for a PR.
+ * Returns `requestReviewers` (all reviewers minus the PR author) and
+ * `newReviewers` (eligible reviewers not yet requested).
  * GitHub usernames are case-insensitive, so comparisons are normalized.
  */
 export function filterReviewers(
