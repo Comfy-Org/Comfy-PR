@@ -258,9 +258,9 @@ export async function runGithubDesignTask() {
           task.type === "pull_request" &&
           REQUEST_REVIEWERS.some((e) => !task.reviewers?.includes(e))
         ) {
-          const requestReviewers = REQUEST_REVIEWERS;
+          const requestReviewers = REQUEST_REVIEWERS.filter((e) => e !== task.user);
           const newReviewers = requestReviewers.filter(
-            (e) => !task.reviewers?.includes(e) && e !== task.user,
+            (e) => !task.reviewers?.includes(e),
           );
           tlog(`Requesting reviewers: ${newReviewers.join(", ") || "(none)"}`);
           if (!dryRun) {
@@ -272,13 +272,14 @@ export async function runGithubDesignTask() {
                   pull_number: issue_number,
                   reviewers: newReviewers,
                 });
-              } catch (err: any) {
+              } catch (err: unknown) {
                 // GitHub may return 422 when a requested reviewer cannot be added,
                 // such as when they are not a collaborator, cannot be requested,
                 // or have already been requested. Record the attempt to avoid
                 // retrying on every 5-minute schedule run.
-                if (err?.status !== 422) throw err;
-                tlog(`Reviewer request rejected (422): ${err.message}`);
+                const status = (err as { status?: number })?.status;
+                if (status !== 422) throw err;
+                tlog(`Reviewer request rejected (422): ${err}`);
               }
             }
             task = await saveGithubDesignTask(url, { reviewers: requestReviewers });
