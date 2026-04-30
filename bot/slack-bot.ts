@@ -544,7 +544,31 @@ async function handleSlackEvent(event: unknown) {
     const messageEvent = zSlackMessage.parse(raw);
     logger.debug("MESSAGE EVENT", { event });
 
-    if (messageEvent.bot_id) return;
+    // Default: ignore messages from any bot to prevent bot-vs-bot loops.
+    // Exception: env-configured allowlist of "human-equivalent" bots
+    // (typically a developer's CLI like `sc sl send` posting via their
+    // own Slack app) so we can drive end-to-end tests without logging
+    // into the human Slack account.
+    //
+    // SLACK_ALLOWED_BOT_IDS / SLACK_ALLOWED_APP_IDS are comma-separated.
+    if (messageEvent.bot_id) {
+      const allowedBotIds = (process.env.SLACK_ALLOWED_BOT_IDS ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const allowedAppIds = (process.env.SLACK_ALLOWED_APP_IDS ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const botAppId = (messageEvent as { app_id?: string }).app_id;
+      const isAllowed =
+        allowedBotIds.includes(messageEvent.bot_id) ||
+        (botAppId && allowedAppIds.includes(botAppId));
+      if (!isAllowed) return;
+      logger.info(
+        `Allowing bot message from bot_id=${messageEvent.bot_id} app_id=${botAppId} (allowlisted for testing)`,
+      );
+    }
 
     const botUserId = process.env.SLACK_BOT_USER_ID || "U078499LK5K";
     const text = messageEvent.text || "";
@@ -1512,10 +1536,24 @@ ${yaml.stringify(contexts)}
       if (v) passEnv[k] = v;
     }
 
+    // Pin to the glibc binary explicitly. The SDK's auto-resolution
+    // tries `@anthropic-ai/claude-agent-sdk-linux-x64-musl` first (because
+    // it's installed alongside `-linux-x64`), but the musl variant fails
+    // on Debian/Ubuntu hosts with "No such file or directory" because
+    // /lib/ld-musl-x86_64.so.1 isn't present in glibc-based images. The
+    // failure looks like a generic "exit code 1" and was the root cause
+    // of the bot dying on every Slack DM (2026-04-30 incident).
+    const sdkRoot = require.resolve("@anthropic-ai/claude-agent-sdk/package.json");
+    const claudeBinary = sdkRoot.replace(
+      /\/claude-agent-sdk\/package\.json$/,
+      "/claude-agent-sdk-linux-x64/claude",
+    );
+
     agentQuery = query({
       prompt: sdkPrompt,
       options: {
         cwd: botWorkingDir,
+        pathToClaudeCodeExecutable: claudeBinary,
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
         settingSources: ["project"], // loads CLAUDE.md from cwd
