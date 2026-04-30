@@ -275,9 +275,9 @@ export async function runGithubDesignTask() {
                 reviewersRequested = true;
               } catch (err: unknown) {
                 // GitHub may return 422 when a requested reviewer cannot be added,
-                // such as when they are not a collaborator, cannot be requested,
-                // or have already been requested. Record the attempt to avoid
-                // retrying on every 5-minute schedule run.
+                // such as when they are not a collaborator or cannot be requested.
+                // We log but don't persist, so the request will be retried on the
+                // next run (the reviewer may become eligible later).
                 const status = (err as { status?: number })?.status;
                 if (status !== 422) throw err;
                 tlog(`Reviewer request rejected (422): ${err}`);
