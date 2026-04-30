@@ -38,4 +38,14 @@ describe("filterReviewers", () => {
     const result = filterReviewers(REVIEWERS, "SomeoneElse", undefined);
     expect(result.newReviewers).toEqual(["PabloWiedemann", "AliceDev"]);
   });
+
+  it("compares usernames case-insensitively", () => {
+    const result = filterReviewers(REVIEWERS, "pablowiedemann");
+    expect(result.requestReviewers).toEqual(["AliceDev"]);
+  });
+
+  it("matches already-requested reviewers case-insensitively", () => {
+    const result = filterReviewers(REVIEWERS, "SomeoneElse", ["pablowiedemann"]);
+    expect(result.newReviewers).toEqual(["AliceDev"]);
+  });
 });
