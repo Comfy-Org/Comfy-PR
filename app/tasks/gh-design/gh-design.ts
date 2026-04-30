@@ -21,6 +21,7 @@ import {
   planDesignCommentNotification,
 } from "./slackNotifications";
 import { slackMessageUrlParse, slackMessageUrlStringify } from "./slackMessageUrlParse";
+import { filterReviewers } from "./filterReviewers";
 const tlog = createTimeLogger();
 
 /**
@@ -254,17 +255,15 @@ export async function runGithubDesignTask() {
           });
 
       if (task.state === "open") {
-        if (
-          task.type === "pull_request" &&
-          REQUEST_REVIEWERS.some((e) => !task.reviewers?.includes(e))
-        ) {
-          const requestReviewers = REQUEST_REVIEWERS;
-          const newReviewers = requestReviewers.filter(
-            (e) => !task.reviewers?.includes(e) && e !== task.user,
+        if (task.type === "pull_request") {
+          const { requestReviewers, newReviewers } = filterReviewers(
+            REQUEST_REVIEWERS,
+            task.user,
+            task.reviewers,
           );
-          tlog(`Requesting reviewers: ${newReviewers.join(", ") || "(none)"}`);
-          if (!dryRun) {
-            if (newReviewers.length > 0) {
+          if (newReviewers.length > 0) {
+            tlog(`Requesting reviewers: ${newReviewers.join(", ")}`);
+            if (!dryRun) {
               try {
                 await gh.pulls.requestReviewers({
                   owner,
@@ -272,16 +271,17 @@ export async function runGithubDesignTask() {
                   pull_number: issue_number,
                   reviewers: newReviewers,
                 });
-              } catch (err: any) {
+              } catch (err: unknown) {
                 // GitHub may return 422 when a requested reviewer cannot be added,
                 // such as when they are not a collaborator, cannot be requested,
                 // or have already been requested. Record the attempt to avoid
                 // retrying on every 5-minute schedule run.
-                if (err?.status !== 422) throw err;
-                tlog(`Reviewer request rejected (422): ${err.message}`);
+                const status = (err as { status?: number })?.status;
+                if (status !== 422) throw err;
+                tlog(`Reviewer request rejected (422): ${err}`);
               }
+              task = await saveGithubDesignTask(url, { reviewers: requestReviewers });
             }
-            task = await saveGithubDesignTask(url, { reviewers: requestReviewers });
           }
         }
 
