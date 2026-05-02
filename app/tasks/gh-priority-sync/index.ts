@@ -170,7 +170,6 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
       page_size,
       start_cursor: cursor,
     });
-    // ret.next_cursor && await State.set(CHECKPOINT, ret.next_cursor);
     return { next: ret.next_cursor, data: ret.results };
   })
     .flat()
