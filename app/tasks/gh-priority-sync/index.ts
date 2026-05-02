@@ -147,24 +147,32 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
   console.log("[notion] comfy-task scan resuming from checkpoint:", checkpoint);
 
   // Sync Recent edited Comfy Tasks to GitHub Issues/PRs
-  const tasks = await pageFlow(
-    checkpoint?.id ?? (undefined as string | undefined),
-    async (cursor, page_size = 100) => {
-      // console.log(`Querying Notion data source ${data_source_id} with cursor=${cursor} page_size=${page_size}...`);
-      const ret = await notion.dataSources.query({
-        data_source_id,
-        result_type: "page",
-        filter: {
-          and: [{ property: "[GH🤖] Link", url: { is_not_empty: true } }],
+  // Notion's start_cursor must be a token returned by a previous query (next_cursor),
+  // not an arbitrary page ID. To resume from a checkpoint, filter by last_edited_time
+  // and start pagination from undefined.
+  const checkpointFilter = checkpoint?.editedAt
+    ? [
+        {
+          timestamp: "last_edited_time" as const,
+          last_edited_time: { on_or_after: checkpoint.editedAt },
         },
-        sorts: [{ direction: "ascending", timestamp: "last_edited_time" }],
-        page_size,
-        start_cursor: cursor,
-      });
-      // ret.next_cursor && await State.set(CHECKPOINT, ret.next_cursor);
-      return { next: ret.next_cursor, data: ret.results };
-    },
-  )
+      ]
+    : [];
+  const tasks = await pageFlow(undefined as string | undefined, async (cursor, page_size = 100) => {
+    // console.log(`Querying Notion data source ${data_source_id} with cursor=${cursor} page_size=${page_size}...`);
+    const ret = await notion.dataSources.query({
+      data_source_id,
+      result_type: "page",
+      filter: {
+        and: [{ property: "[GH🤖] Link", url: { is_not_empty: true } }, ...checkpointFilter],
+      },
+      sorts: [{ direction: "ascending", timestamp: "last_edited_time" }],
+      page_size,
+      start_cursor: cursor,
+    });
+    // ret.next_cursor && await State.set(CHECKPOINT, ret.next_cursor);
+    return { next: ret.next_cursor, data: ret.results };
+  })
     .flat()
     .map((e) => e as Notion.PageObjectResponse)
     .filter((e) => e.id !== checkpoint?.id) // skip checkpoint entry as it's already processed
