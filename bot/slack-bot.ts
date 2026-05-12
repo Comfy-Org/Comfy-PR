@@ -12,6 +12,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import DIE from "@snomiao/die";
 import { compareBy } from "comparing";
 import { mkdir } from "fs/promises";
+import { existsSync } from "fs";
 import sflow from "sflow";
 import winston from "winston";
 import zChatCompletion, { initZChat } from "../lib/zChat";
@@ -604,6 +605,27 @@ async function handleSlackEvent(event: unknown) {
   }
 }
 async function spawnBotOnSlackMessageEvent(event: z.infer<typeof zAppMentionEvent>) {
+  // Whole-task safety net. Anything thrown from setup, the SDK loop, the
+  // cleanup tail, or a stray Slack/Mongo call inside this body MUST NOT
+  // escape this function or it crashes the master and takes every other
+  // running task down with it.
+  try {
+    return await spawnBotOnSlackMessageEventInner(event);
+  } catch (err) {
+    logger.error(`Task crashed for event ${event.ts} in channel ${event.channel}`, {
+      err:
+        err instanceof Error
+          ? { name: err.name, message: err.message, stack: err.stack?.slice(0, 4000) }
+          : err,
+    });
+    // Best-effort: drop this task from the working-tasks list so a restart
+    // doesn't try to resume a poison-pill message forever.
+    await removeWorkingTask(event).catch(() => {});
+    return;
+  }
+}
+
+async function spawnBotOnSlackMessageEventInner(event: z.infer<typeof zAppMentionEvent>) {
   // Dedup by content hash so message edits with new intent re-trigger,
   // but truly identical retries within 10s are suppressed.
   const contentHash = createHmac("sha256", "msg")
@@ -1142,12 +1164,25 @@ Respond in JSON format with the following fields:
     }
   }
 
-  // clone https://github.com/Comfy-Org/Comfy-PR/tree/sno-bot to ./repos/prbot (branch: sno-bot)
+  // Make the PR-Bot source tree available to the agent under
+  // codes/Comfy-Org/pr-bot/tree/main. Idempotent: a previous spawn for the
+  // same workspace will already have populated this dir; re-running
+  // `git clone` against an existing directory dumps a stderr storm
+  // (`fatal: destination path '...' already exists`) on every restart
+  // (see 2026-05-11 pm2 logs). If the .git directory is present, just
+  // fast-forward; otherwise clone fresh.
   const prBotRepoDir = `${botWorkingDir}/codes/Comfy-Org/pr-bot/tree/main`;
   await mkdir(prBotRepoDir, { recursive: true });
-  await Bun.$`git clone --branch main https://github.com/Comfy-Org/Comfy-PR ${prBotRepoDir}`.catch(
-    () => null,
-  );
+  try {
+    const hasGit = existsSync(`${prBotRepoDir}/.git`);
+    if (hasGit) {
+      await Bun.$`cd ${prBotRepoDir} && git fetch --quiet origin main && git reset --hard --quiet origin/main`.quiet();
+    } else {
+      await Bun.$`git clone --quiet --branch main https://github.com/Comfy-Org/Comfy-PR ${prBotRepoDir}`.quiet();
+    }
+  } catch (cloneErr) {
+    logger.warn("PR-Bot source tree prepare failed (non-fatal)", { err: cloneErr });
+  }
 
   // await Bun.write(`${botWorkingDir}/PROMPT.txt`, agentPrompt);
 
@@ -1519,8 +1554,15 @@ ${yaml.stringify(contexts)}
       GITHUB_TOKEN: ghToken,
     };
     // Whitelist anything the agent legitimately needs at runtime.
+    //
+    // ANTHROPIC_API_KEY is intentionally NOT forwarded: the claude binary
+    // prefers it over OAuth when present, which forced the agent onto
+    // pay-per-token API billing and exhausted credit on 2026-04-30. The task
+    // user's HOME has the host's `claude login` OAuth credentials copied in
+    // by `ensureClaudeCredentials`, so the binary auths via Claude Max/Pro
+    // subscription instead. To opt back into API billing for a single task,
+    // export ANTHROPIC_API_KEY explicitly here.
     for (const k of [
-      "ANTHROPIC_API_KEY",
       "OPENAI_API_KEY",
       "NOTION_TOKEN",
       "SLACK_BOT_TOKEN", // agent uses prbot slack update / read
@@ -1556,7 +1598,12 @@ ${yaml.stringify(contexts)}
         pathToClaudeCodeExecutable: claudeBinary,
         permissionMode: "bypassPermissions",
         allowDangerouslySkipPermissions: true,
-        settingSources: ["project"], // loads CLAUDE.md from cwd
+        // SDK isolation mode: do not load ANY filesystem settings or CLAUDE.md.
+        // The host's `/root/.claude/CLAUDE.md` is in Japanese ("すべての返答は
+        // 自然な日本語で行ってください") and would leak into the agent's tone
+        // even when the user wrote in English. Each task gets a clean context;
+        // intent context flows in via PROMPT.txt only.
+        settingSources: [],
         maxTurns,
         persistSession: false,
         abortController,

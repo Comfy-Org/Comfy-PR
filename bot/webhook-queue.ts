@@ -93,19 +93,35 @@ export async function enqueueWebhook(
   return res.insertedId;
 }
 
-/** Mark a webhook as fully processed so restart-resume doesn't replay it. */
+/** Mark a webhook as fully processed so restart-resume doesn't replay it.
+ *
+ *  Best-effort: a failure here (e.g. MongoNotConnectedError when the client
+ *  has been closed mid-shutdown) must NOT propagate, or it would kill the
+ *  master process from inside the consumer's own error path — see the
+ *  2026-05-11 crash loop where `markWebhookProcessed` threw from the
+ *  drainBacklog catch handler and took down the bot 3000+ times.
+ */
 export async function markWebhookProcessed(id: ObjectId, error?: Error): Promise<void> {
-  const col = db.collection<WebhookQueueDoc>(COLLECTION);
-  await col.updateOne(
-    { _id: id },
-    {
-      $set: {
-        processed: true,
-        processedAt: new Date(),
-        ...(error ? { error: String(error.stack || error.message).slice(0, 4000) } : {}),
+  try {
+    const col = db.collection<WebhookQueueDoc>(COLLECTION);
+    await col.updateOne(
+      { _id: id },
+      {
+        $set: {
+          processed: true,
+          processedAt: new Date(),
+          ...(error ? { error: String(error.stack || error.message).slice(0, 4000) } : {}),
+        },
       },
-    },
-  );
+    );
+  } catch (markErr) {
+    // Swallow. Worst case on resume we'll see a doc with processed=false
+    // and re-run the consumer once. That's safer than crashing.
+    console.error("[webhook-queue] markWebhookProcessed failed (swallowed)", {
+      id: String(id),
+      markErr,
+    });
+  }
 }
 
 export type WebhookConsumer = (doc: WebhookQueueDoc) => Promise<void>;
@@ -140,22 +156,32 @@ export async function startWebhookConsumer(
   const col = db.collection<WebhookQueueDoc>(COLLECTION);
 
   if (drainBacklog) {
-    const filter = {
-      processed: false,
-      ...(sources ? { source: { $in: sources } } : {}),
-    };
-    const backlog = await col.find(filter).sort({ createdAt: 1 }).toArray();
-    if (backlog.length) {
-      log.info(`webhook-queue: draining ${backlog.length} unprocessed docs`);
-    }
-    for (const doc of backlog) {
-      try {
-        await opts.consume(doc);
-        await markWebhookProcessed(doc._id!);
-      } catch (err) {
-        log.error(`webhook-queue: backlog consume failed for ${doc._id}`, { err });
-        await markWebhookProcessed(doc._id!, err as Error);
+    // Wrap the whole backlog phase so a transient Mongo error (e.g. the
+    // changeStream collection is briefly unavailable, or the client gets
+    // closed by an SDK spawn racing with shutdown) doesn't reject out of
+    // startSlackBot() and crash the master.
+    try {
+      const filter = {
+        processed: false,
+        ...(sources ? { source: { $in: sources } } : {}),
+      };
+      const backlog = await col.find(filter).sort({ createdAt: 1 }).toArray();
+      if (backlog.length) {
+        log.info(`webhook-queue: draining ${backlog.length} unprocessed docs`);
       }
+      for (const doc of backlog) {
+        try {
+          await opts.consume(doc);
+          await markWebhookProcessed(doc._id!);
+        } catch (err) {
+          log.error(`webhook-queue: backlog consume failed for ${doc._id}`, { err });
+          await markWebhookProcessed(doc._id!, err as Error);
+        }
+      }
+    } catch (drainErr) {
+      log.error("webhook-queue: drainBacklog failed (continuing to changeStream)", {
+        drainErr,
+      });
     }
   }
 
@@ -163,9 +189,13 @@ export async function startWebhookConsumer(
     ? [{ $match: { operationType: "insert", "fullDocument.source": { $in: sources } } }]
     : [{ $match: { operationType: "insert" } }];
 
-  let stream: ChangeStream<WebhookQueueDoc> | null = col.watch(pipeline, {
-    fullDocument: "updateLookup",
-  });
+  let stream: ChangeStream<WebhookQueueDoc> | null;
+  try {
+    stream = col.watch(pipeline, { fullDocument: "updateLookup" });
+  } catch (watchErr) {
+    log.error("webhook-queue: col.watch() failed; consumer disabled this run", { watchErr });
+    return async () => {};
+  }
   let stopped = false;
 
   (async () => {
