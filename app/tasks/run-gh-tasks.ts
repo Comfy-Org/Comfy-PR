@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import isCI from "is-ci";
+import { getScheduledCombinedGithubTasks } from "./combinedTaskSchedule";
 
 // Task definitions with lazy dynamic imports to avoid top-level DB calls at import time.
 // Modules are only loaded when DRY_RUN=false (real execution).
-const TASK_DEFS = [
+const TASK_DEFS = getScheduledCombinedGithubTasks([
   {
     name: "GitHub Bounty Task",
     load: () => import("./gh-bounty/gh-bounty").then((m) => m.default),
@@ -68,7 +69,7 @@ const TASK_DEFS = [
     name: "GitHub PR Release Tagger Task",
     load: () => import("./gh-pr-release-tagger/index").then((m) => m.default),
   },
-];
+]);
 
 const DRY_RUN = process.env.DRY_RUN !== "false";
 
