@@ -15,7 +15,7 @@ import { getChannelInfo } from "@/lib/slack/channel-info";
 import { getSlackChannel } from "@/lib/slack/channels";
 import { findSlackIdByGithubUsername as findSlackIdFromNotion } from "@/lib/notion/people";
 import { slackCached } from "@/lib";
-import { shouldCheckRelease } from "./releaseEligibility";
+import { getReleaseComparison } from "./releaseComparison";
 
 /**
  * GitHub Frontend Backport Checker Task
@@ -33,7 +33,6 @@ import { shouldCheckRelease } from "./releaseEligibility";
  * 2. FETCH RECENT RELEASES
  *    Fetches up to `maxReleasesToCheck` (10) releases from ComfyUI_frontend.
  *    Filters them by:
- *      - stable publication status (skip drafts and prereleases)
  *      - `processSince` date (skip very old releases)
  *      - `maxMinorVersionsBehind` (4) — only show releases whose minor version
  *        is at most 4 behind the latest (e.g. if latest is v1.40, v1.36 is
@@ -108,13 +107,10 @@ import { shouldCheckRelease } from "./releaseEligibility";
  *   "nightly" or "latest"), the release is included rather than excluded, so
  *   non-semver releases are never silently skipped.
  *
- * • DRAFTS & PRERELEASES — intentionally incomplete artifacts (for example,
- *   visual review evidence published as a prerelease) are not production
- *   releases and are skipped before changelog parsing.
- *
- * • MISSING COMPARE LINK — if a stable release body does not contain a
- *   `.../compare/...` URL, the task throws via `DIE()`. A malformed production
- *   changelog remains an error rather than being silently ignored.
+ * • MISSING COMPARE LINK — candidate releases without a `.../compare/...` URL
+ *   are silently skipped before persistence and processing. Prerelease status
+ *   does not affect eligibility, so a prerelease with a valid comparison link
+ *   continues through the existing backport workflow.
  *
  * • COMPARE API FAILURE — if `compareCommits` fails for a release (e.g. tags
  *   deleted, repo renamed), the release is saved with `taskStatus: "failed"`
@@ -296,12 +292,11 @@ export default async function runGithubFrontendBackportCheckerTask() {
   })
     .limit(config.maxReleasesToCheck)
     .toArray();
-  const stableReleases = releases.filter(shouldCheckRelease);
 
-  logger.debug(`Found ${stableReleases.length} stable releases to check`);
+  logger.debug(`Found ${releases.length} recent releases to check`);
 
   // Find latest minor version for version-based filtering
-  const latestMinor = stableReleases
+  const latestMinor = releases
     .map((r) => parseMinorVersion(r.tag_name))
     .filter((v): v is number => v !== null)
     .reduce((a, b) => Math.max(a, b), 0);
@@ -310,7 +305,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
   );
 
   // Process each release
-  const processedReleases = await sflow(stableReleases)
+  const processedReleases = await sflow(releases)
     .filter((release) => +new Date(release.created_at) >= +new Date(config.processSince))
     // Filter by version distance: show releases up to and including maxMinorVersionsBehind behind latest
     .filter((release) => {
@@ -319,14 +314,20 @@ export default async function runGithubFrontendBackportCheckerTask() {
       return latestMinor - minor <= config.maxMinorVersionsBehind;
     })
     .map(async function convertReleaseToTask(release) {
-      const compareLink =
-        (
-          release.body
-            ?.matchAll(urlRegexSafe())
-            .map((g) => g[0])
-            .toArray() || []
-        ).find((u) => u.includes(`${config.repo}/compare/`)) ||
-        DIE("No compare link found in release body, do we have a proper changelog?");
+      const comparison = getReleaseComparison(
+        {
+          prerelease: release.prerelease,
+          bodyUrls:
+            release.body
+              ?.matchAll(urlRegexSafe())
+              .map((g) => g[0])
+              .toArray() || [],
+        },
+        config.repo,
+      );
+      if (!comparison) return null;
+
+      const { compareLink } = comparison;
       logger.debug(`  Found compare link: ${compareLink}`);
 
       let task = await save({
@@ -342,6 +343,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
       // 1. find full changelog link in release body, e.g. https://github.com/Comfy-Org/ComfyUI_frontend/compare/v1.38.0...v1.38.1
       return await save({ ...task, compareLink });
     })
+    .filter((task) => task !== null)
     .map(processTask)
     .toArray();
 
