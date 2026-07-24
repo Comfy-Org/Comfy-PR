@@ -15,6 +15,7 @@ import { getChannelInfo } from "@/lib/slack/channel-info";
 import { getSlackChannel } from "@/lib/slack/channels";
 import { findSlackIdByGithubUsername as findSlackIdFromNotion } from "@/lib/notion/people";
 import { slackCached } from "@/lib";
+import { shouldCheckRelease } from "./releaseEligibility";
 
 /**
  * GitHub Frontend Backport Checker Task
@@ -32,6 +33,7 @@ import { slackCached } from "@/lib";
  * 2. FETCH RECENT RELEASES
  *    Fetches up to `maxReleasesToCheck` (10) releases from ComfyUI_frontend.
  *    Filters them by:
+ *      - stable publication status (skip drafts and prereleases)
  *      - `processSince` date (skip very old releases)
  *      - `maxMinorVersionsBehind` (4) — only show releases whose minor version
  *        is at most 4 behind the latest (e.g. if latest is v1.40, v1.36 is
@@ -106,10 +108,13 @@ import { slackCached } from "@/lib";
  *   "nightly" or "latest"), the release is included rather than excluded, so
  *   non-semver releases are never silently skipped.
  *
- * • MISSING COMPARE LINK — if the release body does not contain a
- *   `.../compare/...` URL, the task throws via `DIE()`. This means releases
- *   without a proper changelog are treated as errors rather than silently
- *   ignored.
+ * • DRAFTS & PRERELEASES — intentionally incomplete artifacts (for example,
+ *   visual review evidence published as a prerelease) are not production
+ *   releases and are skipped before changelog parsing.
+ *
+ * • MISSING COMPARE LINK — if a stable release body does not contain a
+ *   `.../compare/...` URL, the task throws via `DIE()`. A malformed production
+ *   changelog remains an error rather than being silently ignored.
  *
  * • COMPARE API FAILURE — if `compareCommits` fails for a release (e.g. tags
  *   deleted, repo renamed), the release is saved with `taskStatus: "failed"`
@@ -291,11 +296,12 @@ export default async function runGithubFrontendBackportCheckerTask() {
   })
     .limit(config.maxReleasesToCheck)
     .toArray();
+  const stableReleases = releases.filter(shouldCheckRelease);
 
-  logger.debug(`Found ${releases.length} recent releases to check`);
+  logger.debug(`Found ${stableReleases.length} stable releases to check`);
 
   // Find latest minor version for version-based filtering
-  const latestMinor = releases
+  const latestMinor = stableReleases
     .map((r) => parseMinorVersion(r.tag_name))
     .filter((v): v is number => v !== null)
     .reduce((a, b) => Math.max(a, b), 0);
@@ -304,7 +310,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
   );
 
   // Process each release
-  const processedReleases = await sflow(releases)
+  const processedReleases = await sflow(stableReleases)
     .filter((release) => +new Date(release.created_at) >= +new Date(config.processSince))
     // Filter by version distance: show releases up to and including maxMinorVersionsBehind behind latest
     .filter((release) => {
