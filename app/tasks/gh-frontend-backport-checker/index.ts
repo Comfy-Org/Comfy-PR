@@ -325,7 +325,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
         },
         config.repo,
       );
-      if (!comparison) return null;
+      if (!comparison) return [];
 
       const { compareLink } = comparison;
       logger.debug(`  Found compare link: ${compareLink}`);
@@ -341,9 +341,9 @@ export default async function runGithubFrontendBackportCheckerTask() {
       logger.info(`\nProcessing release: ${task.releaseTag}`);
 
       // 1. find full changelog link in release body, e.g. https://github.com/Comfy-Org/ComfyUI_frontend/compare/v1.38.0...v1.38.1
-      return await save({ ...task, compareLink });
+      return [await save({ ...task, compareLink })];
     })
-    .filter((task) => task !== null)
+    .flat()
     .map(processTask)
     .toArray();
 

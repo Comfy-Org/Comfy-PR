@@ -49,12 +49,6 @@ import KeyvMongodbStore from "keyv-mongodb-store";
 import KeyvNedbStore from "keyv-nedb-store";
 import KeyvNest from "keyv-nest";
 import sflow, { pageFlow } from "sflow";
-import {
-  advanceNotionCheckpoint,
-  getNotionCheckpointFilter,
-  type NotionScanCheckpoint,
-  wasProcessedAtCheckpointBoundary,
-} from "./notionCheckpoint";
 
 const _DEBUG_CACHE = !!process.env.VERBOSE;
 
@@ -149,31 +143,31 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
   // // Query the database to get tasks
   // console.log('\nFetching tasks from database...');
   // // full scan + incremental watching
-  const checkpoint = (await State.get(NotionCheckpoint)) as NotionScanCheckpoint | undefined;
-  let currentCheckpoint = checkpoint;
+  const checkpoint = (await State.get(NotionCheckpoint)) as { id: string; editedAt: string };
   console.log("[notion] comfy-task scan resuming from checkpoint:", checkpoint);
 
   // Sync Recent edited Comfy Tasks to GitHub Issues/PRs
-  // Persisted checkpoints contain page IDs, not reusable Notion cursors. Resume
-  // by timestamp and only use next_cursor values within this scan.
-  const checkpointFilter = getNotionCheckpointFilter(checkpoint);
-  const tasks = await pageFlow(undefined as string | undefined, async (cursor, page_size = 100) => {
-    // console.log(`Querying Notion data source ${data_source_id} with cursor=${cursor} page_size=${page_size}...`);
-    const ret = await notion.dataSources.query({
-      data_source_id,
-      result_type: "page",
-      filter: {
-        and: [{ property: "[GH🤖] Link", url: { is_not_empty: true } }, ...checkpointFilter],
-      },
-      sorts: [{ direction: "ascending", timestamp: "last_edited_time" }],
-      page_size,
-      start_cursor: cursor,
-    });
-    return { next: ret.next_cursor, data: ret.results };
-  })
+  const tasks = await pageFlow(
+    checkpoint?.id ?? (undefined as string | undefined),
+    async (cursor, page_size = 100) => {
+      // console.log(`Querying Notion data source ${data_source_id} with cursor=${cursor} page_size=${page_size}...`);
+      const ret = await notion.dataSources.query({
+        data_source_id,
+        result_type: "page",
+        filter: {
+          and: [{ property: "[GH🤖] Link", url: { is_not_empty: true } }],
+        },
+        sorts: [{ direction: "ascending", timestamp: "last_edited_time" }],
+        page_size,
+        start_cursor: cursor,
+      });
+      // ret.next_cursor && await State.set(CHECKPOINT, ret.next_cursor);
+      return { next: ret.next_cursor, data: ret.results };
+    },
+  )
     .flat()
     .map((e) => e as Notion.PageObjectResponse)
-    .filter((e) => !wasProcessedAtCheckpointBoundary(e, checkpoint))
+    .filter((e) => e.id !== checkpoint?.id) // skip checkpoint entry as it's already processed
     .map((e) => {
       return {
         ...e,
@@ -201,6 +195,7 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
     .filter((e) => e.Title) // only with title
     // .filter((e) => e.Priority?.trim()) // only with priority
     .filter((e) => e.issueUrl?.trim()) // github issue or pull url
+
     // process each task with error catcher
     .forEach(
       tryCatcher(
@@ -216,8 +211,7 @@ async function SyncPriorityBetweenComfyTaskAndGithubIssue() {
         async (e) => {
           const task = e as Notion.PageObjectResponse;
           await ComfyTaskPrioritySync(task);
-          currentCheckpoint = advanceNotionCheckpoint(currentCheckpoint, task);
-          await State.set(NotionCheckpoint, currentCheckpoint);
+          await State.set(NotionCheckpoint, { id: task.id, editedAt: task.last_edited_time }); // per-item checkpoint, can resume from last processed page
         },
       ),
     )
