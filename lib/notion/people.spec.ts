@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { afterAll, describe, expect, it } from "bun:test";
 
 // Use bun's mock.module (mirrors the pattern used by app/tasks/gh-priority-sync/index.spec.ts)
 const { mock } = await import("bun:test");
@@ -134,6 +134,23 @@ mock.module("keyv-nedb-store", () => ({
     constructor(_path: string) {}
   },
 }));
+
+// bun test runs all spec files in a single shared process, so mutating
+// process.env here leaks into every other spec file for the rest of the
+// run unless we restore it. In particular, an unrestored fake
+// SLACK_BOT_TOKEN made lib/slack/daily.spec.ts's "do we have a real Slack
+// token" check pass, which then made real (failing) calls to the Slack API.
+const originalEnv = {
+  NOTION_TOKEN: process.env.NOTION_TOKEN,
+  GH_TOKEN_COMFY_PR_BOT: process.env.GH_TOKEN_COMFY_PR_BOT,
+  SLACK_BOT_TOKEN: process.env.SLACK_BOT_TOKEN,
+};
+afterAll(() => {
+  for (const [key, value] of Object.entries(originalEnv)) {
+    if (value === undefined) delete process.env[key];
+    else process.env[key] = value;
+  }
+});
 
 process.env.NOTION_TOKEN = "test-notion-token";
 process.env.GH_TOKEN_COMFY_PR_BOT = "test-gh-token";
