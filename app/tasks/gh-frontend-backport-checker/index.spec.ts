@@ -1,6 +1,14 @@
 import { describe, it, expect } from "bun:test";
 import type { BackportStatus } from "./index";
-import { parseMinorVersion, middleTruncated, getBackportStatusEmoji } from "./index";
+import {
+  parseMinorVersion,
+  middleTruncated,
+  getBackportStatusEmoji,
+  isIgnoredBackportPath,
+  allChangedFilesIgnored,
+  isBotLogin,
+  IGNORED_BACKPORT_PATH_GLOBS,
+} from "./index";
 
 describe("GithubFrontendBackportCheckerTask", () => {
   describe("bugfix detection", () => {
@@ -686,6 +694,151 @@ describe("GithubFrontendBackportCheckerTask", () => {
         .map((bf) => bf.prAuthor);
 
       expect(authorsToResolve).toEqual(["alice"]);
+    });
+  });
+
+  describe("ignored backport path filtering", () => {
+    it("should ignore files under apps/website", () => {
+      expect(isIgnoredBackportPath("apps/website/src/pages/affiliates.astro")).toBe(true);
+      expect(isIgnoredBackportPath("apps/website/package.json")).toBe(true);
+    });
+
+    it("should ignore CI/CD workflow files", () => {
+      expect(isIgnoredBackportPath(".github/workflows/ci-tests-e2e-coverage.yaml")).toBe(true);
+      expect(isIgnoredBackportPath(".github/CODEOWNERS")).toBe(true);
+      expect(isIgnoredBackportPath(".husky/pre-commit")).toBe(true);
+    });
+
+    it("should ignore repo-level tooling config files", () => {
+      expect(isIgnoredBackportPath(".coderabbit.yaml")).toBe(true);
+      expect(isIgnoredBackportPath(".oxlintrc.json")).toBe(true);
+      expect(isIgnoredBackportPath("codecov.yml")).toBe(true);
+    });
+
+    it("should not ignore actual app source files", () => {
+      expect(isIgnoredBackportPath("src/components/dialog/Dialog.vue")).toBe(false);
+      expect(isIgnoredBackportPath("apps/desktop-ui/src/main.ts")).toBe(false);
+      expect(isIgnoredBackportPath("package.json")).toBe(false);
+    });
+
+    it("should support a custom glob list", () => {
+      expect(isIgnoredBackportPath("docs/README.md", ["docs/**"])).toBe(true);
+      expect(isIgnoredBackportPath("src/foo.ts", ["docs/**"])).toBe(false);
+    });
+
+    it("should expose the default ignore list as an editable array", () => {
+      expect(Array.isArray(IGNORED_BACKPORT_PATH_GLOBS)).toBe(true);
+      expect(IGNORED_BACKPORT_PATH_GLOBS.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("allChangedFilesIgnored", () => {
+    it("should return true when every changed file is ignored", () => {
+      expect(
+        allChangedFilesIgnored([
+          "apps/website/src/pages/affiliates.astro",
+          "apps/website/package.json",
+        ]),
+      ).toBe(true);
+    });
+
+    it("should return false when some files are outside the ignore list", () => {
+      expect(
+        allChangedFilesIgnored(["apps/website/src/pages/affiliates.astro", "src/main.ts"]),
+      ).toBe(false);
+    });
+
+    it("should return false for an empty file list (don't silently suppress on missing data)", () => {
+      expect(allChangedFilesIgnored([])).toBe(false);
+    });
+
+    it("should return false when no files match", () => {
+      expect(allChangedFilesIgnored(["src/main.ts", "src/App.vue"])).toBe(false);
+    });
+  });
+
+  describe("bot login detection", () => {
+    it("should detect known automation account logins", () => {
+      expect(isBotLogin("claude[bot]")).toBe(true);
+      expect(isBotLogin("cloud-code-bot[bot]")).toBe(true);
+      expect(isBotLogin("dependabot[bot]")).toBe(true);
+      expect(isBotLogin("comfy-pr-bot")).toBe(true);
+    });
+
+    it("should not flag human usernames", () => {
+      expect(isBotLogin("christian-byrne")).toBe(false);
+      expect(isBotLogin("nav-tej")).toBe(false);
+    });
+
+    it("should handle null/undefined logins", () => {
+      expect(isBotLogin(undefined)).toBe(false);
+      expect(isBotLogin(null)).toBe(false);
+      expect(isBotLogin("")).toBe(false);
+    });
+  });
+
+  describe("bot-author PR attribution line parsing", () => {
+    // Mirrors config.reAttributionLine in index.ts
+    const reAttributionLine = /_Requested by \*\*(.+?)\*\*/;
+
+    it("should extract the requester name from PR #14206's body (real fixture)", () => {
+      // https://github.com/Comfy-Org/ComfyUI_frontend/pull/14206 — authored by claude[bot],
+      // requested by nav (GitHub: nav-tej)
+      const body = `
+_Requested by **nav** · [Slack thread](https://comfy-organization.slack.com/archives/C09NWURUPMF/p1785261364537139?thread_ts=1785261364.537139&cid=C09NWURUPMF)_
+
+## Summary
+
+Adds a link to the full brand asset kit.
+`;
+      expect(body.match(reAttributionLine)?.[1]).toBe("nav");
+    });
+
+    it("should extract the requester name from PR #15342's body (real fixture)", () => {
+      // https://github.com/Comfy-Org/ComfyUI_frontend/pull/15342 — authored by claude[bot],
+      // requested by Christian Byrne (GitHub: christian-byrne)
+      const body = `
+_Requested by **Christian Byrne** · [Slack thread](https://comfy-organization.slack.com/archives/C0AP09LKRDZ/p1786872633268499?thread_ts=1786872633.268499&cid=C0AP09LKRDZ)_
+
+## Summary
+
+The e2e coverage merge job only ran when the upstream workflow succeeded.
+`;
+      expect(body.match(reAttributionLine)?.[1]).toBe("Christian Byrne");
+    });
+
+    it("should return no match when there's no attribution line", () => {
+      const body = "## Summary\n\nJust a regular PR description.";
+      expect(body.match(reAttributionLine)).toBeNull();
+    });
+  });
+
+  describe("Co-authored-by trailer parsing", () => {
+    const reCoAuthor = /^Co-authored-by:\s*(.+?)\s*<([^>]+)>/gim;
+
+    it("should extract name and email from a standard trailer", () => {
+      const message =
+        "fix: something\n\nSome body text.\n\nCo-authored-by: Nav Tej <170000+nav-tej@users.noreply.github.com>";
+      const match = [...message.matchAll(reCoAuthor)][0];
+      expect(match[1]).toBe("Nav Tej");
+      expect(match[2]).toBe("170000+nav-tej@users.noreply.github.com");
+    });
+
+    it("should extract a GitHub login from a noreply email", () => {
+      const email = "170000+nav-tej@users.noreply.github.com";
+      const loginMatch = email.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/i);
+      expect(loginMatch?.[1]).toBe("nav-tej");
+    });
+
+    it("should return null for a non-noreply email", () => {
+      const email = "christian@example.com";
+      const loginMatch = email.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/i);
+      expect(loginMatch).toBeNull();
+    });
+
+    it("should find no trailers when the commit has none", () => {
+      const message = "fix: something\n\nJust a regular commit body.";
+      expect([...message.matchAll(reCoAuthor)]).toHaveLength(0);
     });
   });
 
