@@ -1,6 +1,11 @@
 import { describe, it, expect } from "bun:test";
 import type { BackportStatus } from "./index";
-import { parseMinorVersion, middleTruncated, getBackportStatusEmoji } from "./index";
+import {
+  parseMinorVersion,
+  middleTruncated,
+  getBackportStatusEmoji,
+  isAlreadyOnBranchStatus,
+} from "./index";
 
 describe("GithubFrontendBackportCheckerTask", () => {
   describe("bugfix detection", () => {
@@ -686,6 +691,22 @@ describe("GithubFrontendBackportCheckerTask", () => {
         .map((bf) => bf.prAuthor);
 
       expect(authorsToResolve).toEqual(["alice"]);
+    });
+  });
+
+  describe("isAlreadyOnBranchStatus (dual-homed commit detection)", () => {
+    it("should treat identical/behind as already present on the branch", () => {
+      expect(isAlreadyOnBranchStatus("identical")).toBe(true);
+      expect(isAlreadyOnBranchStatus("behind")).toBe(true);
+    });
+
+    it("should treat ahead/diverged as not present on the branch", () => {
+      expect(isAlreadyOnBranchStatus("ahead")).toBe(false);
+      expect(isAlreadyOnBranchStatus("diverged")).toBe(false);
+    });
+
+    it("should not match an unrecognized status", () => {
+      expect(isAlreadyOnBranchStatus("unknown")).toBe(false);
     });
   });
 
