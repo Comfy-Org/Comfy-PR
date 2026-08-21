@@ -13,7 +13,10 @@ import { ghPageFlow } from "@/src/ghPageFlow";
 import { match as tsmatch } from "ts-pattern";
 import { getChannelInfo } from "@/lib/slack/channel-info";
 import { getSlackChannel } from "@/lib/slack/channels";
-import { findSlackIdByGithubUsername as findSlackIdFromNotion } from "@/lib/notion/people";
+import {
+  findSlackIdByGithubUsername as findSlackIdFromNotion,
+  findGithubUsernameByPersonName,
+} from "@/lib/notion/people";
 import { slackCached } from "@/lib";
 import { getReleaseComparison } from "./releaseComparison";
 
@@ -198,7 +201,83 @@ const config = {
 
   // 6. report to slack channel
   slackChannelName: "frontend-releases",
+
+  // 7. bot-authored PR attribution
+  // Regex used to detect automation-account PR authors (GitHub Apps end in
+  // "[bot]"; plain bot accounts like our own "comfy-pr-bot" end in "bot").
+  reBotLogin: /\bbot$|\[bot\]$/i,
+  // Matches this workspace's PR-description attribution convention, e.g.
+  //   _Requested by **nav** · [Slack thread](...)_
+  //   _Requested by **Christian Byrne** · [Slack thread](...)_
+  // used by claude[bot]-authored PRs opened on someone's behalf via Slack.
+  reAttributionLine: /_Requested by \*\*(.+?)\*\*/,
 };
+
+/**
+ * Glob-style path patterns for changed files that never warrant a backport
+ * check (repo/CI tooling, the marketing site, etc.) — edit freely as the
+ * repo layout changes.
+ *
+ * A PR is skipped ONLY when every one of its changed files matches one of
+ * these patterns. If it touches anything else too, it is still flagged as
+ * usual, so it's safe to be generous here.
+ */
+export const IGNORED_BACKPORT_PATH_GLOBS: string[] = [
+  // apps/website is the comfy.org marketing site (Astro) — not part of the
+  // ComfyUI_frontend app that actually ships/gets backported.
+  "apps/website/**",
+  // CI/CD workflow + automation definitions.
+  ".github/**",
+  ".husky/**",
+  // Repo-level CI/lint/formatter tooling config (not app code).
+  ".coderabbit.yaml",
+  ".oxlintrc.json",
+  ".oxfmtrc.json",
+  ".stylelintrc.json",
+  ".pinact.yaml",
+  ".yamllint",
+  ".fallowrc.jsonc",
+  "codecov.yml",
+];
+
+/** Convert a simple glob (`**` = any depth, `*` = one path segment) to a RegExp. */
+function globToRegExp(glob: string): RegExp {
+  const pattern = glob
+    .split("**")
+    .map((part) =>
+      part
+        .split("*")
+        .map((segment) => segment.replace(/[.+^${}()|[\]\\]/g, "\\$&"))
+        .join("[^/]*"),
+    )
+    .join(".*");
+  return new RegExp(`^${pattern}$`);
+}
+
+/** True if `filePath` matches any of `globs` (defaults to {@link IGNORED_BACKPORT_PATH_GLOBS}). */
+export function isIgnoredBackportPath(
+  filePath: string,
+  globs: string[] = IGNORED_BACKPORT_PATH_GLOBS,
+): boolean {
+  return globs.some((glob) => globToRegExp(glob).test(filePath));
+}
+
+/**
+ * True only when `filePaths` is non-empty and every file matches an ignored
+ * path pattern. An empty list (e.g. file info unavailable) never counts as
+ * "all ignored" — we don't want a fetch failure to silently suppress a flag.
+ */
+export function allChangedFilesIgnored(
+  filePaths: string[],
+  globs: string[] = IGNORED_BACKPORT_PATH_GLOBS,
+): boolean {
+  return filePaths.length > 0 && filePaths.every((f) => isIgnoredBackportPath(f, globs));
+}
+
+/** True if a GitHub login looks like a bot/automation account (e.g. `claude[bot]`, `comfy-pr-bot`). */
+export function isBotLogin(login: string | undefined | null): boolean {
+  return !!login && config.reBotLogin.test(login);
+}
 
 export type BackportStatus = "not-needed" | "needed" | "in-progress" | "completed" | "unknown";
 
@@ -481,6 +560,70 @@ export async function findSlackUserIdByGithubUsername(
   }
 }
 
+/** Extract a GitHub login from a GitHub-generated `users.noreply.github.com` email, if present. */
+function extractGithubLoginFromNoreplyEmail(email: string): string | null {
+  const match = email.match(/^(?:\d+\+)?([^@]+)@users\.noreply\.github\.com$/i);
+  return match?.[1] || null;
+}
+
+/**
+ * When a PR's author is a bot/automation account (e.g. `claude[bot]`), try to
+ * find the real human who should be tagged instead:
+ *
+ *   1. `Co-authored-by:` trailers on the PR's commits — if the trailer's
+ *      noreply email embeds a GitHub login (GitHub's standard co-author
+ *      format), use it directly; otherwise try matching the trailer's name
+ *      against the Notion People database.
+ *   2. Fall back to this workspace's PR-description attribution convention,
+ *      e.g. `_Requested by **Christian Byrne**_` (see `config.reAttributionLine`),
+ *      matching the captured name against the Notion People database.
+ *
+ * Returns a GitHub username to feed into the normal slack-tag resolution
+ * pipeline, or null if neither signal resolves — callers should fall back to
+ * whatever they'd otherwise do for an unresolved author (e.g. release sheriff).
+ */
+async function resolveBotAuthorGithubUsername(params: {
+  owner: string;
+  repo: string;
+  prNumber: number;
+  body: string | null | undefined;
+}): Promise<string | null> {
+  const { owner, repo, prNumber, body } = params;
+
+  // 1. Co-authored-by trailers on the PR's commits
+  try {
+    const commits = await ghc.pulls
+      .listCommits({ owner, repo, pull_number: prNumber })
+      .then((e) => e.data);
+    for (const c of commits) {
+      const message = c.commit?.message || "";
+      for (const m of message.matchAll(/^Co-authored-by:\s*(.+?)\s*<([^>]+)>/gim)) {
+        const [, name, email] = m;
+        const loginFromEmail = extractGithubLoginFromNoreplyEmail(email);
+        if (loginFromEmail) return loginFromEmail;
+        const byName = await findGithubUsernameByPersonName(name);
+        if (byName) return byName;
+      }
+    }
+  } catch (e) {
+    logger.warn("Failed to inspect PR commits for Co-authored-by trailers", {
+      owner,
+      repo,
+      prNumber,
+      error: e,
+    });
+  }
+
+  // 2. PR description attribution line, e.g. "_Requested by **Christian Byrne**_"
+  const attributionMatch = (body || "").match(config.reAttributionLine);
+  if (attributionMatch) {
+    const byName = await findGithubUsernameByPersonName(attributionMatch[1]);
+    if (byName) return byName;
+  }
+
+  return null;
+}
+
 /**
  * Resolve who to tag in Slack for a backport notification.
  * Tries the PR author first, falls back to release sheriff with a "fallback:" note.
@@ -574,6 +717,23 @@ async function processTask(
 
           logger.debug(`      Processing PR #${prNumber}: ${prTitle}`);
 
+          // Skip PRs that only touch irrelevant paths (website, CI/CD, tooling config, ...).
+          // Only skip when EVERY changed file matches — a PR touching anything else is
+          // still flagged as usual.
+          const changedFiles = await ghPageFlow(ghc.pulls.listFiles)({
+            owner,
+            repo,
+            pull_number: prNumber,
+          })
+            .map((f) => f.filename)
+            .toArray();
+          if (allChangedFilesIgnored(changedFiles)) {
+            logger.debug(
+              `      Skipping PR #${prNumber}: all ${changedFiles.length} changed file(s) under ignored paths`,
+            );
+            return null;
+          }
+
           // Check labels
           const labels = pr.labels
             .map((l) => (typeof l === "string" ? l : l.name))
@@ -594,7 +754,7 @@ async function processTask(
 
           const commentTexts = comments
             // no bot msgs
-            .filter((c) => !c.user?.login?.match(/\bbot$|\[bot\]$/))
+            .filter((c) => !isBotLogin(c.user?.login))
             .map((c) => c.body?.toLowerCase() || "")
             .join(" ");
 
@@ -721,6 +881,23 @@ async function processTask(
                     ? "not-needed" // all targets have backport-not-needed labels
                     : "unknown";
 
+          // If the PR was opened by a bot/automation account (e.g. claude[bot]),
+          // try to resolve the real human requester to tag instead — via a
+          // Co-authored-by commit trailer, falling back to the PR description's
+          // "_Requested by **Name**_" attribution line. Falls back to the raw
+          // bot login (and from there to the existing release-sheriff behavior)
+          // if neither resolves.
+          const rawAuthorLogin = pr.user?.login;
+          const prAuthor =
+            rawAuthorLogin && isBotLogin(rawAuthorLogin)
+              ? ((await resolveBotAuthorGithubUsername({
+                  owner,
+                  repo,
+                  prNumber,
+                  body: prDetails.data.body,
+                })) ?? rawAuthorLogin)
+              : rawAuthorLogin;
+
           return {
             commitSha,
             commitMessage,
@@ -728,7 +905,7 @@ async function processTask(
             prNumber,
             prTitle,
             prLabels: labels,
-            prAuthor: pr.user?.login,
+            prAuthor,
 
             backportStatus,
             backportStatusRaw,
@@ -740,7 +917,8 @@ async function processTask(
         .toArray();
     })
     .flat()
-    .toArray();
+    .toArray()
+    .then((results) => results.filter((e): e is NonNullable<typeof e> => e !== null));
 
   if (!bugfixCommits.length) {
     return await save({ ...task, bugfixCommits, taskStatus: "completed" });
