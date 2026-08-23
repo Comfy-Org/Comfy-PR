@@ -81,7 +81,22 @@ import { getReleaseComparison } from "./releaseComparison";
  *               - If an open backport PR exists  → "in-progress"
  *               - Otherwise                      → "needed"
  *
- *    d) OVERALL STATUS — derived from per-target statuses (ignoring not-needed):
+ *    d) DUAL-HOMED DETECTION — only runs when `backportStatusRaw` is "unknown"
+ *       (no target-branch label and no backport/stable mention — the case that
+ *       otherwise gets flagged as "❗ Might need backport" purely for lack of
+ *       signal). Checks `compareCommits(branch, commit_sha)` against every
+ *       currently existing `core/1.**`/`cloud/1.**` branch
+ *       (`availableBackportTargetBranches`, discovered in step 1); if the
+ *       commit is already "identical"/"behind" on any of them, treats it as
+ *       "completed" there instead of leaving it unflagged-but-ambiguous. This
+ *       is what a minor-version branch cut produces on purpose — see
+ *       "Dual-homed commits" in ComfyUI_frontend's
+ *       docs/release-process.md#dual-homed-commits — so it's a same-SHA
+ *       ancestry check, not a release-type guess: a real unbackported commit
+ *       can never satisfy it, since a cherry-pick backport always gets a new
+ *       SHA.
+ *
+ *    e) OVERALL STATUS — derived from per-target statuses (ignoring not-needed):
  *       - All completed  → "completed"
  *       - Any in-progress → "in-progress"
  *       - Any needed      → "needed"
@@ -122,6 +137,21 @@ import { getReleaseComparison } from "./releaseComparison";
  * • ALREADY-BACKPORTED COMMITS — commits whose first line matches
  *   `[backport ...]` (case-insensitive) are filtered out, preventing double-
  *   counting of cherry-pick commits that landed in the same release.
+ *
+ * • DUAL-HOMED COMMITS — a minor-version bump (x.y.0) freezes the previous
+ *   minor by branching `core/<prevMinor>` + `cloud/<prevMinor>` from the
+ *   commit right before the bump, so every unreleased commit on `main` at
+ *   that point ships in the new release AND already sits, byte-for-byte, on
+ *   those freshly-cut branches (see ComfyUI_frontend's
+ *   docs/release-process.md#dual-homed-commits). A bugfix PR with no
+ *   backport label or mention is checked against every existing
+ *   `core/1.**`/`cloud/1.**` branch before being flagged; if its commit SHA
+ *   is already an ancestor of one, it's marked "completed" there instead of
+ *   "❗ Might need backport". This is intentionally NOT a release-type check
+ *   (e.g. "skip all x.y.0 releases") — a minor release can still ship a
+ *   genuinely unbackported fix alongside dual-homed ones, and this same
+ *   ancestry check also protects patch releases if a commit ever ends up
+ *   dual-homed by some other means.
  *
  * • NO ASSOCIATED PR — if `listPullRequestsAssociatedWithCommit` returns
  *   an empty array, the commit produces no bugfix entries (the `.map().flat()`
@@ -423,7 +453,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
       return [await save({ ...task, compareLink })];
     })
     .flat()
-    .map(processTask)
+    .map((task) => processTask(task, availableBackportTargetBranches))
     .toArray();
 
   logger.info(
@@ -650,8 +680,59 @@ function hasBackportNotNeededLabel(labels: string[], targetPrefix: string): bool
   return labels.some((l) => l.toLowerCase() === notNeededLabel.toLowerCase());
 }
 
+/**
+ * A `compareCommits(base: branch, head: commitSha)` status that means the
+ * commit is already present in `branch`'s history — i.e. nothing to
+ * backport there.
+ *
+ * This is also what makes dual-homed commits detectable at all: a
+ * cherry-picked backport always produces a brand-new commit SHA, so the
+ * *same* SHA can only show up as an ancestor of another branch if that
+ * branch was literally cut from a point in history that already contains
+ * it (see "Dual-homed commits" in ComfyUI_frontend's
+ * docs/release-process.md#dual-homed-commits). There's no way for a
+ * genuinely-unbackported commit to satisfy this by coincidence.
+ */
+export function isAlreadyOnBranchStatus(status: string): boolean {
+  return status === "identical" || status === "behind";
+}
+
+/**
+ * Check whether `commitSha` already exists on any of `candidateBranches`
+ * (e.g. it's dual-homed there from a minor-version branch cut). Returns the
+ * branch names where it's already present.
+ *
+ * Only called for bugfix PRs with no explicit backport signal at all (no
+ * `core/…`/`cloud/…` label, no "backport"/"stable" mention) — those are the
+ * ones the report would otherwise flag as "❗ Might need backport" purely
+ * because nobody said anything either way, which is exactly the false
+ * positive dual-homed commits trigger.
+ */
+async function findDualHomedBranches(
+  owner: string,
+  repo: string,
+  commitSha: string,
+  candidateBranches: string[],
+): Promise<string[]> {
+  const matches: string[] = [];
+  for (const branch of candidateBranches) {
+    try {
+      const { status } = await ghc.repos
+        .compareCommits({ owner, repo, base: branch, head: commitSha })
+        .then((e) => e.data);
+      if (isAlreadyOnBranchStatus(status)) matches.push(branch);
+    } catch (e) {
+      logger.warn(`      Failed to check dual-homed status of ${commitSha} against ${branch}`, {
+        error: e,
+      });
+    }
+  }
+  return matches;
+}
+
 async function processTask(
   task: GithubFrontendBackportCheckerTask,
+  availableBackportTargetBranches: string[],
 ): Promise<GithubFrontendBackportCheckerTask> {
   const compareLink = task.compareLink || DIE("compareLink missing in task");
 
@@ -781,16 +862,14 @@ async function processTask(
           }
 
           logger.debug(
-            `        PR #${prNumber} backport status: ${backportStatusRaw} (labels: ${backportLabels.join(
-              ", ",
-            )})`,
+            `        PR #${prNumber} backport status: ${backportStatusRaw} (labels: ${backportLabels.join(", ")})`,
           );
           // check each backport target branch status
           const targetBranches = labels
             .filter((l) => config.reBackportTargets.test(l))
             .filter((_e) => backportStatusRaw === "needed");
 
-          const backportTargetStatus = await sflow(targetBranches)
+          let backportTargetStatus = await sflow(targetBranches)
             .map(async (branchName) => {
               // Check for no-backport-needed[-core|-cloud] labels first (e.g. "core/1.4" → prefix "core")
               const targetPrefix = branchName.split("/")[0];
@@ -867,6 +946,33 @@ async function processTask(
               return { branch: branchName, status, prs: PRs };
             })
             .toArray();
+
+          // No explicit backport signal (no target-branch label, no
+          // "backport"/"stable" mention) is exactly what makes the report
+          // flag this as "❗ Might need backport" below. Before accepting
+          // that, check whether the commit is dual-homed — already present
+          // on some other currently-tracked backport branch by construction
+          // of a minor-version branch cut (docs/release-process.md
+          // #dual-homed-commits in ComfyUI_frontend). If so there's nothing
+          // to backport, so treat it the same as an explicit "completed".
+          if (backportStatusRaw === "unknown") {
+            const dualHomedBranches = await findDualHomedBranches(
+              owner,
+              repo,
+              commitSha,
+              availableBackportTargetBranches,
+            );
+            if (dualHomedBranches.length) {
+              logger.debug(
+                `        PR #${prNumber} commit ${commitSha.substring(0, 7)} is dual-homed on: ${dualHomedBranches.join(", ")}`,
+              );
+              backportTargetStatus = dualHomedBranches.map((branch) => ({
+                branch,
+                status: "completed" as const,
+                prs: [],
+              }));
+            }
+          }
 
           // Determine overall backport status (ignoring "not-needed" targets)
           const activeTargets = backportTargetStatus.filter((t) => t.status !== "not-needed");
