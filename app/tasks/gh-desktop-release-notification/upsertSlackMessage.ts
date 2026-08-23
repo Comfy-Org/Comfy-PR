@@ -81,7 +81,7 @@ export async function upsertSlackMessage({
   if (!channel) DIE(`No slack channel specified`);
 
   if (!url) {
-    if (process.env.DRY_RUN) {
+    if (process.env.DRY_RUN === "true") {
       console.error("DRY RUN MODE");
       console.error("sending text:", text);
       throw new Error(chalk.red("Sending slack message to: " + JSON.stringify({ channel })));
@@ -99,7 +99,7 @@ export async function upsertSlackMessage({
     const url = slackMessageUrlStringify({ channel, ts: msg.ts! });
     return { ...msg, url, text, channel };
   }
-  if (process.env.DRY_RUN) {
+  if (process.env.DRY_RUN === "true") {
     console.error("DRY RUN MODE");
     console.error("sending text:", text);
     throw new Error(chalk.red("Updating slack message to: " + JSON.stringify({ channel, url })));
@@ -150,7 +150,7 @@ export async function upsertSlackMarkdownMessage({
   if (!channel) DIE(`No slack channel specified`);
 
   if (!url) {
-    if (process.env.DRY_RUN) {
+    if (process.env.DRY_RUN === "true") {
       console.error("DRY RUN MODE");
       console.error("sending markdown:", markdown);
       throw new Error(chalk.red("Sending slack message to: " + JSON.stringify({ channel })));
@@ -173,7 +173,7 @@ export async function upsertSlackMarkdownMessage({
     const url = slackMessageUrlStringify({ channel, ts: msg.ts! });
     return { ...msg, url, text: markdown, channel };
   }
-  if (process.env.DRY_RUN) {
+  if (process.env.DRY_RUN === "true") {
     console.error("DRY RUN MODE");
     console.error("sending markdown:", markdown);
     throw new Error(chalk.red("Updating slack message to: " + JSON.stringify({ channel, url })));

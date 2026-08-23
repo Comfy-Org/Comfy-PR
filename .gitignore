@@ -80,3 +80,8 @@ TODO.md
 REPORT.md
 .data
 .logs
+
+# local tool artifacts
+.codex
+.playwright-mcp/
+.playwright-cli-multi-tab/

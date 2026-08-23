@@ -38,9 +38,17 @@ import yaml from "yaml";
 
 // Notion ability
 import { searchNotion } from "@/lib/notion/search";
+import { fetchPeopleMappings, findSlackIdByGithubUsername } from "@/lib/notion/people";
+import { readNotionPage } from "@/lib/notion/read-page";
+
+// URL parsing
+import { parseUrl } from "@/lib/url/parseUrl";
 
 // Video ability
 import { readVideo } from "@/lib/video/read-video";
+
+// Feedback ability
+import { postFeedback, type FeedbackType } from "@/lib/slack/feedback";
 
 /**
  * Load environment variables from .env.local in the project root
@@ -285,6 +293,72 @@ async function main() {
         });
       },
     )
+    .command(
+      "read <url>",
+      "Read any supported URL (Slack message/channel/file, Notion page) and output content as YAML",
+      (y) =>
+        y.positional("url", {
+          type: "string",
+          describe: "URL to read (Slack or Notion)",
+          demandOption: true,
+        }),
+      async (args) => {
+        await loadEnvLocal();
+
+        const url = args.url as string;
+        const parsed = parseUrl(url);
+
+        switch (parsed.type) {
+          case "slack-message": {
+            const messages = await readNearbyMessages(parsed.channel!, parsed.ts!, 20, 20);
+            console.log(yaml.stringify(messages));
+            break;
+          }
+
+          case "slack-channel": {
+            const messages = await readRecentMessages(parsed.channel!, 10);
+            console.log(yaml.stringify(messages));
+            break;
+          }
+
+          case "slack-file": {
+            if (!parsed.fileId) {
+              console.error("Could not extract file ID from URL");
+              process.exit(1);
+            }
+            const fileInfo = await getSlackFileInfo(parsed.fileId);
+            const fileName = fileInfo.name || `file-${parsed.fileId}`;
+            const outputPath = `./${fileName}`;
+            await downloadSlackFile(parsed.fileId, outputPath);
+            console.log(
+              yaml.stringify({
+                type: "file_downloaded",
+                file_id: parsed.fileId,
+                file_name: fileName,
+                file_size: fileInfo.size,
+                downloaded_to: outputPath,
+              }),
+            );
+            break;
+          }
+
+          case "notion-page": {
+            const page = await readNotionPage(parsed.notionPageId!);
+            console.log(yaml.stringify(page));
+            break;
+          }
+
+          default:
+            console.error(`Unsupported URL: ${url}`);
+            console.error("Supported formats:");
+            console.error("  Slack message: https://workspace.slack.com/archives/C123/p1234567890");
+            console.error("  Slack channel: https://workspace.slack.com/archives/C123");
+            console.error("  Slack file:    https://files.slack.com/files-pri/T123-F456/file.pdf");
+            console.error("  Notion page:   https://www.notion.so/workspace/Page-Title-<id>");
+            process.exit(1);
+        }
+      },
+    )
     .command("slack", "Slack integration commands", (yargs) => {
       return yargs
         .command(
@@ -300,6 +374,39 @@ async function main() {
             await loadEnvLocal();
 
             const url = args.url as string;
+
+            // Handle @username — resolve to DM channel then read recent messages
+            if (url.startsWith("@")) {
+              const { getSlack } = await import("@/lib/slack");
+              const slack = getSlack();
+              const name = url.slice(1).toLowerCase();
+              type SlackUser = { id?: string; name?: string; real_name?: string };
+              let found: SlackUser | undefined;
+              let cursor: string | undefined;
+              do {
+                const res = await slack.users.list({ limit: 200, ...(cursor ? { cursor } : {}) });
+                found = (res.members as SlackUser[] | undefined)?.find(
+                  (u) =>
+                    (u.name ?? "").toLowerCase() === name ||
+                    (u.real_name ?? "").toLowerCase() === name,
+                );
+                cursor = res.response_metadata?.next_cursor || undefined;
+              } while (!found && cursor);
+              if (!found?.id) {
+                console.error(`User not found: ${url}`);
+                process.exit(1);
+              }
+              const dmRes = await slack.conversations.open({ users: found.id });
+              const channelId = dmRes.channel?.id;
+              if (!channelId) {
+                console.error("Could not open DM");
+                process.exit(1);
+              }
+              const messages = await readRecentMessages(channelId, 20);
+              console.log(yaml.stringify(messages));
+              return;
+            }
+
             const parsed = parseSlackUrlSmart(url);
 
             switch (parsed.type) {
@@ -892,6 +999,56 @@ async function main() {
       },
     )
     .command(
+      "notion people",
+      "List GitHub→Slack mappings from Notion People database",
+      (y) =>
+        y
+          .option("github", {
+            alias: "g",
+            type: "string",
+            describe: "Look up a specific GitHub username",
+          })
+          .option("missing", {
+            alias: "m",
+            type: "boolean",
+            describe: "Show active members missing a GitHub username",
+            default: false,
+          }),
+      async (args) => {
+        await loadEnvLocal();
+        const mappings = await fetchPeopleMappings();
+
+        if (args.github) {
+          const slackId = await findSlackIdByGithubUsername(args.github);
+          if (slackId) {
+            const entry = mappings.find(
+              (m) => m.githubUsername.toLowerCase() === args.github!.toLowerCase(),
+            );
+            console.log(yaml.stringify({ github: args.github, slackId, person: entry?.person }));
+          } else {
+            console.log(`No mapping found for GitHub username: ${args.github}`);
+            process.exit(1);
+          }
+        } else if (args.missing) {
+          const missing = mappings.filter((m) => !m.inactive && !m.githubUsername);
+          console.log(`Active members without GitHub username: ${missing.length}\n`);
+          console.log(yaml.stringify(missing));
+        } else {
+          const active = mappings.filter((m) => !m.inactive && m.slackId);
+          console.log(`Active people mappings: ${active.length}\n`);
+          console.log(
+            yaml.stringify(
+              active.map((m) => ({
+                person: m.person || "(unnamed)",
+                github: m.githubUsername || "(not set)",
+                slackId: m.slackId,
+              })),
+            ),
+          );
+        }
+      },
+    )
+    .command(
       "registry search",
       "Search ComfyUI custom nodes registry",
       (y) =>
@@ -1132,6 +1289,43 @@ async function main() {
         .demandCommand(1, "Please specify a debug subcommand")
         .help();
     })
+    .command(
+      "feedback",
+      "Submit feedback (bugs, feature requests, errors) to the private #prbot-feedback Slack channel",
+      (y) =>
+        y
+          .option("message", {
+            alias: "m",
+            type: "string",
+            describe: "Feedback message describing the issue or request",
+            demandOption: true,
+          })
+          .option("type", {
+            alias: "t",
+            type: "string",
+            choices: ["bug", "feature", "error", "other"] as const,
+            describe: "Type of feedback",
+            default: "other",
+          })
+          .option("context", {
+            type: "string",
+            describe: "Additional context (error output, command that failed, etc.)",
+          })
+          .option("source", {
+            type: "string",
+            describe: "Who or what is submitting this (e.g. amp-agent, user name)",
+          }),
+      async (args) => {
+        await loadEnvLocal();
+        const ts = await postFeedback({
+          message: args.message as string,
+          type: args.type as FeedbackType,
+          context: args.context as string | undefined,
+          source: args.source as string | undefined,
+        });
+        console.log(`✓ Feedback posted to #prbot-feedback (ts: ${ts})`);
+      },
+    )
     .demandCommand(1, "Please specify a command")
     .strict()
     .help()
@@ -1139,6 +1333,8 @@ async function main() {
     .epilog(
       [
         "Examples:",
+        "  prbot read 'https://workspace.slack.com/archives/C123/p1234567890'  # Slack message",
+        "  prbot read 'https://www.notion.so/my-workspace/Page-Title-abc123'   # Notion page",
         "  prbot code pr -r Comfy-Org/ComfyUI -b main -p 'Fix auth bug'",
         "  prbot code search -q 'binarization' --repo Comfy-Org/ComfyUI",
         "  prbot github-issue search -q 'authentication bug' -l 5",
@@ -1157,6 +1353,14 @@ async function main() {
         "  prbot slack download-file -f F123ABC -o ./downloaded.pdf",
         "  prbot slack file-info -f F123ABC",
         "  prbot notion search -q 'ComfyUI setup' -l 5",
+        "",
+        "Feedback — report bugs, missing features, or errors (posts to private Slack):",
+        "  prbot feedback -m 'Missing pr read command' -t feature",
+        "  prbot feedback -m 'search returned 0 for known PRs' -t bug --context '...'",
+        "  prbot feedback -m 'ReferenceError: X is not defined' -t error --source agent",
+        "",
+        "AI agents: if a command fails, is missing, or behaves unexpectedly,",
+        "please run `prbot feedback` to report it so we can fix it.",
       ].join("\n"),
     ).argv;
 

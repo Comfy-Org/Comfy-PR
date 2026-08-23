@@ -1,0 +1,66 @@
+name: Stale
+
+# Auto-close stale issues / mark stale PRs to keep the tracker tidy.
+# Powered by https://github.com/actions/stale.
+#
+# Behavior:
+#   • Issues: marked "stale" after 90 days with no activity → closed 14 days later if still no response.
+#   • PRs:    marked "stale" after 180 days with no activity → NOT auto-closed (review intent preserved).
+#   • Anything labeled `pinned`, `security`, `help wanted`, `good first issue` is exempt.
+#   • Up to 30 items processed per run to avoid GitHub API rate limits.
+#
+# Trigger:
+#   • Daily cron at 03:00 UTC.
+#   • Manual workflow_dispatch with optional dry-run input.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Preview changes without applying"
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: stale
+  cancel-in-progress: false
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-issue-stale: 90
+          days-before-issue-close: 14
+          days-before-pr-stale: 180
+          days-before-pr-close: -1
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: "pinned,security,help wanted,good first issue"
+          exempt-pr-labels: "pinned,security,work-in-progress,wip"
+          exempt-all-milestones: true
+          stale-issue-message: >
+            This issue has been automatically marked as **stale** because it has not
+            had any activity for 90 days. It will be closed in 14 days if no further
+            activity occurs. If this issue is still relevant, please leave a comment
+            (or just remove the `stale` label) to keep it open. Thanks for helping
+            keep the tracker focused!
+          close-issue-message: >
+            Closing this issue as no further activity has occurred. Feel free to
+            reopen if it becomes relevant again.
+          stale-pr-message: >
+            This pull request has been automatically marked as **stale** because it
+            has not had any activity for 180 days. It will not be auto-closed —
+            removing the `stale` label or pushing a new commit will revive it.
+          operations-per-run: 30
+          remove-stale-when-updated: true
+          ascending: true
+          debug-only: ${{ inputs.dry-run || false }}

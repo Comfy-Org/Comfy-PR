@@ -1,5 +1,5 @@
 import { yaml } from "@/src/utils/yaml";
-import * as d3 from "d3";
+import { csvFormat } from "d3-dsv";
 import { DownloadCSVButton } from "./DownloadCSVButton.tsx";
 import { summaryGithubContributorAnalyzeTask } from "./summaryGithubContributorAnalyzeTask";
 
@@ -9,7 +9,7 @@ import { summaryGithubContributorAnalyzeTask } from "./summaryGithubContributorA
  */
 export default async function GithubContributorAnalyzeTaskPage() {
   const data = await summaryGithubContributorAnalyzeTask();
-  const csvContent = d3.csvFormat(data.json);
+  const csvContent = csvFormat(data.json);
   return (
     <main>
       <h1>Github Contributor Analyze Task</h1>

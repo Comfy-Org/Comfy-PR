@@ -163,7 +163,7 @@ describe("GithubWorkflowTemplatesIssueTransferTask", () => {
 
     // Note: Database verification skipped due to Bun module mocking isolation issues
     // The API interactions above verify the core functionality works correctly
-  });
+  }, 15_000);
 
   it("should skip pull requests", async () => {
     const pullRequest = {

@@ -3,9 +3,8 @@ import { Suspense } from "react";
 import DetailsTable from "./DetailsTable";
 import TotalsPage from "./totals/page";
 
-// Force dynamic rendering to avoid build-time database access
 export const dynamic = "force-dynamic";
-export const revalidate = 60; // seconds
+export const revalidate = 300;
 
 export default async function DashboardPage() {
   return (
