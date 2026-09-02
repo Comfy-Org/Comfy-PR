@@ -384,17 +384,25 @@ export function getBackportStatusEmoji(status: BackportStatus): string {
 }
 
 /**
- * Newest tag on `branch` that already contains `commitSha`, or null when the
- * commit sits past every tag — merged onto the release line but never shipped.
+ * Newest published release on `branch` that already contains `commitSha`, or
+ * null when the commit sits past every release — merged onto the release line
+ * but never shipped.
  */
-const tagListCache = new Map<string, Promise<{ name: string }[]>>();
+const releaseListCache = new Map<string, Promise<{ tag_name: string }[]>>();
 
-function listTagsCached(owner: string, repo: string): Promise<{ name: string }[]> {
+function listReleasesCached(owner: string, repo: string): Promise<{ tag_name: string }[]> {
   const key = `${owner}/${repo}`;
-  const cached = tagListCache.get(key);
+  const cached = releaseListCache.get(key);
   if (cached) return cached;
-  const pending = ghPageFlow(ghc.repos.listTags, { per_page: 100 })({ owner, repo }).toArray();
-  tagListCache.set(key, pending);
+  const pending = ghPageFlow(ghc.repos.listReleases, { per_page: 100 })({ owner, repo })
+    .filter((release) => !release.draft)
+    .map(({ tag_name }) => ({ tag_name }))
+    .toArray()
+    .catch((error) => {
+      releaseListCache.delete(key);
+      throw error;
+    });
+  releaseListCache.set(key, pending);
   return pending;
 }
 
@@ -404,21 +412,15 @@ async function findReleaseTagContaining(
   branch: string,
   commitSha: string,
 ): Promise<string | null> {
-  const tags = await listTagsCached(owner, repo);
-  const branchTags = tags.filter((t) => isTagOnLine(t.name, branch));
-  if (!branchTags.length) return null;
+  const releases = await listReleasesCached(owner, repo);
+  const branchReleases = releases.filter((release) => isTagOnLine(release.tag_name, branch));
+  if (!branchReleases.length) return null;
 
-  for (const tag of branchTags) {
+  for (const release of branchReleases) {
     const comparison = await ghc.repos
-      .compareCommits({ owner, repo, base: tag.name, head: commitSha })
-      .then((e) => e.data)
-      .catch((error: unknown) => {
-        // Reporting a shipped fix as unreleased is a false alarm, so a failed
-        // comparison must be visible rather than silently negative.
-        logger.warn(`compareCommits ${tag.name}...${commitSha.slice(0, 10)} failed`, { error });
-        return null;
-      });
-    if (comparison && isCommitInTag(comparison.status)) return tag.name;
+      .compareCommits({ owner, repo, base: release.tag_name, head: commitSha })
+      .then((e) => e.data);
+    if (isCommitInTag(comparison.status)) return release.tag_name;
   }
   return null;
 }
@@ -873,7 +875,10 @@ ${
     .filter((e) => e.status === "merged-unreleased")
     .map((bf) => {
       const tag = bf.prAuthor ? authorTags.get(bf.prAuthor) || "" : "";
-      const branches = bf.backportTargetStatus.map((t) => t.branch).join(", ");
+      const branches = bf.backportTargetStatus
+        .filter((t) => t.status === "completed")
+        .map((t) => t.branch)
+        .join(", ");
       return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ ${getBackportStatusEmoji(
         "merged-unreleased",
       )} on ${branches} — cut a patch release ${tag}`.trim();
