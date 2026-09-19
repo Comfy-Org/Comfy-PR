@@ -492,11 +492,7 @@ export function getBackportStatusEmoji(status: BackportStatus): string {
   }
 }
 
-/**
- * Newest published release on `branch` that already contains `commitSha`, or
- * null when the commit sits past every release — merged onto the release line
- * but never shipped.
- */
+/** Non-draft releases for `owner/repo`, cached per run so N commits × M target branches share one fetch. */
 const releaseListCache = new Map<string, Promise<{ tag_name: string }[]>>();
 
 function listReleasesCached(owner: string, repo: string): Promise<{ tag_name: string }[]> {
@@ -515,6 +511,11 @@ function listReleasesCached(owner: string, repo: string): Promise<{ tag_name: st
   return pending;
 }
 
+/**
+ * Release tag on `branch`'s line that already contains `commitSha`, or null
+ * when the commit sits past every release — merged onto the release line but
+ * never shipped.
+ */
 async function findReleaseTagContaining(
   owner: string,
   repo: string,
@@ -1071,7 +1072,7 @@ async function processTask(
                     // branch; testing the source SHA would report every backport
                     // as unreleased.
                     const shaOnBranch =
-                      prs.find((pr) => pr.prStatus === "merged" && pr.mergeCommitSha)
+                      prs.find((bpr) => bpr.prStatus === "merged" && bpr.mergeCommitSha)
                         ?.mergeCommitSha ?? commitSha;
                     return await findReleaseTagContaining(owner, repo, branch, shaOnBranch);
                   })

@@ -52,4 +52,11 @@ describe("isTagOnLine", () => {
   it("rejects tags from other lines", () => {
     expect(isTagOnLine("v1.48.5", "core/1.47")).toBe(false);
   });
+
+  it("does not let a cloud tag satisfy a core branch or vice versa", () => {
+    // Same numeric version, different line — a cloud/X.Y patch release must
+    // never mark a core/X.Y backport as shipped, or the reverse.
+    expect(isTagOnLine("cloud/v1.47.7", "core/1.47")).toBe(false);
+    expect(isTagOnLine("v1.47.11", "cloud/1.47")).toBe(false);
+  });
 });
