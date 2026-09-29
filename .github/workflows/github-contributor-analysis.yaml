@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120 # 2 hours timeout
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Setup Git (required for cloning repositories)
       - name: Configure Git
