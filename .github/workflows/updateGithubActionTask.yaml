@@ -14,7 +14,7 @@ jobs:
   run_comfy_pr:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # this dont need python
       # # setup comfy-cli
       # - uses: actions/setup-python@v5
