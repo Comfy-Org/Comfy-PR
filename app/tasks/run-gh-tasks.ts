@@ -18,10 +18,6 @@ const TASK_DEFS = getScheduledCombinedGithubTasks([
     load: () => import("./gh-desktop-release-notification/index").then((m) => m.default),
   },
   {
-    name: "GitHub Frontend Release Notification Task",
-    load: () => import("./gh-frontend-release-notification/index").then((m) => m.default),
-  },
-  {
     name: "GitHub Frontend Backport Checker Task",
     load: () => import("./gh-frontend-backport-checker/index").then((m) => m.default),
   },
