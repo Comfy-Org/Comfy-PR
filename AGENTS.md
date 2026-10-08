@@ -83,7 +83,7 @@ The TypeScript server was experiencing severe performance issues causing slowdow
 4. **Test Execution**: Use `bun <file.ts>` to run scripts directly with `if (import.meta.main)` blocks
 5. **Type Safety**: Ensure full TypeScript coverage and proper type definitions
 6. **Error Handling**: Handle errors gracefully and don't cache failed responses
-7. **Documentation**: Update CLAUDE.md with implementation details and usage examples
+7. **Documentation**: Update AGENTS.md with implementation details and usage examples
 
 ### Testing Standards
 
@@ -869,7 +869,7 @@ When working on TODOs:
 4. **Implement**: Create a branch and implement the solution
 5. **Test**: Add tests for the new implementation
 6. **Remove**: Delete the TODO comment once resolved
-7. **Document**: Update CLAUDE.md if the change affects development patterns
+7. **Document**: Update AGENTS.md if the change affects development patterns
 
 ### Creating TODOs
 
