@@ -7,6 +7,7 @@ import { logger } from "@/src/logger";
 import isCI from "is-ci";
 import { extractOriginalPRNumber } from "./extractOriginalPRNumber";
 import { isReleasedCompareStatus } from "./isReleasedCompareStatus";
+import { prNumberFromMainCommit } from "./prNumberFromMainCommit";
 
 export { extractOriginalPRNumber };
 
@@ -14,7 +15,9 @@ export { extractOriginalPRNumber };
  * GitHub PR Release Tagger Task
  *
  * Labels original PRs (merged to main) with `released:core` or `released:cloud`
- * when their backports are confirmed deployed.
+ * when they are confirmed deployed: either through a backport merged to the
+ * release branch, or through the branch cut itself (merged to main before the
+ * release branch forked, so no backport exists).
  *
  * - `released:core` = available in the latest desktop app
  * - `released:cloud` = live on cloud.comfy.org
@@ -25,6 +28,14 @@ export { extractOriginalPRNumber };
  */
 
 const FRONTEND_REPO = { owner: "Comfy-Org", repo: "ComfyUI_frontend" };
+
+// How far back from a release branch's fork point to look for main PRs that
+// reached it through the cut. Wider than one release cycle, so a PR merged
+// just after the previous cut is still covered.
+const BRANCH_CUT_WINDOW_DAYS = 35;
+const BRANCH_CUT_MAX_COMMITS = 3000;
+const BRANCH_CUT_MAX_LABELS_PER_RUN = 300;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type PRReleaseTaggerState = {
   target: "core" | "cloud";
@@ -222,8 +233,8 @@ async function processTarget(target: "core" | "cloud") {
 
   await ensureLabelExists(labelName);
 
-  // Note: do not pass labeledOriginalPRs here — save() uses $addToSet, so prior
-  // entries are preserved across re-scans and concurrent runs.
+  // Note: do not pass labeledOriginalPRs here — save() merges by prNumber, so
+  // prior entries are preserved across re-scans and concurrent runs.
   await save({
     target,
     deployedRef,
@@ -258,26 +269,70 @@ async function processTarget(target: "core" | "cloud") {
           new Set(states.flatMap((s) => s.labeledOriginalPRs?.map((p) => p.prNumber) || [])),
       );
 
-    for (const mergedPR of mergedPRs) {
-      // Check if backport PR's merge commit is ancestor of deployed ref
-      if (!mergedPR.merge_commit_sha) continue;
-
+    // True when the merge commit is the deployed ref or an ancestor of it.
+    const isDeployed = async (prNumber: number, mergeSha: string): Promise<boolean> => {
       try {
         const comparison = await ghc.repos.compareCommits({
           ...FRONTEND_REPO,
           base: deployedRef,
-          head: mergedPR.merge_commit_sha,
+          head: mergeSha,
         });
-        if (!isReleasedCompareStatus(comparison.data.status)) {
-          continue; // merge commit is ahead of / diverged from deployed ref
-        }
+        return isReleasedCompareStatus(comparison.data.status);
       } catch (err: unknown) {
         compareFailures++;
         logger.warn(
-          `${target}: compareCommits failed for #${mergedPR.number} (${mergedPR.merge_commit_sha}): ${(err as Error).message}`,
+          `${target}: compareCommits failed for #${prNumber} (${mergeSha}): ${(err as Error).message}`,
         );
-        continue;
+        return false;
       }
+    };
+
+    const labelOriginal = async (originalPRNumber: number, viaPRNumber: number) => {
+      if (previouslyLabeled.has(originalPRNumber)) return;
+      try {
+        const originalPR = await ghc.pulls.get({
+          ...FRONTEND_REPO,
+          pull_number: originalPRNumber,
+        });
+
+        // Check if already has label
+        const hasLabel = originalPR.data.labels.some(
+          (l) => (typeof l === "string" ? l : l.name) === labelName,
+        );
+        if (hasLabel) {
+          previouslyLabeled.add(originalPRNumber);
+          return;
+        }
+
+        await gh.issues.addLabels({
+          ...FRONTEND_REPO,
+          issue_number: originalPRNumber,
+          labels: [labelName],
+        });
+
+        logger.info(
+          `${target}: labeled original PR #${originalPRNumber} "${originalPR.data.title}" (via backport #${viaPRNumber})`,
+        );
+
+        labeledOriginalPRs.push({
+          prNumber: originalPRNumber,
+          prUrl: originalPR.data.html_url,
+          prTitle: originalPR.data.title,
+          backportPrNumber: viaPRNumber,
+          labeledAt: new Date(),
+        });
+        previouslyLabeled.add(originalPRNumber);
+      } catch (err: unknown) {
+        logger.error(
+          `${target}: failed to label original PR #${originalPRNumber}: ${(err as Error).message}`,
+        );
+      }
+    };
+
+    for (const mergedPR of mergedPRs) {
+      // Check if backport PR's merge commit is ancestor of deployed ref
+      if (!mergedPR.merge_commit_sha) continue;
+      if (!(await isDeployed(mergedPR.number, mergedPR.merge_commit_sha))) continue;
 
       // Extract original PR number from backport body or title
       const originalPRNumber = extractOriginalPRNumber(mergedPR.body, mergedPR.title);
@@ -293,49 +348,69 @@ async function processTarget(target: "core" | "cloud") {
         continue;
       }
 
-      // Label the original PR
-      if (previouslyLabeled.has(originalPRNumber)) {
-        continue;
-      }
+      await labelOriginal(originalPRNumber, mergedPR.number);
+    }
 
-      try {
-        const originalPR = await ghc.pulls.get({
-          ...FRONTEND_REPO,
-          pull_number: originalPRNumber,
-        });
-
-        // Check if already has label
-        const hasLabel = originalPR.data.labels.some(
-          (l) => (typeof l === "string" ? l : l.name) === labelName,
-        );
-        if (hasLabel) {
-          previouslyLabeled.add(originalPRNumber);
-          continue;
+    // PRs that reached the branch through the branch cut have no backport PR,
+    // so the walk above never sees them. The fork point (merge base of main
+    // and the deployed ref) is an ancestor of the deployed ref, so every main
+    // commit before it is deployed. Walk the main history behind the fork
+    // point for a bounded window and label the PR each commit came from.
+    try {
+      const forkPoint = await ghc.repos.compareCommits({
+        ...FRONTEND_REPO,
+        base: "main",
+        head: deployedRef,
+        per_page: 1,
+      });
+      const forkSha = forkPoint.data.merge_base_commit.sha;
+      const forkDate = forkPoint.data.merge_base_commit.commit.committer?.date;
+      if (!forkDate) throw new Error(`no committer date on fork point ${forkSha}`);
+      const since = new Date(new Date(forkDate).getTime() - BRANCH_CUT_WINDOW_DAYS * DAY_MS);
+      const commits = await ghPageFlow(ghc.repos.listCommits, { per_page: 100 })({
+        ...FRONTEND_REPO,
+        sha: forkSha,
+        since: since.toISOString(),
+      })
+        .slice(0, BRANCH_CUT_MAX_COMMITS)
+        .toArray();
+      const pending = new Map<number, string>();
+      for (const c of commits) {
+        const prNumber = prNumberFromMainCommit(c.commit.message);
+        if (prNumber !== null && !previouslyLabeled.has(prNumber) && !pending.has(prNumber)) {
+          pending.set(prNumber, c.commit.message.split("\n", 1)[0]);
         }
-
-        await gh.issues.addLabels({
-          ...FRONTEND_REPO,
-          issue_number: originalPRNumber,
-          labels: [labelName],
-        });
-
-        logger.info(
-          `${target}: labeled original PR #${originalPRNumber} "${originalPR.data.title}" (via backport #${mergedPR.number})`,
-        );
-
-        labeledOriginalPRs.push({
-          prNumber: originalPRNumber,
-          prUrl: originalPR.data.html_url,
-          prTitle: originalPR.data.title,
-          backportPrNumber: mergedPR.number,
-          labeledAt: new Date(),
-        });
-        previouslyLabeled.add(originalPRNumber);
-      } catch (err: unknown) {
-        logger.error(
-          `${target}: failed to label original PR #${originalPRNumber}: ${(err as Error).message}`,
-        );
       }
+      logger.info(
+        `${target}: ${pending.size} unlabeled main PRs in the ${BRANCH_CUT_WINDOW_DAYS} days before the ${branch} fork point ${forkSha.substring(0, 7)}`,
+      );
+      // Bounded per run so a first run cannot spend the token's hourly budget;
+      // the rest are picked up on the next run.
+      for (const [prNumber, subject] of [...pending].slice(0, BRANCH_CUT_MAX_LABELS_PER_RUN)) {
+        try {
+          // addLabels is a no-op for a PR that already has the label.
+          await gh.issues.addLabels({
+            ...FRONTEND_REPO,
+            issue_number: prNumber,
+            labels: [labelName],
+          });
+          labeledOriginalPRs.push({
+            prNumber,
+            prUrl: `https://github.com/${FRONTEND_REPO.owner}/${FRONTEND_REPO.repo}/pull/${prNumber}`,
+            prTitle: subject,
+            backportPrNumber: null,
+            labeledAt: new Date(),
+          });
+          previouslyLabeled.add(prNumber);
+        } catch (err: unknown) {
+          logger.error(
+            `${target}: failed to label branch-cut PR #${prNumber}: ${(err as Error).message}`,
+          );
+        }
+      }
+    } catch (err: unknown) {
+      // Keep the backport labels from this run; retry the branch-cut walk next run.
+      logger.warn(`${target}: branch-cut walk failed: ${(err as Error).message}`);
     }
 
     await save({
