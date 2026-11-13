@@ -14,17 +14,22 @@ export type OctokitOptions = {
 type GithubResponse = Awaited<ReturnType<Octokit["request"]>>;
 
 const ETAG_TTL = 7 * 24 * 60 * 60 * 1000;
-let etagStore: Promise<Keyv<GithubResponse>> | undefined;
+let etagStore: Promise<Keyv<GithubResponse> | undefined> | undefined;
 
 function getEtagStore(file: string) {
-  etagStore ??= import("@keyv/sqlite").then(
-    ({ default: KeyvSqlite }) =>
-      new Keyv<GithubResponse>({
-        store: new KeyvSqlite(`sqlite://${file}`),
-        namespace: "gh-etag",
-        ttl: ETAG_TTL,
-      }),
-  );
+  etagStore ??= import("@keyv/sqlite")
+    .then(
+      ({ default: KeyvSqlite }) =>
+        new Keyv<GithubResponse>({
+          store: new KeyvSqlite(`sqlite://${file}`),
+          namespace: "gh-etag",
+          ttl: ETAG_TTL,
+        }),
+    )
+    .catch((error) => {
+      console.warn(`GitHub ETag cache disabled, cannot open ${file}:`, error);
+      return undefined;
+    });
   return etagStore;
 }
 
@@ -48,6 +53,7 @@ function useEtagCache(octokit: InstanceType<typeof OctokitWithPlugins>, auth: st
     const { url, headers } = octokit.request.endpoint(options);
     const key = `${tokenId} ${url} ${headers.accept}`;
     const store = await getEtagStore(file);
+    if (!store) return request(options);
     const cached = await store.get(key);
     if (cached?.headers.etag) options.headers["if-none-match"] = cached.headers.etag;
 

@@ -34,7 +34,9 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - uses: actions/cache/restore@v5
         with:
-          path: ${{ env.GH_ETAG_CACHE_FILE }}
+          path: |
+            ${{ env.GH_ETAG_CACHE_FILE }}
+            ${{ env.GH_ETAG_CACHE_FILE }}-journal
           key: gh-etag-combined-tasks-${{ github.run_id }}
           restore-keys: gh-etag-combined-tasks-
 
@@ -67,5 +69,7 @@ jobs:
       - uses: actions/cache/save@v5
         if: always() && github.event_name != 'pull_request'
         with:
-          path: ${{ env.GH_ETAG_CACHE_FILE }}
+          path: |
+            ${{ env.GH_ETAG_CACHE_FILE }}
+            ${{ env.GH_ETAG_CACHE_FILE }}-journal
           key: gh-etag-combined-tasks-${{ github.run_id }}
