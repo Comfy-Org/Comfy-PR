@@ -13,13 +13,26 @@ on:
   #     - ".github/workflows/coreping.yaml"
   #     - "app/tasks/coreping/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   run_coreping:
     runs-on: ubuntu-latest
+    env:
+      GH_ETAG_CACHE_FILE: .gh-etag-cache.sqlite
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache/restore@v5
+        with:
+          path: |
+            ${{ env.GH_ETAG_CACHE_FILE }}
+            ${{ env.GH_ETAG_CACHE_FILE }}-journal
+          key: gh-etag-coreping-${{ github.run_id }}
+          restore-keys: gh-etag-coreping-
 
       # Install dependencies
       - run: bun i
@@ -32,3 +45,11 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           SLACK_BOT_CHANNEL: ${{ secrets.SLACK_BOT_CHANNEL }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
+      - uses: actions/cache/save@v5
+        if: always() && github.event_name != 'pull_request'
+        with:
+          path: |
+            ${{ env.GH_ETAG_CACHE_FILE }}
+            ${{ env.GH_ETAG_CACHE_FILE }}-journal
+          key: gh-etag-coreping-${{ github.run_id }}

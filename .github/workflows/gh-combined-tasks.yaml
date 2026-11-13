@@ -19,13 +19,26 @@ on:
       - "app/tasks/gh-issue-transfer-*/**"
       - "app/tasks/gh-priority-sync/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   run_combined_github_tasks:
     runs-on: ubuntu-latest
+    env:
+      GH_ETAG_CACHE_FILE: .gh-etag-cache.sqlite
     timeout-minutes: 15 # Allow some extra time for all tasks
     steps:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      - uses: actions/cache/restore@v5
+        with:
+          path: |
+            ${{ env.GH_ETAG_CACHE_FILE }}
+            ${{ env.GH_ETAG_CACHE_FILE }}-journal
+          key: gh-etag-combined-tasks-${{ github.run_id }}
+          restore-keys: gh-etag-combined-tasks-
 
       # Install dependencies
       - run: bun i
@@ -52,3 +65,11 @@ jobs:
           SLACK_BOT_CHANNEL: ${{ secrets.SLACK_BOT_CHANNEL }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+
+      - uses: actions/cache/save@v5
+        if: always() && github.event_name != 'pull_request'
+        with:
+          path: |
+            ${{ env.GH_ETAG_CACHE_FILE }}
+            ${{ env.GH_ETAG_CACHE_FILE }}-journal
+          key: gh-etag-combined-tasks-${{ github.run_id }}
