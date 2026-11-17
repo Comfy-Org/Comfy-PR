@@ -37,11 +37,11 @@ type ModelRun = { name: string; model: ReturnType<typeof openai> | ReturnType<ty
 
 const availableModels = new Map<string, ModelRun>([
   ["gpt-4o", { name: "gpt-4o", model: openai("gpt-4o") }],
-  ["claude-sonnet-4-5", { name: "claude-sonnet-4-5", model: anthropic("claude-sonnet-4-5") }],
+  ["claude-sonnet-5-5", { name: "claude-sonnet-5-5", model: anthropic("claude-sonnet-5-5") }],
 ]);
 
 const resolveModels = (names: string[]): ModelRun[] => {
-  const requested = names.length > 0 ? names : ["gpt-4o", "claude-sonnet-4-5"];
+  const requested = names.length > 0 ? names : ["gpt-4o", "claude-sonnet-5-5"];
   const runs = requested.map((name) => {
     const entry = availableModels.get(name);
     if (!entry) {
@@ -321,7 +321,7 @@ if (import.meta.main) {
     )
     .option("models", {
       type: "string",
-      default: "gpt-4o,claude-sonnet-4-5",
+      default: "gpt-4o,claude-sonnet-5-5",
       describe: "Comma-separated model list",
     })
     .option("maxSteps", {
