@@ -96,7 +96,9 @@ const save = async (
                 cond: { $not: { $in: ["$$existing.prNumber", incomingPrNumbers] } },
               },
             },
-            labeledOriginalPRs,
+            // $literal: a title such as "$$schema: ..." must be stored as
+            // text, not read as a pipeline variable.
+            { $literal: labeledOriginalPRs },
           ],
         },
       },

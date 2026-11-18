@@ -27,4 +27,10 @@ describe("prNumberFromMainCommit", () => {
     expect(prNumberFromMainCommit("chore: bump (#abc)")).toBeNull();
     expect(prNumberFromMainCommit("fix: thing\n\nsee (#123)")).toBeNull();
   });
+
+  it("names no PR for a number that cannot be a PR", () => {
+    expect(prNumberFromMainCommit("fix: placeholder (#0)")).toBeNull();
+    expect(prNumberFromMainCommit("Merge pull request #0 from a/b")).toBeNull();
+    expect(prNumberFromMainCommit("fix: overflow (#9007199254740993)")).toBeNull();
+  });
 });
