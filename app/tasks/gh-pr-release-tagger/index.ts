@@ -396,22 +396,32 @@ async function processTarget(target: "core" | "cloud") {
             issue_number: prNumber,
             labels: [labelName],
           });
-          const entry = {
-            prNumber,
-            prUrl: `https://github.com/${FRONTEND_REPO.owner}/${FRONTEND_REPO.repo}/pull/${prNumber}`,
-            prTitle: subject,
-            backportPrNumber: null,
-            labeledAt: new Date(),
-          };
-          labeledOriginalPRs.push(entry);
-          previouslyLabeled.add(prNumber);
-          // Record each label as it lands, so a run killed by the step timeout
-          // does not relabel the same PRs next time and never get further.
-          await save({ target, deployedRef, labeledOriginalPRs: [entry] });
         } catch (err: unknown) {
           logger.error(
             `${target}: failed to label branch-cut PR #${prNumber}: ${(err as Error).message}`,
           );
+          continue;
+        }
+        const entry = {
+          prNumber,
+          prUrl: `https://github.com/${FRONTEND_REPO.owner}/${FRONTEND_REPO.repo}/pull/${prNumber}`,
+          prTitle: subject,
+          backportPrNumber: null,
+          labeledAt: new Date(),
+        };
+        labeledOriginalPRs.push(entry);
+        previouslyLabeled.add(prNumber);
+        // Record each label as it lands, so a run killed by the step timeout
+        // does not relabel the same PRs next time and never get further. If
+        // recording fails, stop labeling: the final save below retries every
+        // entry from this run before more quota is spent.
+        try {
+          await save({ target, deployedRef, labeledOriginalPRs: [entry] });
+        } catch (err: unknown) {
+          logger.warn(
+            `${target}: could not record branch-cut label for #${prNumber}, stopping this run's branch-cut labels: ${(err as Error).message}`,
+          );
+          break;
         }
       }
     } catch (err: unknown) {
