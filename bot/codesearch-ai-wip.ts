@@ -138,6 +138,7 @@ type RunSummary = {
   toolCallsCount: number;
   toolResultsCount: number;
   urlCount: number;
+  truncated?: boolean;
   error?: string;
 };
 
@@ -251,9 +252,14 @@ const runAi = async (options: {
           (step: unknown) => ((step as Record<string, unknown>).toolCalls as unknown[]) ?? [],
         ) ?? [];
       const codeMatches = extractCodeMatches(toolResults);
+      // Thinking shares the output budget, so a run can stop early without an error
+      const truncated = result.finishReason === "length";
 
       console.log(`\n🤖 Model: ${run.name}`);
       console.log("─".repeat(60));
+      if (truncated) {
+        console.log("\n⚠️  Truncated: the run hit its output token limit, so the answer may be incomplete");
+      }
       if (codeMatches.length > 0) {
         const summaryMap = await summarizeCodeMatches(codeMatches);
         console.log(`\nResults (${codeMatches.length}):`);
@@ -278,6 +284,7 @@ const runAi = async (options: {
         toolCallsCount: toolCalls.length,
         toolResultsCount: toolResults.length,
         urlCount: codeMatches.length,
+        truncated,
       });
     } catch (error) {
       const durationMs = Date.now() - startedAt;
@@ -303,7 +310,7 @@ const runAi = async (options: {
       console.log(
         `   • ${summary.name}: urls=${summary.urlCount}, textChars=${summary.textLength}, ` +
           `toolCalls=${summary.toolCallsCount}, toolResults=${summary.toolResultsCount}, ` +
-          `timeMs=${summary.durationMs}${summary.error ? " (error)" : ""}`,
+          `timeMs=${summary.durationMs}${summary.error ? " (error)" : summary.truncated ? " (truncated)" : ""}`,
       );
     });
 
