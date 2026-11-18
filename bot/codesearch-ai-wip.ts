@@ -33,11 +33,21 @@ const systemPrompt = `You are a helpful ComfyUI expert assistant. You help users
 - Plus 2000+ community custom node repositories
 `;
 
-type ModelRun = { name: string; model: ReturnType<typeof openai> | ReturnType<typeof anthropic> };
+type ModelRun = {
+  name: string;
+  model: ReturnType<typeof openai> | ReturnType<typeof anthropic>;
+  // Set where the pinned SDK doesn't know the model's output limit.
+  maxOutputTokens?: number;
+};
 
 const availableModels = new Map<string, ModelRun>([
   ["gpt-4o", { name: "gpt-4o", model: openai("gpt-4o") }],
-  ["claude-sonnet-5-5", { name: "claude-sonnet-5-5", model: anthropic("claude-sonnet-5-5") }],
+  [
+    "claude-sonnet-5-5",
+    // @ai-sdk/anthropic 3.0.23 doesn't know claude-sonnet-5-5 and falls back to 4,096 output
+    // tokens, which adaptive thinking shares. 64,000 is what Sonnet 4.5 got from the same SDK.
+    { name: "claude-sonnet-5-5", model: anthropic("claude-sonnet-5-5"), maxOutputTokens: 64_000 },
+  ],
 ]);
 
 const resolveModels = (names: string[]): ModelRun[] => {
@@ -227,6 +237,7 @@ const runAi = async (options: {
         system: systemPrompt,
         messages: [{ role: "user", content: options.query }],
         // temperature: 0,
+        maxOutputTokens: run.maxOutputTokens,
         stopWhen: stepCountIs(options.maxSteps),
         tools,
       });
