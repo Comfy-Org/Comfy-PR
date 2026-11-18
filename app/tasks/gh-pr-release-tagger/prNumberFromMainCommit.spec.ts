@@ -33,4 +33,8 @@ describe("prNumberFromMainCommit", () => {
     expect(prNumberFromMainCommit("Merge pull request #0 from a/b")).toBeNull();
     expect(prNumberFromMainCommit("fix: overflow (#9007199254740993)")).toBeNull();
   });
+
+  it("reads a classic merge commit whose branch name ends like a squash subject", () => {
+    expect(prNumberFromMainCommit("Merge pull request #217 from a/topic-(#123)")).toBe(217);
+  });
 });
