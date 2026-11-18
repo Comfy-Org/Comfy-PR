@@ -25,7 +25,7 @@ import { getReleaseComparison } from "./releaseComparison";
  *
  * Automatically monitors ComfyUI_frontend releases for bugfix commits that may
  * need backporting to stable branches (core/1.**, cloud/1.**), then posts a
- * per-release status report to Slack (#frontend-releases).
+ * per-release status report to Slack (#eng-frontend-releases).
  *
  * ── How it works ──────────────────────────────────────────────────────────────
  *
@@ -108,7 +108,7 @@ import { getReleaseComparison } from "./releaseComparison";
  *    status across targets. For PRs needing backport, resolves the PR author's
  *    Slack user ID (by matching GitHub username → Slack display name) and tags
  *    them. Falls back to tagging the "Release Sheriff" (parsed from the
- *    #frontend-releases channel topic/purpose).
+ *    #eng-frontend-releases channel topic/purpose).
  *
  *    The report is upserted (created or updated) as a Slack message via
  *    `upsertSlackMarkdownMessage`, so re-runs update existing messages rather
@@ -176,7 +176,7 @@ import { getReleaseComparison } from "./releaseComparison";
  * • SLACK USER RESOLUTION — attempts to match GitHub username to a Slack user
  *   by comparing against `name`, `display_name`, and `real_name` (with spaces
  *   stripped, case-insensitive). If no match is found, falls back to tagging
- *   the Release Sheriff (parsed from #frontend-releases channel topic/purpose
+ *   the Release Sheriff (parsed from #eng-frontend-releases channel topic/purpose
  *   via regex `Release Sheriff:? <@UXXXXXX>`). If neither resolves, no one is
  *   tagged.
  *
@@ -230,7 +230,7 @@ const config = {
   reBackportMentionPatterns: /\b(backports?|stable)\b/i,
 
   // 6. report to slack channel
-  slackChannelName: "frontend-releases",
+  slackChannelName: "eng-frontend-releases", // renamed from #frontend-releases
 
   // 7. bot-authored PR attribution
   // Regex used to detect automation-account PR authors (GitHub Apps end in
@@ -493,7 +493,7 @@ export function parseMinorVersion(tag: string): number | null {
 }
 
 /**
- * Get the current release sheriff's Slack user ID from the #frontend-releases channel description.
+ * Get the current release sheriff's Slack user ID from the #eng-frontend-releases channel description.
  * Expects format: "Current Release Sheriff: <@U12345678>" in channel purpose or topic.
  */
 export async function getReleaseSheriffUserId(): Promise<string | null> {

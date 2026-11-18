@@ -1,4 +1,4 @@
-import sflow from "sflow";
+import type { WebClient } from "@slack/web-api";
 import { getSlack, isSlackAvailable } from ".";
 
 if (import.meta.main) {
@@ -10,25 +10,30 @@ if (import.meta.main) {
 }
 
 /**
+ * Find a public or private channel the bot can see by its current name.
+ * Reads every page of `conversations.list`, and throws an error naming the
+ * channel when there is no match (a renamed or archived channel keeps its id
+ * but not its name).
  *
  * @author: snomiao <snomiao@gmail.com>
  */
-export async function getSlackChannel(name: string) {
-  const slack = getSlack();
-  return await sflow(
-    slack.conversations.list({
+export async function getSlackChannel(
+  name: string,
+  slack: Pick<WebClient, "conversations"> = getSlack(),
+) {
+  let cursor: string | undefined;
+  do {
+    const page = await slack.conversations.list({
       types: "public_channel,private_channel",
       limit: 1000,
-    }),
-  )
-    .map((e) => e.channels)
-    .filter()
-    .flat()
-    .filter((ch) => ch.name === name)
-    .mapAddField("url", (ch) => `https://slack.com/app_redirect?channel=${ch.id}`)
-    // .forEach(channel => {
-    //   console.log(`Channel: ${channel.name} (${channel.id})`);
-    //   console.log(`URL: ${channel.url}`);
-    // })
-    .toAtLeastOne();
+      exclude_archived: true,
+      ...(cursor && { cursor }),
+    });
+    const ch = page.channels?.find((c) => c.name === name);
+    if (ch) return { ...ch, url: `https://slack.com/app_redirect?channel=${ch.id}` };
+    cursor = page.response_metadata?.next_cursor || undefined;
+  } while (cursor);
+  throw new Error(
+    `Slack channel #${name} not found: it may have been renamed or archived, or the bot cannot see it`,
+  );
 }

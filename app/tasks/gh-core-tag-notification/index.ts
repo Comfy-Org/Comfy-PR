@@ -20,7 +20,7 @@ import { upsertSlackMessage } from "../gh-desktop-release-notification/upsertSla
 
 const config = {
   repo: "https://github.com/Comfy-Org/ComfyUI",
-  slackChannels: ["desktop", "live-ops"],
+  slackChannels: ["epd-desktop", "eng-live-ops"], // renamed from #desktop and #live-ops
   slackMessage: "🏷️ ComfyUI <{url}|Tag {tagName}> created!",
   sendSince: new Date("2025-11-19T00:00:00Z").toISOString(),
   tagsPerPage: 3,
