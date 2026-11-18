@@ -379,7 +379,7 @@ async function processTarget(target: "core" | "cloud") {
       // Bounded per run so a first run cannot spend the token's hourly budget;
       // the rest are picked up on the next run.
       const toLabel = branchCutPRsToLabel(
-        commits.map((c) => c.commit.message),
+        commits.map((c) => ({ message: c.commit.message, parents: c.parents.length })),
         previouslyLabeled,
         BRANCH_CUT_MAX_LABELS_PER_RUN,
       );

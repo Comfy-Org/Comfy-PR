@@ -11,9 +11,9 @@ describe("prNumberFromMainCommit", () => {
   });
 
   it("reads a classic merge commit", () => {
-    expect(prNumberFromMainCommit("Merge pull request #217 from Comfy-Org/chore/x\n\nbody")).toBe(
-      217,
-    );
+    expect(
+      prNumberFromMainCommit("Merge pull request #217 from Comfy-Org/chore/x\n\nbody", true),
+    ).toBe(217);
   });
 
   it("uses the last reference in the subject, not one mentioned earlier", () => {
@@ -30,11 +30,15 @@ describe("prNumberFromMainCommit", () => {
 
   it("names no PR for a number that cannot be a PR", () => {
     expect(prNumberFromMainCommit("fix: placeholder (#0)")).toBeNull();
-    expect(prNumberFromMainCommit("Merge pull request #0 from a/b")).toBeNull();
+    expect(prNumberFromMainCommit("Merge pull request #0 from a/b", true)).toBeNull();
     expect(prNumberFromMainCommit("fix: overflow (#9007199254740993)")).toBeNull();
   });
 
   it("reads a classic merge commit whose branch name ends like a squash subject", () => {
-    expect(prNumberFromMainCommit("Merge pull request #217 from a/topic-(#123)")).toBe(217);
+    expect(prNumberFromMainCommit("Merge pull request #217 from a/topic-(#123)", true)).toBe(217);
+  });
+
+  it("reads a squash commit whose subject starts like a merge commit", () => {
+    expect(prNumberFromMainCommit("Merge pull request #217 from a/topic (#123)")).toBe(123);
   });
 });
