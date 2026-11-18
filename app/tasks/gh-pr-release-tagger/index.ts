@@ -400,6 +400,10 @@ async function processTarget(target: "core" | "cloud") {
           logger.error(
             `${target}: failed to label branch-cut PR #${prNumber}: ${(err as Error).message}`,
           );
+          // A rate limit or exhausted quota hits every later call too, so stop
+          // here and leave the step's time to the next target.
+          const status = (err as { status?: number }).status;
+          if (status === 403 || status === 429) break;
           continue;
         }
         const entry = {
