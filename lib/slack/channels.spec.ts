@@ -11,6 +11,7 @@ function fakeSlack(pages: Page[]) {
       list: async (args: { cursor?: string; exclude_archived?: boolean; limit?: number }) => {
         calls.push(args.cursor);
         requests.push({ exclude_archived: args.exclude_archived, limit: args.limit });
+        if (calls.length > pages.length + 1) throw new Error("fake: too many list requests");
         const i = args.cursor ? Number(args.cursor) : 0;
         const page = pages[i];
         return {

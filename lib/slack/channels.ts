@@ -24,7 +24,9 @@ if (import.meta.main) {
  *
  * A successful lookup is remembered per client for the life of the process,
  * so a task that resolves the same channel many times (concurrently or not)
- * pages through the list once. A failed lookup is not remembered.
+ * pages through the list once. A failed lookup is not remembered. A rename
+ * that happens after a successful lookup is not seen until the process
+ * restarts; the scheduled tasks run as a fresh process each time.
  *
  * @author: snomiao <snomiao@gmail.com>
  */
