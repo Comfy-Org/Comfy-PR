@@ -54,4 +54,31 @@ describe("getSlackChannel", () => {
     const { slack } = fakeSlack([{ channels: [{ id: "C1", name: "general" }] }]);
     await expect(getSlackChannel("desktop", slack)).rejects.toThrow(/#desktop not found/);
   });
+
+  it("stops when Slack repeats a cursor", async () => {
+    const { slack, calls } = fakeSlack([
+      { channels: [{ id: "C1", name: "general" }], next: "1" },
+      { channels: [{ id: "C2", name: "other" }], next: "1" },
+    ]);
+    await expect(getSlackChannel("missing", slack)).rejects.toThrow(/cursor 1 twice/);
+    expect(calls).toEqual([undefined, "1"]);
+  });
+
+  it("shares one lookup between concurrent callers and reuses it", async () => {
+    const { slack, calls } = fakeSlack([{ channels: [{ id: "C1", name: "general" }] }]);
+    const [a, b] = await Promise.all([
+      getSlackChannel("general", slack),
+      getSlackChannel("general", slack),
+    ]);
+    expect([a.id, b.id]).toEqual(["C1", "C1"]);
+    await getSlackChannel("general", slack);
+    expect(calls).toEqual([undefined]);
+  });
+
+  it("does not remember a failed lookup", async () => {
+    const { slack, calls } = fakeSlack([{ channels: [{ id: "C1", name: "general" }] }]);
+    await expect(getSlackChannel("desktop", slack)).rejects.toThrow(/#desktop not found/);
+    await expect(getSlackChannel("desktop", slack)).rejects.toThrow(/#desktop not found/);
+    expect(calls).toEqual([undefined, undefined]);
+  });
 });
