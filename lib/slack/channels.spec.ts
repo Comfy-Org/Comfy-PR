@@ -5,10 +5,12 @@ type Page = { channels: { id: string; name: string }[]; next?: string };
 
 function fakeSlack(pages: Page[]) {
   const calls: (string | undefined)[] = [];
+  const requests: { exclude_archived?: boolean; limit?: number }[] = [];
   const slack = {
     conversations: {
-      list: async (args: { cursor?: string }) => {
+      list: async (args: { cursor?: string; exclude_archived?: boolean; limit?: number }) => {
         calls.push(args.cursor);
+        requests.push({ exclude_archived: args.exclude_archived, limit: args.limit });
         const i = args.cursor ? Number(args.cursor) : 0;
         const page = pages[i];
         return {
@@ -19,12 +21,12 @@ function fakeSlack(pages: Page[]) {
       },
     },
   };
-  return { slack: slack as never, calls };
+  return { slack: slack as never, calls, requests };
 }
 
 describe("getSlackChannel", () => {
   it("finds a channel on a later page", async () => {
-    const { slack, calls } = fakeSlack([
+    const { slack, calls, requests } = fakeSlack([
       { channels: [{ id: "C1", name: "general" }], next: "1" },
       { channels: [{ id: "C2", name: "epd-desktop" }] },
     ]);
@@ -32,6 +34,11 @@ describe("getSlackChannel", () => {
     expect(ch.id).toBe("C2");
     expect(ch.url).toBe("https://slack.com/app_redirect?channel=C2");
     expect(calls).toEqual([undefined, "1"]);
+    // Every page skips archived channels and stays within Slack's page size.
+    expect(requests).toEqual([
+      { exclude_archived: true, limit: 200 },
+      { exclude_archived: true, limit: 200 },
+    ]);
   });
 
   it("stops at the first page that has the channel", async () => {

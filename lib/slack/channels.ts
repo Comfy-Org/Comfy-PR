@@ -9,23 +9,40 @@ if (import.meta.main) {
   }
 }
 
+type SlackChannel = Awaited<ReturnType<typeof findSlackChannel>>;
+const found = new Map<string, Promise<SlackChannel>>();
+
 /**
  * Find a public or private channel the bot can see by its current name.
- * Reads every page of `conversations.list`, and throws an error naming the
- * channel when there is no match (a renamed or archived channel keeps its id
- * but not its name).
+ *
+ * Reads every page of `conversations.list`. Archived channels are skipped, so
+ * an archived channel is "not found" even though it keeps its name. A renamed
+ * channel keeps its id but answers only to its new name. Either way the error
+ * names the channel that was asked for.
+ *
+ * A successful lookup is remembered for the life of the process, so a task
+ * that resolves the same channel many times pages through the list once.
  *
  * @author: snomiao <snomiao@gmail.com>
  */
-export async function getSlackChannel(
-  name: string,
-  slack: Pick<WebClient, "conversations"> = getSlack(),
-) {
+export function getSlackChannel(name: string, slack?: Pick<WebClient, "conversations">) {
+  if (slack) return findSlackChannel(name, slack);
+  let lookup = found.get(name);
+  if (!lookup) {
+    lookup = findSlackChannel(name, getSlack());
+    lookup.catch(() => found.delete(name));
+    found.set(name, lookup);
+  }
+  return lookup;
+}
+
+async function findSlackChannel(name: string, slack: Pick<WebClient, "conversations">) {
   let cursor: string | undefined;
   do {
     const page = await slack.conversations.list({
       types: "public_channel,private_channel",
-      limit: 1000,
+      // Slack recommends no more than 200 per page; the cursor covers the rest.
+      limit: 200,
       exclude_archived: true,
       ...(cursor && { cursor }),
     });
