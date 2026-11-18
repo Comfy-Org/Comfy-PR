@@ -7,7 +7,7 @@ import { logger } from "@/src/logger";
 import isCI from "is-ci";
 import { extractOriginalPRNumber } from "./extractOriginalPRNumber";
 import { isReleasedCompareStatus } from "./isReleasedCompareStatus";
-import { prNumberFromMainCommit } from "./prNumberFromMainCommit";
+import { branchCutPRsToLabel } from "./branchCutPRsToLabel";
 
 export { extractOriginalPRNumber };
 
@@ -374,19 +374,17 @@ async function processTarget(target: "core" | "cloud") {
       })
         .slice(0, BRANCH_CUT_MAX_COMMITS)
         .toArray();
-      const pending = new Map<number, string>();
-      for (const c of commits) {
-        const prNumber = prNumberFromMainCommit(c.commit.message);
-        if (prNumber !== null && !previouslyLabeled.has(prNumber) && !pending.has(prNumber)) {
-          pending.set(prNumber, c.commit.message.split("\n", 1)[0]);
-        }
-      }
-      logger.info(
-        `${target}: ${pending.size} unlabeled main PRs in the ${BRANCH_CUT_WINDOW_DAYS} days before the ${branch} fork point ${forkSha.substring(0, 7)}`,
-      );
       // Bounded per run so a first run cannot spend the token's hourly budget;
       // the rest are picked up on the next run.
-      for (const [prNumber, subject] of [...pending].slice(0, BRANCH_CUT_MAX_LABELS_PER_RUN)) {
+      const toLabel = branchCutPRsToLabel(
+        commits.map((c) => c.commit.message),
+        previouslyLabeled,
+        BRANCH_CUT_MAX_LABELS_PER_RUN,
+      );
+      logger.info(
+        `${target}: labeling ${toLabel.length} unlabeled main PRs from the ${BRANCH_CUT_WINDOW_DAYS} days before the ${branch} fork point ${forkSha.substring(0, 7)}`,
+      );
+      for (const { prNumber, subject } of toLabel) {
         try {
           // addLabels is a no-op for a PR that already has the label.
           await gh.issues.addLabels({
