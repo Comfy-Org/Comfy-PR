@@ -17,7 +17,7 @@ import { upsertSlackMessage } from "./upsertSlackMessage";
  */
 const config = {
   repos: ["https://github.com/Comfy-Org/ComfyUI", "https://github.com/Comfy-Org/desktop"],
-  slackChannel: "desktop",
+  slackChannel: "epd-desktop", // renamed from #desktop
   slackMessage: "🔮 {repo} <{url}|Release {version}> is {status}!",
   sendSince: new Date("2025-08-02T00:00:00Z").toISOString(), // only send notifications for releases after this date (UTC)
 };
