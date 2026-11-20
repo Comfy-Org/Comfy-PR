@@ -34,7 +34,9 @@ const FRONTEND_REPO = { owner: "Comfy-Org", repo: "ComfyUI_frontend" };
 // just after the previous cut is still covered.
 const BRANCH_CUT_WINDOW_DAYS = 35;
 const BRANCH_CUT_MAX_COMMITS = 3000;
-const BRANCH_CUT_MAX_LABELS_PER_RUN = 300;
+// Small on purpose: the combined task step has a 10-minute budget and shares a
+// token whose quota is often exhausted, so a large batch never finishes.
+const BRANCH_CUT_MAX_LABELS_PER_RUN = 40;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type PRReleaseTaggerState = {
@@ -394,18 +396,36 @@ async function processTarget(target: "core" | "cloud") {
             issue_number: prNumber,
             labels: [labelName],
           });
-          labeledOriginalPRs.push({
-            prNumber,
-            prUrl: `https://github.com/${FRONTEND_REPO.owner}/${FRONTEND_REPO.repo}/pull/${prNumber}`,
-            prTitle: subject,
-            backportPrNumber: null,
-            labeledAt: new Date(),
-          });
-          previouslyLabeled.add(prNumber);
         } catch (err: unknown) {
           logger.error(
             `${target}: failed to label branch-cut PR #${prNumber}: ${(err as Error).message}`,
           );
+          // A rate limit or exhausted quota hits every later call too, so stop
+          // here and leave the step's time to the next target.
+          const status = (err as { status?: number }).status;
+          if (status === 403 || status === 429) break;
+          continue;
+        }
+        const entry = {
+          prNumber,
+          prUrl: `https://github.com/${FRONTEND_REPO.owner}/${FRONTEND_REPO.repo}/pull/${prNumber}`,
+          prTitle: subject,
+          backportPrNumber: null,
+          labeledAt: new Date(),
+        };
+        labeledOriginalPRs.push(entry);
+        previouslyLabeled.add(prNumber);
+        // Record each label as it lands, so a run killed by the step timeout
+        // does not relabel the same PRs next time and never get further. If
+        // recording fails, stop labeling: the final save below retries every
+        // entry from this run before more quota is spent.
+        try {
+          await save({ target, deployedRef, labeledOriginalPRs: [entry] });
+        } catch (err: unknown) {
+          logger.warn(
+            `${target}: could not record branch-cut label for #${prNumber}, stopping this run's branch-cut labels: ${(err as Error).message}`,
+          );
+          break;
         }
       }
     } catch (err: unknown) {
