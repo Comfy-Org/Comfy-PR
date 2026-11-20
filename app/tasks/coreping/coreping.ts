@@ -65,7 +65,7 @@ export const coreReviewTrackerConfig = {
     { label: "notify:sno", slackUser: "snomiao" },
   ],
   minReminderInterval: "24h", // edit-existed-slack-message < this-interval < send-another-slack-message
-  slackChannelName: "develop", // develop channel, without notification
+  slackChannelName: "develop", // archived 2026-10-13; the scheduled workflow is off until a live channel is chosen
 
   // github message
   messageUpdatePattern: "<!-- COMFY_PR_BOT_TRACKER -->",
