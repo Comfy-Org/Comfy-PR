@@ -1,10 +1,15 @@
 name: "CorePing - Core PR Review Reminder"
 
 on:
-  # Runs per 5min to update core prs status
-  schedule:
-    - cron: "*/5 * * * *"
-
+  # The 5-minute schedule is off: the reminder posts to #develop, which was
+  # archived on 2026-10-13, so every scheduled run since has failed with
+  # is_archived. To restore it: choose a live channel in coreping.ts
+  # (slackChannelName); clear the stored Slack URLs that point into #develop
+  # (Meta.lastSlackMessage and each ComfyCorePRs task's lastPingMessage), or the
+  # first ping tries to edit a #develop message in the new channel and fails;
+  # then add the schedule back:
+  #   schedule:
+  #     - cron: "*/5 * * * *"
   workflow_dispatch:
   # push:
   #   branches:

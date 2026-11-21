@@ -1,0 +1,44 @@
+import { describe, it, expect } from "bun:test";
+import { prNumberFromMainCommit } from "./prNumberFromMainCommit";
+
+describe("prNumberFromMainCommit", () => {
+  it("reads a squash-merged PR, which reaches a release branch only through its cut", () => {
+    expect(
+      prNumberFromMainCommit(
+        "refactor(agent): apply remote CRDT ops through the graph API and delete the reconcile layer (#18700)\n\n## Summary",
+      ),
+    ).toBe(18700);
+  });
+
+  it("reads a classic merge commit", () => {
+    expect(
+      prNumberFromMainCommit("Merge pull request #217 from Comfy-Org/chore/x\n\nbody", true),
+    ).toBe(217);
+  });
+
+  it("uses the last reference in the subject, not one mentioned earlier", () => {
+    expect(
+      prNumberFromMainCommit("fix: revert incorrectly backported code from #9908 (#10024)"),
+    ).toBe(10024);
+  });
+
+  it("names no PR for a commit without one", () => {
+    expect(prNumberFromMainCommit("1.58.0")).toBeNull();
+    expect(prNumberFromMainCommit("chore: bump (#abc)")).toBeNull();
+    expect(prNumberFromMainCommit("fix: thing\n\nsee (#123)")).toBeNull();
+  });
+
+  it("names no PR for a number that cannot be a PR", () => {
+    expect(prNumberFromMainCommit("fix: placeholder (#0)")).toBeNull();
+    expect(prNumberFromMainCommit("Merge pull request #0 from a/b", true)).toBeNull();
+    expect(prNumberFromMainCommit("fix: overflow (#9007199254740993)")).toBeNull();
+  });
+
+  it("reads a classic merge commit whose branch name ends like a squash subject", () => {
+    expect(prNumberFromMainCommit("Merge pull request #217 from a/topic-(#123)", true)).toBe(217);
+  });
+
+  it("reads a squash commit whose subject starts like a merge commit", () => {
+    expect(prNumberFromMainCommit("Merge pull request #217 from a/topic (#123)")).toBe(123);
+  });
+});
