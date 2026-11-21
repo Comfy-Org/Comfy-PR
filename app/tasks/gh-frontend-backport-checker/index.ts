@@ -19,6 +19,7 @@ import {
 } from "@/lib/notion/people";
 import { slackCached } from "@/lib";
 import { getReleaseComparison } from "./releaseComparison";
+import { isCommitInTag, isTagOnLine, resolveShippedStatus } from "./releasedStatus";
 
 /**
  * GitHub Frontend Backport Checker Task
@@ -309,7 +310,13 @@ export function isBotLogin(login: string | undefined | null): boolean {
   return !!login && config.reBotLogin.test(login);
 }
 
-export type BackportStatus = "not-needed" | "needed" | "in-progress" | "completed" | "unknown";
+export type BackportStatus =
+  | "not-needed"
+  | "needed"
+  | "in-progress"
+  | "completed"
+  | "merged-unreleased"
+  | "unknown";
 
 // track each bugfix PR backport status
 export type GithubFrontendBackportCheckerTask = {
@@ -340,6 +347,9 @@ export type GithubFrontendBackportCheckerTask = {
         prNumber?: number;
         prTitle?: string;
         prStatus?: "open" | "closed" | "merged";
+        // The cherry-picked commit on the release branch. The source SHA never
+        // lands there, so tag containment must be tested against this one.
+        mergeCommitSha?: string | null;
         lastCheckedAt?: Date;
       }[];
     }>;
@@ -469,6 +479,8 @@ export function getBackportStatusEmoji(status: BackportStatus): string {
       return ":pr-merged:";
     case "in-progress":
       return ":pr-open:";
+    case "merged-unreleased":
+      return "**:rotating_light: Merged, not released**";
     case "needed":
       return "**:exclamation: Need backport**";
     case "not-needed":
@@ -478,6 +490,49 @@ export function getBackportStatusEmoji(status: BackportStatus): string {
     default:
       return "⚪";
   }
+}
+
+/** Non-draft releases for `owner/repo`, cached per run so N commits × M target branches share one fetch. */
+const releaseListCache = new Map<string, Promise<{ tag_name: string }[]>>();
+
+function listReleasesCached(owner: string, repo: string): Promise<{ tag_name: string }[]> {
+  const key = `${owner}/${repo}`;
+  const cached = releaseListCache.get(key);
+  if (cached) return cached;
+  const pending = ghPageFlow(ghc.repos.listReleases, { per_page: 100 })({ owner, repo })
+    .filter((release) => !release.draft)
+    .map(({ tag_name }) => ({ tag_name }))
+    .toArray()
+    .catch((error) => {
+      releaseListCache.delete(key);
+      throw error;
+    });
+  releaseListCache.set(key, pending);
+  return pending;
+}
+
+/**
+ * Release tag on `branch`'s line that already contains `commitSha`, or null
+ * when the commit sits past every release — merged onto the release line but
+ * never shipped.
+ */
+async function findReleaseTagContaining(
+  owner: string,
+  repo: string,
+  branch: string,
+  commitSha: string,
+): Promise<string | null> {
+  const releases = await listReleasesCached(owner, repo);
+  const branchReleases = releases.filter((release) => isTagOnLine(release.tag_name, branch));
+  if (!branchReleases.length) return null;
+
+  for (const release of branchReleases) {
+    const comparison = await ghc.repos
+      .compareCommits({ owner, repo, base: release.tag_name, head: commitSha })
+      .then((e) => e.data);
+    if (isCommitInTag(comparison.status)) return release.tag_name;
+  }
+  return null;
 }
 
 export function middleTruncated(maxLength: number, str: string): string {
@@ -885,6 +940,7 @@ async function processTask(
                     prNumber?: number;
                     prTitle?: string;
                     prStatus?: "open" | "closed" | "merged";
+                    mergeCommitSha?: string | null;
                     lastCheckedAt?: Date;
                   }[],
                 };
@@ -904,6 +960,7 @@ async function processTask(
                 prNumber?: number;
                 prTitle?: string;
                 prStatus?: "open" | "closed" | "merged";
+                mergeCommitSha?: string | null;
                 lastCheckedAt?: Date;
               }[] = [];
               const status: BackportStatus = await tsmatch(comparing.status)
@@ -927,6 +984,7 @@ async function processTask(
                     prNumber: bpr.number,
                     prTitle: bpr.title,
                     prStatus: bpr.merged_at ? "merged" : bpr.state === "open" ? "open" : "closed",
+                    mergeCommitSha: bpr.merged_at ? bpr.merge_commit_sha : null,
                     lastCheckedAt: new Date(),
                   }));
 
@@ -976,7 +1034,7 @@ async function processTask(
 
           // Determine overall backport status (ignoring "not-needed" targets)
           const activeTargets = backportTargetStatus.filter((t) => t.status !== "not-needed");
-          const backportStatus: BackportStatus =
+          const mergedStatus: BackportStatus =
             activeTargets.length && activeTargets.every((t) => t.status === "completed")
               ? "completed"
               : activeTargets.some((t) => t.status === "in-progress")
@@ -1004,6 +1062,31 @@ async function processTask(
                 })) ?? rawAuthorLogin)
               : rawAuthorLogin;
 
+          // Landing on the release branch is not reaching users: resolve which
+          // tag, if any, actually carries the commit on every completed target.
+          const releasedInTag =
+            mergedStatus === "completed"
+              ? await sflow(backportTargetStatus.filter((t) => t.status === "completed"))
+                  .map(async ({ branch, prs }) => {
+                    // A cherry-picked backport has a different SHA on the release
+                    // branch; testing the source SHA would report every backport
+                    // as unreleased.
+                    const shaOnBranch =
+                      prs.find((bpr) => bpr.prStatus === "merged" && bpr.mergeCommitSha)
+                        ?.mergeCommitSha ?? commitSha;
+                    return await findReleaseTagContaining(owner, repo, branch, shaOnBranch);
+                  })
+                  .toArray()
+                  .then((tags) =>
+                    tags.every((t) => t !== null) ? tags.filter(Boolean).join(", ") : null,
+                  )
+              : null;
+
+          const backportStatus = resolveShippedStatus({
+            backportStatus: mergedStatus,
+            releasedInTag,
+          });
+          // Save to database
           return {
             commitSha,
             commitMessage,
@@ -1049,7 +1132,11 @@ async function processTask(
       ? ("not-mentioned" as const)
       : e.backportTargetStatus.some((t) => t.status !== "completed" && t.status !== "not-needed")
         ? ("in-progress" as const)
-        : ("completed" as const),
+        : // Every target merged, but no tag carries it — the 1.47.10 state, which
+          // read as fully done right up until users reported the unfixed bug.
+          e.backportStatus === "merged-unreleased"
+          ? ("merged-unreleased" as const)
+          : ("completed" as const),
   }));
 
   // - generate report based on commits, note: slack's markdown not support table
@@ -1064,6 +1151,22 @@ ${
     .map((bf) => {
       const tag = bf.prAuthor ? authorTags.get(bf.prAuthor) || "" : "";
       return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ _❗ Might need backport_ ${tag}`.trim();
+    })
+    .join("\n")
+}
+${
+  // merged everywhere but not in any tag — needs a patch release, not a backport
+  statuses
+    .filter((e) => e.status === "merged-unreleased")
+    .map((bf) => {
+      const tag = bf.prAuthor ? authorTags.get(bf.prAuthor) || "" : "";
+      const branches = bf.backportTargetStatus
+        .filter((t) => t.status === "completed")
+        .map((t) => t.branch)
+        .join(", ");
+      return `[${middleTruncated(60, bf.commitMessage)}](${bf.prUrl}) ➡️ ${getBackportStatusEmoji(
+        "merged-unreleased",
+      )} on ${branches} — cut a patch release ${tag}`.trim();
     })
     .join("\n")
 }
