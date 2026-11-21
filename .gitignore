@@ -85,3 +85,6 @@ REPORT.md
 .codex
 .playwright-mcp/
 .playwright-cli-multi-tab/
+
+# GitHub ETag cache (GH_ETAG_CACHE_FILE)
+.gh-etag-cache.sqlite
