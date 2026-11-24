@@ -147,7 +147,7 @@ import { dualHomedCandidateBranches } from "./dualHomedCandidates";
  *   docs/release-process.md#dual-homed-commits). A bugfix PR with no
  *   backport label or mention is checked against every existing
  *   `core/1.**`/`cloud/1.**` branch from the release's previous minor up
- *   (older branches were cut before the commit existed) before being flagged; if its commit SHA
+ *   before being flagged; if its commit SHA
  *   is already an ancestor of one, it's marked "completed" there instead of
  *   "❗ Might need backport". This is intentionally NOT a release-type check
  *   (e.g. "skip all x.y.0 releases") — a minor release can still ship a
