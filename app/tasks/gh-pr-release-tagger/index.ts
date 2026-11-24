@@ -120,10 +120,6 @@ const save = async (
 // ── Resolve deployed versions ──────────────────────────────────────
 
 async function getCoreDeployedVersion(): Promise<{ ref: string; branch: string }> {
-  // The latest ComfyUI release pins the frontend in requirements.txt. Desktop
-  // installs those requirements, so this is the version core and Desktop users
-  // run. (The old source, Comfy-Org/desktop, was archived with its last release
-  // pinning 1.43.18, so released:core stopped moving in May 2026.)
   const latestRelease = await ghc.repos.getLatestRelease({ ...COMFYUI_REPO });
   const tag = latestRelease.data.tag_name;
 
