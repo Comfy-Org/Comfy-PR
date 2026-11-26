@@ -33,9 +33,27 @@ export async function fetchCRNodes(): Promise<
     tags: never[];
   }[]
 > {
-  const r = (await fetchJson<typeof mockPublishedNodes>(
-    "https://api.comfy.org/nodes?page=1&limit=99999999",
-  )) as typeof mockPublishedNodes;
-  if (r.totalPages !== 1) DIE("FAIL TO FETCH ALL NODES");
-  return r.nodes;
+  return await fetchAllPages((page) =>
+    fetchJson<RegistryNodesPage<CRNode>>(
+      `https://api.comfy.org/nodes?page=${page}&limit=100`,
+    ),
+  );
+}
+
+type RegistryNodesPage<T> = { nodes: T[]; totalPages: number };
+type CRNode = (typeof mockPublishedNodes)["nodes"][number];
+
+/** Reads every page; the registry caps limit at 100 per page. */
+export async function fetchAllPages<T>(
+  fetchPage: (page: number) => Promise<RegistryNodesPage<T>>,
+): Promise<T[]> {
+  const first = await fetchPage(1);
+  if (!Array.isArray(first?.nodes)) DIE("FAIL TO FETCH ALL NODES");
+  const nodes = [...first.nodes];
+  for (let page = 2; page <= first.totalPages; page++) {
+    const r = await fetchPage(page);
+    if (!Array.isArray(r?.nodes)) DIE(`FAIL TO FETCH NODES PAGE ${page}`);
+    nodes.push(...r.nodes);
+  }
+  return nodes;
 }
