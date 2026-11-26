@@ -28,4 +28,13 @@ describe("fetchAllPages", () => {
       fetchAllPages(async () => ({ nodes: undefined as never, totalPages: 1 })),
     ).rejects.toThrow();
   });
+
+  test.each([undefined, null, 0, -1, 1.5, Number.NaN])(
+    "throws on invalid totalPages %p instead of returning page 1 only",
+    async (totalPages) => {
+      await expect(
+        fetchAllPages(async () => ({ nodes: ["a"], totalPages: totalPages as never })),
+      ).rejects.toThrow();
+    },
+  );
 });

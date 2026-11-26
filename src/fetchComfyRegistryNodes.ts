@@ -49,8 +49,11 @@ export async function fetchAllPages<T>(
 ): Promise<T[]> {
   const first = await fetchPage(1);
   if (!Array.isArray(first?.nodes)) DIE("FAIL TO FETCH ALL NODES");
+  const totalPages = first.totalPages;
+  if (!Number.isSafeInteger(totalPages) || totalPages < 1)
+    DIE(`FAIL TO FETCH ALL NODES: invalid totalPages ${String(totalPages)}`);
   const nodes = [...first.nodes];
-  for (let page = 2; page <= first.totalPages; page++) {
+  for (let page = 2; page <= totalPages; page++) {
     const r = await fetchPage(page);
     if (!Array.isArray(r?.nodes)) DIE(`FAIL TO FETCH NODES PAGE ${page}`);
     nodes.push(...r.nodes);
