@@ -8,6 +8,7 @@ import isCI from "is-ci";
 import { extractOriginalPRNumber } from "./extractOriginalPRNumber";
 import { isReleasedCompareStatus } from "./isReleasedCompareStatus";
 import { branchCutPRsToLabel } from "./branchCutPRsToLabel";
+import { coreFrontendPin } from "./coreFrontendPin";
 
 export { extractOriginalPRNumber };
 
@@ -19,15 +20,16 @@ export { extractOriginalPRNumber };
  * release branch, or through the branch cut itself (merged to main before the
  * release branch forked, so no backport exists).
  *
- * - `released:core` = available in the latest desktop app
+ * - `released:core` = in the latest ComfyUI release (and so in Desktop)
  * - `released:cloud` = live on cloud.comfy.org
  *
  * Sources of truth:
- * - Core: Comfy-Org/desktop latest release → package.json → config.frontend.version
+ * - Core: Comfy-Org/ComfyUI latest release → requirements.txt → comfyui-frontend-package
  * - Cloud: Comfy-Org/cloud → ArgoCD prod overlay → frontendVersion SHA
  */
 
 const FRONTEND_REPO = { owner: "Comfy-Org", repo: "ComfyUI_frontend" };
+const COMFYUI_REPO = { owner: "Comfy-Org", repo: "ComfyUI" };
 
 // How far back from a release branch's fork point to look for main PRs that
 // reached it through the cut. Wider than one release cycle, so a PR merged
@@ -118,38 +120,24 @@ const save = async (
 // ── Resolve deployed versions ──────────────────────────────────────
 
 async function getCoreDeployedVersion(): Promise<{ ref: string; branch: string }> {
-  // Read latest desktop release's package.json to get pinned frontend version
-  const latestRelease = await ghc.repos.getLatestRelease({
-    owner: "Comfy-Org",
-    repo: "desktop",
-  });
+  const latestRelease = await ghc.repos.getLatestRelease({ ...COMFYUI_REPO });
   const tag = latestRelease.data.tag_name;
 
-  const pkgContent = await ghc.repos.getContent({
-    owner: "Comfy-Org",
-    repo: "desktop",
-    path: "package.json",
+  const requirements = await ghc.repos.getContent({
+    ...COMFYUI_REPO,
+    path: "requirements.txt",
     ref: tag,
   });
-
-  if (!("content" in pkgContent.data) || !pkgContent.data.content) {
-    throw new Error(`Expected desktop package.json at ${tag} to include file content`);
+  if (!("content" in requirements.data) || !requirements.data.content) {
+    throw new Error(`Expected ComfyUI requirements.txt at ${tag} to include file content`);
   }
-  const pkg = JSON.parse(Buffer.from(pkgContent.data.content, "base64").toString("utf-8"));
-  const version: string = pkg.config?.frontend?.version;
-  if (!version) throw new Error("No frontend version in desktop package.json");
+  const pin = coreFrontendPin(
+    Buffer.from(requirements.data.content, "base64").toString("utf-8"),
+  );
+  if (!pin) throw new Error(`No exact comfyui-frontend-package pin in ComfyUI ${tag}`);
 
-  const releaseTag = version.startsWith("v") ? version : `v${version}`;
-
-  // Get the release to find target branch
-  const release = await ghc.repos.getReleaseByTag({
-    ...FRONTEND_REPO,
-    tag: releaseTag,
-  });
-  const branch = release.data.target_commitish;
-
-  logger.info(`Core deployed: ${releaseTag} on ${branch} (desktop ${tag})`);
-  return { ref: releaseTag, branch };
+  logger.info(`Core deployed: ${pin.tag} on ${pin.branch} (ComfyUI ${tag})`);
+  return { ref: pin.tag, branch: pin.branch };
 }
 
 async function getCloudDeployedVersion(): Promise<{ ref: string; branch: string }> {
