@@ -19,6 +19,7 @@ import {
 } from "@/lib/notion/people";
 import { slackCached } from "@/lib";
 import { getReleaseComparison } from "./releaseComparison";
+import { dualHomedCandidateBranches } from "./dualHomedCandidates";
 
 /**
  * GitHub Frontend Backport Checker Task
@@ -145,7 +146,8 @@ import { getReleaseComparison } from "./releaseComparison";
  *   those freshly-cut branches (see ComfyUI_frontend's
  *   docs/release-process.md#dual-homed-commits). A bugfix PR with no
  *   backport label or mention is checked against every existing
- *   `core/1.**`/`cloud/1.**` branch before being flagged; if its commit SHA
+ *   `core/1.**`/`cloud/1.**` branch from the release's previous minor up
+ *   before being flagged; if its commit SHA
  *   is already an ancestor of one, it's marked "completed" there instead of
  *   "❗ Might need backport". This is intentionally NOT a release-type check
  *   (e.g. "skip all x.y.0 releases") — a minor release can still ship a
@@ -960,7 +962,7 @@ async function processTask(
               owner,
               repo,
               commitSha,
-              availableBackportTargetBranches,
+              dualHomedCandidateBranches(availableBackportTargetBranches, task.releaseTag),
             );
             if (dualHomedBranches.length) {
               logger.debug(
