@@ -12,5 +12,5 @@ export function fitSlackMarkdown(markdown: string, limit = 11000): string {
     length += line.length + 1;
   }
   const dropped = lines.slice(kept.length).filter((l) => l.trim()).length;
-  return kept.join("\n") + "\n" + note(dropped);
+  return kept.join("\n").trimEnd() + "\n" + note(dropped);
 }
