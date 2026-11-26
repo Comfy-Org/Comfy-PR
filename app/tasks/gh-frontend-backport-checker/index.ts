@@ -5,6 +5,7 @@ import DIE from "@snomiao/die";
 import isCI from "is-ci";
 import sflow from "sflow";
 import { upsertSlackMarkdownMessage } from "../gh-desktop-release-notification/upsertSlackMessage";
+import { fitSlackMarkdown } from "./fitSlackMarkdown";
 import urlRegexSafe from "url-regex-safe";
 import { ghc } from "@/lib/github/githubCached";
 import { logger } from "@/src/logger";
@@ -1098,7 +1099,7 @@ ${
 
 `;
 
-  const formattedReport = await prettier.format(rawReport, { parser: "markdown" });
+  const formattedReport = fitSlackMarkdown(await prettier.format(rawReport, { parser: "markdown" }));
   logger.info(formattedReport);
 
   task = await save({ ...task, bugfixCommits });
