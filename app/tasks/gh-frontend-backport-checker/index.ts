@@ -43,6 +43,9 @@ import { orderReleasesForRun } from "./releaseSchedule";
  *      - `maxMinorVersionsBehind` (4) — only show releases whose minor version
  *        is at most 4 behind the latest (e.g. if latest is v1.40, v1.36 is
  *        included but v1.35 is not)
+ *    Each run checks releases least recently checked first and stops starting
+ *    new ones after `releaseCheckBudgetMs` (4 min), so the combined-tasks step
+ *    finishes inside its 10-minute timeout and every release is reached in turn.
  *
  * 3. EXTRACT COMPARE LINK FROM RELEASE BODY
  *    Each release body contains a GitHub compare URL (e.g.
@@ -461,7 +464,7 @@ export default async function runGithubFrontendBackportCheckerTask() {
   }
 
   // Checking every release takes longer than the combined-tasks step timeout, so each run
-  // checks the newest release, then the least recently checked ones, until the budget is used.
+  // checks the least recently checked releases until the budget is used.
   const lastCheckedAt = new Map(
     (
       await GithubFrontendBackportCheckerTask.find(
