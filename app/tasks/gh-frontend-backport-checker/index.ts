@@ -21,6 +21,7 @@ import {
 import { slackCached } from "@/lib";
 import { getReleaseComparison } from "./releaseComparison";
 import { dualHomedCandidateBranches } from "./dualHomedCandidates";
+import { orderReleasesForRun } from "./releaseSchedule";
 
 /**
  * GitHub Frontend Backport Checker Task
@@ -42,6 +43,9 @@ import { dualHomedCandidateBranches } from "./dualHomedCandidates";
  *      - `maxMinorVersionsBehind` (4) — only show releases whose minor version
  *        is at most 4 behind the latest (e.g. if latest is v1.40, v1.36 is
  *        included but v1.35 is not)
+ *    Each run checks releases least recently checked first and stops starting
+ *    new ones after `releaseCheckBudgetMs` (4 min), so the combined-tasks step
+ *    finishes inside its 10-minute timeout and every release is reached in turn.
  *
  * 3. EXTRACT COMPARE LINK FROM RELEASE BODY
  *    Each release body contains a GitHub compare URL (e.g.
@@ -212,6 +216,9 @@ const config = {
   maxReleasesToCheck: 10, // fetch more releases, then filter by version distance
   maxMinorVersionsBehind: 4, // stop showing backport warnings after this many minor versions behind latest
   processSince: new Date("2026-01-06T00:00:00Z").toISOString(), // only process releases since this date, to avoid posting too msgs in old releases
+  // stop starting new releases after this long; one release can take ~4 min and the
+  // combined-tasks step times out at 10 min (.github/workflows/gh-combined-tasks.yaml)
+  releaseCheckBudgetMs: 4 * 60 * 1000,
 
   // 2. identify bugfix commits
   reBugfixPatterns: /\b(fix|bugfix|hotfix|patch|bug)\b/i,
@@ -416,48 +423,73 @@ export default async function runGithubFrontendBackportCheckerTask() {
     `Latest minor version: ${latestMinor}, will show releases within ${config.maxMinorVersionsBehind} minor versions`,
   );
 
-  // Process each release
-  const processedReleases = await sflow(releases)
+  const eligibleReleases = releases
     .filter((release) => +new Date(release.created_at) >= +new Date(config.processSince))
     // Filter by version distance: show releases up to and including maxMinorVersionsBehind behind latest
     .filter((release) => {
       const minor = parseMinorVersion(release.tag_name);
       if (minor === null) return true; // can't parse, include it
       return latestMinor - minor <= config.maxMinorVersionsBehind;
-    })
-    .map(async function convertReleaseToTask(release) {
-      const comparison = getReleaseComparison(
-        {
-          prerelease: release.prerelease,
-          bodyUrls:
-            release.body
-              ?.matchAll(urlRegexSafe())
-              .map((g) => g[0])
-              .toArray() || [],
-        },
-        config.repo,
+    });
+
+  async function convertReleaseToTask(release: (typeof releases)[number]) {
+    const comparison = getReleaseComparison(
+      {
+        prerelease: release.prerelease,
+        bodyUrls:
+          release.body
+            ?.matchAll(urlRegexSafe())
+            .map((g) => g[0])
+            .toArray() || [],
+      },
+      config.repo,
+    );
+    if (!comparison) return null;
+
+    const { compareLink } = comparison;
+    logger.debug(`  Found compare link: ${compareLink}`);
+
+    let task = await save({
+      releaseUrl: release.html_url,
+      releaseTag: release.tag_name,
+      releaseCreatedAt: new Date(release.created_at),
+
+      taskStatus: "checking",
+      checkedAt: new Date(),
+    });
+    logger.info(`\nProcessing release: ${task.releaseTag}`);
+
+    // 1. find full changelog link in release body, e.g. https://github.com/Comfy-Org/ComfyUI_frontend/compare/v1.38.0...v1.38.1
+    return await save({ ...task, compareLink });
+  }
+
+  // Checking every release takes longer than the combined-tasks step timeout, so each run
+  // checks the least recently checked releases until the budget is used.
+  const lastCheckedAt = new Map(
+    (
+      await GithubFrontendBackportCheckerTask.find(
+        { releaseUrl: { $in: eligibleReleases.map((r) => r.html_url) } },
+        { projection: { releaseUrl: 1, checkedAt: 1 } },
+      ).toArray()
+    ).map((t) => [t.releaseUrl, t.checkedAt ? +new Date(t.checkedAt) : 0] as const),
+  );
+  const deadline = Date.now() + config.releaseCheckBudgetMs;
+  const processedReleases: GithubFrontendBackportCheckerTask[] = [];
+  const ordered = orderReleasesForRun(eligibleReleases, lastCheckedAt);
+  for (const [index, release] of ordered.entries()) {
+    if (index > 0 && Date.now() > deadline) {
+      logger.info(
+        `Time budget used; ${ordered.length - index} release(s) deferred to the next run: ${ordered
+          .slice(index)
+          .map((r) => r.tag_name)
+          .join(", ")}`,
       );
-      if (!comparison) return [];
-
-      const { compareLink } = comparison;
-      logger.debug(`  Found compare link: ${compareLink}`);
-
-      let task = await save({
-        releaseUrl: release.html_url,
-        releaseTag: release.tag_name,
-        releaseCreatedAt: new Date(release.created_at),
-
-        taskStatus: "checking",
-        checkedAt: new Date(),
-      });
-      logger.info(`\nProcessing release: ${task.releaseTag}`);
-
-      // 1. find full changelog link in release body, e.g. https://github.com/Comfy-Org/ComfyUI_frontend/compare/v1.38.0...v1.38.1
-      return [await save({ ...task, compareLink })];
-    })
-    .flat()
-    .map((task) => processTask(task, availableBackportTargetBranches))
-    .toArray();
+      break;
+    }
+    const task = await convertReleaseToTask(release);
+    if (!task) continue;
+    processedReleases.push(await processTask(task, availableBackportTargetBranches));
+  }
 
   logger.info(
     `\nProcessed ${processedReleases.length} releases, checked ${
