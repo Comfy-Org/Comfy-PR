@@ -33,8 +33,6 @@ export async function fetchCRNodes(): Promise<
     tags: never[];
   }[]
 > {
-  // The registry's generated API types are not a dependency here, so the
-  // response stays `unknown` and fetchAllPages checks its shape at runtime.
   return (await fetchAllPages((page) =>
     fetchJson<unknown>(`https://api.comfy.org/nodes?page=${page}&limit=100`),
   )) as (typeof mockPublishedNodes)["nodes"];
